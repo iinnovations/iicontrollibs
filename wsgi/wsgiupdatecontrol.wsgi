@@ -4,12 +4,12 @@ def application(environ, start_response):
     import json
 
     import os,sys,inspect
-    top_folder = os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0]))[0]
+    top_folder = os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0])))[0]
     if top_folder not in sys.path:
         sys.path.insert(0,top_folder)
 
-    from iicontrollibs.cupid.pilib import dynamicsqliteread
-    import iicontrollibs.cupid.controllib as controllib
+    from cupid.pilib import dynamicsqliteread
+    import cupid.controllib as controllib
 
     post_env = environ.copy()
     post_env['QUERY_STRING'] = ''
