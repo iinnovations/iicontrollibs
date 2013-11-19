@@ -236,6 +236,11 @@ def setalgorithm(controldatabase,channelname,algorithm):
     from pilib import sqlitequery
     sqlitequery(controldatabase,'update channels set controlalgorithm=\'' + algorithm + '\' where name=\'' + channelname + '\'') 
 
+def setrecipe(controldatabase,channelname,recipe,startstage=0):
+    from pilib import sqlitequery
+    sqlitequery(controldatabase,'update channels set controlrecipe=\'' + recipe + '\' where name=\'' + channelname + '\'') 
+    sqlitequery(controldatabase,'update channels set recipestage=\'' + str(startstage) + '\' where name=\'' + channelname + '\'') 
+
 def setchannelenabled(controldatabase,channelname,newstatus):
     from pilib import sqlitequery
     sqlitequery(controldatabase,'update channels set enabled=\'' + newstatus + '\' where name=\'' + channelname + '\'') 
