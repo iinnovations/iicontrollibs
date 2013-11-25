@@ -107,7 +107,7 @@ if answer=='y':
 
     table='channels'
     querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " ( channelindex integer primary key, name text unique, controlinput text unique, enabled integer default 0, outputsenabled integer default 0, controlupdatetime text, controlalgorithm text default 'on/off 1', controlrecipe text default 'none', recipestage integer default 0, recipestarttime real default 0, recipestagestarttime real default 0, setpointvalue real, controlvalue real, controlvaluetime text, positiveoutput text, negativeoutput text, action real default 0, mode text manual, statusmessage text, logpoints real)")
+    querylist.append("create table " + table + " ( channelindex integer primary key, name text unique, controlinput text , enabled integer default 0, outputsenabled integer default 0, controlupdatetime text, controlalgorithm text default 'on/off 1', controlrecipe text default 'none', recipestage integer default 0, recipestarttime real default 0, recipestagestarttime real default 0, setpointvalue real, controlvalue real, controlvaluetime text, positiveoutput text, negativeoutput text, action real default 0, mode text manual, statusmessage text, logpoints real)")
 
     if addentries:
         querylist.append("insert into " + table + " values (1, 'channel 1', 'none', 0, 0, '', 'on/off 1', 'none',0,0,0,65, '', '', 'output1', 'output2', 0, 'auto', '', 1000)")
@@ -120,6 +120,35 @@ if runquery:
 # authlog 
 
 
+############################################
+# device info 
+
+runquery="False"
+database = '/var/www/data/deviceinfo.db'
+querylist=[]
+ 
+answer =raw_input('Rebuild network table (y/N)?')
+if answer=='y':
+    runquery="True"
+
+    table='network'
+    querylist.append('drop table if exists ' + table)
+    querylist.append("create table " + table + " (  parameter text, value text)") 
+    querylist.append("insert into " + table + " values ( 'IPAddress', '' )")
+
+answer =raw_input('Rebuild metadata table (y/N)?')
+if answer=='y':
+    runquery="True"
+
+    table='metadata'
+    querylist.append('drop table if exists ' + table)
+    querylist.append("create table " + table + " (  parameter text, value text)") 
+    querylist.append("insert into " + table + " values ( 'devicename', 'My CuPID' )")
+
+if runquery:
+    print(querylist)
+
+    sqlitemultquery(database,querylist)
 ############################################
 # recipesdata
 

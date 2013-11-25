@@ -122,12 +122,15 @@ def sqlitequery(database,query):
     con = lite.connect(database)
     con.text_factory = str
 
-    with con:
+    try:
+        with con:
 
-        cur = con.cursor()
-        cur.execute(query)
+            cur = con.cursor()
+            cur.execute(query)
     
-        data = cur.fetchall()
+            data = cur.fetchall()
+    except: 
+        data=''
 
     return data
 
@@ -183,7 +186,7 @@ def readalldbrows(database,table):
 # Now we put them together into a dynamically typed function
 # that we specify operation based on what arguments we send
 # No location argument = entire database
-# One locaiton argument = single row
+# One location argument = single row
 # Two arguments = range of rows
 
 def dynamicsqliteread(database,table,start = None,length = None):
@@ -193,7 +196,6 @@ def dynamicsqliteread(database,table,start = None,length = None):
         dictarray = readonedbrow(database,table,start)
     else:
         dictarray = readsomedbrows(database,table,start,length)
-
 
     return dictarray
 
