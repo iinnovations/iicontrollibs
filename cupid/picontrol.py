@@ -228,7 +228,9 @@ while systemstatus['picontrolenabled']:
 
 
                 # Insert entry into control log
-                pilib.sqliteinsertsingle(logdatabase,logtablename, [time, controlinput,controlvalue,setpointvalue,action,algorithm,channel['enabled'],statusmessage])
+                # need to calculate derivative
+                derivative = 0
+                pilib.sqliteinsertsingle(logdatabase,logtablename, [time, controlinput,controlvalue,setpointvalue,derivative,action,algorithm,channel['enabled'],statusmessage])
 
                 # Size log 
                 pilib.sizesqlitetable(logdatabase,logtablename,logpoints)
