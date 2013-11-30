@@ -47,6 +47,34 @@ def checklivesessions(authdb,user, expiry):
 ## Sqlite Functions
 #############################################
 
+def gettablenames(database):
+    result = sqlitequery(database,'select name from sqlite_master where type=\'table\'')
+    tables=[]
+    for element in result:
+        tables.append(element[0])
+    return tables 
+
+def getdatameta(database):
+    tablenames=gettablenames(database)
+    queryarray=[] 
+    for tablename in tablenames:
+        queryarray.append('select count(*) from \'' + tablename + '\'')
+    results = sqlitemultquery(database,queryarray)
+    meta=[]
+    for result,tablename in zip(results,tablenames):
+        meta.append([tablename,result[0][0]])
+    return meta 
+
+def getandsetmetadata(database):
+    meta=getdatameta(database)
+    queryarray=[]
+    queryarray.append('drop table if exists metadata')
+    queryarray.append('create table metadata ( name text, numpoints int)')
+    for item in meta:
+        queryarray.append('insert into metadata values (\'' + str(item[0]) + '\',' + '\'' + str(item[1]) + '\')')
+    #print(queryarray)
+    sqlitemultquery(database,queryarray)
+
 def getpragma(database,table):
     pragma = sqlitequery(database,'pragma table_info ( \'' + table + '\')')
     return pragma
