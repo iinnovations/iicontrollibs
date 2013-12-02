@@ -51,6 +51,11 @@ def application(environ, start_response):
     else:
         channelname = 'none'
 
+    if 'newmode' in post.keys():
+        newmode = post.getvalue("newmode")
+    else:
+        channelname = 'none'
+
     if 'outputname' in post.keys():
         outputname = post.getvalue("outputname")
     else:
@@ -67,6 +72,8 @@ def application(environ, start_response):
             controllib.setsetpoint(database,channelname,value)
     elif action=='togglemode' and database!='none':
         controllib.togglemode(database,channelname)
+    elif action=='setmode' and database!='none':
+        controllib.setmode(database,channelname,mode)
     elif action=='setrecipe':
         recipe=post.getvalue('recipe')
         controllib.setrecipe(database,channelname,recipe)

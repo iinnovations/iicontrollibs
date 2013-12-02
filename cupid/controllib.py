@@ -177,6 +177,11 @@ def setmode(controldatabase,channelname,mode):
     from pilib import sqlitequery
     sqlitequery(controldatabase,'update channels set mode=\'' + mode + '\' where name=\'' + channelname + '\'') 
 
+    # set action to 0 if we switch to manual
+    if mode =='manual':
+        setaction(controldatabase,channelname,0)
+        
+
 def getmode(controldatabase,channelname):
     from pilib import sqlitequery
     mode = sqlitequery(controldatabase,'select mode from channels where name=\'' + channelname + '\'')[0][0] 
