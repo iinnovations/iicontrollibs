@@ -37,6 +37,22 @@ if answer=='y':
     if addentries:
         querylist.append("insert into " + table + " values (0,0,15,'',1,0,15,'',0,1,0,'')")
 
+answer =raw_input('Rebuild indicators table (y/N)?')
+if answer=='y':
+    runquery=True
+
+    ### Indicators table 
+
+    table='indicators'
+    querylist.append('drop table if exists ' + table)
+    querylist.append("create table " + table + " ( name text, :)")
+
+    if addentries:
+        querylist.append("insert into " + table + " values (1, 18, 0, 'output1', 'manual', 0,'','',0,0)")
+        querylist.append("insert into " + table + " values (2, 23, 0, 'output2', 'manual', 0,'','',0,0)")
+        querylist.append("insert into " + table + " values (3, 24, 0, 'output3', 'manual', 0,'','',0,0)")
+        querylist.append("insert into " + table + " values (4, 25, 0, 'output4', 'manual', 0,'','',0,0)")
+
 answer =raw_input('Rebuild outputs table (y/N)?')
 if answer=='y':
     runquery=True
