@@ -1,5 +1,5 @@
 [Desktop Entry]
-Name=IDLE
+Name=Update
 Comment=Integrated Development Environment for Python
 Exec=/usr/lib/iicontrollibs/cupid/updatecupidweblibs.py
 Icon=/usr/lib/iicontrollibs/misc/images/updatecupidweblibs.png
