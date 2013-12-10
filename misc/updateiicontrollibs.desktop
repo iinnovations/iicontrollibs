@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=IDLE
+Comment=Integrated Development Environment for Python
+Exec=/usr/lib/iicontrollibs/cupid/updateiicontrollibs.py
+Icon=/usr/lib/iicontrollibs/misc/images/updateiicontrollibs.png
+Terminal=false
+MultipleArgs=false
+Type=Application
+Categories=Application;Development;
+StartupNotify=true
