@@ -42,16 +42,14 @@ if answer=='y':
     runquery=True
 
     ### Indicators table 
+    ## not built yet
 
     table='indicators'
     querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " ( name text, :)")
+    querylist.append("create table " + table + " ( name text, type text, status int, detail text)")
 
     if addentries:
         querylist.append("insert into " + table + " values (1, 18, 0, 'output1', 'manual', 0,'','',0,0)")
-        querylist.append("insert into " + table + " values (2, 23, 0, 'output2', 'manual', 0,'','',0,0)")
-        querylist.append("insert into " + table + " values (3, 24, 0, 'output3', 'manual', 0,'','',0,0)")
-        querylist.append("insert into " + table + " values (4, 25, 0, 'output4', 'manual', 0,'','',0,0)")
 
 answer =raw_input('Rebuild outputs table (y/N)?')
 if answer=='y':
@@ -168,7 +166,7 @@ if runquery:
 ############################################
 # recipesdata
 
-runquery="False"
+runquery=False
 database = '/var/www/data/recipedata.db'
 querylist=[]
  
@@ -189,3 +187,26 @@ if runquery:
     print(querylist)
 
     sqlitemultquery(database,querylist)
+
+########################################
+#
+# System data 
+
+runquery=False
+
+database = '/var/www/data/systemdata.db'
+querylist=[]
+
+answer =raw_input('Rebuild versions table (y/N)?')
+if answer=='y':
+    runquery=True
+
+    ### About table
+
+    table='versions'
+    querylist.append('drop table if exists ' + table)
+    querylist.append("create table " + table + " ( item text primary key,  version text, versiontime text, updatetime text)")
+
+if runquery:
+    sqlitemultquery(database,querylist)
+

@@ -101,8 +101,8 @@ def datarowtodict(database,table,datarow):
         index+=1
     return dict
 
-def makesqliteinsert(database, table, valuelist,insert=True):
-    if insert:
+def makesqliteinsert(database, table, valuelist,replace=True):
+    if replace:
         query = 'insert or replace into \'' + table + '\' values('
     else:
         query = 'insert into \'' + table + '\' values('

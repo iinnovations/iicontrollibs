@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Update
 Comment=Integrated Development Environment for Python
-Exec=/usr/lib/iicontrollibs/cupid/updateiicontrollibs.py
+Exec=/usr/lib/iicontrollibs/misc/updateiicontrollibs.py
 Icon=/usr/lib/iicontrollibs/misc/images/updateiicontrollibs.png
 Terminal=false
 MultipleArgs=false
