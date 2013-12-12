@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Update
-Comment=Integrated Development Environment for Python
-Exec=/usr/lib/iicontrollibs/misc/updateiicontrollibs.py
+Comment=Interface Innovations CuPID Software Update
+Exec=/usr/lib/iicontrollibs/misc/updateiicontrollibs.desktop.py
 Icon=/usr/lib/iicontrollibs/misc/images/updateiicontrollibs.png
 Terminal=false
 MultipleArgs=false

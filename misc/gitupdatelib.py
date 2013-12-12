@@ -39,6 +39,19 @@ def pullrepo(repodirectory,originname):
 def addversionentry(database,table,entrydict):
     sqliteinsertsingle(database,table,[entrydict['name'],entrydict['headcommithexsha'],gettimestring(entrydict['headcommitdate']),gettimestring()])
 
+def updateiicontrollibs():
+    repo='/usr/lib/iicontrollibs'
+    originname='master'
+    pullrepo(repo,originname)
+    updateversion(repo)
+    print('update complete')
+
+def updatecupidweblibs():
+    repo='/var/www'
+    originname='master'
+    pullrepo(repo,originname)
+    updateversion(repo)
+    print('update complete')
     
 if __name__=="__main__":
     #pullrepo(defaultrepo)
