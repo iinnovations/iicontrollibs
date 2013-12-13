@@ -138,7 +138,7 @@ if runquery:
 # device info 
 
 runquery="False"
-database = '/var/www/data/deviceinfo.db'
+database = '/var/www/data/systemdata.db'
 querylist=[]
  
 answer =raw_input('Rebuild network table (y/N)?')
@@ -159,10 +159,21 @@ if answer=='y':
     querylist.append("create table " + table + " (  parameter text, value text)") 
     querylist.append("insert into " + table + " values ( 'devicename', 'My CuPID' )")
 
+answer =raw_input('Rebuild versions table (y/N)?')
+if answer=='y':
+    runquery=True
+
+    ### About table
+
+    table='versions'
+    querylist.append('drop table if exists ' + table)
+    querylist.append("create table " + table + " ( item text primary key,  version text, versiontime text, updatetime text)")
+
 if runquery:
     print(querylist)
 
     sqlitemultquery(database,querylist)
+
 ############################################
 # recipesdata
 
@@ -186,27 +197,5 @@ if answer=='y':
 if runquery:
     print(querylist)
 
-    sqlitemultquery(database,querylist)
-
-########################################
-#
-# System data 
-
-runquery=False
-
-database = '/var/www/data/systemdata.db'
-querylist=[]
-
-answer =raw_input('Rebuild versions table (y/N)?')
-if answer=='y':
-    runquery=True
-
-    ### About table
-
-    table='versions'
-    querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " ( item text primary key,  version text, versiontime text, updatetime text)")
-
-if runquery:
     sqlitemultquery(database,querylist)
 
