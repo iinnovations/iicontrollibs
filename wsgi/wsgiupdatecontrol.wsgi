@@ -8,8 +8,8 @@ def application(environ, start_response):
     if top_folder not in sys.path:
         sys.path.insert(0,top_folder)
 
-    from cupid.pilib import dynamicsqliteread
     import cupid.controllib as controllib
+    import cupid.pilib as pilib
 
     post_env = environ.copy()
     post_env['QUERY_STRING'] = ''
@@ -18,6 +18,7 @@ def application(environ, start_response):
         environ=post_env,
         keep_blank_values=True
     )
+    output=''
 
     formname=post.getvalue('name')
 
@@ -32,44 +33,68 @@ def application(environ, start_response):
     action = post.getvalue("action")
 
     if 'subaction' not in post.keys():
-        subaction = 'none'
+        subaction = None 
     else:
         subaction = post.getvalue("subaction")
 
+    if 'table' not in post.keys():
+        table = None 
+    else:
+        table = post.getvalue("table")
+
+    if 'valuename' not in post.keys():
+        valuename = None 
+    else:
+        valuename = post.getvalue("valuename")
+
+    if 'condition' not in post.keys():
+        condition = None 
+    else:
+        condition = post.getvalue("condition")
+
     if 'value' not in post.keys():
-        value = 'none'
+        value = None 
     else:
         value = post.getvalue("value")
 
     if 'database' in post.keys():
         database = post.getvalue("database")
     else:
-        database = 'none'
+        database = None
 
     if 'channelname' in post.keys():
         channelname = post.getvalue("channelname")
     else:
-        channelname = 'none'
+        channelname = None 
 
     if 'newmode' in post.keys():
         newmode = post.getvalue("newmode")
     else:
-        channelname = 'none'
+        newmode = None 
 
     if 'outputname' in post.keys():
         outputname = post.getvalue("outputname")
     else:
-        outputname = 'none'
+        outputname = None 
 
+    # carry out generic set value
+    if action=='setvalue' and database and table and valuename and value:
+        output+='Carrying out setvalue. '
+        pilib.setsinglevalue(database,table,valuename,value,condition)
+        
     # act on action
 
-    if action=='spchange' and database!='none':
+    if action=='spchange' and database:
+        output+='Spchanged. '
         if subaction=='incup':
             controllib.incsetpoint(database,channelname)
+            output+='incup. '
         if subaction=='incdown':
             controllib.decsetpoint(database,channelname)
+            output+='incdown. '
         if subaction=='setvalue':
             controllib.setsetpoint(database,channelname,value)
+            output+='Setvalue: ' + database + ' ' + channelname + ' ' + value
     elif action=='togglemode' and database!='none':
         controllib.togglemode(database,channelname)
     elif action=='setmode' and database!='none':
@@ -127,7 +152,7 @@ def application(environ, start_response):
             else:
                 nextvalue=0
             controllib.setaction(database,channelname,nextvalue) 
-    output = 'status complete'  
+    output += 'Status complete.'  
 
     response_headers = [('Content-type', 'text/plain'), ('Content-Length',str(len(output)))]
     start_response(status,response_headers)

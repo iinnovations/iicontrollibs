@@ -170,6 +170,15 @@ def sqlitedatumquery(database,query):
         datum=''
     return datum
 
+def setsinglevalue(database,table,valuename,value,condition=None):
+
+    query='update ' + '\"' + table + '\" set \"' + valuename + '\"=\"' + value + '\"'
+    if condition:
+        query+= ' where ' + condition
+
+    response=sqlitequery(database,query)
+    return(response)
+
 def readonedbrow(database,table,rownumber):
     data = sqlitequery(database,'select * from \'' + table + '\'')
     datarow = data[rownumber]
