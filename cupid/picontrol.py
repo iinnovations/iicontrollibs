@@ -47,7 +47,7 @@ while systemstatus['picontrolenabled']:
         # Make sure channel is enabled
         if channel['enabled']:
 
-            query = 'create table if not exists \'' + logtablename + '\' (time text, controlinput text, controlvalue real, setpointvalue real, derivative real, action real, algorithm text, enabled real, statusmessage text)'
+            query = 'create table if not exists \'' + logtablename + '\' (time text, controlinput text, controlvalue real, setpointvalue real, action real, algorithm text, enabled real, statusmessage text)'
 
             pilib.sqlitequery(logdatabase,query) 
 
@@ -85,7 +85,7 @@ while systemstatus['picontrolenabled']:
                 channeloutputnames.append(channel['positiveoutput'])
                 channeloutputnames.append(channel['negativeoutput'])
 
-                # create a dict array of just the outputs for this channel
+                # create a dict array of just the outputs for this channe
                 # this will ignore 'none' values in channeloutputnames
                 # as there will not be an output of this name
  
@@ -229,8 +229,7 @@ while systemstatus['picontrolenabled']:
 
                 # Insert entry into control log
                 # need to calculate derivative
-                derivative = 0
-                pilib.sqliteinsertsingle(logdatabase,logtablename, [time, controlinput,controlvalue,setpointvalue,derivative,action,algorithm,channel['enabled'],statusmessage])
+                pilib.sqliteinsertsingle(logdatabase,logtablename, [time, controlinput,controlvalue,setpointvalue,action,algorithm,channel['enabled'],statusmessage])
 
                 # Size log 
                 pilib.sizesqlitetable(logdatabase,logtablename,logpoints)

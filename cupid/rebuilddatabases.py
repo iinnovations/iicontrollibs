@@ -147,8 +147,8 @@ if answer=='y':
 
     table='network'
     querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " (  parameter text, value text)") 
-    querylist.append("insert into " + table + " values ( 'IPAddress', '' )")
+    querylist.append("create table " + table + " ( IPAddress text, gateway text, WANaccess text, networkSSID text)") 
+    querylist.append("insert into " + table + " values ( '', '','','' )")
 
 answer =raw_input('Rebuild metadata table (y/N)?')
 if answer=='y':
@@ -156,8 +156,8 @@ if answer=='y':
 
     table='metadata'
     querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " (  parameter text, value text)") 
-    querylist.append("insert into " + table + " values ( 'devicename', 'My CuPID' )")
+    querylist.append("create table " + table + " (  devicename text, groupname text)") 
+    querylist.append("insert into " + table + " values ( 'My CuPID', 'None' )")
 
 answer =raw_input('Rebuild versions table (y/N)?')
 if answer=='y':

@@ -77,10 +77,22 @@ def application(environ, start_response):
     else:
         outputname = None 
 
+    if 'index' in post.keys():
+        index = post.getvalue("index")
+    else:
+        index = None 
+
     # carry out generic set value
     if action=='setvalue' and database and table and valuename and value:
         output+='Carrying out setvalue. '
-        pilib.setsinglevalue(database,table,valuename,value,condition)
+        if condition:
+            pilib.setsinglevalue(database,table,valuename,value,condition)
+        elif index:
+            condition='rowid= ' + index
+            pilib.setsinglevalue(database,table,valuename,value,condition)
+        else:
+            pilib.setsinglevalue(database,table,valuename,value)
+        
         
     # act on action
 

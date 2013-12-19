@@ -8,7 +8,7 @@ def application(environ, start_response):
     if top_folder not in sys.path:
         sys.path.insert(0,top_folder)
 
-    from cupid.pilib import dynamicsqliteread, sqlitequery, sqlitemultquery
+    from cupid.pilib import dynamicsqliteread, gettablenames, sqlitequery, sqlitemultquery
 
     post_env = environ.copy()
     post_env['QUERY_STRING'] = ''
@@ -25,12 +25,13 @@ def application(environ, start_response):
         d[k] = post.getvalue(k)
 
     status = '200 OK'
-
     # Run stuff as requested
     # We use the dynamic function to allow various  
     # types of queries
-
-    if 'length' in d:			# Handle table row subset 
+    if 'specialaction' in d:
+        if d['specialaction']=='gettablenames':
+            data=gettablenames(d['database']) 
+    elif 'length' in d:			# Handle table row subset 
         data=dynamicsqliteread(d['database'],d['table'],d['start'],d['length'])
     elif 'row' in d:			# Handle table row
         data=dynamicsqliteread(d['database'],d['table'],d['row'])
