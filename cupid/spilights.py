@@ -1,15 +1,12 @@
 #!/usr/bin/python
 
-def setrawspilights(enabledlist1, enabledlist2):
+def setrawspilights(enabledlists):
 
     import spidev
     import time
 
     spi = spidev.SpiDev()
     spi.open(0,1)   # Port 0, CS1
-
-    #enabledlist1 = [0,0,0,0,0,0,0,0]
-    #enabledlist2 = [0,0,0,0,0,0,0,0]
 
     # Notes:
     # Low is on. Cathodes are open drain.
@@ -38,23 +35,17 @@ def setrawspilights(enabledlist1, enabledlist2):
     # 7 : RGB 2 Blue 
     # 8 : RGB 2 Red 
 
-    wordsum1=0
-    for index,bit in enumerate(enabledlist1):
-        wordsum1+=bit*(bit*2)**index
-    print('wordsum1: ' + str(wordsum1))
-    wordsum2=0
-    for index,bit in enumerate(enabledlist2):
-        wordsum2+=bit*(bit*2)**index
-    print('wordsum2: ' + str(wordsum2)) 
+    spiassignments=[] 
+    for enabledlist in enabledlists:
+        bytesum=0
+        for index,bit in enumerate(enabledlist):
+           bytesum+=bit*(2**index)
+           spiassign=255-bytesum
+           spiassignments.append(spiassign)
 
-    spiassign1=255-wordsum1
-    spiassign2=255-wordsum2
-    #spiassign1=0
-    #spiassign2=0
-
-     # Transfer one byte
-    resp = spi.xfer2([spiassign1,spiassign2])
-    print(resp[0])
+    # Transfer bytes 
+    resp = spi.xfer2(spiassignments)
+    return resp 
 
 def setspilights(lightsettingsarray):
     # RGB1, RGB2, RGB3, RGB4, singlered, singlegreen, singleblue, singleyellow
@@ -71,10 +62,10 @@ def setspilights(lightsettingsarray):
    
     enabledlist1=[RGB2[1],RGB1[2],RGB1[0],RGB1[1],singleyellow,singleblue,singlegreen,singlered]
     enabledlist2=[RGB4[2],RGB4[0],RGB4[1],RGB3[2],RGB3[0],RGB3[1],RGB2[2],RGB2[0]]
-    setrawspilights(enabledlist1,enabledlist2)
+    setrawspilights([enabledlist1,enabledlist2])
 
 def setspilightsoff():
-   setrawspilights([0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0])   
+   setrawspilights([[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0]])   
 
 def twitterspilights(delay):
    import time

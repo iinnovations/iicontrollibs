@@ -30,6 +30,7 @@ while inputsreadenabled:
     
     # Set last run time
     pilib.sqlitequery(controldatabase, 'update systemstatus set lastinputspoll=\'' + pilib.gettimestring() + '\'')
+    pilib.sqlitequery(controldatabase, 'update systemstatus set inputsreadstatus=\'1\'')
 
     # Read and record everything as specified in controldatabase 
 
@@ -70,13 +71,13 @@ while inputsreadenabled:
                 #print(controlinput)
                 pilib.sqlitequery(controldatabase, 'update channels set controlvaluetime=\'' + controltime + '\' where controlinput = ' + "'" + controlinput + "'") 
         
-        else:   # ROM is empty 
+        else:   # input is empty 
             pilib.sqlitequery(controldatabase,"update channels set statusmessage = \'No controlinput found '") 
 
             # disable channel
             #pilib.sqlitequery(controldatabase,"update channels set enabled=0 where controlinput = \'" + controlinput + "'") 
 
-        # print(controlROM)
+        # print(controlinput)
         # print(controltime)
         # print(controlvalue)
 
@@ -107,6 +108,7 @@ while inputsreadenabled:
     #print("sleeping")
     sleep(readtime)
 
+pilib.sqlitequery(controldatabase, 'update systemstatus set inputsreadstatus=\'0\'')
 
 
     
