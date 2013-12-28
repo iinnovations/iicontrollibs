@@ -13,6 +13,21 @@ def setrawspilights(enabledlists):
     # This unforunately means we need to initialize
     # to off on start-up. not a huge deal
 
+    spiassignments=[] 
+    for enabledlist in enabledlists:
+        bytesum=0
+        for index,bit in enumerate(enabledlist):
+           bytesum+=bit*(2**index)
+           
+        spiassign=255-bytesum
+        spiassignments.append(spiassign)
+
+    # Transfer bytes 
+    resp = spi.xfer2(spiassignments)
+    return resp 
+
+def setspilights(lightsettingsarray):
+
     # Color LED assignments:
     # list 1:
     # 1 : RGB 2 Green 
@@ -35,23 +50,8 @@ def setrawspilights(enabledlists):
     # 7 : RGB 2 Blue 
     # 8 : RGB 2 Red 
 
-    spiassignments=[] 
-    for enabledlist in enabledlists:
-        bytesum=0
-        for index,bit in enumerate(enabledlist):
-           bytesum+=bit*(2**index)
-           spiassign=255-bytesum
-           spiassignments.append(spiassign)
-
-    # Transfer bytes 
-    resp = spi.xfer2(spiassignments)
-    return resp 
-
-def setspilights(lightsettingsarray):
     # RGB1, RGB2, RGB3, RGB4, singlered, singlegreen, singleblue, singleyellow
     RGB1=lightsettingsarray[0]
-    print('RGB1')
-    print(RGB1)
     RGB2=lightsettingsarray[1]
     RGB3=lightsettingsarray[2]
     RGB4=lightsettingsarray[3]
@@ -62,6 +62,9 @@ def setspilights(lightsettingsarray):
    
     enabledlist1=[RGB2[1],RGB1[2],RGB1[0],RGB1[1],singleyellow,singleblue,singlegreen,singlered]
     enabledlist2=[RGB4[2],RGB4[0],RGB4[1],RGB3[2],RGB3[0],RGB3[1],RGB2[2],RGB2[0]]
+    print('enabled lists')
+    print(enabledlist1)
+    print(enabledlist2)
     setrawspilights([enabledlist1,enabledlist2])
 
 def setspilightsoff():
@@ -97,4 +100,5 @@ def twitterspilights(delay):
       if index>=len(settingsarray):
           index=0 
 if __name__ == '__main__':
+   #twitterspilights(1)
    setspilightsoff()
