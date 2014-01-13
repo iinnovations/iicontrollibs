@@ -7,7 +7,7 @@
 #######################################################
 
 def runalgorithm(controldatabase, recipedatabase, channelname):
-    from pilib import sqlitequery,datarowtodict,gettimestring, timestringtoseconds
+    from pilib import sqlitequery, datarowtodict, gettimestring, timestringtoseconds
     import time 
     message=''
     
@@ -31,7 +31,7 @@ def runalgorithm(controldatabase, recipedatabase, channelname):
         recipedictarray=[]
 
         for stage in recipedata:
-            recipedict=datarowtodict(recipedatabase,controlrecipename,stage)
+            recipedict=datarowtodict(recipedatabase, controlrecipename, stage)
             recipedictarray.append(recipedict)
 
         # get current stage
@@ -117,12 +117,12 @@ def runalgorithm(controldatabase, recipedatabase, channelname):
         
         # set action based on setpoint 
 
-    algorithm=channeldict['controlalgorithm']
-    setpointvalue=float(channeldict['setpointvalue'])
-    controlvalue=float(channeldict['controlvalue'])
+    algorithm = channeldict['controlalgorithm']
+    setpointvalue = float(channeldict['setpointvalue'])
+    controlvalue = float(channeldict['controlvalue'])
 
-    algorithmrows=sqlitequery(controldatabase,'select * from controlalgorithms where name='  + "'" + algorithm + "'")
-    algorithmrow=algorithmrows[0]
+    algorithmrows = sqlitequery(controldatabase,'select * from controlalgorithms where name='  + "'" + algorithm + "'")
+    algorithmrow = algorithmrows[0]
     algorithm=datarowtodict(controldatabase,'controlalgorithms',algorithmrow)
     type=algorithm['type']
     if type=='on/off with deadband':

@@ -5,6 +5,8 @@ def application(environ, start_response):
 
     import os,sys,inspect
 
+    # Set top folder to allow import of modules
+
     top_folder = os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0])))[0]
     if top_folder not in sys.path:
         sys.path.insert(0,top_folder)

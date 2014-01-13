@@ -14,7 +14,6 @@ def readinputs(database):
   
     return("outputs read")
 
-
 if __name__=="__main__":
     database='/var/www/data/controldata.db'
     readinputs(database)

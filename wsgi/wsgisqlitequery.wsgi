@@ -3,6 +3,8 @@ def application(environ, start_response):
     import cgi
     import json
 
+    # Set top folder to allow import of modules
+
     import os,sys,inspect
     top_folder = os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0])))[0]
     if top_folder not in sys.path:

@@ -2,8 +2,7 @@
 # Colin Reese
 # 12/18/2012
 #
-# This script handles owfs read functions and converts read
-# temperatures into a simple html file
+# This script handles owfs read functions
 
 import os
 import time
@@ -11,7 +10,7 @@ import pilib
 
 def readowfs(onewiredir):
 
-    querylist=[];
+    querylist=[]
     querylist.append('delete from sensordata')
 
     onlineROMlist=[]
@@ -31,7 +30,7 @@ def readowfs(onewiredir):
     if onlineROMlist:
         #print("ROMs online:\n")
         #print(onlineROMlist)
-        os.system('echo ' +  onlineROMlist[0] + '> /home/pi/ROMs')
+        #os.system('echo ' +  onlineROMlist[0] + '> /home/pi/ROMs')
         # default to fahrenheit
 
         tempscale="F"
@@ -58,6 +57,7 @@ def recordowfsdata(controldatabase,ROMsandvalues=None):
     # Write to database
     # At the moment all are enabled by default.
     # Eventually we'll read this before we delete all entries
+
     if ROMsandvalues: 
         for tuple in ROMsandvalues:
 
@@ -83,4 +83,3 @@ if __name__ == "__main__":
 
     print(ROMsandvalues)
     print(writeresponse)
-   

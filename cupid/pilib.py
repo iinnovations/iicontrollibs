@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# This library is for use by all other fermostat pi
+# This library is for use by all other pi
 # functions
 
 #############################################
@@ -27,6 +27,39 @@ def timestringtoseconds(timestring):
         timeinseconds=0
     return timeinseconds
 
+class gmail:
+    def __init__(self,server='smtp.gmail.com',port=587,subject='default subject',message='default message',login='',password='',recipient='',sender='CuPID Mailer'):
+        self.server=server
+        self.port=port
+        self.message=message
+        self.subject=subject
+        self.sender=sender
+        self.login=login
+        self.password=password
+        self.recipient=recipient
+        self.sender=sender
+
+    def send(self):
+        import smtplib
+ 
+        headers = ["From: " + self.sender,
+           "Subject: " + self.subject,
+           "To: " + self.recipient,
+           "MIME-Version: 1.0",
+           "Content-Type: text/html"]
+        headers = "\r\n".join(headers)
+ 
+        session = smtplib.SMTP(self.server, self.port)
+ 
+        session.ehlo()
+        session.starttls()
+        session.ehlo
+        session.login(self.login, self.password)
+ 
+        session.sendmail(self.sender, self.recipient, headers + "\r\n\r\n" + self.message)
+        session.quit()
+
+    
 #############################################
 ## Authlog functions 
 #############################################
