@@ -59,7 +59,6 @@ class gmail:
         session.sendmail(self.sender, self.recipient, headers + "\r\n\r\n" + self.message)
         session.quit()
 
-    
 #############################################
 ## Authlog functions 
 #############################################
@@ -79,6 +78,15 @@ def checklivesessions(authdb,user, expiry):
 #############################################
 ## Sqlite Functions
 #############################################
+
+class database:
+    def __init__(self,path):
+        self.directory=directory
+    def gettablenames(self):
+        self.tablenames=gettablenames(self.path)
+    def getdatameta(self): 
+        self.meta=gettablenames(self.path)
+
 
 def gettablenames(database):
     result = sqlitequery(database,'select name from sqlite_master where type=\'table\'')

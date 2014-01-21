@@ -46,10 +46,26 @@ if answer=='y':
 
     table='indicators'
     querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " ( name text, type text, status int, detail text)")
+    querylist.append("create table " + table + " ( name text primary key, type text, status int, detail text)")
+    addentries=True
 
     if addentries:
-        querylist.append("insert into " + table + " values (1, 18, 0, 'output1', 'manual', 0,'','',0,0)")
+        querylist.append("insert into " + table + " values ('SPI_RGB1_R', 'SPI', 0,'red')")
+        querylist.append("insert into " + table + " values ('SPI_RGB1_G', 'SPI', 0,'green')")
+        querylist.append("insert into " + table + " values ('SPI_RGB1_B', 'SPI', 0,'blue')")
+        querylist.append("insert into " + table + " values ('SPI_RGB2_R', 'SPI', 0,'red')")
+        querylist.append("insert into " + table + " values ('SPI_RGB2_G', 'SPI', 0,'green')")
+        querylist.append("insert into " + table + " values ('SPI_RGB2_B', 'SPI', 0,'blue')")
+        querylist.append("insert into " + table + " values ('SPI_RGB3_R', 'SPI', 0,'red')")
+        querylist.append("insert into " + table + " values ('SPI_RGB3_G', 'SPI', 0,'green')")
+        querylist.append("insert into " + table + " values ('SPI_RGB3_B', 'SPI', 0,'blue')")
+        querylist.append("insert into " + table + " values ('SPI_RGB4_R', 'SPI', 0,'red')")
+        querylist.append("insert into " + table + " values ('SPI_RGB4_G', 'SPI', 0,'green')")
+        querylist.append("insert into " + table + " values ('SPI_RGB4_B', 'SPI', 0,'blue')")
+        querylist.append("insert into " + table + " values ('SPI_SC_R', 'SPI', 0,'red')")
+        querylist.append("insert into " + table + " values ('SPI_SC_G', 'SPI', 0,'green')")
+        querylist.append("insert into " + table + " values ('SPI_SC_B', 'SPI', 0,'blue')")
+        querylist.append("insert into " + table + " values ('SPI_SC_Y', 'SPI', 0,'yellow')")
 
 answer =raw_input('Rebuild outputs table (y/N)?')
 if answer=='y':
@@ -59,23 +75,27 @@ if answer=='y':
 
     table='outputs'
     querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " ( outputindex real primary key, GPIO real unique, enabled integer default 0, name text unique, mode text default 'manual', status integer default 0, ontime string, offtime string, minontime real, minofftime real)")
-
+    querylist.append("create table " + table + " ( id text primary key, interface text, type text, address text, enabled integer default 0, name text unique, mode text default 'manual', status integer default 0, ontime string, offtime string, minontime real, minofftime real)")
+    addentries=True
     if addentries:
-        querylist.append("insert into " + table + " values (1, 18, 0, 'output1', 'manual', 0,'','',0,0)")
-        querylist.append("insert into " + table + " values (2, 23, 0, 'output2', 'manual', 0,'','',0,0)")
-        querylist.append("insert into " + table + " values (3, 24, 0, 'output3', 'manual', 0,'','',0,0)")
-        querylist.append("insert into " + table + " values (4, 25, 0, 'output4', 'manual', 0,'','',0,0)")
+        querylist.append("insert into " + table + " values ('GPIO1', 'GPIO', 'GPIO', '18', 0, 'output1', 'manual', 0,'','',0,0)")
+        querylist.append("insert into " + table + " values ('GPIO2', 'GPIO', 'GPIO', '23', 0, 'output2', 'manual', 0,'','',0,0)")
+        querylist.append("insert into " + table + " values ('GPIO3', 'GPIO', 'GPIO', '24', 0, 'output3', 'manual', 0,'','',0,0)")
+        querylist.append("insert into " + table + " values ('GPIO4', 'GPIO', 'GPIO', '25', 0, 'output4', 'manual', 0,'','',0,0)")
+        querylist.append("insert into " + table + " values ('GPIO5', 'GPIO', 'GPIO', '4', 0, 'output5', 'manual', 0,'','',0,0)")
+        querylist.append("insert into " + table + " values ('GPIO6', 'GPIO', 'GPIO', '17', 0, 'output6', 'manual', 0,'','',0,0)")
+        querylist.append("insert into " + table + " values ('GPIO7', 'GPIO', 'GPIO', '21', 0, 'output7', 'manual', 0,'','',0,0)")
+        querylist.append("insert into " + table + " values ('GPIO8', 'GPIO', 'GPIO', '22', 0, 'output8', 'manual', 0,'','',0,0)")
 
-answer =raw_input('Rebuild inputsinfo table (y/N)?')
+answer =raw_input('Rebuild ioinfo table (y/N)?')
 if answer=='y':
     runquery=True
 
     ### Inputs Info Table 
 
-    table='inputsinfo'
+    table='ioinfo'
     querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " (inputid text primary key, inputname text)")
+    querylist.append("create table " + table + " (ioid text primary key, inputname text)")
 
 answer =raw_input('Rebuild inputsdata table (y/N)?')
 if answer=='y':
@@ -85,7 +105,7 @@ if answer=='y':
 
     table='inputsdata'
     querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " (id text primary key, interface text, type text, value real, unit text, polltime text, enabled real default 1, name text unique)")
+    querylist.append("create table " + table + " (id text primary key, interface text, type text, address text, value real, unit text, polltime text, enabled real default 1, name text unique)")
 
 answer =raw_input('Rebuild algorithms table (y/N)?')
 if answer=='y':
