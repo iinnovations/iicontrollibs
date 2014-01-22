@@ -220,7 +220,7 @@ def setsinglevalue(database,table,valuename,value,condition=None):
     response=sqlitequery(database,query)
     return(response)
 
-def readonedbrow(database,table,rownumber):
+def readonedbrow(database,table,rownumber=0):
     data = sqlitequery(database,'select * from \'' + table + '\'')
     datarow = data[rownumber]
     

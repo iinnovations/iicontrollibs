@@ -87,6 +87,18 @@ if answer=='y':
         querylist.append("insert into " + table + " values ('GPIO7', 'GPIO', 'GPIO', '21', 0, 'output7', 'manual', 0,'','',0,0)")
         querylist.append("insert into " + table + " values ('GPIO8', 'GPIO', 'GPIO', '22', 0, 'output8', 'manual', 0,'','',0,0)")
 
+answer =raw_input('Rebuild network table (y/N)?')
+if answer=='y':
+    runquery=True
+
+    ### Network settings table 
+
+    table='network'
+    querylist.append('drop table if exists ' + table)
+    querylist.append("create table " + table + " (nettype text, addtype text, address text, gateway text)")
+
+    querylist.append("insert into " + table + " values ('station','static','192.168.1.40','192.168.1.1')")
+
 answer =raw_input('Rebuild ioinfo table (y/N)?')
 if answer=='y':
     runquery=True
