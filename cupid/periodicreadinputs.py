@@ -11,6 +11,7 @@ import os
 import pilib
 import readinputs
 from time import sleep
+
 onewiredir = "/var/1wire/"
 outputdir = "/var/www/data/"
 controldatabase='/var/www/data/controldata.db'
@@ -19,14 +20,14 @@ logdatabase='/var/www/data/logdata.db'
 readtime=10  	# default, seconds
 
 # Read from systemstatus to make sure we should be running
-inputsreadenabled=pilib.sqlitequery(controldatabase,'select inputsreadenabled from systemstatus')[0][0]
+inputsreadenabled=pilib.sqlitedatumquery(controldatabase,'select inputsreadenabled from systemstatus')
 while inputsreadenabled:   
     #print("runtime")
     #print("reading input")
     # Read again, once inside each loop so we terminate if the 
     # variable name is changed
 
-    inputsreadenabled=pilib.sqlitequery(controldatabase,'select inputsreadenabled from systemstatus')[0][0]
+    inputsreadenabled=pilib.sqlitedatumquery(controldatabase,'select inputsreadenabled from systemstatus')
     
     # Set last run time
     pilib.sqlitequery(controldatabase, 'update systemstatus set lastinputspoll=\'' + pilib.gettimestring() + '\'')
@@ -102,6 +103,7 @@ while inputsreadenabled:
         # Size log based on specified size
   
         pilib.sizesqlitetable(logdatabase,logtablename,logpoints)
+
     #########################
     # log metadata
     pilib.getandsetmetadata(logdatabase)

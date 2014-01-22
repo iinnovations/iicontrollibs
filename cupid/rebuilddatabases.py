@@ -99,6 +99,16 @@ if answer=='y':
 
     querylist.append("insert into " + table + " values ('station','static','192.168.1.40','192.168.1.1')")
 
+answer =raw_input('Rebuild owfs table (y/N)?')
+if answer=='y':
+    runquery=True
+
+    ### OWFS Table
+
+    table='owfs'
+    querylist.append('drop table if exists ' + table)
+    querylist.append("create table " + table + " (address text primary key, family text, id text, type text, crc8 text)")
+
 answer =raw_input('Rebuild ioinfo table (y/N)?')
 if answer=='y':
     runquery=True

@@ -2,15 +2,17 @@
 
 def readinputs(database):
     
-    onewiredir='/var/1wire/'
+    # TODO: We are going to have selective enable/disable
+    # of interfaces in here from the system control
+    # control database.
 
     import readspi
     spidata=readspi.readspi()
     readspi.recordspidata(database,spidata)
 
-    import readowfs
-    owfsdata=readowfs.readowfs(onewiredir)
-    readowfs.recordowfsdata(database,owfsdata)
+    import owfslib
+    owfslib.updateowfstable(database,'owfs')
+    owfslib.updateowfsdata(database,'inputsdata')
   
     return("outputs read")
 
