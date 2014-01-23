@@ -2,14 +2,14 @@
 # Colin Reese
 # 12/18/2012
 #
-# periodicreadinputs.py
+# periodicreadio.py
 
 # This script runs the input reading scripts 
 # specified interval, sends to log, channels and plot dbs 
 
 import os
 import pilib
-import readinputs
+import readio
 from time import sleep
 
 onewiredir = "/var/1wire/"
@@ -35,7 +35,7 @@ while inputsreadenabled:
 
     # Read and record everything as specified in controldatabase 
 
-    reply=readinputs.readinputs(controldatabase)
+    reply=readio.readio(controldatabase)
 
     result = pilib.readonedbrow(controldatabase,'systemstatus',0)
     systemsdict = result[0]

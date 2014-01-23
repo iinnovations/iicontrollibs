@@ -127,7 +127,7 @@ if answer=='y':
 
     table='inputsdata'
     querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " (id text primary key, interface text, type text, address text, value real, unit text, polltime text, enabled real default 1, name text unique)")
+    querylist.append("create table " + table + " (id text primary key, interface text, type text, address text, value real, unit text, polltime text, enabled real default 1, name text)")
 
 answer =raw_input('Rebuild algorithms table (y/N)?')
 if answer=='y':

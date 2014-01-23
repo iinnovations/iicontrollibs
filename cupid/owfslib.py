@@ -22,75 +22,18 @@ def updateowfstable(database,tablename):
 def updateowfsdatatable(database,tablename):
 
     querylist=[]
-    querylist.append('delete from sensordata')
+    querylist.append('delete from ' + tablename + ' where interface = "i2c1wire"')
 
-    onlineROMlist=[]
-    ROMfiles=[]
-    for filename in os.listdir(onewiredir):
-        try:
-            filename.index('28.')
-        except ValueError:
-            pass
-            #print("not found")
-        else:
-            addressfile=open(onewiredir + filename + '/address')	
-            ROMaddy=addressfile.readline().strip()
-            onlineROMlist.append(ROMaddy)
-            ROMfiles.append(filename)
+    ow.init('localhost:4304')
+    for sensor in ow.Sensor('/').sensorList():
+        if sensor.type=='DS18B20':
+            id='i2c1wire' + '_' + sensor.address
+            querylist.append(pilib.makesqliteinsert(database,tablename,[id,'i2c1wire',sensor.type,sensor.address,sensor.temperature,'C',pilib.gettimestring(),1,'']))
 
-    if onlineROMlist:
-        #print("ROMs online:\n")
-        #print(onlineROMlist)
-        #os.system('echo ' +  onlineROMlist[0] + '> /home/pi/ROMs')
-        # default to fahrenheit
-
-        tempscale="F"
-
-        # Read info from ROM files
-
-        ROMsandtemps=[]
-        i=0
-        #print("ROMfiles")
-        #print( ROMfiles)
-        #print("onlineROMlist")
-        #print(onlineROMlist)
-        for filename in ROMfiles:
-            tempfile=open(onewiredir + filename + "/temperature")
-            #print(tempfile)
-            ROMsandtemps.append([onlineROMlist[i],tempfile.readline().strip()])
-            i +=1
-
-        #print("ROM tuples\n")
-        #print(ROMsandtemps)
-
-def recordowfsdata(controldatabase,ROMsandvalues=None):
-
-    # Write to database
-    # At the moment all are enabled by default.
-    # Eventually we'll read this before we delete all entries
-
-    if ROMsandvalues: 
-        for tuple in ROMsandvalues:
-
-            ROM=tuple[0]
-            temp=tuple[1]
-            queryresult=pilib.sqlitequery(controldatabase,'select name from inputsinfo where inputID = ' + "'" + ROM + "'") 
-            if not queryresult:
-                name=''
-            else:
-                name = queryresult[0][0]
-            valuelist = ['OWROM' + tuple[0],tuple[1],'F',pilib.gettimestring(),1,name]
-            query = pilib.makesqliteinsert(controldatabase,'inputsdata',valuelist)
-            # print(query) 
-            querylist.append(query)
-    else:
-        return("no ROMs passed")
+    # print(querylist)
+    pilib.sqlitemultquery(database,querylist)
 
 if __name__ == "__main__":
-    onewiredir='/var/1wire'
     controldatabase='/var/www/data/controldata.db'
-    ROMsandvalues=readowfs(onewiredir)
-    writeresponse=recordowfsdata(controldatabase,ROMsandvalues)
-
-    print(ROMsandvalues)
-    print(writeresponse)
+    updateowfstable(controldatabase,'owfs')
+    updateowfsdatatable(controldatabase,'inputsdata')

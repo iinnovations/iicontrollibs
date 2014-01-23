@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-def readinputs(database):
+def readio(database):
     
     # TODO: We are going to have selective enable/disable
     # of interfaces in here from the system control
@@ -12,11 +12,11 @@ def readinputs(database):
 
     import owfslib
     owfslib.updateowfstable(database,'owfs')
-    owfslib.updateowfsdata(database,'inputsdata')
+    owfslib.updateowfsdatatable(database,'inputsdata')
   
     return("outputs read")
 
 if __name__=="__main__":
     database='/var/www/data/controldata.db'
-    readinputs(database)
+    readio(database)
 
