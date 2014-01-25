@@ -8,7 +8,7 @@ from re import split
 
 controldb='/var/www/data/controldata.db'
 authdb='/var/www/data/authlog.db'
-procspath='/usr/lib/modwsgi/'
+procspath='/usr/lib/iicontrollibs/cupid/'
 procstofind=['periodicreadio.py','picontrol.py','sessioncontrol.py']
 debug=0
 if debug:

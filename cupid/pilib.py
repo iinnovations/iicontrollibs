@@ -3,6 +3,18 @@
 # This library is for use by all other pi
 # functions
 
+# Global eclarations of database locations
+
+databasedir='/var/www/data/'
+
+onewiredir = "/var/1wire/"
+outputdir = "/var/www/data/"
+controldatabase=databasedir + 'controldata.db'
+logdatabase=databasedir + 'logdata.db'
+authlogdatabase=databasedir + 'authlog.db'
+recipedatabase=databasedir + 'recipedata.db'
+systemdatadatabase=databasedir + 'systemdata.db'
+
 #############################################
 ## Utility Functions
 #############################################
@@ -142,17 +154,27 @@ def datarowtodict(database,table,datarow):
         index+=1
     return dict
 
-def makesqliteinsert(database, table, valuelist,replace=True):
+def makesqliteinsert(table, valuelist,valuenames=None, replace=True):
     if replace:
-        query = 'insert or replace into \'' + table + '\' values('
+        query = 'insert or replace into '
     else:
-        query = 'insert into \'' + table + '\' values('
+        query = 'insert into '
+    query+= "'" + table + "'"
+
+    if valuenames:
+        query+= ' ('
+        for valuename in valuenames:
+            query += "'" + str(valuename) + "',"
+        query = query[:-1] + ")"
+
+    query += ' values ('
+
     for value in valuelist:
-        query = query + "'" + str(value) + "'," 
+        query += "'" + str(value) + "',"
     query = query[:-1] + ")"
     return query
 
-def sqliteinsertsingle(database,table,valuelist):
+def sqliteinsertsingle(database,table,valuelist,valuenames=None):
     import sqlite3 as lite
     #from pilib import makesqliteinsert 
 
@@ -162,7 +184,7 @@ def sqliteinsertsingle(database,table,valuelist):
     with con:
 
         cur = con.cursor()
-        query = makesqliteinsert(database,table,valuelist) 
+        query = makesqliteinsert(table,valuelist,valuenames)
         cur.execute(query)
     
 def sqlitemultquery(database,querylist):

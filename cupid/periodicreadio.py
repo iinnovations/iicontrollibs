@@ -12,44 +12,44 @@ import pilib
 import readio
 from time import sleep
 
-onewiredir = "/var/1wire/"
-outputdir = "/var/www/data/"
-controldatabase='/var/www/data/controldata.db'
-logdatabase='/var/www/data/logdata.db'
-
 readtime=10  	# default, seconds
 
 # Read from systemstatus to make sure we should be running
-inputsreadenabled=pilib.sqlitedatumquery(controldatabase,'select inputsreadenabled from systemstatus')
-while inputsreadenabled:   
+inputsreadenabled=pilib.sqlitedatumquery(pilib.controldatabase,'select inputsreadenabled from systemstatus')
+while inputsreadenabled:
+
     #print("runtime")
     #print("reading input")
     # Read again, once inside each loop so we terminate if the 
     # variable name is changed
 
-    inputsreadenabled=pilib.sqlitedatumquery(controldatabase,'select inputsreadenabled from systemstatus')
+    inputsreadenabled=pilib.sqlitedatumquery(pilib.controldatabase,'select inputsreadenabled from systemstatus')
     
     # Set last run time
-    pilib.sqlitequery(controldatabase, 'update systemstatus set lastinputspoll=\'' + pilib.gettimestring() + '\'')
-    pilib.sqlitequery(controldatabase, 'update systemstatus set inputsreadstatus=\'1\'')
+    pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set lastinputspoll=\'' + pilib.gettimestring() + '\'')
+    pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set inputsreadstatus=\'1\'')
 
     # Read and record everything as specified in controldatabase 
 
-    reply=readio.readio(controldatabase)
+    reply=readio.readio(pilib.controldatabase)
 
-    result = pilib.readonedbrow(controldatabase,'systemstatus',0)
+    # Match inputsdata with ioinfo and update inputsdata table
+
+    readio.updateiodata(pilib.controldatabase)
+
+    result = pilib.readonedbrow(pilib.controldatabase,'systemstatus',0)
     systemsdict = result[0]
     #print("here is the systems dict")
     #print(systemsdict)
     readtime = systemsdict['inputsreadfreq'] 
 
     plotpoints=20
-    logpoints=20
+    logpoints=100
 
     ################################################### 
     # Update controlvalues in channels
 
-    channels=pilib.readalldbrows(controldatabase,'channels')
+    channels=pilib.readalldbrows(pilib.controldatabase,'channels')
     for channel in channels:
         
         # Get controlinput for each channel
@@ -61,19 +61,19 @@ while inputsreadenabled:
         # can be found
 
         if controlinput: 
-            controlvalue = pilib.sqlitedatumquery(controldatabase,'select value from inputsdata where id=' + "'" + controlinput +"'" )
-            controltime = pilib.sqlitedatumquery(controldatabase,'select polltime from inputsdata where id=' + "'" + controlinput +"'" )
+            controlvalue = pilib.sqlitedatumquery(pilib.controldatabase,'select value from inputsdata where id=' + "'" + controlinput +"'" )
+            controltime = pilib.sqlitedatumquery(pilib.controldatabase,'select polltime from inputsdata where id=' + "'" + controlinput +"'" )
 
             # Only update channel value if value was found
  
             if controlvalue:
-                pilib.sqlitequery(controldatabase, 'update channels set controlvalue=' + str(controlvalue) + ' where controlinput = ' + "'" + controlinput + "'") 
+                pilib.sqlitequery(pilib.controldatabase, 'update channels set controlvalue=' + str(controlvalue) + ' where controlinput = ' + "'" + controlinput + "'")
                 #print(controltime)
                 #print(controlinput)
-                pilib.sqlitequery(controldatabase, 'update channels set controlvaluetime=\'' + controltime + '\' where controlinput = ' + "'" + controlinput + "'") 
+                pilib.sqlitequery(pilib.controldatabase, 'update channels set controlvaluetime=\'' + controltime + '\' where controlinput = ' + "'" + controlinput + "'")
         
         else:   # input is empty 
-            pilib.sqlitequery(controldatabase,"update channels set statusmessage = \'No controlinput found '") 
+            pilib.sqlitequery(pilib.controldatabase,"update channels set statusmessage = \'No controlinput found '")
 
             # disable channel
             #pilib.sqlitequery(controldatabase,"update channels set enabled=0 where controlinput = \'" + controlinput + "'") 
@@ -82,35 +82,32 @@ while inputsreadenabled:
         # print(controltime)
         # print(controlvalue)
 
-    ############################
+    ####################################################
     # Log value into tabled log
 
     # Get data for all sensors online
     
-    inputsdata = pilib.readalldbrows(controldatabase,'inputsdata')
+    inputsdata = pilib.readalldbrows(pilib.controldatabase,'inputsdata')
     for inputrow in inputsdata: 
         
         # Create table if it doesn't exist
 
-        logtablename = 'input' + inputrow['id'] + 'log'
-        query = 'create table if not exists ' + logtablename +  '( inputid text, value real, time text)'
-
-        pilib.sqlitequery(logdatabase,query)
+        logtablename = 'input_' + inputrow['name'] + '_log'
+        query = 'create table if not exists \'' + logtablename +  '\' ( value real, time text primary key)'
+        pilib.sqlitequery(pilib.logdatabase,query)
 
         # Enter row
-        pilib.sqliteinsertsingle(logdatabase,logtablename,[inputrow['id'],inputrow['value'],inputrow['polltime']])
+        pilib.sqliteinsertsingle(pilib.logdatabase,logtablename,valuelist=[inputrow['value'],inputrow['polltime']],valuenames=['value','time'])
 
         # Size log based on specified size
   
-        pilib.sizesqlitetable(logdatabase,logtablename,logpoints)
+        pilib.sizesqlitetable(pilib.logdatabase,logtablename,logpoints)
 
     #########################
     # log metadata
-    pilib.getandsetmetadata(logdatabase)
+    pilib.getandsetmetadata(pilib.logdatabase)
     #print("sleeping")
     sleep(readtime)
 
-pilib.sqlitequery(controldatabase, 'update systemstatus set inputsreadstatus=\'0\'')
+pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set inputsreadstatus=\'0\'')
 
-
-    

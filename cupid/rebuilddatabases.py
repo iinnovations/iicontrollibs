@@ -117,7 +117,7 @@ if answer=='y':
 
     table='ioinfo'
     querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " (ioid text primary key, inputname text)")
+    querylist.append("create table " + table + " (id text primary key, name text)")
 
 answer =raw_input('Rebuild inputsdata table (y/N)?')
 if answer=='y':

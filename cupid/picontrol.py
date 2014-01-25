@@ -12,13 +12,9 @@ T=True
 F=False
 GPIO.setmode(GPIO.BCM)
 
-controldatabase = '/var/www/data/controldata.db'
-logdatabase = '/var/www/data/logdata.db'
-recipedatabase = '/var/www/data/recipedata.db'
-
 # Run the script periodically based on systemstatus
 
-systemstatus = pilib.readalldbrows(controldatabase,'systemstatus')[0]
+systemstatus = pilib.readalldbrows(pilib.controldatabase,'systemstatus')[0]
 
 while systemstatus['picontrolenabled']:
     
@@ -27,11 +23,11 @@ while systemstatus['picontrolenabled']:
     # from this stamp when it barfed. This is arguably more valuable
     # then 'last time we didn't barf'
 
-    pilib.sqlitequery(controldatabase,'update systemstatus set lastpicontrolpoll=\'' + pilib.gettimestring() + '\'')
+    pilib.sqlitequery(pilib.controldatabase,'update systemstatus set lastpicontrolpoll=\'' + pilib.gettimestring() + '\'')
 
-    channels = pilib.readalldbrows(controldatabase,'channels')
-    outputs = pilib.readalldbrows(controldatabase,'outputs')
-    controlalgorithms = pilib.readalldbrows(controldatabase,'controlalgorithms')
+    channels = pilib.readalldbrows(pilib.controldatabase,'channels')
+    outputs = pilib.readalldbrows(pilib.controldatabase,'outputs')
+    controlalgorithms = pilib.readalldbrows(pilib.controldatabase,'controlalgorithms')
 
 
     # Cycle through channels and set action based on setpoint
@@ -41,7 +37,7 @@ while systemstatus['picontrolenabled']:
         statusmessage =''
         channelindex=str(int(channel['channelindex']))
         channelname=channel['name']
-        logtablename=channel['name'] + 'log'
+        logtablename=channel['name'] + '_log'
         time=pilib.gettimestring()
 
         # Make sure channel is enabled
@@ -49,7 +45,7 @@ while systemstatus['picontrolenabled']:
 
             query = 'create table if not exists \'' + logtablename + '\' (time text, controlinput text, controlvalue real, setpointvalue real, action real, algorithm text, enabled real, statusmessage text)'
 
-            pilib.sqlitequery(logdatabase,query) 
+            pilib.sqlitequery(pilib.logdatabase,query)
 
             statusmessage=''
             if 'setpointvalue' in channel:
@@ -102,7 +98,7 @@ while systemstatus['picontrolenabled']:
 
                     # run algorithm on channel
 
-                    response = controllib.runalgorithm(controldatabase,recipedatabase, channelname) 
+                    response = controllib.runalgorithm(pilib.controldatabase,pilib.recipedatabase, channelname)
                     action=response[0]
                     message=response[1]
 
@@ -111,141 +107,143 @@ while systemstatus['picontrolenabled']:
 
                     # Set action in channel
                 
-                    controllib.setaction(controldatabase,channelname,action)
+                    controllib.setaction(pilib.controldatabase,channelname,action)
 
                 elif mode == 'manual':
                     #print('manual mode')
                     statusmessage+='Mode:Manual. '
-                    action=controllib.getaction(controldatabase,channelname)
+                    action=controllib.getaction(pilib.controldatabase,channelname)
                 else:
                     #print('error, mode= ' + mode)
                     statusmessage+='Mode:Error. '
                 
- 		# Enable outputs if outputs are enabled:
-		#  1. Globally     : systemstatus['enableoutputs']
-		#  2. On channel   : channels['outputsenabled']
-   		#  3. Individually : outputs['enabled']
+                # Enable outputs if outputs are enabled:
+                #  1. Globally     : systemstatus['enableoutputs']
+                #  2. On channel   : channels['outputsenabled']
+                #  3. Individually : outputs['enabled']
 
                 if systemstatus['enableoutputs']:
-		    statusmessage+='System outputs enabled. '
+                    statusmessage+='System outputs enabled. '
                     if channel['outputsenabled']:
-		        statusmessage+='Channel outputs enabled. '
+                        statusmessage+='Channel outputs enabled. '
 
-			# find out whether action is positive or negative or
+                        # find out whether action is positive or negative or
                         # not at all.
 
                         # and act. for now, this is binary, but in the future
                         # this will be a duty cycle daemon
 
                         if action > 0:
-			    #print("set positive GPIO on")
-			    outputsetname=channel['positiveoutput'] 
+                            #print("set positive GPIO on")
+                            outputsetname=channel['positiveoutput']
                         elif action < 0:
-			    #print("set negative GPIO on")
-			    outputsetname=channel['negativeoutput'] 
+                            #print("set negative GPIO on")
+			                outputsetname=channel['negativeoutput']
                         elif action ==0:
                             statusmessage+='No action. '
                             outputsetname=''
                         else:
                             statusmessage+='Algorithm error. '
 
- 			gpionum=-1
+                        # Initialize for find algorithm
+
+                        gpionum=-1
                         outputactionlist=[]
 
                         # Find output in list of channeloutputs
- 		        for output in channeloutputs:	
-			    gpionum=int(output['GPIO'])
+                        for output in channeloutputs:
+                            gpionum=int(output['GPIO'])
 
                             # We found our output
                             # Check if it's ready to be set
                             # Add to GPIO action list and update controldatabase
 
-			    if output['name']==outputsetname:
+                            if output['name']==outputsetname:
                                 if controllib.checkifenableready(output['name'],outputs):
                                     outputactionlist.append([gpionum,T])
 
                                     # set ontime if the output is currently off
-                                    
-                                    if output['status'] == 0: 
+
+                                    if output['status'] == 0:
                                         ontime=pilib.gettimestring()
-                                        pilib.sqlitequery(controldatabase,'update outputs set ontime=\'' + ontime +'\'' + 'where name=\'' + output['name'] + '\'')
-                                        pilib.sqlitequery(controldatabase,'update outputs set status=1 ' + 'where name=\'' + output['name'] + '\'')
+                                        pilib.sqlitequery(pilib.controldatabase,'update outputs set ontime=\'' + ontime +'\'' + 'where name=\'' + output['name'] + '\'')
+                                        pilib.sqlitequery(pilib.controldatabase,'update outputs set status=1 ' + 'where name=\'' + output['name'] + '\'')
 
                                 else:
-                                    statusmessage+='Output ' + output['name'] + ' not ready to enable. ' 
+                                    statusmessage+='Output ' + output['name'] + ' not ready to enable. '
 
-                            # The output was not found in our list to be set (enabled)
-                            # disable the output if it is ready to be disabled
+                                # The output was not found in our list to be set (enabled)
+                                # disable the output if it is ready to be disabled
 
                             else:
                                 if controllib.checkifdisableready(output['name'],outputs):
-                                    outputactionlist.append([gpionum,F]) 
+                                    outputactionlist.append([gpionum,F])
 
                                     # set offtime if the output is currently on
-                                    if output['status'] == 1: 
+                                    if output['status'] == 1:
                                         offtime=pilib.gettimestring()
-                                        pilib.sqlitequery(controldatabase,'update outputs set offtime=\'' + offtime +'\'' + 'where name=\'' + output['name'] + '\'')
-                                        pilib.sqlitequery(controldatabase,'update outputs set status=0 ' + 'where name=\'' + output['name'] + '\'')
+                                        pilib.sqlitequery(pilib.controldatabase,'update outputs set offtime=\'' + offtime +'\'' + 'where name=\'' + output['name'] + '\'')
+                                        pilib.sqlitequery(pilib.controldatabase,'update outputs set status=0 ' + 'where name=\'' + output['name'] + '\'')
 
                                 else:
-                                    statusmessage+='Output ' + output['name'] + ' not ready to disable. ' 
+                                    statusmessage+='Output ' + output['name'] + ' not ready to disable. '
 
-                        #print(outputactionlist)
-                         
-                        # This bit used to be at the top, but it's not necessary if we're
-                        # not acting on anything
+                            #print(outputactionlist)
 
-                        #if outputactionlist:
-                            # Setup RPi input/outputs
-                            #for output in outputs:
-                                #GPIO.setup(int(output['GPIO']), GPIO.OUT)    
-                                #GPIO.output(int(output['GPIO']), F)    
-        
+                            # This bit used to be at the top, but it's not necessary if we're
+                            # not acting on anything
 
-    		        for actionitem in outputactionlist:	
-                            GPIO.setup(actionitem[0], GPIO.OUT)
-  			    GPIO.output(actionitem[0], actionitem[1])
-                            if actionitem[1]==T:
-                                statusmsg='enabled'
+                            #if outputactionlist:
+                                # Setup RPi input/outputs
+                                #for output in outputs:
+                                    #GPIO.setup(int(output['GPIO']), GPIO.OUT)
+                                    #GPIO.output(int(output['GPIO']), F)
 
 
-                            elif actionitem[1]==F:
-                                statusmsg='disabled'
-                                # set off time
- 			    statusmessage+='Output  (GPIO ' + str(actionitem[0]) + ') ' + statusmsg + '. '
-                         
+                        for actionitem in outputactionlist:
+                                GPIO.setup(actionitem[0], GPIO.OUT)
+                                GPIO.output(actionitem[0], actionitem[1])
+                                if actionitem[1]==T:
+                                    statusmsg='enabled'
+
+                                elif actionitem[1]==F:
+                                    statusmsg='disabled'
+                                    # set off time
+                                statusmessage+='Output  (GPIO ' + str(actionitem[0]) + ') ' + statusmsg + '. '
+
                     else:
-		        statusmessage+='Channel outputs disabled. '
-		        #print('Channel outputs disabled. ')
+                        statusmessage+='Channel outputs disabled. '
+                        #print('Channel outputs disabled. ')
                 else:
-		    statusmessage+='System outputs disabled. '
-		    #print('System outputs disabled. ')
+                    statusmessage+='System outputs disabled. '
+                    #print('System outputs disabled. ')
                     
                     # we should probably turn everything off here
                     for output in outputs:
-                        GPIO.setup(int(output['GPIO']), GPIO.OUT)    
-                        GPIO.output(int(output['GPIO']), F)    
+                        if output['interface']=='GPIO' and output['type']=='GPIO':
+                            #print('enabling GPIO')
+                            GPIO.setup(int(output['address']), GPIO.OUT)    
+                            GPIO.output(int(output['address']), F)    
 
 
                 # Insert entry into control log
-                # need to calculate derivative
-                pilib.sqliteinsertsingle(logdatabase,logtablename, [time, controlinput,controlvalue,setpointvalue,action,algorithm,channel['enabled'],statusmessage])
+                pilib.sqliteinsertsingle(pilib.logdatabase,logtablename, [time, controlinput,controlvalue,setpointvalue,action,algorithm,channel['enabled'],statusmessage])
 
                 # Size log 
-                pilib.sizesqlitetable(logdatabase,logtablename,logpoints)
+                pilib.sizesqlitetable(pilib.logdatabase,logtablename,logpoints)
         else:
-	    statusmessage+='Channel not enabled. '
+            statusmessage+='Channel not enabled. '
 
         # Set status message for channel
-        pilib.sqlitequery(controldatabase,'update channels set statusmessage=\'' + statusmessage +'\'' + 'where channelindex=' + channelindex)
+        pilib.sqlitequery(pilib.controldatabase,'update channels set statusmessage=\'' + statusmessage +'\'' + 'where channelindex=' + channelindex)
 
         # Set update time for channel 
-        pilib.sqlitequery(controldatabase,'update channels set controlupdatetime=\'' + time +'\'' + 'where channelindex=' + channelindex)
+        pilib.sqlitequery(pilib.controldatabase,'update channels set controlupdatetime=\'' + time +'\'' + 'where channelindex=' + channelindex)
 
     # Wait for delay time 
     #print('sleeping')
     sleep(systemstatus['picontrolfreq'])
 
     # We do this system status again to refresh settings
-    systemstatus = pilib.readalldbrows(controldatabase,'systemstatus')[0]
+    systemstatus = pilib.readalldbrows(pilib.controldatabase,'systemstatus')[0]
 

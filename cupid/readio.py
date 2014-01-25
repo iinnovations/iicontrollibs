@@ -16,7 +16,19 @@ def readio(database):
   
     return("outputs read")
 
+def updateiodata(database):
+    from pilib import readalldbrows, sqlitedatumquery, sqlitequery
+    inputsdata = readalldbrows(database,'inputsdata')
+    querylist=[]
+    for input in inputsdata:
+        id=input['id']
+        #print('id - ' + id)
+        name=sqlitedatumquery(database,'select name from ioinfo where id=\'' + id + '\'')
+        #print('name - ' + name)
+        sqlitequery(database, 'update inputsdata set name=\'' + name + '\' where id = \'' + id + '\'')
+
 if __name__=="__main__":
-    database='/var/www/data/controldata.db'
+    import pilib
+    database=pilib.controldatabase
     readio(database)
 

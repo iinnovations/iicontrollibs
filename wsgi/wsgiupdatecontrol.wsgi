@@ -34,55 +34,55 @@ def application(environ, start_response):
 
     action = post.getvalue("action")
 
-    if 'subaction' not in post.keys():
-        subaction = None 
+    if 'subaction' in d:
+        subaction = d["subaction"]
     else:
-        subaction = post.getvalue("subaction")
+        subaction = False
 
-    if 'table' not in post.keys():
-        table = None 
+    if 'table' in d:
+        table = d["table"]
     else:
-        table = post.getvalue("table")
+        table = False
 
-    if 'valuename' not in post.keys():
-        valuename = None 
+    if 'valuename' in d:
+        valuename = d["valuename"]
     else:
-        valuename = post.getvalue("valuename")
+        valuename = False
 
-    if 'condition' not in post.keys():
-        condition = None 
+    if 'condition' in d:
+        condition = d["condition"]
     else:
-        condition = post.getvalue("condition")
+        condition = False
 
-    if 'value' not in post.keys():
-        value = None 
+    if 'value' in d:
+        value = d["value"]
     else:
-        value = post.getvalue("value")
+        value = False
 
-    if 'database' in post.keys():
-        database = post.getvalue("database")
+    if 'database' in d:
+        database = d["database"]
     else:
-        database = None
+        database = False
 
-    if 'channelname' in post.keys():
-        channelname = post.getvalue("channelname")
+    if 'channelname' in d:
+        channelname = d["channelname"]
     else:
-        channelname = None 
+        channelname = False
 
-    if 'newmode' in post.keys():
-        newmode = post.getvalue("newmode")
+    if 'newmode' in d:
+        newmode = d["newmode"]
     else:
-        newmode = None 
+        newmode = False
 
-    if 'outputname' in post.keys():
-        outputname = post.getvalue("outputname")
+    if 'outputname' in d:
+        outputname = d["outputname"]
     else:
-        outputname = None 
+        outputname = False
 
-    if 'index' in post.keys():
-        index = post.getvalue("index")
+    if 'index' in d:
+        index = d["index"]
     else:
-        index = None 
+        index = False
 
     # carry out generic set value
     if action=='setvalue' and database and table and valuename and value:
@@ -94,11 +94,7 @@ def application(environ, start_response):
             pilib.setsinglevalue(database,table,valuename,value,condition)
         else:
             pilib.setsinglevalue(database,table,valuename,value)
-        
-        
-    # act on action
-
-    if action=='spchange' and database:
+    elif action=='spchange' and database:
         output+='Spchanged. '
         if subaction=='incup':
             controllib.incsetpoint(database,channelname)
@@ -109,9 +105,9 @@ def application(environ, start_response):
         if subaction=='setvalue':
             controllib.setsetpoint(database,channelname,value)
             output+='Setvalue: ' + database + ' ' + channelname + ' ' + value
-    elif action=='togglemode' and database!='none':
+    elif action=='togglemode' and database!='None':
         controllib.togglemode(database,channelname)
-    elif action=='setmode' and database!='none':
+    elif action=='setmode' and database!='None':
         controllib.setmode(database,channelname,mode)
     elif action=='setrecipe':
         recipe=post.getvalue('recipe')
@@ -125,8 +121,7 @@ def application(environ, start_response):
     elif action=='setchanneloutputsenabled':
         newstatus=post.getvalue('newstatus') 
         controllib.setchanneloutputsenabled(database,channelname,newstatus)
-
-    elif action=='manualactionchange' and database!='none' and channelname!='none' and subaction != 'none':
+    elif action=='manualactionchange' and database and channelname and subaction:
         curchanmode=controllib.getmode(database,channelname)
         if curchanmode == 'manual':
             if subaction == 'poson': 
@@ -135,16 +130,16 @@ def application(environ, start_response):
                 controllib.setaction(database,channelname,'-100.0')
             else: 
                 controllib.setaction(database,channelname,'0.0')
-    elif action=='setposoutput' and database!='none' and channelname!='none' and outputname!='none':
+    elif action=='setposoutput' and database and channelname and outputname:
         controllib.setposout(database,channelname,outputname)
-    elif action=='setnegoutput' and database!='none' and channelname!='none':
+    elif action=='setnegoutput' and database and channelname:
         controllib.setnegout(database,channelname,outputname)
-    elif action=='actiondown' and database!='none' and channelname!='none':
+    elif action=='actiondown' and database and channelname:
         curchanmode=controllib.getmode(database,channelname)
         if curchanmode=="manual":
             curaction=int(controllib.getaction(database,channelname))
             if curaction==100:
-	        nextvalue=0
+                nextvalue=0
             elif curaction==0:
                 nextvalue=-100
             elif curaction==-100:
@@ -152,13 +147,12 @@ def application(environ, start_response):
             else:
                 nextvalue=0
             controllib.setaction(database,channelname,nextvalue) 
-    elif action=='actionup' and database!='none' and channelname!='none':
-
+    elif action=='actionup' and database and channelname:
         curchanmode=controllib.getmode(database,channelname)
         if curchanmode=="manual":
             curaction=int(controllib.getaction(database,channelname))
             if curaction==100:
-	        nextvalue=100
+                nextvalue=100
             elif curaction==0:
                 nextvalue=100
             elif curaction==-100:
@@ -166,6 +160,8 @@ def application(environ, start_response):
             else:
                 nextvalue=0
             controllib.setaction(database,channelname,nextvalue) 
+    elif action=='deletechannelbyname' and database and channelname:
+        pilib.sqlitequery(database, 'delete channelname from channels where name=\"' + channelname + '\"')
     output += 'Status complete.'  
 
     response_headers = [('Content-type', 'text/plain'), ('Content-Length',str(len(output)))]
