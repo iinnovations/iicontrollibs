@@ -39,17 +39,21 @@ def application(environ, start_response):
         data=dynamicsqliteread(d['database'],d['table'],d['row'])
     elif 'table' in d: 			# Handle entire table
         data=dynamicsqliteread(d['database'],d['table'])
+    elif 'tables[]' in d: 		# Get multiple tables
+        data=[]
+        for table in d['tables[]']:
+            data.append(dynamicsqliteread(d['database'],table))
     elif 'query' in d:				# Take plain single query 
         result=sqlitequery(d['database'],d['query'])
         data=result
-    elif 'queryarray[]' in d:		# Take query array, won't find 
-	result=[]		
+    elif 'queryarray[]' in d:		# Take query array, won't find
+        result=[]
         queryarray=d['queryarray[]']
         for query in queryarray:
             result.append(sqlitequery(d['database'],query))
         data=result
     else:
-        data=['empty']
+        data=['empty. blurg']
 
     output = json.dumps(data,indent=1) 
 

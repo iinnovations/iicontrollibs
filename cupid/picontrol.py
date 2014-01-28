@@ -152,7 +152,7 @@ while systemstatus['picontrolenabled']:
 
                         # Find output in list of channeloutputs
                         for output in channeloutputs:
-                            gpionum=int(output['GPIO'])
+                            gpionum=int(output['address'])
 
                             # We found our output
                             # Check if it's ready to be set

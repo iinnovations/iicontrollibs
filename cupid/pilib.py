@@ -87,6 +87,47 @@ def checklivesessions(authdb,user, expiry):
 
     return activesessions
 
+
+#############################################
+## Database tools
+#############################################
+
+def switchtablerows(database,table,rowid1,rowid2,uniqueindex):
+    unique1=sqlitedatumquery(database,'select \"' + uniqueindex + '\"' + ' from \"' + table + '\" where rowid=' + str(rowid1))
+    unique2=sqlitedatumquery(database,'select \"' + uniqueindex + '\"' + ' from \"' + table + '\" where rowid=' + str(rowid2))
+    # print('select \"' + uniqueindex + '\"' + ' from \"' + table + '\' where rowid=' + str(rowid1))
+    # print(unique1 + ' ' +  unique2)
+    queryarray=[]
+    index='rowid'
+    # Assumes there is no rowid=9999
+    queryarray.append('update \"' + table + '\" set \"' + index + '\"=' + str(9999) + ' where \"' + uniqueindex + '\"=\"' + unique2 + '\"' )
+    queryarray.append('update \"' + table + '\" set \"' + index + '\"=' + str(rowid2) + ' where \"' + uniqueindex + '\"=\"' + unique1 + '\"' )
+    queryarray.append('update \"' + table + '\" set \"' + index + '\"=' + str(rowid1) + ' where \"' + uniqueindex + '\"=\"' + unique2 + '\"' )
+
+    print(queryarray)
+    sqlitemultquery(database,queryarray)
+
+def removeandreorder(database,table,rowid, indicestoorder=None,uniqueindex=None):
+    sqlitequery(database,'delete from \'' + table + '\' where rowid=' + rowid)
+    if indicestoorder and uniqueindex:
+        ordertableindices(database,table,indicestoorder,uniqueindex)
+
+def ordertableindices(databasename,tablename,indicestoorder,uniqueindex):
+    table=readalldbrows(databasename,tablename)
+    uniquearray=[]
+    for row in table:
+        uniquearray.append(row[uniqueindex])
+    queryarray=[]
+    for i,uniquevalue in enumerate(uniquearray):
+        for indextoorder in indicestoorder:
+            queryarray.append('update \"'+ tablename + '\" set \"' + indextoorder + '\"=' + str(i+1) + '  where \"' + uniqueindex + '\"=\"' + uniquevalue + '\"')
+
+    print(queryarray)
+    sqlitemultquery(databasename,queryarray)
+
+
+
+
 #############################################
 ## Sqlite Functions
 #############################################
