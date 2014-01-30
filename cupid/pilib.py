@@ -104,11 +104,11 @@ def switchtablerows(database,table,rowid1,rowid2,uniqueindex):
     queryarray.append('update \"' + table + '\" set \"' + index + '\"=' + str(rowid2) + ' where \"' + uniqueindex + '\"=\"' + unique1 + '\"' )
     queryarray.append('update \"' + table + '\" set \"' + index + '\"=' + str(rowid1) + ' where \"' + uniqueindex + '\"=\"' + unique2 + '\"' )
 
-    print(queryarray)
+    # print(queryarray)
     sqlitemultquery(database,queryarray)
 
 def removeandreorder(database,table,rowid, indicestoorder=None,uniqueindex=None):
-    sqlitequery(database,'delete from \'' + table + '\' where rowid=' + rowid)
+    sqlitequery(database,' from \'' + table + '\' where rowid=' + rowid)
     if indicestoorder and uniqueindex:
         ordertableindices(database,table,indicestoorder,uniqueindex)
 

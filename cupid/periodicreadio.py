@@ -103,7 +103,7 @@ while inputsreadenabled:
   
         pilib.sizesqlitetable(pilib.logdatabase,logtablename,logpoints)
 
-    #########################
+    ####################################################
     # log metadata
     pilib.getandsetmetadata(pilib.logdatabase)
     #print("sleeping")
