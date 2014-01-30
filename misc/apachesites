@@ -3,7 +3,7 @@
 	WSGIScriptAlias /wsgiupdatecontrol /usr/lib/iicontrollibs/wsgi/wsgiupdatecontrol.wsgi
 	WSGIScriptAlias /wsgisessioncontrol /usr/lib/iicontrollibs/wsgi/wsgisessioncontrol.wsgi
 	WSGIScriptAlias /wsgiactions /usr/lib/iicontrollibs/modwsgi/wsgiactions.wsgi
-        WSGIPythonPath /usr/lib/modwsgi
+        WSGIPythonPath /usr/lib/iicontrollibs/wsgi/
 
 <VirtualHost *:80>
 	ServerAdmin webmaster@localhost
