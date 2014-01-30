@@ -14,22 +14,16 @@ database='/var/www/data/controldata.db'
 netsettings=readonedbrow(database,'network')[0]
 
 args = sys.argv
+reboot=False
 if len(args)>1:
-    arg = args[1]
-else:
-    arg = 'restartinit'
+    print('argument found')
+    arg2 = args[1]
+    print('argument ' + arg2)
+    if args=='reboot':
+        reboot=True
+     
 
-reboot=True
-if len(args)>2:
-    arg2 = args[2]
-    if args='noreboot':
-        reboot=False
-
-print('arguments passed')
-print(arg)
-
-if arg=='reinit':
-
+def runconfig(reboot):
     # Copy the correct interfaces file
     if netsettings['nettype']=='station':
         print('station mode')
@@ -45,28 +39,18 @@ if arg=='reinit':
         print('access point mode')
         subprocess.call(['cp','/etc/network/interfaces.ap','/etc/network/interfaces']) 
         print('rebooting to enact changes')
+        apinit()
         if reboot:
             print('time to reboot')
             subprocess.call(['reboot'])
-    else:
-        print('mode error')
 
-elif arg=='restartinit':
-    # Run hostapd if necessary
-    if netsettings['nettype']=='ap':
-        print('*********************************')
-        print('starting hostapd and dhcp server')
-        print('*********************************')
-        subprocess.call(['hostapd','-B', '/etc/hostapd/hostapd.conf'])
-        subprocess.call(['service','isc-dhcp-server','start'])
-    print('bringing down wlan0')
-    subprocess.call(['ifdown','wlan0'])
-    print('bringing up wlan0')
-    subprocess.call(['ifup','wlan0'])
-    
-else:
-    print(' invalid argument passed')
-    print(' valid arguments are:')
-    print(' reinit: reset with reboot')
-    print(' restartinit: initialize hostapd and dhcp')
-    print('   if specified by controldb')
+def apinit():
+    # Run hostapd 
+    print('*********************************')
+    print('starting hostapd and dhcp server')
+    print('*********************************')
+    subprocess.call(['hostapd','-B', '/etc/hostapd/hostapd.conf'])
+    subprocess.call(['service','isc-dhcp-server','start'])
+
+if __name__=="__main__":
+    runconfig(reboot)
