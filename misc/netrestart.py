@@ -43,6 +43,8 @@ def runconfig(reboot):
         if reboot:
             print('time to reboot')
             subprocess.call(['reboot'])
+        subprocess.call(['ifdown','wlan0'])
+        subprocess.call(['ifup','wlan0'])
 
 def apinit():
     # Run hostapd 

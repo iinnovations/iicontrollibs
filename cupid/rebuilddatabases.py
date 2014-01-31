@@ -137,10 +137,10 @@ if answer=='y':
 
     table='controlalgorithms'
     querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " (name text primary key, type text, maxposrate real default 0, maxnegrate real default 0, derivativemode text default time, derivativeperiod real default 0, integralmode text default time, integral period real default 0, proportional real default 1, integral real default 0, derivative real default 0, deadbandhigh real default 0, deadbandlow real default 0, dutypercent real default 0, dutyperiod real default 1)")
+    querylist.append("create table " + table + " (name text primary key, type text, maxposrate real default 0, maxnegrate real default 0, derivativemode text default time, derivativeperiod real default 0, integralmode text default time, integralperiod real default 0, proportional real default 1, integral real default 0, derivative real default 0, deadbandhigh real default 0, deadbandlow real default 0, dutypercent real default 0, dutyperiod real default 1)")
 
     if addentries:
-        querylist.append("insert into " + table + " values ('on/off 1', 'on/off with deadband',1,1,0,0,0,0,0,1)")
+        querylist.append("insert into " + table + " values ('on/off 1', 'on/off with deadband',1,1,0,0,0,0,0,0,0,0,0,0,1)")
 
 answer =raw_input('Rebuild algorithmtypes table (y/N)?')
 if answer=='y':
