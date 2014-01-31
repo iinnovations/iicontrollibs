@@ -24,7 +24,7 @@ def readspi():
     
 def getspitctemp():
     import subprocess
-    tctemp=subprocess.check_output(['python3','/usr/lib/modwsgi/max31855-1.0/getmaxtemp.py'])
+    tctemp=subprocess.check_output(['python3','/usr/lib/iicontrollibs/cupid/max31855-1.0/getmaxtemp.py'])
     return tctemp
 
 def recordspidata(database,valuedict):
