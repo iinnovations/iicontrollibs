@@ -99,6 +99,22 @@ def twitterspilights(delay):
       index+=1
       if index>=len(settingsarray):
           index=0 
+
+def updatelightsfromdb(database,table):
+    import pilib
+
+    # get settings from database
+    query='select status from \"' + table + '\" where type="SPI"'
+    query2='select name from \"' + table + '\" where type="SPI"'
+    
+    statuses=pilib.sqlitequery(database,query)
+    names=pilib.sqlitequery(database,query2)
+    d={}
+    for status,name in zip(statuses,names): 
+        d[name[0]]=status[0]
+    setarray=[[d['SPI_RGB1_R'],d['SPI_RGB1_G'],d['SPI_RGB1_B']],[d['SPI_RGB2_R'],d['SPI_RGB2_G'],d['SPI_RGB2_B']],[d['SPI_RGB3_R'],d['SPI_RGB3_G'],d['SPI_RGB3_B']],[d['SPI_RGB4_R'],d['SPI_RGB4_G'],d['SPI_RGB4_B']],d['SPI_SC_R'],d['SPI_SC_G'],d['SPI_SC_B'],d['SPI_SC_Y']]
+    setspilights(setarray)
+
 if __name__ == '__main__':
    #twitterspilights(1)
    setspilightsoff()

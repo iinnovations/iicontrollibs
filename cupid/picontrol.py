@@ -4,6 +4,7 @@ import os
 import sys
 import math
 import pilib
+import spilights
 import controllib 
 import RPi.GPIO as GPIO
 from time import sleep
@@ -242,8 +243,11 @@ while systemstatus['picontrolenabled']:
 
     # Wait for delay time 
     #print('sleeping')
+
+    spilights.updatelightsfromdb(pilib.controldatabase,'indicators')
     sleep(systemstatus['picontrolfreq'])
 
     # We do this system status again to refresh settings
     systemstatus = pilib.readalldbrows(pilib.controldatabase,'systemstatus')[0]
 
+# Set spilights based on settings
