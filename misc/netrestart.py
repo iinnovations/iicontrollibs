@@ -27,12 +27,14 @@ def runconfig(reboot):
     # Copy the correct interfaces file
     if netsettings['nettype']=='station':
         print('station mode')
+        subprocess.call(['service','isc-dhcp-server','stop'])
+        subprocess.call(['service','hostapd','stop'])
         if netsettings['addtype']=='static':
             subprocess.call(['cp','/etc/network/interfaces.sta.static','/etc/network/interfaces']) 
         elif netsettings['addtype']=='dhcp':
             subprocess.call(['cp','/etc/network/interfaces.sta.dhcp','/etc/network/interfaces']) 
-        print('rebooting to enact changes')
         if reboot:
+            print('rebooting to enact changes')
             print('time to reboot')
             subprocess.call(['reboot'])
     elif netsettings['nettype']=='ap':
