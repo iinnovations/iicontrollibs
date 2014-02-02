@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import os
+import os,sys
 from pilib import sqlitequery
 from subprocess import Popen, PIPE
 from sys import stdout
@@ -10,7 +10,16 @@ controldb='/var/www/data/controldata.db'
 authdb='/var/www/data/authlog.db'
 procspath='/usr/lib/iicontrollibs/cupid/'
 procstofind=['periodicreadio.py','picontrol.py','sessioncontrol.py']
-debug=0
+debug=False
+
+args=sys.argv
+if len(args)>1:
+    arg = args[1]
+else:
+    arg = False
+
+debug=arg
+
 if debug:
     os.system('echo i am running > /home/pi/iamrunning.txt')
 

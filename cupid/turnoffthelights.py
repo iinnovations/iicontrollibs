@@ -5,6 +5,7 @@ import sys
 import math
 import pilib
 import controllib 
+import spilights
 import RPi.GPIO as GPIO
 from time import sleep
  
@@ -17,4 +18,4 @@ for output in outputs:
     GPIO.setup(int(output), GPIO.OUT)    
     GPIO.output(int(output), F)
 
-
+spilights.setspilightsoff()
