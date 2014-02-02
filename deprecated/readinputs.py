@@ -80,7 +80,7 @@ if onlineROMlist:
         else:
             name = queryresult[0][0]
         valuelist = [tuple[0],tuple[1],'F',pilib.gettimestring(),1,name]
-        query = pilib.makesqliteinsert(database,'sensordata',valuelist)
+        query = pilib.makesqliteinsert('sensordata',valuelist)
         # print(query) 
         querylist.append(query)
 
@@ -96,7 +96,7 @@ tctemp=subprocess.check_output(['python3','/usr/lib/modwsgi/max31855-1.0/getmaxt
 print('temperature is ')
 print(tctemp)
 print(tctemp)
-querylist.append(pilib.makesqliteinsert(database,'sensordata',['TC1','SPITC','TC',tctemp,'F',pilib.gettimestring(),1,'']))
+querylist.append(pilib.makesqliteinsert('sensordata',['TC1','SPITC','TC',tctemp,'F',pilib.gettimestring(),1,'']))
 
 if querylist:
     print(querylist)

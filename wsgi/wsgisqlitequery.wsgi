@@ -10,7 +10,7 @@ def application(environ, start_response):
     if top_folder not in sys.path:
         sys.path.insert(0,top_folder)
 
-    from cupid.pilib import dynamicsqliteread, gettablenames, sqlitequery, sqlitemultquery
+    from cupid.pilib import dynamicsqliteread, gettablenames, sqlitequery, switchtablerows
 
     post_env = environ.copy()
     post_env['QUERY_STRING'] = ''
@@ -32,7 +32,9 @@ def application(environ, start_response):
     # types of queries
     if 'specialaction' in d:
         if d['specialaction']=='gettablenames':
-            data=gettablenames(d['database']) 
+            data=gettablenames(d['database'])
+        elif d['specialaction']=='switchtablerows':
+            switchtablerows(d['database'],d['table'],d['row1'],d['row2'],d['uniqueindex'])
     elif 'length' in d:			# Handle table row subset 
         data=dynamicsqliteread(d['database'],d['table'],d['start'],d['length'])
     elif 'row' in d:			# Handle table row
