@@ -5,15 +5,15 @@
 
 # Global eclarations of database locations
 
-databasedir='/var/www/data/'
+databasedir = '/var/www/data/'
 
 onewiredir = "/var/1wire/"
 outputdir = "/var/www/data/"
-controldatabase=databasedir + 'controldata.db'
-logdatabase=databasedir + 'logdata.db'
-authlogdatabase=databasedir + 'authlog.db'
-recipedatabase=databasedir + 'recipedata.db'
-systemdatadatabase=databasedir + 'systemdata.db'
+controldatabase = databasedir + 'controldata.db'
+logdatabase = databasedir + 'logdata.db'
+authlogdatabase = databasedir + 'authlog.db'
+recipedatabase = databasedir + 'recipedata.db'
+systemdatadatabase = databasedir + 'systemdata.db'
 
 #############################################
 ## Utility Functions
@@ -21,11 +21,12 @@ systemdatadatabase=databasedir + 'systemdata.db'
 
 def gettimestring(timeinseconds=None):
     import time
+
     if timeinseconds:
         try:
             timestring = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(timeinseconds))
         except TypeError:
-            timestring=''
+            timestring = ''
     else:
         timestring = time.strftime("%Y-%m-%d %H:%M:%S")
     return timestring
@@ -34,40 +35,41 @@ def timestringtoseconds(timestring):
     import time
 
     try:
-        timeinseconds=time.mktime(time.strptime(timestring,"%Y-%m-%d %H:%M:%S"))
+        timeinseconds = time.mktime(time.strptime(timestring, "%Y-%m-%d %H:%M:%S"))
     except ValueError:
-        timeinseconds=0
+        timeinseconds = 0
     return timeinseconds
 
 class gmail:
-    def __init__(self,server='smtp.gmail.com',port=587,subject='default subject',message='default message',login='',password='',recipient='',sender='CuPID Mailer'):
-        self.server=server
-        self.port=port
-        self.message=message
-        self.subject=subject
-        self.sender=sender
-        self.login=login
-        self.password=password
-        self.recipient=recipient
-        self.sender=sender
+    def __init__(self, server='smtp.gmail.com', port=587, subject='default subject', message='default message',
+                 login='', password='', recipient='', sender='CuPID Mailer'):
+        self.server = server
+        self.port = port
+        self.message = message
+        self.subject = subject
+        self.sender = sender
+        self.login = login
+        self.password = password
+        self.recipient = recipient
+        self.sender = sender
 
     def send(self):
         import smtplib
- 
+
         headers = ["From: " + self.sender,
-           "Subject: " + self.subject,
-           "To: " + self.recipient,
-           "MIME-Version: 1.0",
-           "Content-Type: text/html"]
+                   "Subject: " + self.subject,
+                   "To: " + self.recipient,
+                   "MIME-Version: 1.0",
+                   "Content-Type: text/html"]
         headers = "\r\n".join(headers)
- 
+
         session = smtplib.SMTP(self.server, self.port)
- 
+
         session.ehlo()
         session.starttls()
         session.ehlo
         session.login(self.login, self.password)
- 
+
         session.sendmail(self.sender, self.recipient, headers + "\r\n\r\n" + self.message)
         session.quit()
 
@@ -75,135 +77,154 @@ class gmail:
 ## Authlog functions 
 #############################################
 
-def checklivesessions(authdb,user, expiry):
-    import pilib, time 
-    activesessions=0
-    sessions=pilib.readalldbrows(authdb,'sessions')
+def checklivesessions(authdb, user, expiry):
+    import pilib, time
+
+    activesessions = 0
+    sessions = pilib.readalldbrows(authdb, 'sessions')
     for session in sessions:
-        sessioncreation=pilib.timestringtoseconds(session['timecreated'])
-        currenttime=time.mktime(time.localtime())
-        if currenttime-sessioncreation<expiry:
-            activesessions+=1
+        sessioncreation = pilib.timestringtoseconds(session['timecreated'])
+        currenttime = time.mktime(time.localtime())
+        if currenttime - sessioncreation < expiry:
+            activesessions += 1
 
     return activesessions
-
 
 #############################################
 ## Database tools
 #############################################
 
-def switchtablerows(database,table,rowid1,rowid2,uniqueindex):
-    unique1=sqlitedatumquery(database,'select \"' + uniqueindex + '\"' + ' from \"' + table + '\" where rowid=' + str(rowid1))
-    unique2=sqlitedatumquery(database,'select \"' + uniqueindex + '\"' + ' from \"' + table + '\" where rowid=' + str(rowid2))
+def switchtablerows(database, table, rowid1, rowid2, uniqueindex):
+    unique1 = sqlitedatumquery(database,
+                               'select \"' + uniqueindex + '\"' + ' from \"' + table + '\" where rowid=' + str(rowid1))
+    unique2 = sqlitedatumquery(database,
+                               'select \"' + uniqueindex + '\"' + ' from \"' + table + '\" where rowid=' + str(rowid2))
     # print('select \"' + uniqueindex + '\"' + ' from \"' + table + '\' where rowid=' + str(rowid1))
     # print(unique1 + ' ' +  unique2)
-    queryarray=[]
-    index='rowid'
+    queryarray = []
+    index = 'rowid'
     # Assumes there is no rowid=9999
-    queryarray.append('update \"' + table + '\" set \"' + index + '\"=' + str(9999) + ' where \"' + uniqueindex + '\"=\"' + unique2 + '\"' )
-    queryarray.append('update \"' + table + '\" set \"' + index + '\"=' + str(rowid2) + ' where \"' + uniqueindex + '\"=\"' + unique1 + '\"' )
-    queryarray.append('update \"' + table + '\" set \"' + index + '\"=' + str(rowid1) + ' where \"' + uniqueindex + '\"=\"' + unique2 + '\"' )
+    queryarray.append('update \"' + table + '\" set \"' + index + '\"=' + str(
+        9999) + ' where \"' + uniqueindex + '\"=\"' + unique2 + '\"')
+    queryarray.append('update \"' + table + '\" set \"' + index + '\"=' + str(
+        rowid2) + ' where \"' + uniqueindex + '\"=\"' + unique1 + '\"')
+    queryarray.append('update \"' + table + '\" set \"' + index + '\"=' + str(
+        rowid1) + ' where \"' + uniqueindex + '\"=\"' + unique2 + '\"')
 
     # print(queryarray)
-    sqlitemultquery(database,queryarray)
+    sqlitemultquery(database, queryarray)
 
-def removeandreorder(database,table,rowid, indicestoorder=None,uniqueindex=None):
-    sqlitequery(database,' from \'' + table + '\' where rowid=' + rowid)
+def removeandreorder(database, table, rowid, indicestoorder=None, uniqueindex=None):
+    sqlitequery(database, ' from \'' + table + '\' where rowid=' + rowid)
     if indicestoorder and uniqueindex:
-        ordertableindices(database,table,indicestoorder,uniqueindex)
+        ordertableindices(database, table, indicestoorder, uniqueindex)
 
-def ordertableindices(databasename,tablename,indicestoorder,uniqueindex):
-    table=readalldbrows(databasename,tablename)
-    uniquearray=[]
+def ordertableindices(databasename, tablename, indicestoorder, uniqueindex):
+    table = readalldbrows(databasename, tablename)
+    uniquearray = []
     for row in table:
         uniquearray.append(row[uniqueindex])
-    queryarray=[]
-    for i,uniquevalue in enumerate(uniquearray):
+    queryarray = []
+    for i, uniquevalue in enumerate(uniquearray):
         for indextoorder in indicestoorder:
-            queryarray.append('update \"'+ tablename + '\" set \"' + indextoorder + '\"=' + str(i+1) + '  where \"' + uniqueindex + '\"=\"' + uniquevalue + '\"')
+            queryarray.append('update \"' + tablename + '\" set \"' + indextoorder + '\"=' + str(
+                i + 1) + '  where \"' + uniqueindex + '\"=\"' + uniquevalue + '\"')
 
     print(queryarray)
-    sqlitemultquery(databasename,queryarray)
-
-
-
+    sqlitemultquery(databasename, queryarray)
 
 #############################################
 ## Sqlite Functions
 #############################################
 
+# The beginning of our class development.
 class database:
-    def __init__(self,path):
-        self.directory=directory
-    def gettablenames(self):
-        self.tablenames=gettablenames(self.path)
-    def getdatameta(self): 
-        self.meta=gettablenames(self.path)
+    def __init__(self, path):
+        self.directory = directory
 
+    def gettablenames(self):
+        self.tablenames = gettablenames(self.path)
+
+    def getdatameta(self):
+        self.meta = gettablenames(self.path)
 
 def gettablenames(database):
-    result = sqlitequery(database,'select name from sqlite_master where type=\'table\'')
-    tables=[]
+    result = sqlitequery(database, 'select name from sqlite_master where type=\'table\'')
+    tables = []
     for element in result:
         tables.append(element[0])
-    return tables 
+    return tables
 
 def getdatameta(database):
-    tablenames=gettablenames(database)
-    queryarray=[] 
+    tablenames = gettablenames(database)
+    queryarray = []
     for tablename in tablenames:
         queryarray.append('select count(*) from \'' + tablename + '\'')
-    results = sqlitemultquery(database,queryarray)
-    meta=[]
-    for result,tablename in zip(results,tablenames):
-        meta.append([tablename,result[0][0]])
-    return meta 
+    results = sqlitemultquery(database, queryarray)
+    meta = []
+    for result, tablename in zip(results, tablenames):
+        meta.append([tablename, result[0][0]])
+    return meta
 
 def getandsetmetadata(database):
-    meta=getdatameta(database)
-    queryarray=[]
+    meta = getdatameta(database)
+    queryarray = []
     queryarray.append('drop table if exists metadata')
     queryarray.append('create table metadata ( name text, numpoints int)')
     for item in meta:
         queryarray.append('insert into metadata values (\'' + str(item[0]) + '\',' + '\'' + str(item[1]) + '\')')
-    #print(queryarray)
-    sqlitemultquery(database,queryarray)
+        #print(queryarray)
+    sqlitemultquery(database, queryarray)
 
-def getpragma(database,table):
-    pragma = sqlitequery(database,'pragma table_info ( \'' + table + '\')')
+def getpragma(database, table):
+    pragma = sqlitequery(database, 'pragma table_info ( \'' + table + '\')')
     return pragma
 
-def getpragmanames(database,table):
-    pragma = getpragma(database,table)
-    pragmanames=[]
+def getpragmanames(database, table):
+    pragma = getpragma(database, table)
+    pragmanames = []
     for item in pragma:
         pragmanames.append(item[1])
     return pragmanames
 
-def datarowtodict(database,table,datarow):
-    pragma = getpragma(database,table)
+def getpragmatypes(database, table):
+    pragma = getpragma(database, table)
+    pragmanames = []
+    for item in pragma:
+        pragmanames.append(item[2])
+    return pragmanames
+
+def getpragmanametypedict(database, table):
+    pragma = getpragma(database, table)
+    pragmadict = {}
+    for item in pragma:
+        pragmadict[item[1]] = item[2]
+    return pragmadict
+
+def datarowtodict(database, table, datarow):
+    pragma = getpragma(database, table)
     #print(pragma)
 
-    pragmanames=[]
+    pragmanames = []
     for item in pragma:
         pragmanames.append(item[1])
 
-    dict={}
-    index=0
+    dict = {}
+    index = 0
     for datum in datarow:
-        dict[pragmanames[index]]=datum
-        index+=1
+        dict[pragmanames[index]] = datum
+        index += 1
     return dict
 
-def makesqliteinsert(table, valuelist,valuenames=None, replace=True):
+def makesqliteinsert(table, valuelist, valuenames=None, replace=True):
     if replace:
         query = 'insert or replace into '
     else:
         query = 'insert into '
-    query+= "'" + table + "'"
+    query += "'" + table + "'"
 
     if valuenames:
-        query+= ' ('
+        query += ' ('
         for valuename in valuenames:
             query += "'" + str(valuename) + "',"
         query = query[:-1] + ")"
@@ -215,7 +236,7 @@ def makesqliteinsert(table, valuelist,valuenames=None, replace=True):
     query = query[:-1] + ")"
     return query
 
-def sqliteinsertsingle(database,table,valuelist,valuenames=None):
+def sqliteinsertsingle(database, table, valuelist, valuenames=None):
     import sqlite3 as lite
     #from pilib import makesqliteinsert 
 
@@ -223,12 +244,11 @@ def sqliteinsertsingle(database,table,valuelist,valuenames=None):
     con.text_factory = str
 
     with con:
-
         cur = con.cursor()
-        query = makesqliteinsert(table,valuelist,valuenames)
+        query = makesqliteinsert(table, valuelist, valuenames)
         cur.execute(query)
-    
-def sqlitemultquery(database,querylist):
+
+def sqlitemultquery(database, querylist):
     import sqlite3 as lite
     import sys
 
@@ -236,18 +256,17 @@ def sqlitemultquery(database,querylist):
     con.text_factory = str
 
     with con:
-
         cur = con.cursor()
-        data=[]
+        data = []
         for query in querylist:
             cur.execute(query)
-            dataitem=cur.fetchall()
+            dataitem = cur.fetchall()
             data.append(dataitem)
-    
-        con.commit() 
+
+        con.commit()
     return data
 
-def sqlitequery(database,query):
+def sqlitequery(database, query):
     import sqlite3 as lite
     import sys
 
@@ -259,67 +278,74 @@ def sqlitequery(database,query):
 
             cur = con.cursor()
             cur.execute(query)
-    
+
             data = cur.fetchall()
-    except: 
-        data=''
+    except:
+        data = ''
 
     return data
 
-def sqlitedatumquery(database,query):
-    datarow=sqlitequery(database,query)
+def sqlitedatumquery(database, query):
+    datarow = sqlitequery(database, query)
     if datarow:
-        datum=datarow[0][0]
+        datum = datarow[0][0]
     else:
-        datum=''
+        datum = ''
     return datum
 
-def setsinglevalue(database,table,valuename,value,condition=None):
-
-    query='update ' + '\"' + table + '\" set \"' + valuename + '\"=\"' + value + '\"'
+def getsinglevalue(database, table, valuename, condition=None):
+    query = 'select \"' + valuename + '\" from \"' + table + '\"'
     if condition:
-        query+= ' where ' + condition
+        query += ' where ' + condition
+    print(query)
+    response = sqlitedatumquery(database, query)
+    return (response)
 
-    response=sqlitequery(database,query)
-    return(response)
+def setsinglevalue(database, table, valuename, value, condition=None):
+    query = 'update ' + '\"' + table + '\" set \"' + valuename + '\"=\"' + value + '\"'
+    if condition:
+        query += ' where ' + condition
 
-def readonedbrow(database,table,rownumber=0):
-    data = sqlitequery(database,'select * from \'' + table + '\'')
+    response = sqlitequery(database, query)
+    return (response)
+
+def readonedbrow(database, table, rownumber=0):
+    data = sqlitequery(database, 'select * from \'' + table + '\'')
     datarow = data[rownumber]
-    
-    dict=datarowtodict(database,table,datarow)
-    dictarray=[dict]
+
+    dict = datarowtodict(database, table, datarow)
+    dictarray = [dict]
 
     return dictarray
 
-def readsomedbrows(database,table,start,length):
-    data = sqlitequery(database,'select * from \'' + table + '\'')
-    datarows = data[int(start):int(start+length)]
-    pragmanames=getpragmanames(database,table)
+def readsomedbrows(database, table, start, length):
+    data = sqlitequery(database, 'select * from \'' + table + '\'')
+    datarows = data[int(start):int(start + length)]
+    pragmanames = getpragmanames(database, table)
 
-    dictarray=[]
+    dictarray = []
     for row in datarows:
-        dict={}
-        index=0
+        dict = {}
+        index = 0
         for datum in row:
-            dict[pragmanames[index]]=datum
-            index+=1
+            dict[pragmanames[index]] = datum
+            index += 1
         dictarray.append(dict)
 
     return dictarray
 
-def readalldbrows(database,table):
-    data = sqlitequery(database,'select * from \'' + table + '\'')
+def readalldbrows(database, table):
+    data = sqlitequery(database, 'select * from \'' + table + '\'')
 
-    pragmanames=getpragmanames(database,table)
+    pragmanames = getpragmanames(database, table)
 
-    dictarray=[]
+    dictarray = []
     for row in data:
-        dict={}
-        index=0
+        dict = {}
+        index = 0
         for datum in row:
-            dict[pragmanames[index]]=datum
-            index+=1
+            dict[pragmanames[index]] = datum
+            index += 1
         dictarray.append(dict)
 
     return dictarray
@@ -330,37 +356,38 @@ def readalldbrows(database,table):
 # One location argument = single row
 # Two arguments = range of rows
 
-def dynamicsqliteread(database,table,start = None,length = None):
+def dynamicsqliteread(database, table, start=None, length=None):
     if length is None and start is None:
-        dictarray = readalldbrows(database,table)
+        dictarray = readalldbrows(database, table)
     elif length is None:
-        dictarray = readonedbrow(database,table,start)
+        dictarray = readonedbrow(database, table, start)
     else:
-        dictarray = readsomedbrows(database,table,start,length)
+        dictarray = readsomedbrows(database, table, start, length)
 
     return dictarray
 
-def sizesqlitetable(databasename,tablename,size):
-    logsize = sqlitedatumquery(databasename,'select count(*) from \'' + tablename + '\'')
+def sizesqlitetable(databasename, tablename, size):
+    logsize = sqlitedatumquery(databasename, 'select count(*) from \'' + tablename + '\'')
 
     if logsize > size:
-        logexcess = logsize - size 
-        sqlitequery(databasename,'delete from\'' + tablename +'\' order by time limit ' + str(logexcess))
+        logexcess = logsize - size
+        sqlitequery(databasename, 'delete from\'' + tablename + '\' order by time limit ' + str(logexcess))
     else:
-        logexcess=-1
+        logexcess = -1
 
-    return(logexcess)
+    return (logexcess)
 
-def sqlitedatadump(databasename,tablelist,outputfilename,limit=None):
+def sqlitedatadump(databasename, tablelist, outputfilename, limit=None):
     import csv
-    queryarray=[]
+
+    queryarray = []
 
     # These are for csv file headers
-    allpragmanames=[]
-    alltablelist=[]
+    allpragmanames = []
+    alltablelist = []
 
     for tablename in tablelist:
-        pragmanames=getpragmanames(databasename,tablename)
+        pragmanames = getpragmanames(databasename, tablename)
         for pragmaname in pragmanames:
             alltablelist.append(tablename)
             allpragmanames.append(pragmaname)
@@ -368,19 +395,19 @@ def sqlitedatadump(databasename,tablelist,outputfilename,limit=None):
                 queryarray.append('select ' + pragmaname + ' from \"' + tablename + '\" limit ' + str(limit))
             else:
                 queryarray.append('select ' + pragmaname + ' from \"' + tablename + '\"')
-    data=sqlitemultquery(databasename,queryarray)
+    data = sqlitemultquery(databasename, queryarray)
     #print(data)
-    newdata=[]
+    newdata = []
     for outerlist in data:
-        newinnerlist=[]
+        newinnerlist = []
         for innerlist in outerlist:
             newinnerlist.append(innerlist[0])
-        newinnerlist.insert(0,allpragmanames.pop(0))
-        newinnerlist.insert(0,alltablelist.pop(0))
+        newinnerlist.insert(0, allpragmanames.pop(0))
+        newinnerlist.insert(0, alltablelist.pop(0))
         newdata.append(newinnerlist)
 
     #print(newdata)
-    with open(outputfilename,"wb") as f:
+    with open(outputfilename, "wb") as f:
         writer = csv.writer(f)
         writer.writerows(newdata)
 
