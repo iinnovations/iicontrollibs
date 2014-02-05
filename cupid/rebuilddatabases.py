@@ -22,7 +22,7 @@ def rebuildcontroldb(tabledict):
         table = 'actions'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (enabled boolean default 0, conditiontype text default 'dbvalue',database text default 'control',tablename text default 'channels', rowid integer default 1, column text default 'controlvalue', operator text default '=',criterion text default '',delay real default 0,active boolean default 0,ontime text,offtime text,statusmsg text default 'default msg')")
+            "create table " + table + " (enabled boolean default 0, actiontype text default 'email', actiondetail text detail 'email1', conditiontype text default 'dbvalue',database text default 'control',tablename text default 'channels', rowid integer default 1, column text default 'controlvalue', operator text default '=',criterion text default '25',delay real default 0,active boolean default 0, status boolean default 0,ontime text,offtime text,statusmsg text default 'default msg')")
         if addentries:
             querylist.append("insert into " + table + " default values")
 
