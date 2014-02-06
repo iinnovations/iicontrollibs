@@ -268,7 +268,6 @@ def sqlitemultquery(database, querylist):
 
 def sqlitequery(database, query):
     import sqlite3 as lite
-    import sys
 
     con = lite.connect(database)
     con.text_factory = str

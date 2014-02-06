@@ -27,7 +27,6 @@ while systemstatus['picontrolenabled']:
     outputs = pilib.readalldbrows(pilib.controldatabase,'outputs')
     controlalgorithms = pilib.readalldbrows(pilib.controldatabase,'controlalgorithms')
 
-
     # Cycle through channels and set action based on setpoint
     # and algorithm if set to auto mode
 
@@ -246,5 +245,3 @@ while systemstatus['picontrolenabled']:
 
     # We do this system status again to refresh settings
     systemstatus = pilib.readalldbrows(pilib.controldatabase,'systemstatus')[0]
-
-# Set spilights based on settings

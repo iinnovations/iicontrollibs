@@ -24,20 +24,24 @@ for action in actions:
             column = action['column']
             operator = action['operator']
             criterion = action['criterion']
-            delay = action['delay']  
+            ondelay = action['ondelay']
+            offdelay = action['offdelay']
             status = action['status']   # status is conditional comparison
             active = action['active']   # active is after ontime
             ontime = action['ontime']
             offtime = action['offtime']
+            actionfrequency = action['actionfrequency']
+            lastactiontime = action['lastactiontime']
+
             dbpath = getattr(pilib, database + 'database')
-            print(dbpath)
 
             variablevalue = pilib.getsinglevalue(dbpath, tablename, column, 'rowid=' + str(rowid))
 
             # get variable type to handle
             variablesdict = pilib.getpragmanametypedict(pilib.controldatabase, tablename)
             vartype = variablesdict[column]
-            statusmsg += ' Variablevalue: ' + str(variablevalue) + '. Criterion: ' + str(criterion) + ' . ' 
+            statusmsg += ' Variablevalue: ' + str(variablevalue) + '. Criterion: ' + str(criterion) + ' . '
+
             # process criterion according to type
             curstatus = False
             if vartype == 'boolean':
@@ -75,20 +79,50 @@ for action in actions:
             if curstatus:
                 statusmsg += 'Status is true. '
 
+            currenttime = pilib.gettimestring()
             # if status is true and current status is false, set ontime
             if curstatus and not status:
-                statusmsg += 'Setting ontime. '
+                statusmsg += 'Setting status ontime. '
                 pilib.setsinglevalue(pilib.controldatabase, 'actions', 'ontime', pilib.gettimestring(), 'rowid=' + str(rowid))
+                status = 1
             elif not curstatus and status:
-                statusmsg += 'Setting offtime. '
+                statusmsg += 'Setting status offtime. '
                 pilib.setsinglevalue(pilib.controldatabase, 'actions', 'offtime', pilib.gettimestring(), 'rowid=' + str(rowid))
+                status = 0
 
-            # set status in table
+            if curstatus and not active:
+                statusontime = pilib.timestringtoseconds(ontime) - pilib.timestringtoseconds(currenttime)
+                if statusontime > ondelay:
+                    statusmsg += 'Setting action active'
+                    active = 1
+                else:
+                    statusmsg += 'On delay not reached'
+
+            if not curstatus and active:
+                statusofftime = pilib.timestringtoseconds(offtime) - pilib.timestringtoseconds(currenttime)
+                if statusontime > offdelay:
+                    statusmsg += 'Setting action inactive'
+                    active = 0
+                else:
+                    statusmsg += 'Off delay not reached'
+
+            # set status and active in table
             # active is the status, e.g. whether we would be alerting if there were an
-            # ontime of zero.
-            pilib.setsinglevalue(pilib.controldatabase, 'actions', 'active', str(int(status)), 'rowid=' + str(rowid))
+            # ontime of zero
 
-            # test to see if it is time to alert, based on delay ond ontime
+            pilib.setsinglevalue(pilib.controldatabase, 'actions', 'active', str(int(active)), 'rowid=' + str(rowid))
+            pilib.setsinglevalue(pilib.controldatabase, 'actions', 'status', str(int(status)), 'rowid=' + str(rowid))
+
+            # test to see if it is time to alert, based on delay ond alert time
+
+            if active:
+                # check to see if it is time to alert
+                if pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(lastactiontime):
+                    alert=True
+                else:
+                    alert=False
+
+
 
     if alert:
         # test if it's ok to alert again
