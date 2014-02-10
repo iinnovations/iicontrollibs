@@ -6,9 +6,9 @@ def readio(database):
     # of interfaces in here from the system control
     # control database.
 
-    #import readspi
-    #spidata=readspi.readspi()
-    #readspi.recordspidata(database,spidata)
+    import readspi
+    spidata=readspi.readspi()
+    readspi.recordspidata(database,spidata)
 
     import owfslib
     owfslib.updateowfstable(database,'owfs')

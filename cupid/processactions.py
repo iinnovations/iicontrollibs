@@ -4,136 +4,119 @@ import pilib
 
 # Read database to get our actions
 
-actions = pilib.readalldbrows(pilib.controldatabase, 'actions')
+actiondicts = pilib.readalldbrows(pilib.controldatabase, 'actions')
 
-for action in actions:
+for actiondict in actiondicts:
     alert = False
-    statusmsg = ''
 
+    thisaction = pilib.action(actiondict)
+    thisaction.statusmsg = ''
     # process condition
-    if action['conditiontype'] == 'dbvalue':
-        enabled = action['enabled']
-        if action['enabled']:
-            statusmsg += 'Action enabled.'
+    if thisaction.conditiontype == 'dbvalue':
+        if thisaction.enabled:
+            thisaction.statusmsg += 'Action enabled.'
 
-            actiontype = action['actiontype']
-            actiondetail = action['actiondetail']
-            database = action['database']
-            tablename = action['tablename']
-            rowid = action['rowid']
-            column = action['column']
-            operator = action['operator']
-            criterion = action['criterion']
-            ondelay = action['ondelay']
-            offdelay = action['offdelay']
-            status = action['status']   # status is conditional comparison
-            active = action['active']   # active is after ontime
-            ontime = action['ontime']
-            offtime = action['offtime']
-            actionfrequency = action['actionfrequency']
-            lastactiontime = action['lastactiontime']
+            dbpath = getattr(pilib, thisaction.database + 'database')
 
-            dbpath = getattr(pilib, database + 'database')
-
-            variablevalue = pilib.getsinglevalue(dbpath, tablename, column, 'rowid=' + str(rowid))
+            # variablename is columnname for dbvalue conditiontype
+            thisaction.variablevalue = pilib.getsinglevalue(dbpath, thisaction.tablename, thisaction.variablename, 'rowid=' + str(thisaction.rowid))
 
             # get variable type to handle
-            variablesdict = pilib.getpragmanametypedict(pilib.controldatabase, tablename)
-            vartype = variablesdict[column]
-            statusmsg += ' Variablevalue: ' + str(variablevalue) + '. Criterion: ' + str(criterion) + ' . '
+            variablestypedict = pilib.getpragmanametypedict(pilib.controldatabase, thisaction.tablename)
+            vartype = variablestypedict[thisaction.variablename]
+            thisaction.statusmsg += ' Variablevalue: ' + str(thisaction.variablevalue) + '. Criterion: ' + str(thisaction.criterion) + ' . '
 
             # process criterion according to type
             curstatus = False
             if vartype == 'boolean':
-                statusmsg += ' Processing boolean. '
-                if variablevalue == criterion:
+                thisaction.statusmsg += ' Processing boolean. '
+                if thisaction.variablevalue == thisaction.criterion:
                     curstatus = True
             elif vartype == 'integer' or vartype == 'real':
-                statusmsg += ' Processing integer/real. '
-                if operator == '>':
-                    if variablevalue > criterion:
+                thisaction.statusmsg += ' Processing integer/real. '
+                if thisaction.operator == '>':
+                    if thisaction.variablevalue > thisaction.criterion:
                         curstatus = True
-                elif operator == '>=':
-                    if variablevalue >= criterion:
+                elif thisaction.operator == '>=':
+                    if thisaction.variablevalue >= thisaction.criterion:
                         curstatus = True
-                elif operator == '<':
-                    if variablevalue < criterion:
+                elif thisaction.operator == '<':
+                    if thisaction.variablevalue < thisaction.criterion:
                         curstatus = True
-                elif operator == '<=':
-                    if variablevalue <= criterion:
+                elif thisaction.operator == '<=':
+                    if thisaction.variablevalue <= thisaction.criterion:
                         curstatus = True
-                elif operator == '=':
-                    if variablevalue == criterion:
+                elif thisaction.operator == '=':
+                    if thisaction.variablevalue == thisaction.criterion:
                         curstatus = True
                 else:
-                    statusmsg += 'Operator error. '
-                if variablevalue == criterion:
+                    thisaction.statusmsg += 'Operator error. '
+                if thisaction.variablevalue == thisaction.criterion:
                     curstatus = True
             elif vartype == 'text':
-                statusmsg += ' Processing text. '
-                if variablevalue == criterion:
+                thisaction.statusmsg += ' Processing text. '
+                if thisaction.variablevalue == thisaction.criterion:
                     curstatus = True
             else:
-                statusmsg += ' Mode Error for vartype ' + vartype + '. '
+                thisaction.statusmsg += ' Mode Error for vartype ' + vartype + '. '
 
             if curstatus:
-                statusmsg += 'Status is true. '
+                thisaction.statusmsg += 'Status is true. '
+            else:
+                thisaction.statusmsg += 'Status is not true. '
 
             currenttime = pilib.gettimestring()
+
             # if status is true and current status is false, set ontime
-            if curstatus and not status:
-                statusmsg += 'Setting status ontime. '
-                pilib.setsinglevalue(pilib.controldatabase, 'actions', 'ontime', pilib.gettimestring(), 'rowid=' + str(rowid))
-                status = 1
-            elif not curstatus and status:
-                statusmsg += 'Setting status offtime. '
-                pilib.setsinglevalue(pilib.controldatabase, 'actions', 'offtime', pilib.gettimestring(), 'rowid=' + str(rowid))
-                status = 0
+            if curstatus and not thisaction.status:
+                thisaction.statusmsg += 'Setting status ontime. '
+                thisaction.ontime=pilib.gettimestring()
+                thisaction.status = 1
+            elif not curstatus and thisaction.status:
+                thisaction.statusmsg += 'Setting status offtime. '
+                thisaction.ontime=pilib.gettimestring()
+                thisaction.status = 0
 
-            if curstatus and not active:
-                statusontime = pilib.timestringtoseconds(ontime) - pilib.timestringtoseconds(currenttime)
-                if statusontime > ondelay:
-                    statusmsg += 'Setting action active'
-                    active = 1
+            # if status is true and alarm isn't yet active, see if ondelay exceeded
+            if curstatus and not thisaction.active:
+                print(pilib.timestringtoseconds(currenttime))
+                statusontime = pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(thisaction.ontime)
+                if statusontime > thisaction.ondelay:
+                    thisaction.statusmsg += 'Setting action active'
+                    thisaction.active = 1
                 else:
-                    statusmsg += 'On delay not reached'
+                    thisaction.statusmsg += 'On delay not reached'
 
-            if not curstatus and active:
-                statusofftime = pilib.timestringtoseconds(offtime) - pilib.timestringtoseconds(currenttime)
-                if statusontime > offdelay:
-                    statusmsg += 'Setting action inactive'
-                    active = 0
+            # if status is not true and alarm is active, see if offdelay exceeded
+            if not curstatus and thisaction.active:
+                statusofftime = pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(thisaction.offtime)
+                if statusofftime > thisaction.offdelay:
+                    thisaction.statusmsg += 'Setting action inactive'
+                    thisaction.active = 0
+                    # Send an alert / reset indicator if activereset is on
+                    if thisaction.activereset:
+                        thisaction.offact()
                 else:
-                    statusmsg += 'Off delay not reached'
-
-            # set status and active in table
-            # active is the status, e.g. whether we would be alerting if there were an
-            # ontime of zero
-
-            pilib.setsinglevalue(pilib.controldatabase, 'actions', 'active', str(int(active)), 'rowid=' + str(rowid))
-            pilib.setsinglevalue(pilib.controldatabase, 'actions', 'status', str(int(status)), 'rowid=' + str(rowid))
+                    thisaction.statusmsg += 'Off delay not reached'
 
             # test to see if it is time to alert, based on delay ond alert time
-
-            if active:
+            if thisaction.active:
                 # check to see if it is time to alert
-                if pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(lastactiontime):
-                    alert=True
+                if pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(thisaction.lastactiontime) > thisaction.actionfrequency:
+                    alert = True
+                    thisaction.statusmsg += "Time to act. "
                 else:
-                    alert=False
+                    alert = False
+                    thisaction.statusmsg += "Not yet time to act."
 
+            if alert:
+                # We're ready to alert or alert again.
+                thisaction.lastactiontime = currenttime
+                thisaction.act()
+        else:
+            thisaction.statusmsg += 'Action disabled.'
+    else:
+        thisaction.statusmsg += 'Mode unrecognized.'
 
-
-    if alert:
-        # test if it's ok to alert again
-        alertfrequency = action['alertfrequency']
-
-        # carry out alert
-        if action['actiontype'] == 'email':
-            # process email action
-            email = action['actiondetail']
-
-        elif action['actiontype'] == 'indicator':
-            # process indicator action
-            indicatorname = action['actiondetail']
-print(statusmsg)
+    print(thisaction.statusmsg)
+    thisaction.publish()

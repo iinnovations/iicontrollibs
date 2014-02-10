@@ -31,6 +31,7 @@ def gettimestring(timeinseconds=None):
         timestring = time.strftime("%Y-%m-%d %H:%M:%S")
     return timestring
 
+
 def timestringtoseconds(timestring):
     import time
 
@@ -40,9 +41,78 @@ def timestringtoseconds(timestring):
         timeinseconds = 0
     return timeinseconds
 
+class action:
+    def __init__(self,actiondict):
+        self.enabled = actiondict['enabled']
+        self.conditiontype = actiondict['conditiontype']
+        self.actiontype = actiondict['actiontype']
+        self.name = actiondict['name']
+        self.actiontype = actiondict['actiontype']
+        self.actiondetail = actiondict['actiondetail']
+        self.database = actiondict['database']
+        self.tablename = actiondict['tablename']
+        self.rowid = actiondict['rowid']
+        self.variablename = actiondict['variablename']
+        self.operator = actiondict['operator']
+        self.criterion = actiondict['criterion']
+        self.ondelay = actiondict['ondelay']
+        self.offdelay = actiondict['offdelay']
+        self.status = actiondict['status']  # status is conditional comparison
+        self.active = actiondict['active']  # active is after ontime
+        self.ontime = actiondict['ontime']
+        self.offtime = actiondict['offtime']
+        self.actionfrequency = actiondict['actionfrequency']
+        self.lastactiontime = actiondict['lastactiontime']
+        self.statusmsg = actiondict['statusmsg']
+        self.variablevalue = actiondict['variablevalue']
+        self.activereset = actiondict['activereset']
+
+    def onact(self):
+        if self.actiontype == 'email':
+            # process email action
+            self.statusmsg += "Processing email alert. "
+            email = self.actiondetail
+            message = 'Alert is active for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + self.criterion + ' with an operator of ' + self.operator + '. This alarm status has been on since ' + self.ontime + '.'
+            subject = 'CuPID Alert : Alarm On - ' + self.name
+            actionmail = gmail(message=message, subject=subject,recipient=email)
+            actionmail.send()
+
+        elif action['actiontype'] == 'indicator':
+            # process indicator action
+            self.status += "Processing indicator on action. "
+            indicatorname = self.actiondetail
+            sqlitequery(controldatabase, 'update indicators set status=1 where "name" = ' + indicatorname)
+
+    def offact(self):
+        if self.actiontype == 'email':
+            # process email action
+            self.statusmsg += "Processing email alert. "
+            email = self.actiondetail
+            message = 'Alert has gone inactive for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + self.criterion + ' with an operator of ' + self.operator + '. This alarm status has been of since ' + self.offtime + '.'
+            subject = 'CuPID Alert : Alarm Off - ' + self.name
+            actionmail = gmail(message=message, subject=subject,recipient=email)
+            actionmail.send()
+
+        elif action['actiontype'] == 'indicator':
+            # process indicator action
+            self.status += "Processing indicator off action. "
+            indicatorname = self.actiondetail
+            sqlitequery(controldatabase, 'update indicators set status=0 where "name" = ' + indicatorname)
+
+    def publish(self):
+        # reinsert updated action back into database
+        valuelist=[]
+        valuenames=[]
+        for attr,value in self.__dict__.iteritems():
+            valuelist.append(value)
+            valuenames.append(attr)
+        sqliteinsertsingle(controldatabase, 'actions', valuelist, valuenames)
+        # setsinglevalue(controldatabase, 'actions', 'ontime', gettimestring(), 'rowid=' + str(self.rowid))
+
+
 class gmail:
     def __init__(self, server='smtp.gmail.com', port=587, subject='default subject', message='default message',
-                 login='', password='', recipient='', sender='CuPID Mailer'):
+                 login='cupidmailer@interfaceinnovations.org', password='cupidmail', recipient='info@interfaceinnovations.org', sender='CuPID Mailer'):
         self.server = server
         self.port = port
         self.message = message
@@ -73,6 +143,7 @@ class gmail:
         session.sendmail(self.sender, self.recipient, headers + "\r\n\r\n" + self.message)
         session.quit()
 
+
 #############################################
 ## Authlog functions 
 #############################################
@@ -89,6 +160,7 @@ def checklivesessions(authdb, user, expiry):
             activesessions += 1
 
     return activesessions
+
 
 #############################################
 ## Database tools
@@ -114,10 +186,12 @@ def switchtablerows(database, table, rowid1, rowid2, uniqueindex):
     # print(queryarray)
     sqlitemultquery(database, queryarray)
 
+
 def removeandreorder(database, table, rowid, indicestoorder=None, uniqueindex=None):
     sqlitequery(database, ' from \'' + table + '\' where rowid=' + rowid)
     if indicestoorder and uniqueindex:
         ordertableindices(database, table, indicestoorder, uniqueindex)
+
 
 def ordertableindices(databasename, tablename, indicestoorder, uniqueindex):
     table = readalldbrows(databasename, tablename)
@@ -132,6 +206,7 @@ def ordertableindices(databasename, tablename, indicestoorder, uniqueindex):
 
     print(queryarray)
     sqlitemultquery(databasename, queryarray)
+
 
 #############################################
 ## Sqlite Functions
@@ -148,12 +223,14 @@ class database:
     def getdatameta(self):
         self.meta = gettablenames(self.path)
 
+
 def gettablenames(database):
     result = sqlitequery(database, 'select name from sqlite_master where type=\'table\'')
     tables = []
     for element in result:
         tables.append(element[0])
     return tables
+
 
 def getdatameta(database):
     tablenames = gettablenames(database)
@@ -166,6 +243,7 @@ def getdatameta(database):
         meta.append([tablename, result[0][0]])
     return meta
 
+
 def getandsetmetadata(database):
     meta = getdatameta(database)
     queryarray = []
@@ -176,9 +254,11 @@ def getandsetmetadata(database):
         #print(queryarray)
     sqlitemultquery(database, queryarray)
 
+
 def getpragma(database, table):
     pragma = sqlitequery(database, 'pragma table_info ( \'' + table + '\')')
     return pragma
+
 
 def getpragmanames(database, table):
     pragma = getpragma(database, table)
@@ -187,6 +267,7 @@ def getpragmanames(database, table):
         pragmanames.append(item[1])
     return pragmanames
 
+
 def getpragmatypes(database, table):
     pragma = getpragma(database, table)
     pragmanames = []
@@ -194,12 +275,14 @@ def getpragmatypes(database, table):
         pragmanames.append(item[2])
     return pragmanames
 
+
 def getpragmanametypedict(database, table):
     pragma = getpragma(database, table)
     pragmadict = {}
     for item in pragma:
         pragmadict[item[1]] = item[2]
     return pragmadict
+
 
 def datarowtodict(database, table, datarow):
     pragma = getpragma(database, table)
@@ -215,6 +298,7 @@ def datarowtodict(database, table, datarow):
         dict[pragmanames[index]] = datum
         index += 1
     return dict
+
 
 def makesqliteinsert(table, valuelist, valuenames=None, replace=True):
     if replace:
@@ -236,6 +320,7 @@ def makesqliteinsert(table, valuelist, valuenames=None, replace=True):
     query = query[:-1] + ")"
     return query
 
+
 def sqliteinsertsingle(database, table, valuelist, valuenames=None):
     import sqlite3 as lite
     #from pilib import makesqliteinsert 
@@ -247,6 +332,7 @@ def sqliteinsertsingle(database, table, valuelist, valuenames=None):
         cur = con.cursor()
         query = makesqliteinsert(table, valuelist, valuenames)
         cur.execute(query)
+
 
 def sqlitemultquery(database, querylist):
     import sqlite3 as lite
@@ -266,6 +352,7 @@ def sqlitemultquery(database, querylist):
         con.commit()
     return data
 
+
 def sqlitequery(database, query):
     import sqlite3 as lite
 
@@ -284,6 +371,7 @@ def sqlitequery(database, query):
 
     return data
 
+
 def sqlitedatumquery(database, query):
     datarow = sqlitequery(database, query)
     if datarow:
@@ -291,6 +379,7 @@ def sqlitedatumquery(database, query):
     else:
         datum = ''
     return datum
+
 
 def getsinglevalue(database, table, valuename, condition=None):
     query = 'select \"' + valuename + '\" from \"' + table + '\"'
@@ -300,6 +389,7 @@ def getsinglevalue(database, table, valuename, condition=None):
     response = sqlitedatumquery(database, query)
     return (response)
 
+
 def setsinglevalue(database, table, valuename, value, condition=None):
     query = 'update ' + '\"' + table + '\" set \"' + valuename + '\"=\"' + value + '\"'
     if condition:
@@ -307,6 +397,7 @@ def setsinglevalue(database, table, valuename, value, condition=None):
 
     response = sqlitequery(database, query)
     return (response)
+
 
 def readonedbrow(database, table, rownumber=0):
     data = sqlitequery(database, 'select * from \'' + table + '\'')
@@ -316,6 +407,7 @@ def readonedbrow(database, table, rownumber=0):
     dictarray = [dict]
 
     return dictarray
+
 
 def readsomedbrows(database, table, start, length):
     data = sqlitequery(database, 'select * from \'' + table + '\'')
@@ -333,6 +425,7 @@ def readsomedbrows(database, table, start, length):
 
     return dictarray
 
+
 def readalldbrows(database, table):
     data = sqlitequery(database, 'select * from \'' + table + '\'')
 
@@ -348,6 +441,7 @@ def readalldbrows(database, table):
         dictarray.append(dict)
 
     return dictarray
+
 
 # Now we put them together into a dynamically typed function
 # that we specify operation based on what arguments we send
@@ -365,6 +459,7 @@ def dynamicsqliteread(database, table, start=None, length=None):
 
     return dictarray
 
+
 def sizesqlitetable(databasename, tablename, size):
     logsize = sqlitedatumquery(databasename, 'select count(*) from \'' + tablename + '\'')
 
@@ -375,6 +470,7 @@ def sizesqlitetable(databasename, tablename, size):
         logexcess = -1
 
     return (logexcess)
+
 
 def sqlitedatadump(databasename, tablelist, outputfilename, limit=None):
     import csv
