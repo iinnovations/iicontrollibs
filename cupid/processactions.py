@@ -34,6 +34,7 @@ for actiondict in actiondicts:
                     curstatus = True
             elif vartype == 'integer' or vartype == 'real':
                 thisaction.statusmsg += ' Processing integer/real. '
+
                 if thisaction.operator == '>':
                     if thisaction.variablevalue > thisaction.criterion:
                         curstatus = True
@@ -70,11 +71,11 @@ for actiondict in actiondicts:
             # if status is true and current status is false, set ontime
             if curstatus and not thisaction.status:
                 thisaction.statusmsg += 'Setting status ontime. '
-                thisaction.ontime=pilib.gettimestring()
+                thisaction.ontime = pilib.gettimestring()
                 thisaction.status = 1
             elif not curstatus and thisaction.status:
                 thisaction.statusmsg += 'Setting status offtime. '
-                thisaction.ontime=pilib.gettimestring()
+                thisaction.ontime = pilib.gettimestring()
                 thisaction.status = 0
 
             # if status is true and alarm isn't yet active, see if ondelay exceeded
@@ -115,6 +116,7 @@ for actiondict in actiondicts:
                 thisaction.act()
         else:
             thisaction.statusmsg += 'Action disabled.'
+            thisaction.status = 0
     else:
         thisaction.statusmsg += 'Mode unrecognized.'
 

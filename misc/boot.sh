@@ -3,9 +3,9 @@
 
 # Mount 1wire master
 
-/opt/owfs/bin/owserver --i2c=/dev/i2c-1:ALL -p 4304 
-/opt/owfs/bin/owfs -s 4304 /var/1wire/
-/opt/owfs/bin/owhttpd -s 4304 -p 4305
+/opt/owfs/bin/owserver -F --i2c=/dev/i2c-1:ALL -p 4304 
+/opt/owfs/bin/owfs -F -s 4304 /var/1wire/
+/opt/owfs/bin/owhttpd -F -s 4304 -p 4305
 
 # Turn off the lights
 printf "turning off lights\n"

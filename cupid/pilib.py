@@ -51,7 +51,7 @@ class action:
         self.actiondetail = actiondict['actiondetail']
         self.database = actiondict['database']
         self.tablename = actiondict['tablename']
-        self.rowid = actiondict['rowid']
+        self.rowid = actiondict['channelindex']
         self.variablename = actiondict['variablename']
         self.operator = actiondict['operator']
         self.criterion = actiondict['criterion']
@@ -77,7 +77,7 @@ class action:
             actionmail = gmail(message=message, subject=subject,recipient=email)
             actionmail.send()
 
-        elif action['actiontype'] == 'indicator':
+        elif self.actiontype == 'indicator':
             # process indicator action
             self.status += "Processing indicator on action. "
             indicatorname = self.actiondetail
@@ -93,7 +93,7 @@ class action:
             actionmail = gmail(message=message, subject=subject,recipient=email)
             actionmail.send()
 
-        elif action['actiontype'] == 'indicator':
+        elif self.actiontype == 'indicator':
             # process indicator action
             self.status += "Processing indicator off action. "
             indicatorname = self.actiondetail

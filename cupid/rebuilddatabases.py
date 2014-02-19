@@ -9,6 +9,7 @@ from pilib import sqlitemultquery, controldatabase, systemdatadatabase, recipeda
 ################################################
 # Main control database
 
+
 def rebuildcontroldb(tabledict):
     # Create databases entries or leave them empty?
     addentries = True
@@ -22,7 +23,7 @@ def rebuildcontroldb(tabledict):
         table = 'actions'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (name text unique default 'myaction', enabled boolean default 0, actiontype text default 'email', actiondetail text default 'info@interfaceinnovations.org', conditiontype text default 'dbvalue',database text default 'control',tablename text default 'channels', rowid integer default 1, variablename text default 'controlvalue', variablevalue text default '', operator text default '=',criterion text default '25',offdelay real default 0,ondelay real default 0,active boolean default 0, activereset boolean default 1, status boolean default 0,ontime text,offtime text,actionfrequency real default 60, lastactiontime text default '', statusmsg text default 'default msg')")
+            "create table " + table + " (channelindex integer primary key, name text unique default 'myaction', enabled boolean default 0, actiontype text default 'email', actiondetail text default 'info@interfaceinnovations.org', conditiontype text default 'dbvalue',database text default 'controldata',tablename text default 'channels', variablename text default 'controlvalue', variablevalue text default '', operator text default '=',criterion text default '25',offdelay real default 0,ondelay real default 0,active boolean default 0, activereset boolean default 1, status boolean default 0,ontime text,offtime text,actionfrequency real default 60, lastactiontime text default '', statusmsg text default 'default msg')")
         if addentries:
             querylist.append("insert into " + table + " default values")
 
@@ -145,7 +146,7 @@ def rebuildcontroldb(tabledict):
         table = 'channels'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " ( channelindex integer primary key, name text unique, controlinput text , enabled boolean default 0, outputsenabled boolean default 0, controlupdatetime text, controlalgorithm text default 'on/off 1', controlrecipe text default 'none', recipestage integer default 0, recipestarttime real default 0, recipestagestarttime real default 0, setpointvalue real, controlvalue real, controlvaluetime text, positiveoutput text, negativeoutput text, action real default 0, mode text manual, statusmessage text, logpoints real)")
+            "create table " + table + " (channelindex integer primary key, name text unique, controlinput text , enabled boolean default 0, outputsenabled boolean default 0, controlupdatetime text, controlalgorithm text default 'on/off 1', controlrecipe text default 'none', recipestage integer default 0, recipestarttime real default 0, recipestagestarttime real default 0, setpointvalue real, controlvalue real, controlvaluetime text, positiveoutput text, negativeoutput text, action real default 0, mode text default manual, statusmessage text, logpoints real default 100)")
         if addentries:
             querylist.append(
                 "insert into " + table + " values (1, 'channel 1', 'none', 0, 0, '', 'on/off 1', 'none',0,0,0,65, '', '', 'output1', 'output2', 0, 'auto', '', 1000)")
