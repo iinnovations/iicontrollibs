@@ -1,5 +1,4 @@
 #!/bin/sh -e
-#
 
 # Mount 1wire master
 
@@ -13,6 +12,6 @@ printf "turning off lights\n"
 
 # Run netstart script
 printf "running netstart\n"
-/usr/lib/iicontrollibs/misc/netstart.py
+/usr/lib/iicontrollibs/misc/netrestart.py
 
 exit 0

@@ -6,25 +6,30 @@ def setrawspilights(enabledlists):
     import time
 
     spi = spidev.SpiDev()
-    spi.open(0,1)   # Port 0, CS1
+    try:
+        spi.open(0,1)   # Port 0, CS1
+    except:
+        print('error raised')
+        exit
+    else:
 
-    # Notes:
-    # Low is on. Cathodes are open drain.
-    # This unforunately means we need to initialize
-    # to off on start-up. not a huge deal
+        # Notes:
+        # Low is on. Cathodes are open drain.
+        # This unforunately means we need to initialize
+        # to off on start-up. not a huge deal
 
-    spiassignments=[] 
-    for enabledlist in enabledlists:
-        bytesum=0
-        for index,bit in enumerate(enabledlist):
-           bytesum+=bit*(2**index)
+        spiassignments=[] 
+        for enabledlist in enabledlists:
+            bytesum=0
+            for index,bit in enumerate(enabledlist):
+               bytesum+=bit*(2**index)
            
-        spiassign=255-bytesum
-        spiassignments.append(spiassign)
+            spiassign=255-bytesum
+            spiassignments.append(spiassign)
 
-    # Transfer bytes 
-    resp = spi.xfer2(spiassignments)
-    return resp 
+        # Transfer bytes 
+        resp = spi.xfer2(spiassignments)
+        return resp 
 
 def setspilights(lightsettingsarray):
 
