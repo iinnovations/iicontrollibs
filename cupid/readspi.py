@@ -1,7 +1,15 @@
-#!/usr/bin/python
-# Colin Reese
-# 12/18/2012
-#
+#!/usr/bin/env python
+
+__author__ = "Colin Reese"
+__copyright__ = "Copyright 2014, Interface Innovations"
+__credits__ = ["Colin Reese"]
+__license__ = "Apache 2.0"
+__version__ = "1.0"
+__maintainer__ = "Colin Reese"
+__email__ = "support@interfaceinnovations.org"
+__status__ = "Development"
+
+
 # This script handles spi read functions 
 # We use SPIdev0, because this is what is physically
 # connected on the cupid control
