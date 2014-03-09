@@ -29,7 +29,9 @@ owfs/owserver/owhttpd
     add to rc.local: /usr/lib/iicontrollibs/misc/boot.sh
 
 SPI module
-    Python3
+    spi-dev
+
+SPI Thermocouple
     python-pip
     python-virtualenv
     python3-setuptools
@@ -39,6 +41,12 @@ SPI module
 
 wsgi**
     apache2 mod_rewrite**
-    alias wsgi scripts in site configuration, e.g.:
+
+## Installation and Use
+
+1. Copy files to /usr/lib/iicontrollibs
+2. Add to end of rc.local:
+        /usr/lib/iiccontrollibs/misc/boot.sh
+3. Alias wsgi scripts in your apache site configuration, e.g.:
         WSGIScriptAlias /wsgisqlitequery /usr/lib/iicontrollibs/wsgi/wsgisqlitequery.wsgi
 

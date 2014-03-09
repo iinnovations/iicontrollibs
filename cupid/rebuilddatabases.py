@@ -1,7 +1,15 @@
-#!/usr/bin/python
-# Colin Reese
-# 12/18/2012
-#
+#!/usr/bin/env python
+
+__author__ = "Colin Reese"
+__copyright__ = "Copyright 2014, Interface Innovations"
+__credits__ = ["Colin Reese"]
+__license__ = "Apache 2.0"
+__version__ = "1.0"
+__maintainer__ = "Colin Reese"
+__email__ = "support@interfaceinnovations.org"
+__status__ = "Development"
+
+
 # This script resets the control databases
 
 from pilib import sqlitemultquery, controldatabase, systemdatadatabase, recipedatabase, authlogdatabase
@@ -33,9 +41,9 @@ def rebuildcontroldb(tabledict):
         table = 'systemstatus'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text, inputsreadenabled boolean default 1, inputsreadstatus boolean default 0, inputsreadfreq real default 15, lastinputspoll text, enableoutputs boolean default 0, sessioncontrolenabled real, sessioncontrolstatus boolean,systemmessage text)")
+            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text, inputsreadenabled boolean default 1, inputsreadstatus boolean default 0, inputsreadfreq real default 15, lastinputspoll text, enableoutputs boolean default 0, sessioncontrolenabled boolean, sessioncontrolstatus boolean, systemstatusenabled boolean, systemstatusstatus boolean, systemmessage text)")
         if addentries:
-            querylist.append("insert into " + table + " values (0,0,15,'',1,0,15,'',0,1,0,'')")
+            querylist.append("insert into " + table + " values (0,0,15,'',1,0,15,'',0,1,0,1,0,'')")
 
     ### Indicators table
     if 'indicators' in tabledict:
@@ -88,14 +96,6 @@ def rebuildcontroldb(tabledict):
                 "insert into " + table + " values ('GPIO7', 'GPIO', 'GPIO', '21', 0, 'output7', 'manual', 0,'','',0,0)")
             querylist.append(
                 "insert into " + table + " values ('GPIO8', 'GPIO', 'GPIO', '22', 0, 'output8', 'manual', 0,'','',0,0)")
-
-    ### Network settings table
-    if 'network' in tabledict:
-        runquery = True
-        table = 'network'
-        querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (nettype text, addtype text, address text, gateway text)")
-        querylist.append("insert into " + table + " values ('station','static','192.168.1.40','192.168.1.1')")
 
     ### OWFS Table
     if 'owfs' in tabledict:
@@ -166,12 +166,19 @@ def rebuildauthlogdb():
 def rebuildsystemdatadb(tabledict):
     runquery = "False"
     querylist = []
-    if 'network' in tabledict:
+    if 'netstatus' in tabledict:
         runquery = "True"
-        table = 'network'
+        table = 'netstatus'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " ( IPAddress text, gateway text, WANaccess text, networkSSID text)")
-        querylist.append("insert into " + table + " values ( '', '','','' )")
+        querylist.append("create table " + table + " ( IPAddress text, gateway text, WANaccess text, networkSSID text networkpassword text, dhcpstatus boolean default 0, hostapdstatus boolean default 0)")
+        querylist.append("insert into " + table + " values ('','','','','','')")
+    if 'netconfig' in tabledict:
+        runquery = "True"
+        table = 'netconfig'
+        querylist.append('drop table if exists ' + table)
+        querylist.append("create table " + table + " (nettype text, addtype text, address text, gateway text, dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99')")
+        querylist.append("insert into " + table + " values ('station','static','192.168.1.40','192.168.1.1','','')")
+
     if 'metadata' in tabledict:
         runquery = "True"
         table = 'metadata'
@@ -229,9 +236,6 @@ if __name__ == "__main__":
     answer = raw_input('Rebuild outputs table (y/N)?')
     if answer == 'y':
         controltabledict['outputs'] = True
-    answer = raw_input('Rebuild network table (y/N)?')
-    if answer == 'y':
-        controltabledict['network'] = True
     answer = raw_input('Rebuild owfs table (y/N)?')
     if answer == 'y':
         controltabledict['owfs'] = True
@@ -260,9 +264,12 @@ if __name__ == "__main__":
     answer = raw_input('Rebuild versions table (y/N)?')
     if answer == 'y':
         systemtabledict['versions'] = True
-    answer = raw_input('Rebuild network table (y/N)?')
+    answer = raw_input('Rebuild netconfig table (y/N)?')
     if answer == 'y':
-        systemtabledict['network'] = True
+        systemtabledict['netconfig'] = True
+    answer = raw_input('Rebuild netstatus table (y/N)?')
+    if answer == 'y':
+        systemtabledict['netstatus'] = True
     rebuildsystemdatadb(systemtabledict)
 
     recipetabledict = {}

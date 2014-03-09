@@ -1,4 +1,13 @@
-#!/usr/bin/python
+#!/usr/bin/env python
+
+__author__ = "Colin Reese"
+__copyright__ = "Copyright 2014, Interface Innovations"
+__credits__ = ["Colin Reese"]
+__license__ = "Apache 2.0"
+__version__ = "1.0"
+__maintainer__ = "Colin Reese"
+__email__ = "support@interfaceinnovations.org"
+__status__ = "Development"
 
 import os,sys
 from pilib import sqlitequery
@@ -9,7 +18,7 @@ from re import split
 controldb='/var/www/data/controldata.db'
 authdb='/var/www/data/authlog.db'
 procspath='/usr/lib/iicontrollibs/cupid/'
-procstofind=['periodicreadio.py','picontrol.py','sessioncontrol.py']
+procstofind=['periodicreadio.py','picontrol.py','sessioncontrol.py','systemstatus.py']
 debug=False
 
 args=sys.argv
@@ -29,19 +38,22 @@ if debug:
 picontrolenabled=sqlitequery(controldb,'select picontrolenabled from systemstatus')[0][0]
 inputsreadenabled=sqlitequery(controldb,'select inputsreadenabled from systemstatus')[0][0]
 sessioncontrolenabled=sqlitequery(controldb,'select sessioncontrolenabled from systemstatus')[0][0]
+systemstatusenabled=sqlitequery(controldb,'select systemstatusenabled from systemstatus')[0][0]
 
-enableditemlist=[(int(inputsreadenabled)),(int(picontrolenabled)), int(sessioncontrolenabled)]
+enableditemlist=[(int(inputsreadenabled)),(int(picontrolenabled)), int(sessioncontrolenabled), int(systemstatusenabled)]
 
 if debug:
     print('picontrolenabled = ' + str(picontrolenabled))
     print('inputsreadenabled = ' + str(inputsreadenabled))
+    print('sessioncontrolenabled = ' + str(sessioncontrolenabled))
+    print('systemstatusenabled = ' + str(systemstatusenabled))
     print(enableditemlist)
 
 # Set up list of itemnames in the systemstatus table that
 # we assign the values to when we detect if the process
 # is running or not
 
-statustableitemnames=['inputsreadstatus','picontrolstatus','sessioncontrolstatus']
+statustableitemnames=['inputsreadstatus','picontrolstatus','sessioncontrolstatus','systemstatusstatus']
 
 class Proc(object):
     ''' Data structure for a processes . The class properties are
