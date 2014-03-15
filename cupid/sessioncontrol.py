@@ -8,6 +8,7 @@ __version__ = "1.0"
 __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
+
 # sessioncontrol.py
 
 # Colin Reese
@@ -23,53 +24,52 @@ __status__ = "Development"
 import pilib
 import time
 
-sessionsdatabase='/var/www/data/authlog.db'
-controldatabase='/var/www/data/controldata.db'
-
 # Determine whether this process is enabled:
 
-enabled=pilib.sqlitedatumquery(controldatabase,'select sessioncontrolenabled from \'systemstatus\'')
+enabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select sessioncontrolenabled from \'systemstatus\'')
 
 while enabled:
     #print('enabled')
-    polltime=pilib.sqlitedatumquery(sessionsdatabase,'select updatefrequency from \'settings\'')
-    
+    polltime = pilib.sqlitedatumquery(pilib.authlogdatabase, 'select updatefrequency from \'settings\'')
+
     # Go through sessions and delete expired ones
-    sessions=pilib.readalldbrows(sessionsdatabase,'sessions')
-    arrayquery=[]
+    sessions = pilib.readalldbrows(pilib.authlogdatabase, 'sessions')
+    sessions = pilib.readalldbrows(pilib.authlogdatabase, 'sessions')
+    arrayquery = []
     for session in sessions:
-        sessionstart=pilib.timestringtoseconds(session['timecreated'])
-        sessionlength=session['sessionlength']
-        if time.time()-sessionstart>sessionlength:
+        sessionstart = pilib.timestringtoseconds(session['timecreated'])
+        sessionlength = session['sessionlength']
+        if time.time() - sessionstart > sessionlength:
             arrayquery.append('delete from sessions where sessionid=\'' + session['sessionid'] + '\'')
-    
+
     # Delete offensive sessions 
-    pilib.sqlitemultquery(sessionsdatabase,arrayquery)  
+    pilib.sqlitemultquery(pilib.authlogdatabase, arrayquery)
 
     # Reload surviving sessions and summarize
-    sessions=pilib.readalldbrows(sessionsdatabase,'sessions')
-    sessiondictarray=[]
+    sessions = pilib.readalldbrows(pilib.authlogdatabase, 'sessions')
+    sessiondictarray = []
     for session in sessions:
-        found=0
+        found = 0
         for dict in sessiondictarray:
             if dict['username'] == session['username']:
-                found=1
-                index=sessiondictarray.index(dict)
-                dict['sessions']+=1
-                sessiondictarray[index]=dict
+                found = 1
+                index = sessiondictarray.index(dict)
+                dict['sessions'] += 1
+                sessiondictarray[index] = dict
         if not found:
-            sessiondictarray.append({'username':session['username'],'sessions':1})
-             
+            sessiondictarray.append({'username': session['username'], 'sessions': 1})
+
     # Create sessions table 
-    queryarray=[]
+    queryarray = []
     queryarray.append('drop table if exists sessionsummary')
     queryarray.append('create table sessionsummary (username text, sessionsactive real)')
     for dict in sessiondictarray:
-        queryarray.append('insert into sessionsummary values (\'' + dict['username'] + '\',\'' + str(dict['sessions']) + '\')')
-    pilib.sqlitemultquery(sessionsdatabase,queryarray)
+        queryarray.append(
+            'insert into sessionsummary values (\'' + dict['username'] + '\',\'' + str(dict['sessions']) + '\')')
+    pilib.sqlitemultquery(pilib.authlogdatabase, queryarray)
 
-    polltime=pilib.sqlitedatumquery(sessionsdatabase,'select updatefrequency from \'settings\'')
- 
+    polltime = pilib.sqlitedatumquery(pilib.authlogdatabase, 'select updatefrequency from \'settings\'')
+
     time.sleep(polltime)
-    enabled=pilib.sqlitedatumquery(controldatabase,'select sessioncontrolenabled from \'systemstatus\'')
+    enabled = pilib.sqlitedatumquery(pilib.authlogdatabase, 'select sessioncontrolenabled from \'systemstatus\'')
 

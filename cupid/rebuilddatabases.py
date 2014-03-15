@@ -78,7 +78,7 @@ def rebuildcontroldb(tabledict):
         querylist.append('drop table if exists ' + table)
         querylist.append(
             "create table " + table + " ( id text primary key, interface text, type text, address text, enabled boolean default 0, name text unique, mode text default 'manual', status boolean default 0, ontime string, offtime string, minontime real, minofftime real)")
-        addentries = False
+        addentries = True
         if addentries:
             querylist.append(
                 "insert into " + table + " values ('GPIO1', 'GPIO', 'GPIO', '18', 0, 'output1', 'manual', 0,'','',0,0)")

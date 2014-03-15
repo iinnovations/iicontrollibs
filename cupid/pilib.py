@@ -12,7 +12,7 @@ __status__ = "Development"
 # This library is for use by all other pi
 # functions
 
-# Global eclarations of database locations
+# Global declarations of database locations
 
 databasedir = '/var/www/data/'
 
@@ -23,6 +23,7 @@ logdatabase = databasedir + 'logdata.db'
 authlogdatabase = databasedir + 'authlog.db'
 recipedatabase = databasedir + 'recipedata.db'
 systemdatadatabase = databasedir + 'systemdata.db'
+sessionsdatabase = databasedir + 'sessionsdata.db'
 
 #############################################
 ## Utility Functions
