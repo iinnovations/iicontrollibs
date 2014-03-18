@@ -32,11 +32,11 @@ querylist.append("create table " + table + " (name text, hwaddr text, address te
 allIfaces = pyiface.getIfaces()
 for iface in allIfaces:
     querylist.append("insert into " + table + " values ( \'" + iface.name + "\' , \'" + iface.hwaddr + "\' , \'" + iface._Interface__sockaddrToStr(iface.addr) + "\' , \'" +  str(iface.index) + "\' , \'" + iface._Interface__sockaddrToStr(iface.broadaddr) + "\' , \'" +  iface._Interface__sockaddrToStr(iface.netmask) + "\' , \'" +  pyiface.flagsToStr(iface.flags) + "\')")
-    print(querylist)
+    #print(querylist)
     sqlitemultquery(systemdatadatabase, querylist)
 
 
 # Interfaces check
-status = subprocess.call(['service hostapd status'])
+status = subprocess.call(['service', 'hostapd', 'status'])
 
 # Other stuff

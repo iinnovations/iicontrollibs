@@ -111,7 +111,23 @@ def rebuildcontroldb(tabledict):
         table = 'ioinfo'
         querylist.append('drop table if exists ' + table)
         querylist.append("create table " + table + " (id text primary key, name text)")
-
+        if addentries:
+            querylist.append(
+                "insert into " + table + " values ('GPIO1', 'GPIO1')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO2', 'GPIO2')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO3', 'GPIO3')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO4', 'GPIO4')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO5', 'GPIO5')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO6', 'GPIO6')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO7', 'GPIO7')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO8', 'GPIO8')")
     ### InputData Table
     if 'inputsdata' in tabledict:
         runquery = True
@@ -119,6 +135,23 @@ def rebuildcontroldb(tabledict):
         querylist.append('drop table if exists ' + table)
         querylist.append(
             "create table " + table + " (id text primary key, interface text, type text, address text, value real, unit text, polltime text, enabled boolean default 1, name text)")
+        if addentries:
+            querylist.append(
+                "insert into " + table + " values ('GPIO1', 'GPIO', 'GPIO', '18', 0, '', '', 1,'')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO2', 'GPIO', 'GPIO', '23', 0, '', '', 1,'')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO3', 'GPIO', 'GPIO', '24', 0, '', '', 1,'')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO4', 'GPIO', 'GPIO', '25', 0, '', '', 1,'')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO5', 'GPIO', 'GPIO', '4', 0, '', '', 1,'')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO6', 'GPIO', 'GPIO', '17', 0, '', '', 1,'')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO7', 'GPIO', 'GPIO', '21', 0, '', '', 1,'')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO8', 'GPIO', 'GPIO', '22', 0, '', '', 1,'')")
 
     ### Controlalgorithms table
     if 'algorithms' in tabledict:

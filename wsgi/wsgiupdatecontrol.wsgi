@@ -20,7 +20,7 @@ def application(environ, start_response):
         environ=post_env,
         keep_blank_values=True
     )
-    output=''
+    output = ''
 
     formname=post.getvalue('name')
 
@@ -85,16 +85,19 @@ def application(environ, start_response):
         index = False
 
     # carry out generic set value
-    if action=='setvalue' and database and table and valuename and value:
-        output+='Carrying out setvalue. '
-        if condition:
-            pilib.setsinglevalue(database,table,valuename,value,condition)
-        elif index:
-            condition='rowid= ' + index
-            pilib.setsinglevalue(database,table,valuename,value,condition)
+    if action=='setvalue':
+        if database and table and valuename and value:
+            output+='Carrying out setvalue. '
+            if condition:
+                pilib.setsinglevalue(database,table,valuename,value,condition)
+            elif index:
+                condition='rowid= ' + index
+                pilib.setsinglevalue(database,table,valuename,value,condition)
+            else:
+                pilib.setsinglevalue(database,table,valuename,value)
         else:
-            pilib.setsinglevalue(database,table,valuename,value)
-    elif action=='spchange' and database:
+             output+='Insufficient data for setvalue '
+    elif action == 'spchange' and database:
         output+='Spchanged. '
         if subaction=='incup':
             controllib.incsetpoint(database,channelname)
