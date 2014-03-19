@@ -12,7 +12,6 @@ __status__ = "Development"
 def setrawspilights(enabledlists):
 
     import spidev
-    import time
 
     spi = spidev.SpiDev()
     try:

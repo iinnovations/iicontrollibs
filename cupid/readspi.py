@@ -18,33 +18,39 @@ import os
 import time
 import pilib
 
-querylist=[];
+querylist = [];
 
 ########################################
 # Read Thermocouple temperature. Clearly 
 # we need to have a selector for what to 
 # read/write on our SPI interface
 
-def readspi():
-    valuedict={}
-    valuedict['SPITC1']=getspitctemp().rstrip()
-    return valuedict 
-    
+def readspitc():
+    valuedict = {}
+    valuedict['SPITC1'] = getspitctemp().rstrip()
+    return valuedict
+
+
 def getspitctemp():
     import subprocess
-    tctemp=subprocess.check_output(['python3','/usr/lib/iicontrollibs/cupid/getmaxtemp.py'])
+
+    tctemp = subprocess.check_output(['python3', '/usr/lib/iicontrollibs/cupid/max31855-1.0/getmaxtemp.py'])
     return tctemp
 
-def recordspidata(database,valuedict):
+
+def recordspidata(database, valuedict):
     # This is incomplete and hardcoded partially
-    querylist=[]
-    for key,value in valuedict.iteritems():
-        querylist.append(pilib.makesqliteinsert('inputsdata',valuelist=[key,'SPI1','TC','1',value,'F',pilib.gettimestring(),1,key]))
-        querylist.append(pilib.makesqliteinsert('ioinfo',valuelist=[key,key]))
-    pilib.sqlitemultquery(database,querylist)
+    querylist = []
+    for key, value in valuedict.iteritems():
+        querylist.append(pilib.makesqliteinsert('inputsdata',
+                                                valuelist=[key, 'SPI1', 'TC', '1', value, 'F', pilib.gettimestring(), 1,
+                                                           key]))
+        querylist.append(pilib.makesqliteinsert('ioinfo', valuelist=[key, key]))
+    pilib.sqlitemultquery(database, querylist)
+
 
 if __name__ == "__main__":
-    database = '/var/www/data/controldata.db'
-    valuedict=readspi() 
-    recordspidata(database,valuedict)
+    from pilib import controldatabase
+    valuedict = readspitc()
+    recordspidata(controldatabase, valuedict)
     print(valuedict)

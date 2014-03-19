@@ -20,10 +20,9 @@ onewiredir = "/var/1wire/"
 outputdir = "/var/www/data/"
 controldatabase = databasedir + 'controldata.db'
 logdatabase = databasedir + 'logdata.db'
-authlogdatabase = databasedir + 'authlog.db'
+sessiondatabase = databasedir + 'authlog.db'
 recipedatabase = databasedir + 'recipedata.db'
 systemdatadatabase = databasedir + 'systemdata.db'
-sessionsdatabase = databasedir + 'sessionsdata.db'
 
 #############################################
 ## Utility Functions
@@ -284,7 +283,6 @@ def getpragmatypes(database, table):
     for item in pragma:
         pragmanames.append(item[2])
     return pragmanames
-
 
 def getpragmanametypedict(database, table):
     pragma = getpragma(database, table)

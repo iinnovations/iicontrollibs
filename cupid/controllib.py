@@ -15,7 +15,6 @@ __status__ = "Development"
 ## Control Functions
 #######################################################
 
-
 def runalgorithm(controldatabase, recipedatabase, channelname):
     from pilib import sqlitequery, datarowtodict, gettimestring, timestringtoseconds
     import time
@@ -174,7 +173,7 @@ def runalgorithm(controldatabase, recipedatabase, channelname):
 def setsetpoint(controldatabase, channelname, setpointvalue):
     from pilib import sqlitequery
 
-    currentsetpoint = sqlitequery(controldatabase, 'update channels set setpointvalue=\'' + str(
+    sqlitequery(controldatabase, 'update channels set setpointvalue=\'' + str(
         setpointvalue) + '\' where name=\'' + channelname + '\'')
 
 
@@ -323,4 +322,26 @@ def setchanneloutputsenabled(controldatabase, channelname, newstatus):
 
     sqlitequery(controldatabase,
                 'update channels set outputsenabled=\'' + newstatus + '\' where name=\'' + channelname + '\'')
+
+
+def disablealloutputs():
+    from pilib import controldatabase, readalldbrows
+
+    outputs = readalldbrows(controldatabase,'outputs')
+
+    querylist=[]
+    for output in outputs:
+        querylist.append('update outputs set enabled=0 where name=\'' + output['name'] + '\'')
+
+    print('all outputs disabled')
+
+def turnoffgpios(GPIOnumberlist):
+    import RPi.GPIO as GPIO
+
+    GPIO.setmode(GPIO.BCM)
+
+    for GPIOnumber in GPIOnumberlist:
+        GPIO.setup(int(GPIOnumber), GPIO.OUT)
+        GPIO.output(int(GPIOnumber), False)
+
 

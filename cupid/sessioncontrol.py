@@ -30,11 +30,11 @@ enabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select sessioncontrolen
 
 while enabled:
     #print('enabled')
-    polltime = pilib.sqlitedatumquery(pilib.authlogdatabase, 'select updatefrequency from \'settings\'')
+    polltime = pilib.sqlitedatumquery(pilib.sessiondatabase, 'select updatefrequency from \'settings\'')
 
     # Go through sessions and delete expired ones
-    sessions = pilib.readalldbrows(pilib.authlogdatabase, 'sessions')
-    sessions = pilib.readalldbrows(pilib.authlogdatabase, 'sessions')
+    sessions = pilib.readalldbrows(pilib.sessiondatabase, 'sessions')
+    sessions = pilib.readalldbrows(pilib.sessiondatabase, 'sessions')
     arrayquery = []
     for session in sessions:
         sessionstart = pilib.timestringtoseconds(session['timecreated'])
@@ -43,10 +43,10 @@ while enabled:
             arrayquery.append('delete from sessions where sessionid=\'' + session['sessionid'] + '\'')
 
     # Delete offensive sessions 
-    pilib.sqlitemultquery(pilib.authlogdatabase, arrayquery)
+    pilib.sqlitemultquery(pilib.sessiondatabase, arrayquery)
 
     # Reload surviving sessions and summarize
-    sessions = pilib.readalldbrows(pilib.authlogdatabase, 'sessions')
+    sessions = pilib.readalldbrows(pilib.sessiondatabase, 'sessions')
     sessiondictarray = []
     for session in sessions:
         found = 0
@@ -66,10 +66,10 @@ while enabled:
     for dict in sessiondictarray:
         queryarray.append(
             'insert into sessionsummary values (\'' + dict['username'] + '\',\'' + str(dict['sessions']) + '\')')
-    pilib.sqlitemultquery(pilib.authlogdatabase, queryarray)
+    pilib.sqlitemultquery(pilib.sessiondatabase, queryarray)
 
-    polltime = pilib.sqlitedatumquery(pilib.authlogdatabase, 'select updatefrequency from \'settings\'')
+    polltime = pilib.sqlitedatumquery(pilib.sessiondatabase, 'select updatefrequency from \'settings\'')
 
     time.sleep(polltime)
-    enabled = pilib.sqlitedatumquery(pilib.authlogdatabase, 'select sessioncontrolenabled from \'systemstatus\'')
+    enabled = pilib.sqlitedatumquery(pilib.sessiondatabase, 'select sessioncontrolenabled from \'systemstatus\'')
 
