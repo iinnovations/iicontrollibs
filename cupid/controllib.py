@@ -170,6 +170,61 @@ def runalgorithm(controldatabase, recipedatabase, channelname):
     return [action, message]
 
 
+# I think we need a channel class here. Not used yet, but in development.
+
+class channel:
+    def __init__(self,propertydict):
+        for key,value in propertydict.items():
+            setattr(self,key,value)
+
+    def setsetpoint(self,setpointvalue):
+        from pilib import controldatabase, sqlitequery
+        sqlitequery(controldatabase, 'update channels set setpointvalue=\'' + str(setpointvalue) + '\' where name=\'' + channel.name + '\'')
+
+    def setaction(self,action):
+         from pilib import controldatabase, sqlitequery
+         sqlitequery(controldatabase,
+            'update channels set action = \'' + str(action) + '\' where name = \'' + channel.name + '\'')
+
+    def setcontrolinput(self,inputid):
+        from pilib import controldatabase, sqlitequery
+        sqlitequery(controldatabase,
+                'update channels set controlinput = \'' + inputid + '\' where name = \'' + channel.name + '\'')
+
+    def getaction(self):
+        from pilib import controldatabase, sqlitedatumquery
+        self.action = sqlitedatumquery(controldatabase,'select action from channels where name=\'' + channel.name + '\'')
+
+    def getsetpointvalue(self):
+        from pilib import controldatabase, sqlitedatumquery
+        self.setpointvalue = sqlitedatumquery(controldatabase, 'select setpointvalue from channels where name=\'' + channel.name + '\'')
+
+    def incsetpoint(self):
+        self.getsetpointvalue()
+        self.setsetpoint(self.setpointvalue+1)
+
+    def decsetpoint(self):
+        self.getsetpointvalue()
+        self.setsetpoint(self.setpointvalue-1)
+
+    def getmode(self):
+        from pilib import controldatabase, sqlitedatumquery
+        self.mode = sqlitedatumquery(controldatabase, 'select mode from channels where name=\'' + channel.name + '\'')
+
+    def setmode(self,mode):
+        from pilib import controldatabase, sqlitequery
+        sqlitequery(controldatabase, 'update channels set mode=\'' + str(mode) + '\' where name=\'' + channel.name + '\'')
+
+    def togglemode(self,mode):
+        from pilib import controldatabase, sqlitedatumquery
+        self.getmode()
+        if self.mode == 'manual':
+            self.mode = 'auto'
+        else:
+            self.mode = 'manual'
+
+# This works fine, for now.
+
 def setsetpoint(controldatabase, channelname, setpointvalue):
     from pilib import sqlitequery
 

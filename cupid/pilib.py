@@ -15,7 +15,6 @@ __status__ = "Development"
 # Global declarations of database locations
 
 databasedir = '/var/www/data/'
-
 onewiredir = "/var/1wire/"
 outputdir = "/var/www/data/"
 controldatabase = databasedir + 'controldata.db'
@@ -30,7 +29,6 @@ systemdatadatabase = databasedir + 'systemdata.db'
 
 def gettimestring(timeinseconds=None):
     import time
-
     if timeinseconds:
         try:
             timestring = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(timeinseconds))
@@ -43,7 +41,6 @@ def gettimestring(timeinseconds=None):
 
 def timestringtoseconds(timestring):
     import time
-
     try:
         timeinseconds = time.mktime(time.strptime(timestring, "%Y-%m-%d %H:%M:%S"))
     except ValueError:
