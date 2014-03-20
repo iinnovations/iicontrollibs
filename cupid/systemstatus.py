@@ -36,11 +36,11 @@ for iface in allIfaces:
             iface.addr) + "\' , \'" + str(iface.index) + "\' , \'" + iface._Interface__sockaddrToStr(
             iface.broadaddr) + "\' , \'" + iface._Interface__sockaddrToStr(
             iface.netmask) + "\' , \'" + pyiface.flagsToStr(iface.flags) + "\')")
-    print(querylist)
+    #print(querylist)
     sqlitemultquery(systemdatadatabase, querylist)
 
 
 # Interfaces check
-status = subprocess.call(['service hostapd status'])
+status = subprocess.call(['service', 'hostapd', 'status'])
 
 # Other stuff

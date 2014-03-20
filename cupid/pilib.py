@@ -12,8 +12,9 @@ __status__ = "Development"
 # This library is for use by all other pi
 # functions
 
-# Global declarations of database locations
+# Global declarations of file locations
 
+baselibdir = '/usr/lib/iicontrollibs/'
 databasedir = '/var/www/data/'
 onewiredir = "/var/1wire/"
 outputdir = "/var/www/data/"
