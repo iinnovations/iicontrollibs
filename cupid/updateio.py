@@ -28,10 +28,27 @@ def updateio(database):
         return
     if 'inputs' in tables:
         previnputs = pilib.readalldbrows(pilib.controldatabase, 'inputs')
+
+        # Make list of IDs for easy indexing
+        previnputids=[]
+        for input in previnputs:
+            previnputids.append(input['id'])
+
     if 'outputs' in tables:
         prevoutputs = pilib.readalldbrows(pilib.controldatabase, 'outputs')
+
+        # Make list of IDs for easy indexing
+        prevoutputids=[]
+        for output in prevoutputs:
+            prevoutputids.append(output['id'])
+
     if 'defaults' in tables:
-        defaults = pilib.readalldbrows(pilib.controldatabase, 'defaults')
+        defaults = pilib.readalldbrows(pilib.controldatabase, 'defaults')[0]
+        defaultinputpollfreq = defaults['inputpollfreq']
+        defaultoutputpollfreq = defaults['outputpollfreq']
+    else:
+        defaultinputpollfreq = 60
+        defaultoutputpollfreq = 60
 
     # I guess we should eliminate inputs and outputs and recreate in the routine here.
     # Add all into one query so there is no time when the IO don't exist.
@@ -45,8 +62,9 @@ def updateio(database):
 
     querylist=[]
     for interface in interfaces:
+
         if interface['interface'] == 'GPIO':
-            print('options: ' + interface['options'])
+            #print('options: ' + interface['options'])
             options = pilib.parseoptions(interface['options'])
 
             # TODO : respond to more option, like pullup and pulldown
@@ -54,25 +72,45 @@ def updateio(database):
             address = interface['id'][4:]
             print(address)
 
-
             # Check if interface is enabled
 
             if interface['enabled']:
-                print("processing enabled GPIO")
+                #print("processing enabled GPIO")
                 # Get name from ioino table to give it a colloquial name
                 name = pilib.sqlitedatumquery(database, 'select name from ioinfo where id=\'' + interface['id'] + '\'')
-
-                querylist.append("insert into inputs values (\'" + interface['id'] + "\',\'" + interface['interface'] + "\',\'" + interface['type'] + "\',\'" + address + "\',\'" + name + "\'," + value + ",\'\')")
 
                 # Append to inputs and update name, even if it's an output (can read status as input)
 
                 if options['mode'] == 'output':
                     GPIO.setup(int(address), GPIO.OUT)
-                    #value = GPIO.input(int(address))
-                    # Add entries in inputs and outputs tables
-                    querylist.append("insert into outputs values (\'" + interface['id'] + "\',\'" + interface['interface'] + "\',\'" + interface['type'] + "\',\'" + address + "\',\'" + name + "\'," + value + ",\'\')")
+                    value = GPIO.input(int(address))
+
+                    # Get output settings and keep them if the GPIO previously existed
+                    if interface['id'] in prevoutputids:
+                        pollfreq = prevoutputs[prevoutputids.index(interface['id'])]['pollfreq']
+                        polltime = prevoutputs[prevoutputids.index(interface['id'])]['polltime']
+                    else:
+                        pollfreq = defaultoutputpollfreq
+                        polltime = ''
+
+                    # Add entry to outputs tables
+                    querylist.append("insert into outputs values (\'" + interface['id'] + "\',\'" + interface['interface'] + "\',\'" + interface['type'] + "\',\'" + address + "\',\'" + name + "\'," + str(value) + ",\'\',\'" + str(polltime) + "\'," + str(pollfreq) + ")")
                 else:
-                    GPIO.setup(int(address), GPIO.OUT)
+                    GPIO.setup(int(address), GPIO.IN)
+                    value = GPIO.input(int(address))
+
+                # Get input settings and keep them if the GPIO previously existed
+                if interface['id'] in prevoutputids:
+                    pollfreq = previnputs[prevoutputids.index(interface['id'])]['pollfreq']
+                    polltime = previnputs[prevoutputids.index(interface['id'])]['polltime']
+                else:
+                    pollfreq = defaultinputpollfreq
+                    polltime = ''
+
+
+                # Add entry to outputs tables
+                querylist.append("insert into inputs values (\'" + interface['id'] + "\',\'" + interface['interface'] + "\',\'" + interface['type'] + "\',\'" + address + "\',\'" + name + "\'," + str(value) + ",\'\',\'" + str(polltime) + "\'," + str(pollfreq) + ")")
+
             else:
                 GPIO.setup(int(address), GPIO.IN)
 
@@ -103,8 +141,8 @@ def updateio(database):
     # Configure hardware
 
     # Set tables
-
-    pilib.sqlitemultquery(pilib.controldatabase,querylist)
+    print(querylist)
+    pilib.sqlitemultquery(pilib.controldatabase, querylist)
 
     return ("io updated")
 

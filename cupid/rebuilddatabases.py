@@ -71,6 +71,17 @@ def rebuildcontroldb(tabledict):
             querylist.append("insert into " + table + " values ('SPI_SC_B', 'SPI', 0,'blue')")
             querylist.append("insert into " + table + " values ('SPI_SC_Y', 'SPI', 0,'yellow')")
 
+    ### Defaults table
+    if 'defaults' in tabledict:
+        runquery = True
+        table = 'defaults'
+        querylist.append('drop table if exists ' + table)
+        querylist.append(
+            "create table " + table + " ( inputpollfreq real, outputpollfreq real)")
+        addentries = True
+        if addentries:
+            querylist.append("insert into " + table + " values (60, 60)")
+
     ### Outputs table
     if 'outputs' in tabledict:
         runquery = True
@@ -338,6 +349,10 @@ if __name__ == "__main__":
     answer = raw_input('Rebuild actions table (y/N)?')
     if answer == 'y':
         controltabledict['actions'] = True
+
+    answer = raw_input('Rebuild defaults table (y/N)?')
+    if answer == 'y':
+        controltabledict['defaults'] = True
 
     answer = raw_input('Rebuild systemstatus table (y/N)?')
     if answer == 'y':
