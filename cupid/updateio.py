@@ -140,17 +140,15 @@ def updateio(database):
     return ("io updated")
 
 
-def updateioinfo(database):
+def updateioinfo(database,table):
     from pilib import readalldbrows, sqlitedatumquery, sqlitemultquery
 
-    inputsdata = readalldbrows(database, 'inputsdata')
+    tabledata = readalldbrows(database, table)
     querylist = []
-    for input in inputsdata:
-        id = input['id']
-        #print('id - ' + id)
-        name = sqlitedatumquery(database, 'select name from ioinfo where id=\'' + id + '\'')
-        #print('name - ' + name)
-        querylist.append(database, 'update inputsdata set name=\'' + name + '\' where id = \'' + id + '\'')
+    for item in tabledata:
+        itemid = item['id']
+        name = sqlitedatumquery(database, 'select name from ioinfo where id=\'' + itemid + '\'')
+        querylist.append(database, 'update ' + table + ' set name=\'' + name + '\' where id = \'' + itemid + '\'')
     if querylist:
         sqlitemultquery(querylist)
 
