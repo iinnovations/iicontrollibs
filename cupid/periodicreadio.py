@@ -13,7 +13,7 @@ __status__ = "Development"
 # specified interval, sends to log, channels and plot dbs 
 
 import pilib
-import readio
+import updateio
 from time import sleep
 
 readtime = 10  # default, seconds
@@ -36,11 +36,11 @@ while inputsreadenabled:
 
     # Read and record everything as specified in controldatabase 
 
-    reply = readio.readio(pilib.controldatabase)
+    reply = updateio.readio(pilib.controldatabase)
 
     # Match inputsdata with ioinfo and update inputsdata table
 
-    readio.updateiodata(pilib.controldatabase)
+    updateio.updateioinfo(pilib.controldatabase)
 
     result = pilib.readonedbrow(pilib.controldatabase, 'systemstatus', 0)
     systemsdict = result[0]

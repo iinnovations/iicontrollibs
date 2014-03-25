@@ -10,14 +10,17 @@ __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
 def setrawspilights(enabledlists):
-
-    import spidev
+    try:
+        import spidev
+    except ImportError:
+        raise ImportError('You have not installed the spidev python package. Exiting.')
+        exit
 
     spi = spidev.SpiDev()
     try:
         spi.open(0,1)   # Port 0, CS1
     except:
-        print('error raised')
+        print('error raised. exiting.')
         exit
     else:
 

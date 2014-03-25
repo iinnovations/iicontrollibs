@@ -28,6 +28,15 @@ systemdatadatabase = databasedir + 'systemdata.db'
 ## Utility Functions
 #############################################
 
+def parseoptions(optionstring):
+    list = optionstring.split(',')
+    optionsdict={}
+    for item in list:
+        split = item.split(':')
+        optionsdict[split[0]] = split[1]
+    return optionsdict
+
+
 def gettimestring(timeinseconds=None):
     import time
     if timeinseconds:
@@ -48,31 +57,12 @@ def timestringtoseconds(timestring):
         timeinseconds = 0
     return timeinseconds
 
+
+# This class defines actions taken on
 class action:
-    def __init__(self,actiondict):
-        self.enabled = actiondict['enabled']
-        self.conditiontype = actiondict['conditiontype']
-        self.actiontype = actiondict['actiontype']
-        self.name = actiondict['name']
-        self.actiontype = actiondict['actiontype']
-        self.actiondetail = actiondict['actiondetail']
-        self.database = actiondict['database']
-        self.tablename = actiondict['tablename']
-        self.rowid = actiondict['channelindex']
-        self.variablename = actiondict['variablename']
-        self.operator = actiondict['operator']
-        self.criterion = actiondict['criterion']
-        self.ondelay = actiondict['ondelay']
-        self.offdelay = actiondict['offdelay']
-        self.status = actiondict['status']  # status is conditional comparison
-        self.active = actiondict['active']  # active is after ontime
-        self.ontime = actiondict['ontime']
-        self.offtime = actiondict['offtime']
-        self.actionfrequency = actiondict['actionfrequency']
-        self.lastactiontime = actiondict['lastactiontime']
-        self.statusmsg = actiondict['statusmsg']
-        self.variablevalue = actiondict['variablevalue']
-        self.activereset = actiondict['activereset']
+    def __init__(self, actiondict):
+        for key, value in actiondict.items():
+            setattr(self, key, value)
 
     def onact(self):
         if self.actiontype == 'email':
@@ -81,7 +71,7 @@ class action:
             email = self.actiondetail
             message = 'Alert is active for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + self.criterion + ' with an operator of ' + self.operator + '. This alarm status has been on since ' + self.ontime + '.'
             subject = 'CuPID Alert : Alarm On - ' + self.name
-            actionmail = gmail(message=message, subject=subject,recipient=email)
+            actionmail = gmail(message=message, subject=subject, recipient=email)
             actionmail.send()
 
         elif self.actiontype == 'indicator':
