@@ -50,7 +50,7 @@ def updateio(database):
         defaultinputpollfreq = 60
         defaultoutputpollfreq = 60
 
-    # I guess we should eliminate inputs and outputs and recreate in the routine here.
+    # We drop all inputs and outputs and recreate
     # Add all into one query so there is no time when the IO don't exist.
 
     querylist=[]
@@ -64,7 +64,7 @@ def updateio(database):
     for interface in interfaces:
 
         if interface['interface'] == 'GPIO':
-            #print('options: ' + interface['options'])
+
             options = pilib.parseoptions(interface['options'])
 
             # TODO : respond to more option, like pullup and pulldown
@@ -75,8 +75,8 @@ def updateio(database):
             # Check if interface is enabled
 
             if interface['enabled']:
-                #print("processing enabled GPIO")
-                # Get name from ioino table to give it a colloquial name
+
+                # Get name from ioinfo table to give it a colloquial name
                 name = pilib.sqlitedatumquery(database, 'select name from ioinfo where id=\'' + interface['id'] + '\'')
 
                 # Append to inputs and update name, even if it's an output (can read status as input)
@@ -132,13 +132,6 @@ def updateio(database):
             elif interface['type'] == 'CuPIDLights':
                 import spilights
                 spilights.updatelightsfromdb(pilib.controldatabase, 'indicators')
-
-        #print('name - ' + name)
-
-
-    # Incorporate ioinfo data
-
-    # Configure hardware
 
     # Set tables
     print(querylist)
