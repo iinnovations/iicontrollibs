@@ -14,13 +14,11 @@ top_folder = os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspec
 if top_folder not in sys.path:
     sys.path.insert(0,top_folder)
 
-from cupid.pilib import readonedbrow
-
-database='/var/www/data/controldata.db'
+from cupid.pilib import readonedbrow,systemdatadatabase
 
 # Read the config from the database
 
-netsettings=readonedbrow(database,'network')[0]
+netsettings = readonedbrow(systemdatadatabase,'netconfig')[0]
 
 args = sys.argv
 reboot=False
