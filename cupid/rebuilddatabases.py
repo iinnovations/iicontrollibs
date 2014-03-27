@@ -292,13 +292,13 @@ def rebuildsystemdatadb(tabledict):
         runquery = "True"
         table = 'netstatus'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " ( IPAddress text, gateway text, WANaccess text, networkSSID text networkpassword text, dhcpstatus boolean default 0, hostapdstatus boolean default 0)")
+        querylist.append("create table " + table + " ( IPAddress text, gateway text, WANaccess text, networkSSID text, dhcpstatus boolean default 0, hostapdstatus boolean default 0)")
         querylist.append("insert into " + table + " values ('','','','','','')")
     if 'netconfig' in tabledict:
         runquery = "True"
         table = 'netconfig'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (nettype text, addtype text, address text, gateway text, dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99')")
+        querylist.append("create table " + table + " (nettype text, addtype text, address text, gateway text, networkSSID text, networkpassword text,dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99')")
         querylist.append("insert into " + table + " values ('station','static','192.168.1.40','192.168.1.1','','')")
 
     if 'metadata' in tabledict:
