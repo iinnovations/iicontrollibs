@@ -11,25 +11,25 @@ __status__ = "Development"
 
 # This script handles owfs read functions
 
-import pilib
-import ow
-
 
 def updateowfstable(database, tablename):
-    # don't need this. sqliteinsert makes an insert or update query.
-    #currenttable=pilib.readalldbrows(database,tablename)
-
+    import ow
+    import pilib
     querylist = []
     ow.init('localhost:4304')
-    for sensor in ow.Sensor('/').sensorList():
+    sensorlist = ow.Sensor('/').sensorList()
+    for sensor in sensorlist:
+        print(sensor.id)
         querylist.append(
             pilib.makesqliteinsert(tablename, [sensor.address, sensor.family, sensor.id, sensor.type, sensor.crc8]))
     pilib.sqlitemultquery(database, querylist)
+    ow.finish()
 
 
-def updateowfsdatatable(database, tablename):
+def updateowfsentries(database, tablename):
+    import ow
+    import pilib
     querylist = []
-    namequerylist = []
     querylist.append('delete from ' + tablename + ' where interface = "i2c1wire"')
 
     ow.init('localhost:4304')
@@ -38,16 +38,15 @@ def updateowfsdatatable(database, tablename):
     # a bit ridiculous, but we can't have empty name fields if we rely on them
     # being there. They need to be unique, so we'll name them by type and increment them
 
-    for sensor in ow.Sensor('/').sensorList():
-        if sensor.type == 'DS18B20':
+    sensorlist = ow.Sensor('/').sensorList()
+    for sensor in sensorlist:
+        print(sensor.id)
+        run = False
+        if sensor.type == 'DS18B20' and run:
             sensorid = 'i2c1wire' + '_' + sensor.address
 
-            querylist.append(pilib.makesqliteinsert(tablename, [sensorid, 'i2c1wire', sensor.type, sensor.address,
-                                                                float(sensor.temperature), 'C', pilib.gettimestring(),
-                                                                1, '']))
-
             # Get name if one exists
-            name = pilib.sqlitedatumquery(database, 'select name from ioinfo where id=\"' + sensorid + '\"')
+            name = pilib.sqlitedatumquery(database, 'select name from ioinfo where id=\'' + sensorid + '\'')
 
             # If doesn't exist, check to see if proposed name exists. If it doesn't, add it.
             # If it does, keep trying.
@@ -55,19 +54,26 @@ def updateowfsdatatable(database, tablename):
             if name == '':
                 for index in range(100):
                     # check to see if name exists
-                    propname = sensor.type + '-' + str(int(index + 1))
-                    foundid = pilib.sqlitedatumquery(database, 'select id from ioinfo where name=\"' + propname + '\"')
+                    name = sensor.type + '-' + str(int(index + 1))
+                    print(propname)
+                    foundid = pilib.sqlitedatumquery(database, 'select id from ioinfo where name=\'' + name + '\'')
+                    print('foundid' + foundid)
                     if foundid:
                         pass
                     else:
-                        pilib.sqlitequery(database, pilib.makesqliteinsert('ioinfo', valuelist=[id, propname],
+                        pilib.sqlitequery(database, pilib.makesqliteinsert('ioinfo', valuelist=[sensorid, name],
                                                                            valuenames=['id', 'name']))
                         break
 
+            # Is it time to read temperature?
+            # At the moment, we assume yes.
+            querylist.append(pilib.makesqliteinsert(tablename, [sensorid, 'i2c1wire', sensor.type, sensor.address, name, float(sensor.temperature), 'C', pilib.gettimestring(), '']))
     #print(querylist)
     pilib.sqlitemultquery(database, querylist)
+    ow.finish()
 
 
 if __name__ == "__main__":
-    updateowfstable(pilib.controldatabase, 'owfs')
-    updateowfsdatatable(pilib.controldatabase, 'inputsdata')
+    from pilib import controldatabase
+    updateowfstable(controldatabase, 'owfs')
+    updateowfsentries(controldatabase, 'inputs')
