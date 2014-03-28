@@ -8,7 +8,7 @@
 
 # Turn off the lights
 printf "turning off lights\n"
-/usr/lib/iicontrollibs/cupid/turnoffthelights.py
+/usr/lib/iicontrollibs/cupid/spilights.py
 
 # Run netstart script
 printf "running netstart\n"

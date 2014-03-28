@@ -1,5 +1,5 @@
-from ifreqioctls import *
-from iface import Interface, getIfaces
+from pyiface.ifreqioctls import *
+from pyiface.iface import Interface, getIfaces
 
 __all__=['Interface', 'getIfaces']
 

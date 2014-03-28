@@ -1,7 +1,3 @@
-from pyiface.ifreqioctls import *
-from pyiface.iface import Interface, getIfaces
-
-__all__=['Interface', 'getIfaces']
 
 ll = dir()
 for l in ll:

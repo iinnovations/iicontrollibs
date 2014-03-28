@@ -13,10 +13,11 @@ import sys
 import fcntl
 import struct
 import socket
-
 from ctypes import *
-from .ifreqioctls import *
 from binascii import hexlify
+
+from .pyiface.ifreqioctls import *
+
 
 flags2str = {
     IFF_UP: 'Interface is up.',

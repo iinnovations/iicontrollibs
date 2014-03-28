@@ -18,6 +18,7 @@ def updateiodata(database):
     # It also reads the elements if they are enabled and it's time to read them
 
     import pilib
+    import os
     import RPi.GPIO as GPIO
     GPIO.setmode(GPIO.BCM)
 
@@ -34,6 +35,9 @@ def updateiodata(database):
         previnputids=[]
         for input in previnputs:
             previnputids.append(input['id'])
+    else:
+        previnputs=[]
+        previnputids=[]
 
     if 'outputs' in tables:
         prevoutputs = pilib.readalldbrows(pilib.controldatabase, 'outputs')
@@ -42,12 +46,16 @@ def updateiodata(database):
         prevoutputids=[]
         for output in prevoutputs:
             prevoutputids.append(output['id'])
+    else:
+        prevoutputs={}
+        prevoutputids=[]
 
     if 'defaults' in tables:
         defaults = pilib.readalldbrows(pilib.controldatabase, 'defaults')[0]
         defaultinputpollfreq = defaults['inputpollfreq']
         defaultoutputpollfreq = defaults['outputpollfreq']
     else:
+        defaults=[]
         defaultinputpollfreq = 60
         defaultoutputpollfreq = 60
 
@@ -59,11 +67,11 @@ def updateiodata(database):
     querylist.append('drop table if exists outputs')
     querylist.append('create table outputs (id text primary key, interface text, type text, address text, name text, value real, unit text, polltime text, pollfreq real)')
     querylist.append('create table inputs (id text primary key, interface text, type text, address text, name text, value real, unit text, polltime text, pollfreq real)')
-    pilib.sqlitemultquery(pilib.controldatabase,querylist)
+    pilib.sqlitemultquery(pilib.controldatabase, querylist)
 
+    run=False
     querylist=[]
     for interface in interfaces:
-
         if interface['interface'] == 'GPIO':
 
             options = pilib.parseoptions(interface['options'])
@@ -77,8 +85,9 @@ def updateiodata(database):
             if interface['enabled']:
 
                 # Get name from ioinfo table to give it a colloquial name
-                name = pilib.sqlitedatumquery(database, 'select name from ioinfo where id=\'' + interface['id'] + '\'')
-                print('name = ' + name + ' for id ' + interface['id'])
+                gpioname = pilib.sqlitedatumquery(database, 'select name from ioinfo where id=\'' +
+                                                            interface['id'] + '\'')
+                print('name = ' + gpioname + ' for id ' + interface['id'])
 
                 # Append to inputs and update name, even if it's an output (can read status as input)
 
@@ -95,7 +104,10 @@ def updateiodata(database):
                         polltime = ''
 
                     # Add entry to outputs tables
-                    querylist.append("insert into outputs values (\'" + interface['id'] + "\',\'" + interface['interface'] + "\',\'" + interface['type'] + "\',\'" + address + "\',\'" + name + "\'," + str(value) + ",\'\',\'" + str(polltime) + "\'," + str(pollfreq) + ")")
+                    # querylist.append('insert into outputs values (\'' + interface['id'] + '\',\'' +
+                    #                  interface['interface'] + '\',\'' + interface['type'] + '\',\'' + address + "','" +
+                    #                  gpioname + '\',\'' + str(value) + '\',\'\',\'' + str(polltime) + '\',\'' +
+                    #                  str(pollfreq) + '\')')
                 else:
                     GPIO.setup(int(address), GPIO.IN)
                     value = GPIO.input(int(address))
@@ -110,7 +122,13 @@ def updateiodata(database):
 
 
                 # Add entry to outputs tables
-                querylist.append("insert into inputs values (\'" + interface['id'] + "\',\'" + interface['interface'] + "\',\'" + interface['type'] + "\',\'" + address + "\',\'" + name + "\'," + str(value) + ",\'\',\'" + str(polltime) + "\',\'" + str(pollfreq) + "\')")
+
+                # print('insert into inputs values (\'' + interface['id'] + '\',\'' + interface['interface'] + '\',\'' +
+                #       interface['type'] + '\',\'' + address + '\',\'' + gpioname + '\',\'' + str(value) + '\',\'\',\'' +
+                #       str(polltime) + '\',\'' + str(pollfreq) + '\')')
+                querylist.append('insert into inputs values (\'' + interface['id'] + '\',\'' + interface['interface'] + '\',\'' +
+                      interface['type'] + '\',\'' + address + '\',\'' + gpioname + '\',\'' + str(value) + '\',\'\',\'' +
+                      str(polltime) + '\',\'' + str(pollfreq) + '\')')
 
             else:
                 GPIO.setup(int(address), GPIO.IN)
@@ -119,9 +137,7 @@ def updateiodata(database):
             if interface['enabled']:
                 print("processing enabled I2C")
                 if interface['type'] == 'DS2483':
-                    from owfslib import updateowfstable, updateowfsentries
-                    #updateowfstable(database, 'owfs')
-                    updateowfsentries(database, 'inputs')
+                    os.system('/usr/lib/iicontrollibs/cupid/owfslib.py')
 
         elif interface['interface'] == 'SPI':
             print("processing SPI")
