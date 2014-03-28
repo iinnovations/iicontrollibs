@@ -63,7 +63,7 @@ def getbusdevices(host='localhost'):
     # any internal conversion, i.e. static properties
 
     initprops = ['id', 'address', 'crc8', 'alias', 'family', 'type']
-    
+
     buslist = owbuslist(host)
     deviceobjects = []
     for device in buslist:
@@ -86,41 +86,36 @@ def getbusdevices(host='localhost'):
     return deviceobjects
 
 
-def updateowfstable(database, tablename):
-    import ow
-    import pilib
+def updateowfstable(database, tablename, host='localhost'):
+    from pilib import makesqliteinsert, sqlitemultquery
+    devices = getbusdevices(host)
 
     querylist = []
-    ow.init('localhost:4304')
-    sensorlist = ow.Sensor('/').sensorList()
-    for sensor in sensorlist:
-        print(sensor.id)
+    for device in devices:
+        print(device.id)
         querylist.append(
-            pilib.makesqliteinsert(tablename, [sensor.address, sensor.family, sensor.id, sensor.type, sensor.crc8]))
-    pilib.sqlitemultquery(database, querylist)
-    ow.finish()
+            makesqliteinsert(tablename, [device.address, device.family, device.id, device.type, device.crc8]))
+    sqlitemultquery(database, querylist)
 
 
 def updateowfsentries(database, tablename):
-    import ow
+
     import pilib
 
     querylist = []
     querylist.append('delete from ' + tablename + ' where interface = "i2c1wire"')
 
-    ow.init('localhost:4304')
-
     # We're going to set a name because calling things by their ids is getting
     # a bit ridiculous, but we can't have empty name fields if we rely on them
     # being there. They need to be unique, so we'll name them by type and increment them
 
-    sensorlist = ow.Sensor('/').sensorList()
-    for sensor in sensorlist:
-        print(sensor.id)
+    devices = getbusdevices(host)
+    for device in devices:
+        print(device.id)
         run = False
-        if sensor.type == 'DS18B20' and run:
+        if device.type == 'DS18B20' and run:
             print('running')
-            sensorid = 'i2c1wire' + '_' + sensor.address
+            sensorid = 'i2c1wire' + '_' + device.address
 
             # Get name if one exists
             name = pilib.sqlitedatumquery(database, 'select name from ioinfo where id=\'' + sensorid + '\'')
@@ -131,7 +126,7 @@ def updateowfsentries(database, tablename):
             if name == '':
                 for index in range(100):
                     # check to see if name exists
-                    name = sensor.type + '-' + str(int(index + 1))
+                    name = device.type + '-' + str(int(index + 1))
                     print(name)
                     foundid = pilib.sqlitedatumquery(database, 'select id from ioinfo where name=\'' + name + '\'')
                     print('foundid' + foundid)
@@ -144,8 +139,8 @@ def updateowfsentries(database, tablename):
 
             # Is it time to read temperature?
             # At the moment, we assume yes.
-            querylist.append(pilib.makesqliteinsert(tablename, [sensorid, 'i2c1wire', sensor.type, sensor.address, name,
-                                                                float(sensor.temperature), 'C', pilib.gettimestring(),
+            querylist.append(pilib.makesqliteinsert(tablename, [sensorid, 'i2c1wire', device.type, device.address, name,
+                                                                float(device.temperature), 'C', pilib.gettimestring(),
                                                                 '']))
     #print(querylist)
     pilib.sqlitemultquery(database, querylist)
