@@ -9,7 +9,8 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
-def updateio(database):
+
+def updateiodata(database):
 
     # This recreates all input and output tables based on the interfaces table.
     # Thus way we don't keep around stale data values. We could at some point incorporate
@@ -70,7 +71,6 @@ def updateio(database):
             # TODO : respond to more option, like pullup and pulldown
 
             address = interface['id'][4:]
-            print(address)
 
             # Check if interface is enabled
 
@@ -78,6 +78,7 @@ def updateio(database):
 
                 # Get name from ioinfo table to give it a colloquial name
                 name = pilib.sqlitedatumquery(database, 'select name from ioinfo where id=\'' + interface['id'] + '\'')
+                print('name = ' + name + ' for id ' + interface['id'])
 
                 # Append to inputs and update name, even if it's an output (can read status as input)
 
@@ -109,7 +110,7 @@ def updateio(database):
 
 
                 # Add entry to outputs tables
-                querylist.append("insert into inputs values (\'" + interface['id'] + "\',\'" + interface['interface'] + "\',\'" + interface['type'] + "\',\'" + address + "\',\'" + name + "\'," + str(value) + ",\'\',\'" + str(polltime) + "\'," + str(pollfreq) + ")")
+                querylist.append("insert into inputs values (\'" + interface['id'] + "\',\'" + interface['interface'] + "\',\'" + interface['type'] + "\',\'" + address + "\',\'" + name + "\'," + str(value) + ",\'\',\'" + str(polltime) + "\',\'" + str(pollfreq) + "\')")
 
             else:
                 GPIO.setup(int(address), GPIO.IN)
@@ -119,9 +120,9 @@ def updateio(database):
                 print("processing enabled I2C")
                 if interface['type'] == 'DS2483':
                     # Check if interface is enabled
-                    import owfslib
-                    owfslib.updateowfstable(database, 'owfs')
-                    owfslib.updateowfsdatatable(database, 'inputs')
+                    from owfslib import updateowfstable, updateowfsdatatable
+                    #updateowfstable(database, 'owfs')
+                    updateowfsdatatable(database, 'inputs')
 
         elif interface['interface'] == 'SPI':
             print("processing SPI")
@@ -134,7 +135,7 @@ def updateio(database):
                 spilights.updatelightsfromdb(pilib.controldatabase, 'indicators')
 
     # Set tables
-    print(querylist)
+    #print(querylist)
     pilib.sqlitemultquery(pilib.controldatabase, querylist)
 
     return ("io updated")
@@ -155,5 +156,5 @@ def updateioinfo(database,table):
 
 if __name__ == "__main__":
     import pilib
-    updateio(pilib.controldatabase)
+    updateiodata(pilib.controldatabase)
 
