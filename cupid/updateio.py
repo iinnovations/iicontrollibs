@@ -120,9 +120,9 @@ def updateiodata(database):
                 print("processing enabled I2C")
                 if interface['type'] == 'DS2483':
                     # Check if interface is enabled
-                    from owfslib import updateowfstable, updateowfsdatatable
+                    from owfslib import updateowfstable, updateowfsentries
                     #updateowfstable(database, 'owfs')
-                    updateowfsdatatable(database, 'inputs')
+                    updateowfsentries(database, 'inputs')
 
         elif interface['interface'] == 'SPI':
             print("processing SPI")
