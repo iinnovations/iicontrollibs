@@ -16,7 +16,7 @@ def updateiodata(database):
 
     print("processing enabled I2C")
     from owfslib import updateowfstable, updateowfsentries
-    #updateowfstable(database, 'owfs')
+    updateowfstable(database, 'owfs')
     updateowfsentries(database, 'inputs')
 
 if __name__ == "__main__":
