@@ -44,11 +44,11 @@ class owdevice():
 
     def readprops(self, proplist):
         from resource.pyownet.protocol import OwnetProxy
-
+        myProxy = OwnetProxy(self.host)
         propvalues = []
         for propname in proplist:
             prop = self.devicedir + propname
-            propvalue = OwnetProxy(self.host).read(prop).strip()
+            propvalue = myProxy.read(prop).strip()
             setattr(self, propname, propvalue)
             propvalues.append(propvalues)
         return propvalues
@@ -64,19 +64,20 @@ def getbusdevices(host='localhost'):
 
     initprops = ['id', 'address', 'crc8', 'alias', 'family', 'type']
 
+    myProxy = OwnetProxy(host)
     buslist = owbuslist(host)
     deviceobjects = []
     for device in buslist:
         propdict = {}
         propdict['devicedir'] = device
         propdict['host'] = host
-        props = OwnetProxy(host).dir(device)
+        props =myProxy.dir(device)
         for prop in props:
             propname = prop.split('/')[2]
             # print(propname)
             if propname in initprops:
                 # print(prop)
-                propdict[propname] = OwnetProxy(host).read(prop).strip()
+                propdict[propname] =myProxy.read(prop).strip()
             else:
                 pass
                 # Could put in default values here, but cleaner if not
