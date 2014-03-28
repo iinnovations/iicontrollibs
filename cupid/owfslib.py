@@ -92,13 +92,13 @@ def updateowfstable(database, tablename, host='localhost'):
 
     querylist = []
     for device in devices:
-        print(device.id)
+        # print(device.id)
         querylist.append(
             makesqliteinsert(tablename, [device.address, device.family, device.id, device.type, device.crc8]))
     sqlitemultquery(database, querylist)
 
 
-def updateowfsentries(database, tablename):
+def updateowfsentries(database, tablename, host='localhost'):
 
     import pilib
 
@@ -111,10 +111,8 @@ def updateowfsentries(database, tablename):
 
     devices = getbusdevices(host)
     for device in devices:
-        print(device.id)
-        run = False
-        if device.type == 'DS18B20' and run:
-            print('running')
+        # print(device.id)
+        if device.type == 'DS18B20':
             sensorid = 'i2c1wire' + '_' + device.address
 
             # Get name if one exists
@@ -139,12 +137,12 @@ def updateowfsentries(database, tablename):
 
             # Is it time to read temperature?
             # At the moment, we assume yes.
+            device.readprop('temperature')
             querylist.append(pilib.makesqliteinsert(tablename, [sensorid, 'i2c1wire', device.type, device.address, name,
                                                                 float(device.temperature), 'C', pilib.gettimestring(),
                                                                 '']))
-    #print(querylist)
+    # print(querylist)
     pilib.sqlitemultquery(database, querylist)
-    ow.finish()
 
 
 if __name__ == "__main__":
@@ -157,6 +155,6 @@ if __name__ == "__main__":
         print(' getting temp ...')
         starttime = time.time()
         temp = device.readprop('temperature')
-        print('temperature is' + str(temp))
+        print('temperature is ' + str(temp))
         print('elapsed time ' + str(time.time() - starttime))
 
