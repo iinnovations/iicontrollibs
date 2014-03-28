@@ -11,10 +11,85 @@ __status__ = "Development"
 
 # This script handles owfs read functions
 
+import os, inspect, sys
+
+top_folder = \
+    os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
+if top_folder not in sys.path:
+    sys.path.insert(0, top_folder)
+
+
+def owbuslist(host='localhost'):
+    from resource.pyownet.protocol import OwnetProxy
+
+    if host == 'localhost':
+        buslist = []
+        for dir in OwnetProxy(host).dir():
+            buslist.append(str(dir))
+    return buslist
+
+
+class owdevice():
+    def __init__(self, propdict):
+        for key, value in propdict.items():
+            setattr(self, key, value)
+
+    def readprop(self, propname):
+        from resource.pyownet.protocol import OwnetProxy
+
+        prop = self.devicedir + propname
+        propvalue = OwnetProxy(self.host).read(prop).strip()
+        setattr(self, propname, propvalue)
+        return propvalue
+
+    def readprops(self, proplist):
+        from resource.pyownet.protocol import OwnetProxy
+
+        propvalues = []
+        for propname in proplist:
+            prop = self.devicedir + propname
+            propvalue = OwnetProxy(self.host).read(prop).strip()
+            setattr(self, propname, propvalue)
+            propvalues.append(propvalues)
+        return propvalues
+
+
+def getbusdevices(host='localhost'):
+    from resource.pyownet.protocol import OwnetProxy
+
+    # These are the properties we will always read on initialization
+    # They should exist for every device type. We can add device-specific properties
+    # to read below, based on type. We also want these to be properties that do not require
+    # any internal conversion, i.e. static properties
+
+    initprops = ['id', 'address', 'crc8', 'alias', 'family', 'type']
+    
+    buslist = owbuslist(host)
+    deviceobjects = []
+    for device in buslist:
+        propdict = {}
+        propdict['devicedir'] = device
+        propdict['host'] = host
+        props = OwnetProxy(host).dir(device)
+        for prop in props:
+            propname = prop.split('/')[2]
+            # print(propname)
+            if propname in initprops:
+                # print(prop)
+                propdict[propname] = OwnetProxy(host).read(prop).strip()
+            else:
+                pass
+                # Could put in default values here, but cleaner if not
+
+        deviceobjects.append(owdevice(propdict))
+
+    return deviceobjects
+
 
 def updateowfstable(database, tablename):
     import ow
     import pilib
+
     querylist = []
     ow.init('localhost:4304')
     sensorlist = ow.Sensor('/').sensorList()
@@ -29,6 +104,7 @@ def updateowfstable(database, tablename):
 def updateowfsentries(database, tablename):
     import ow
     import pilib
+
     querylist = []
     querylist.append('delete from ' + tablename + ' where interface = "i2c1wire"')
 
@@ -43,6 +119,7 @@ def updateowfsentries(database, tablename):
         print(sensor.id)
         run = False
         if sensor.type == 'DS18B20' and run:
+            print('running')
             sensorid = 'i2c1wire' + '_' + sensor.address
 
             # Get name if one exists
@@ -55,7 +132,7 @@ def updateowfsentries(database, tablename):
                 for index in range(100):
                     # check to see if name exists
                     name = sensor.type + '-' + str(int(index + 1))
-                    print(propname)
+                    print(name)
                     foundid = pilib.sqlitedatumquery(database, 'select id from ioinfo where name=\'' + name + '\'')
                     print('foundid' + foundid)
                     if foundid:
@@ -67,13 +144,24 @@ def updateowfsentries(database, tablename):
 
             # Is it time to read temperature?
             # At the moment, we assume yes.
-            querylist.append(pilib.makesqliteinsert(tablename, [sensorid, 'i2c1wire', sensor.type, sensor.address, name, float(sensor.temperature), 'C', pilib.gettimestring(), '']))
+            querylist.append(pilib.makesqliteinsert(tablename, [sensorid, 'i2c1wire', sensor.type, sensor.address, name,
+                                                                float(sensor.temperature), 'C', pilib.gettimestring(),
+                                                                '']))
     #print(querylist)
     pilib.sqlitemultquery(database, querylist)
     ow.finish()
 
 
 if __name__ == "__main__":
-    from pilib import controldatabase
-    updateowfstable(controldatabase, 'owfs')
-    updateowfsentries(controldatabase, 'inputs')
+    import time
+
+    mydevices = getbusdevices()
+    print('Found ' + str(len(mydevices)) + ' devices')
+    for device in mydevices:
+        print('id: ' + device.id)
+        print(' getting temp ...')
+        starttime = time.time()
+        temp = device.readprop('temperature')
+        print('temperature is' + str(temp))
+        print('elapsed time ' + str(time.time() - starttime))
+
