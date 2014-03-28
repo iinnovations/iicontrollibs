@@ -119,7 +119,6 @@ def updateiodata(database):
             if interface['enabled']:
                 print("processing enabled I2C")
                 if interface['type'] == 'DS2483':
-                    # Check if interface is enabled
                     from owfslib import updateowfstable, updateowfsentries
                     #updateowfstable(database, 'owfs')
                     updateowfsentries(database, 'inputs')
