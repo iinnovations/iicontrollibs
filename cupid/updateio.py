@@ -18,7 +18,7 @@ def updateiodata(database):
     # It also reads the elements if they are enabled and it's time to read them
 
     import pilib
-    import os
+    import time
     import RPi.GPIO as GPIO
     GPIO.setmode(GPIO.BCM)
 
@@ -72,7 +72,7 @@ def updateiodata(database):
     run=False
     querylist=[]
     for interface in interfaces:
-        if interface['interface'] == 'GPIO':
+        if interface['interface'] == 'GPIO' and run:
 
             options = pilib.parseoptions(interface['options'])
 
@@ -104,10 +104,10 @@ def updateiodata(database):
                         polltime = ''
 
                     # Add entry to outputs tables
-                    # querylist.append('insert into outputs values (\'' + interface['id'] + '\',\'' +
-                    #                  interface['interface'] + '\',\'' + interface['type'] + '\',\'' + address + "','" +
-                    #                  gpioname + '\',\'' + str(value) + '\',\'\',\'' + str(polltime) + '\',\'' +
-                    #                  str(pollfreq) + '\')')
+                    querylist.append('insert into outputs values (\'' + interface['id'] + '\',\'' +
+                                     interface['interface'] + '\',\'' + interface['type'] + '\',\'' + address + "','" +
+                                     gpioname + '\',\'' + str(value) + '\',\'\',\'' + str(polltime) + '\',\'' +
+                                     str(pollfreq) + '\')')
                 else:
                     GPIO.setup(int(address), GPIO.IN)
                     value = GPIO.input(int(address))
@@ -123,9 +123,6 @@ def updateiodata(database):
 
                 # Add entry to outputs tables
 
-                # print('insert into inputs values (\'' + interface['id'] + '\',\'' + interface['interface'] + '\',\'' +
-                #       interface['type'] + '\',\'' + address + '\',\'' + gpioname + '\',\'' + str(value) + '\',\'\',\'' +
-                #       str(polltime) + '\',\'' + str(pollfreq) + '\')')
                 querylist.append('insert into inputs values (\'' + interface['id'] + '\',\'' + interface['interface'] + '\',\'' +
                       interface['type'] + '\',\'' + address + '\',\'' + gpioname + '\',\'' + str(value) + '\',\'\',\'' +
                       str(polltime) + '\',\'' + str(pollfreq) + '\')')
@@ -137,9 +134,21 @@ def updateiodata(database):
             if interface['enabled']:
                 print("processing enabled I2C")
                 if interface['type'] == 'DS2483':
-                    os.system('/usr/lib/iicontrollibs/cupid/owfslib.py')
+                    import owfslib, time
+                    print('getting buses')
+                    starttime = time.time()
+                    busdevices = owfslib.getbusdevices('localhost')
+                    print('done getting devices, took ' + str(time.time() - starttime))
+                    print('updating owfs table')
+                    starttime = time.time()
+                    owfslib.updateowfstable(pilib.controldatabase, 'owfs', busdevices)
+                    print('done updating owfstable, took ' + str(time.time() - starttime))
+                    print('updating entries')
+                    starttime = time.time()
+                    owfslib.updateowfsentries(pilib.controldatabase, 'inputs',busdevices)
+                    print('done getting devices, took ' + str(time.time() - starttime))
 
-        elif interface['interface'] == 'SPI':
+        elif interface['interface'] == 'SPI' and run:
             print("processing SPI")
             if interface['type'] == 'SPITC':
                 import readspi
@@ -150,10 +159,9 @@ def updateiodata(database):
                 spilights.updatelightsfromdb(pilib.controldatabase, 'indicators')
 
     # Set tables
-    #print(querylist)
+    # print(querylist)
     pilib.sqlitemultquery(pilib.controldatabase, querylist)
 
-    return ("io updated")
 
 
 def updateioinfo(database,table):
@@ -170,6 +178,6 @@ def updateioinfo(database,table):
 
 
 if __name__ == "__main__":
-    import pilib
-    updateiodata(pilib.controldatabase)
+    from pilib import controldatabase
+    updateiodata(controldatabase)
 

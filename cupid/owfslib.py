@@ -21,12 +21,13 @@ if top_folder not in sys.path:
 
 def owbuslist(host='localhost'):
     from resource.pyownet.protocol import OwnetProxy
-
+    owProxy = OwnetProxy(host)
+    buslist = []
     if host == 'localhost':
-        buslist = []
-        for dir in OwnetProxy(host).dir():
+        dirs = owProxy.dir()
+        for dir in dirs:
             buslist.append(str(dir))
-    return buslist
+    return owProxy, buslist
 
 
 class owdevice():
@@ -64,20 +65,19 @@ def getbusdevices(host='localhost'):
 
     initprops = ['id', 'address', 'crc8', 'alias', 'family', 'type']
 
-    myProxy = OwnetProxy(host)
-    buslist = owbuslist(host)
+    myProxy, buslist = owbuslist(host)
     deviceobjects = []
     for device in buslist:
         propdict = {}
         propdict['devicedir'] = device
         propdict['host'] = host
-        props =myProxy.dir(device)
+        props = myProxy.dir(device)
         for prop in props:
             propname = prop.split('/')[2]
             # print(propname)
             if propname in initprops:
                 # print(prop)
-                propdict[propname] =myProxy.read(prop).strip()
+                propdict[propname] = myProxy.read(prop).strip()
             else:
                 pass
                 # Could put in default values here, but cleaner if not
@@ -87,32 +87,30 @@ def getbusdevices(host='localhost'):
     return deviceobjects
 
 
-def updateowfstable(database, tablename, host='localhost'):
+def updateowfstable(database, tablename, busdevices):
     from pilib import makesqliteinsert, sqlitemultquery
-    devices = getbusdevices(host)
 
     querylist = []
-    for device in devices:
+    for device in busdevices:
         # print(device.id)
         querylist.append(
             makesqliteinsert(tablename, [device.address, device.family, device.id, device.type, device.crc8]))
     sqlitemultquery(database, querylist)
 
 
-def updateowfsentries(database, tablename, host='localhost'):
+def updateowfsentries(database, tablename, busdevices):
 
     import pilib
 
     querylist = []
-    querylist.append('delete from ' + tablename + ' where interface = "i2c1wire"')
+    querylist.append('delete from ' + tablename + ' where interface = \'i2c1wire\'')
 
     # We're going to set a name because calling things by their ids is getting
     # a bit ridiculous, but we can't have empty name fields if we rely on them
     # being there. They need to be unique, so we'll name them by type and increment them
 
-    devices = getbusdevices(host)
-    for device in devices:
-        # print(device.id)
+    for device in busdevices:
+        print(device.id)
         if device.type == 'DS18B20':
             sensorid = 'i2c1wire' + '_' + device.address
 
@@ -139,16 +137,21 @@ def updateowfsentries(database, tablename, host='localhost'):
             # Is it time to read temperature?
             # At the moment, we assume yes.
             device.readprop('temperature')
+            print(device.temperature)
             querylist.append(pilib.makesqliteinsert(tablename, [sensorid, 'i2c1wire', device.type, device.address, name,
                                                                 float(device.temperature), 'C', pilib.gettimestring(),
                                                                 '']))
-    # print(querylist)
+    print(querylist)
     pilib.sqlitemultquery(database, querylist)
 
 
 if __name__ == "__main__":
     import time
-
+    from pilib import controldatabase
+    print('running')
+    updateowfstable(controldatabase,'owfs')
+    updateowfsentries(controldatabase,'inputs')
+    print('done running')
     mydevices = getbusdevices()
     print('Found ' + str(len(mydevices)) + ' devices')
     for device in mydevices:
