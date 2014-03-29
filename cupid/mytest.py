@@ -14,10 +14,19 @@ def updateiodata(database):
 
     import pilib
 
-    print("processing enabled I2C")
-    from owfslib import updateowfstable, updateowfsentries
-    updateowfstable(database, 'owfs')
-    updateowfsentries(database, 'inputs')
+    busdevices = owfslib.owfsgetbusdevices(pilib.onewiredir)
+    print('done getting devices, took ' + str(time.time() - starttime))
+    print('updating owfs table')
+    starttime = time.time()
+    owfslib.updateowfstable(pilib.controldatabase, 'owfs', busdevices)
+    print('done updating owfstable, took ' + str(time.time() - starttime))
+    print('updating entries')
+    starttime = time.time()
+    owfslib.updateowfsentries(pilib.controldatabase, 'inputs', busdevices)
+    print('done reading devices, took ' + str(time.time() - starttime))
+    print('your devices: ')
+    for device in busdevices:
+        print(device.id)
 
 if __name__ == "__main__":
     from pilib import controldatabase
