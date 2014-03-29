@@ -87,7 +87,7 @@ class action:
             email = self.actiondetail
             message = 'Alert has gone inactive for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + self.criterion + ' with an operator of ' + self.operator + '. This alarm status has been of since ' + self.offtime + '.'
             subject = 'CuPID Alert : Alarm Off - ' + self.name
-            actionmail = gmail(message=message, subject=subject,recipient=email)
+            actionmail = gmail(message=message, subject=subject, recipient=email)
             actionmail.send()
 
         elif self.actiontype == 'indicator':
@@ -146,7 +146,8 @@ class gmail:
 #############################################
 
 def checklivesessions(authdb, user, expiry):
-    import pilib, time
+    import pilib
+    import time
 
     activesessions = 0
     sessions = pilib.readalldbrows(authdb, 'sessions')
@@ -332,7 +333,6 @@ def sqliteinsertsingle(database, table, valuelist, valuenames=None):
 
 def sqlitemultquery(database, querylist):
     import sqlite3 as lite
-    import sys
 
     con = lite.connect(database)
     con.text_factory = str

@@ -18,6 +18,72 @@ top_folder = \
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
+# Using fuse / owfs
+def owfsbuslist(owdir):
+    from os import walk
+
+    # Should get this from somewhere for recognized types
+    families=['28']
+
+    d = []
+    for (dirpath, dirnames, filenames) in walk(owdir):
+        d.extend(dirnames)
+        break
+
+    devicedirs = []
+    devices = []
+    for item in d:
+        if item.split('.')[0] in families:
+            devices.append(item)
+            devicedirs.append(owdir + '/' + item)
+    print(devices)
+    return devices
+
+def owfsgetbusdevices(owdir):
+
+    from os import walk
+
+    buslist = owfsbuslist(owdir)
+
+    initprops = ['id', 'address', 'crc8', 'alias', 'family', 'type']
+
+    devices=[]
+    for devicedir in buslist:
+        propdict={}
+        devicepath = owdir + '/' + devicedir
+        propdict['devicedir'] = devicepath
+        for (dirpath, dirnames, filenames) in walk(devicepath):
+            propsavailable = filenames
+            break
+        for propavailable in propsavailable:
+            if propavailable in initprops:
+                propvalue = open(devicepath + '/' + propavailable).read().strip()
+                propdict[propavailable] = propvalue
+        devices.append(owfsdevice(propdict))
+    return devices
+
+class owfsdevice():
+    def __init__(self, propdict):
+        for key, value in propdict.items():
+            setattr(self, key, value)
+
+    def readprop(self, propname, garbage=None):
+        # need some error-checking here
+        proppath = self.devicedir + '/' + propname
+        propvalue = open(proppath).read().strip()
+        setattr(self, propname, propvalue)
+        return propvalue
+
+    def readprops(self, proplist, garbage=None):
+        propvalues = []
+        for propname in proplist:
+            propvalue = self.readprop(self,propname)
+            propvalues.append(propvalue)
+        return propvalues
+
+
+###############################################
+# Using ownet
 
 def owbuslist(host='localhost'):
     from resource.pyownet.protocol import OwnetProxy
@@ -63,7 +129,6 @@ class owdevice():
 
 
 def getbusdevices(host='localhost'):
-    from resource.pyownet.protocol import OwnetProxy
 
     # These are the properties we will always read on initialization
     # They should exist for every device type. We can add device-specific properties
@@ -97,11 +162,11 @@ def updateowfstable(database, tablename, busdevices):
 
     querylist = []
     for device in busdevices:
-        # print(device.id)
-        print([device.address, device.family, device.id, device.type, device.crc8])
+        print(device.id)
+        # print([device.address, device.family, device.id, device.type, device.crc8])
         querylist.append(
             makesqliteinsert(tablename, [device.address, device.family, device.id, device.type, device.crc8]))
-    print(querylist)
+    # print(querylist)
     sqlitemultquery(database, querylist)
 
 
@@ -143,12 +208,13 @@ def updateowfsentries(database, tablename, busdevices, myProxy=None):
 
             # Is it time to read temperature?
             # At the moment, we assume yes.
-            device.readprop('temperature',myProxy)
+            device.readprop('temperature', myProxy)
+            print('temperature:')
             print(device.temperature)
             querylist.append(pilib.makesqliteinsert(tablename, [sensorid, 'i2c1wire', device.type, device.address, name,
                                                                 float(device.temperature), 'C', pilib.gettimestring(),
                                                                 '']))
-    print(querylist)
+    # print(querylist)
     pilib.sqlitemultquery(database, querylist)
 
 

@@ -12,7 +12,7 @@ __status__ = "Development"
 
 def updateiodata(database):
 
-    import pilib
+    import pilib, owfslib
 
     busdevices = owfslib.owfsgetbusdevices(pilib.onewiredir)
     print('done getting devices, took ' + str(time.time() - starttime))
