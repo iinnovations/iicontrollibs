@@ -81,10 +81,7 @@ def getbusdevices(host='localhost'):
         props = myProxy.dir(device)
         for prop in props:
             propname = prop.split('/')[2]
-            print(propname)
             if propname in initprops:
-                print(prop)
-                print(myProxy.read(prop).strip())
                 propdict[propname] = myProxy.read(prop).strip()
             else:
                 pass
@@ -92,7 +89,7 @@ def getbusdevices(host='localhost'):
 
         deviceobjects.append(owdevice(propdict))
 
-    return deviceobjects
+    return myProxy, deviceobjects
 
 
 def updateowfstable(database, tablename, busdevices):

@@ -137,7 +137,7 @@ def updateiodata(database):
                     import owfslib, time
                     print('getting buses')
                     starttime = time.time()
-                    busdevices = owfslib.getbusdevices('localhost')
+                    myProxy, busdevices = owfslib.getbusdevices('localhost')
                     print('done getting devices, took ' + str(time.time() - starttime))
                     print('updating owfs table')
                     starttime = time.time()
@@ -145,8 +145,8 @@ def updateiodata(database):
                     print('done updating owfstable, took ' + str(time.time() - starttime))
                     print('updating entries')
                     starttime = time.time()
-                    owfslib.updateowfsentries(pilib.controldatabase, 'inputs',busdevices)
-                    print('done getting devices, took ' + str(time.time() - starttime))
+                    owfslib.updateowfsentries(pilib.controldatabase, 'inputs', busdevices, myProxy)
+                    print('done reading devices, took ' + str(time.time() - starttime))
 
         elif interface['interface'] == 'SPI' and run:
             print('processing SPI')
