@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-__author__ = "Colin Reese"
-__copyright__ = "Copyright 2014, Interface Innovations"
-__credits__ = ["Colin Reese"]
-__license__ = "Apache 2.0"
-__version__ = "1.0"
-__maintainer__ = "Colin Reese"
-__email__ = "support@interfaceinnovations.org"
-__status__ = "Development"
+__author__ = 'Colin Reese'
+__copyright__ = 'Copyright 2014, Interface Innovations'
+__credits__ = ['Colin Reese']
+__license__ = 'Apache 2.0'
+__version__ = '1.0'
+__maintainer__ = 'Colin Reese'
+__email__ = 'support@interfaceinnovations.org'
+__status__ = 'Development'
 
 # This library is for use by all other pi
 # functions
@@ -16,8 +16,8 @@ __status__ = "Development"
 
 baselibdir = '/usr/lib/iicontrollibs/'
 databasedir = '/var/www/data/'
-onewiredir = "/var/1wire/"
-outputdir = "/var/www/data/"
+onewiredir = '/var/1wire/'
+outputdir = '/var/www/data/'
 controldatabase = databasedir + 'controldata.db'
 logdatabase = databasedir + 'logdata.db'
 sessiondatabase = databasedir + 'authlog.db'
@@ -41,18 +41,18 @@ def gettimestring(timeinseconds=None):
     import time
     if timeinseconds:
         try:
-            timestring = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(timeinseconds))
+            timestring = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timeinseconds))
         except TypeError:
             timestring = ''
     else:
-        timestring = time.strftime("%Y-%m-%d %H:%M:%S")
+        timestring = time.strftime('%Y-%m-%d %H:%M:%S')
     return timestring
 
 
 def timestringtoseconds(timestring):
     import time
     try:
-        timeinseconds = time.mktime(time.strptime(timestring, "%Y-%m-%d %H:%M:%S"))
+        timeinseconds = time.mktime(time.strptime(timestring, '%Y-%m-%d %H:%M:%S'))
     except ValueError:
         timeinseconds = 0
     return timeinseconds
@@ -67,7 +67,7 @@ class action:
     def onact(self):
         if self.actiontype == 'email':
             # process email action
-            self.statusmsg += "Processing email alert. "
+            self.statusmsg += 'Processing email alert. '
             email = self.actiondetail
             message = 'Alert is active for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + self.criterion + ' with an operator of ' + self.operator + '. This alarm status has been on since ' + self.ontime + '.'
             subject = 'CuPID Alert : Alarm On - ' + self.name
@@ -76,14 +76,14 @@ class action:
 
         elif self.actiontype == 'indicator':
             # process indicator action
-            self.status += "Processing indicator on action. "
+            self.status += 'Processing indicator on action. '
             indicatorname = self.actiondetail
-            sqlitequery(controldatabase, 'update indicators set status=1 where "name" = ' + indicatorname)
+            sqlitequery(controldatabase, 'update indicators set status=1 where name = \'' + indicatorname + '\'')
 
     def offact(self):
         if self.actiontype == 'email':
             # process email action
-            self.statusmsg += "Processing email alert. "
+            self.statusmsg +='Processing email alert.'
             email = self.actiondetail
             message = 'Alert has gone inactive for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + self.criterion + ' with an operator of ' + self.operator + '. This alarm status has been of since ' + self.offtime + '.'
             subject = 'CuPID Alert : Alarm Off - ' + self.name
@@ -92,9 +92,9 @@ class action:
 
         elif self.actiontype == 'indicator':
             # process indicator action
-            self.status += "Processing indicator off action. "
+            self.status +='Processing indicator off action.'
             indicatorname = self.actiondetail
-            sqlitequery(controldatabase, 'update indicators set status=0 where "name" = ' + indicatorname)
+            sqlitequery(controldatabase, 'update indicators set status=0 where name = ' + indicatorname)
 
     def publish(self):
         # reinsert updated action back into database
@@ -123,12 +123,12 @@ class gmail:
     def send(self):
         import smtplib
 
-        headers = ["From: " + self.sender,
-                   "Subject: " + self.subject,
-                   "To: " + self.recipient,
-                   "MIME-Version: 1.0",
-                   "Content-Type: text/html"]
-        headers = "\r\n".join(headers)
+        headers = ['From:' + self.sender,
+                  'Subject:' + self.subject,
+                  'To:' + self.recipient,
+                  'MIME-Version: 1.0',
+                  'Content-Type: text/html']
+        headers = '\r\n'.join(headers)
 
         session = smtplib.SMTP(self.server, self.port)
 
@@ -137,7 +137,7 @@ class gmail:
         session.ehlo
         session.login(self.login, self.password)
 
-        session.sendmail(self.sender, self.recipient, headers + "\r\n\r\n" + self.message)
+        session.sendmail(self.sender, self.recipient, headers + '\r\n\r\n' + self.message)
         session.quit()
 
 
@@ -165,20 +165,20 @@ def checklivesessions(authdb, user, expiry):
 
 def switchtablerows(database, table, rowid1, rowid2, uniqueindex):
     unique1 = sqlitedatumquery(database,
-                               'select \"' + uniqueindex + '\"' + ' from \"' + table + '\" where rowid=' + str(rowid1))
+                               'select \'' + uniqueindex + '\'' + ' from \'' + table + '\' where rowid=' + str(rowid1))
     unique2 = sqlitedatumquery(database,
-                               'select \"' + uniqueindex + '\"' + ' from \"' + table + '\" where rowid=' + str(rowid2))
-    # print('select \"' + uniqueindex + '\"' + ' from \"' + table + '\' where rowid=' + str(rowid1))
+                               'select \'' + uniqueindex + '\'' + ' from \'' + table + '\' where rowid=' + str(rowid2))
+    # print('select \'' + uniqueindex + '\'' + ' from \'' + table + '\' where rowid=' + str(rowid1))
     # print(unique1 + ' ' +  unique2)
     queryarray = []
     index = 'rowid'
     # Assumes there is no rowid=9999
-    queryarray.append('update \"' + table + '\" set \"' + index + '\"=' + str(
-        9999) + ' where \"' + uniqueindex + '\"=\"' + unique2 + '\"')
-    queryarray.append('update \"' + table + '\" set \"' + index + '\"=' + str(
-        rowid2) + ' where \"' + uniqueindex + '\"=\"' + unique1 + '\"')
-    queryarray.append('update \"' + table + '\" set \"' + index + '\"=' + str(
-        rowid1) + ' where \"' + uniqueindex + '\"=\"' + unique2 + '\"')
+    queryarray.append('update \'' + table + '\' set \'' + index + '\'=' + str(
+        9999) + ' where \'' + uniqueindex + '\'=\'' + unique2 + '\'')
+    queryarray.append('update \'' + table + '\' set \'' + index + '\'=' + str(
+        rowid2) + ' where \'' + uniqueindex + '\'=\'' + unique1 + '\'')
+    queryarray.append('update \'' + table + '\' set \'' + index + '\'=' + str(
+        rowid1) + ' where \'' + uniqueindex + '\'=\'' + unique2 + '\'')
 
     # print(queryarray)
     sqlitemultquery(database, queryarray)
@@ -198,8 +198,8 @@ def ordertableindices(databasename, tablename, indicestoorder, uniqueindex):
     queryarray = []
     for i, uniquevalue in enumerate(uniquearray):
         for indextoorder in indicestoorder:
-            queryarray.append('update \"' + tablename + '\" set \"' + indextoorder + '\"=' + str(
-                i + 1) + '  where \"' + uniqueindex + '\"=\"' + uniquevalue + '\"')
+            queryarray.append('update \'' + tablename + '\' set \'' + indextoorder + '\'=' + str(
+                i + 1) + '  where \'' + uniqueindex + '\'=\'' + uniquevalue + '\'')
 
     print(queryarray)
     sqlitemultquery(databasename, queryarray)
@@ -301,19 +301,19 @@ def makesqliteinsert(table, valuelist, valuenames=None, replace=True):
         query = 'insert or replace into '
     else:
         query = 'insert into '
-    query += "'" + table + "'"
+    query += '\'' + table + '\''
 
     if valuenames:
         query += ' ('
         for valuename in valuenames:
-            query += "'" + str(valuename) + "',"
-        query = query[:-1] + ")"
+            query += '\'' + str(valuename) + '\','
+        query = query[:-1] + ')'
 
     query += ' values ('
 
     for value in valuelist:
-        query += "'" + str(value) + "',"
-    query = query[:-1] + ")"
+        query += '\'' + str(value) + '\','
+    query = query[:-1] + ')'
     return query
 
 
@@ -378,7 +378,7 @@ def sqlitedatumquery(database, query):
 
 
 def getsinglevalue(database, table, valuename, condition=None):
-    query = 'select \"' + valuename + '\" from \"' + table + '\"'
+    query = 'select \'' + valuename + '\' from \'' + table + '\''
     if condition:
         query += ' where ' + condition
     print(query)
@@ -387,7 +387,7 @@ def getsinglevalue(database, table, valuename, condition=None):
 
 
 def setsinglevalue(database, table, valuename, value, condition=None):
-    query = 'update ' + '\"' + table + '\" set \"' + valuename + '\"=\"' + value + '\"'
+    query = 'update ' + '\'' + table + '\' set \'' + valuename + '\'=\'' + value + '\''
     if condition:
         query += ' where ' + condition
 
@@ -483,9 +483,9 @@ def sqlitedatadump(databasename, tablelist, outputfilename, limit=None):
             alltablelist.append(tablename)
             allpragmanames.append(pragmaname)
             if limit is not None:
-                queryarray.append('select ' + pragmaname + ' from \"' + tablename + '\" limit ' + str(limit))
+                queryarray.append('select ' + pragmaname + ' from \'' + tablename + '\' limit ' + str(limit))
             else:
-                queryarray.append('select ' + pragmaname + ' from \"' + tablename + '\"')
+                queryarray.append('select ' + pragmaname + ' from \'' + tablename + '\'')
     data = sqlitemultquery(databasename, queryarray)
     #print(data)
     newdata = []
@@ -498,7 +498,7 @@ def sqlitedatadump(databasename, tablelist, outputfilename, limit=None):
         newdata.append(newinnerlist)
 
     #print(newdata)
-    with open(outputfilename, "wb") as f:
+    with open(outputfilename, 'wb') as f:
         writer = csv.writer(f)
         writer.writerows(newdata)
 

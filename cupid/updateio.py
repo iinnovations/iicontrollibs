@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-__author__ = "Colin Reese"
-__copyright__ = "Copyright 2014, Interface Innovations"
-__credits__ = ["Colin Reese"]
-__license__ = "Apache 2.0"
-__version__ = "1.0"
-__maintainer__ = "Colin Reese"
-__email__ = "support@interfaceinnovations.org"
-__status__ = "Development"
+__author__ = 'Colin Reese'
+__copyright__ = 'Copyright 2014, Interface Innovations'
+__credits__ = ['Colin Reese']
+__license__ = 'Apache 2.0'
+__version__ = '1.0'
+__maintainer__ = 'Colin Reese'
+__email__ = 'support@interfaceinnovations.org'
+__status__ = 'Development'
 
 
 def updateiodata(database):
@@ -101,16 +101,17 @@ def updateiodata(database):
                         polltime = prevoutputs[prevoutputids.index(interface['id'])]['polltime']
                     else:
                         pollfreq = defaultoutputpollfreq
-                        polltime = ''
+                        polltime = pilib.gettimestring()
 
                     # Add entry to outputs tables
                     querylist.append('insert into outputs values (\'' + interface['id'] + '\',\'' +
-                                     interface['interface'] + '\',\'' + interface['type'] + '\',\'' + address + "','" +
+                                     interface['interface'] + '\',\'' + interface['type'] + '\',\'' + address + '\',\'' +
                                      gpioname + '\',\'' + str(value) + '\',\'\',\'' + str(polltime) + '\',\'' +
                                      str(pollfreq) + '\')')
                 else:
                     GPIO.setup(int(address), GPIO.IN)
                     value = GPIO.input(int(address))
+                    polltime = pilib.gettimestring()
 
                 # Get input settings and keep them if the GPIO previously existed
                 if interface['id'] in prevoutputids:
@@ -118,7 +119,6 @@ def updateiodata(database):
                     polltime = previnputs[prevoutputids.index(interface['id'])]['polltime']
                 else:
                     pollfreq = defaultinputpollfreq
-                    polltime = ''
 
 
                 # Add entry to outputs tables
@@ -132,7 +132,7 @@ def updateiodata(database):
 
         elif interface['interface'] == 'I2C':
             if interface['enabled']:
-                print("processing enabled I2C")
+                print('processing enabled I2C')
                 if interface['type'] == 'DS2483':
                     import owfslib, time
                     print('getting buses')
@@ -149,7 +149,7 @@ def updateiodata(database):
                     print('done getting devices, took ' + str(time.time() - starttime))
 
         elif interface['interface'] == 'SPI' and run:
-            print("processing SPI")
+            print('processing SPI')
             if interface['type'] == 'SPITC':
                 import readspi
                 spidata = readspi.readspitc()
@@ -177,7 +177,7 @@ def updateioinfo(database,table):
         sqlitemultquery(querylist)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     from pilib import controldatabase
     updateiodata(controldatabase)
 

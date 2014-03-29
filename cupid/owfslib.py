@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-__author__ = "Colin Reese"
-__copyright__ = "Copyright 2014, Interface Innovations"
-__credits__ = ["Colin Reese"]
-__license__ = "Apache 2.0"
-__version__ = "1.0"
-__maintainer__ = "Colin Reese"
-__email__ = "support@interfaceinnovations.org"
-__status__ = "Development"
+__author__ = 'Colin Reese'
+__copyright__ = 'Copyright 2014, Interface Innovations'
+__credits__ = ['Colin Reese']
+__license__ = 'Apache 2.0'
+__version__ = '1.0'
+__maintainer__ = 'Colin Reese'
+__email__ = 'support@interfaceinnovations.org'
+__status__ = 'Development'
 
 # This script handles owfs read functions
 
@@ -35,17 +35,24 @@ class owdevice():
         for key, value in propdict.items():
             setattr(self, key, value)
 
-    def readprop(self, propname):
+    def readprop(self, propname, myProxy=None):
         from resource.pyownet.protocol import OwnetProxy
 
         prop = self.devicedir + propname
-        propvalue = OwnetProxy(self.host).read(prop).strip()
-        setattr(self, propname, propvalue)
+        if myProxy:
+            propvalue = myProxy.read(prop).strip()
+            setattr(self, propname, propvalue)
+        else:
+            propvalue = OwnetProxy(self.host).read(prop).strip()
+            setattr(self, propname, propvalue)
         return propvalue
 
-    def readprops(self, proplist):
+    def readprops(self, proplist, myProxy=None):
         from resource.pyownet.protocol import OwnetProxy
-        myProxy = OwnetProxy(self.host)
+        if myProxy:
+            pass
+        else:
+            myProxy = OwnetProxy(self.host)
         propvalues = []
         for propname in proplist:
             prop = self.devicedir + propname
@@ -74,9 +81,10 @@ def getbusdevices(host='localhost'):
         props = myProxy.dir(device)
         for prop in props:
             propname = prop.split('/')[2]
-            # print(propname)
+            print(propname)
             if propname in initprops:
-                # print(prop)
+                print(prop)
+                print(myProxy.read(prop).strip())
                 propdict[propname] = myProxy.read(prop).strip()
             else:
                 pass
@@ -93,12 +101,14 @@ def updateowfstable(database, tablename, busdevices):
     querylist = []
     for device in busdevices:
         # print(device.id)
+        print([device.address, device.family, device.id, device.type, device.crc8])
         querylist.append(
             makesqliteinsert(tablename, [device.address, device.family, device.id, device.type, device.crc8]))
+    print(querylist)
     sqlitemultquery(database, querylist)
 
 
-def updateowfsentries(database, tablename, busdevices):
+def updateowfsentries(database, tablename, busdevices, myProxy=None):
 
     import pilib
 
@@ -136,7 +146,7 @@ def updateowfsentries(database, tablename, busdevices):
 
             # Is it time to read temperature?
             # At the moment, we assume yes.
-            device.readprop('temperature')
+            device.readprop('temperature',myProxy)
             print(device.temperature)
             querylist.append(pilib.makesqliteinsert(tablename, [sensorid, 'i2c1wire', device.type, device.address, name,
                                                                 float(device.temperature), 'C', pilib.gettimestring(),
@@ -145,7 +155,7 @@ def updateowfsentries(database, tablename, busdevices):
     pilib.sqlitemultquery(database, querylist)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     import time
     from pilib import controldatabase
     print('running')
