@@ -220,18 +220,20 @@ def updateowfsentries(database, tablename, busdevices, myProxy=None):
 
 if __name__ == '__main__':
     import time
-    from pilib import controldatabase
-    print('running')
-    updateowfstable(controldatabase,'owfs')
-    updateowfsentries(controldatabase,'inputs')
-    print('done running')
-    mydevices = getbusdevices()
-    print('Found ' + str(len(mydevices)) + ' devices')
-    for device in mydevices:
-        print('id: ' + device.id)
-        print(' getting temp ...')
-        starttime = time.time()
-        temp = device.readprop('temperature')
-        print('temperature is ' + str(temp))
-        print('elapsed time ' + str(time.time() - starttime))
+    from pilib import onewiredir, controldatabase
+    print('getting buses')
+    starttime = time.time()
+    busdevices = owfsgetbusdevices(onewiredir)
+    print('done getting devices, took ' + str(time.time() - starttime))
+    print('updating owfs table')
+    starttime = time.time()
+    updateowfstable(controldatabase, 'owfs', busdevices)
+    print('done updating owfstable, took ' + str(time.time() - starttime))
+    print('updating entries')
+    starttime = time.time()
+    updateowfsentries(controldatabase, 'inputs', busdevices)
+    print('done reading devices, took ' + str(time.time() - starttime))
+    print('your devices: ')
+    for device in busdevices:
+        print(device.id)
 

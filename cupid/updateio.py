@@ -76,22 +76,24 @@ def updateiodata(database):
             if interface['enabled']:
                 print('processing enabled I2C')
                 if interface['type'] == 'DS2483':
-                    import owfslib, time
-                    print('getting buses')
-                    starttime = time.time()
-                    busdevices = owfslib.owfsgetbusdevices(pilib.onewiredir)
-                    print('done getting devices, took ' + str(time.time() - starttime))
-                    print('updating owfs table')
-                    starttime = time.time()
-                    owfslib.updateowfstable(pilib.controldatabase, 'owfs', busdevices)
-                    print('done updating owfstable, took ' + str(time.time() - starttime))
-                    print('updating entries')
-                    starttime = time.time()
-                    owfslib.updateowfsentries(pilib.controldatabase, 'inputs', busdevices)
-                    print('done reading devices, took ' + str(time.time() - starttime))
-                    print('your devices: ')
-                    for device in busdevices:
-                        print(device.id)
+                    import subprocess
+                    subprocess.call(['python', '/usr/lib/iicontrollibs/cupid/owfslib.py', '&'])
+                    # import owfslib, time
+                    # print('getting buses')
+                    # starttime = time.time()
+                    # busdevices = owfslib.owfsgetbusdevices(pilib.onewiredir)
+                    # print('done getting devices, took ' + str(time.time() - starttime))
+                    # print('updating owfs table')
+                    # starttime = time.time()
+                    # owfslib.updateowfstable(pilib.controldatabase, 'owfs', busdevices)
+                    # print('done updating owfstable, took ' + str(time.time() - starttime))
+                    # print('updating entries')
+                    # starttime = time.time()
+                    # owfslib.updateowfsentries(pilib.controldatabase, 'inputs', busdevices)
+                    # print('done reading devices, took ' + str(time.time() - starttime))
+                    # print('your devices: ')
+                    # for device in busdevices:
+                    #     print(device.id)
 
 
         elif interface['interface'] == 'GPIO':
