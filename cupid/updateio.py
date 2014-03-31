@@ -19,7 +19,11 @@ def updateiodata(database):
     import pilib
     import RPi.GPIO as GPIO
 
+    allowedGPIOaddresses = [18, 23, 24, 25, 4, 17, 21, 22]
+
+    dontrun = False
     GPIO.setmode(GPIO.BCM)
+    GPIO.setwarnings(False)
 
     tables = pilib.gettablenames(pilib.controldatabase)
     if 'interfaces' in tables:
@@ -43,8 +47,10 @@ def updateiodata(database):
 
         # Make list of IDs for easy indexing
         prevoutputids = []
+        prevoutputvalues = []
         for output in prevoutputs:
             prevoutputids.append(output['id'])
+            prevoutputvalues.append(output['value'])
     else:
         prevoutputs = {}
         prevoutputids = []
@@ -62,38 +68,18 @@ def updateiodata(database):
     # Add all into one query so there is no time when the IO don't exist.
 
     querylist = []
-    querylist.append('drop table if exists inputs')
-    querylist.append('drop table if exists outputs')
-    querylist.append(
-        'create table outputs (id text primary key, interface text, type text, address text, name text, value real, unit text, polltime text, pollfreq real)')
-    querylist.append(
-        'create table inputs (id text primary key, interface text, type text, address text, name text, value real, unit text, polltime text, pollfreq real)')
+    querylist.append('delete from inputs')
+    querylist.append('delete from outputs')
     pilib.sqlitemultquery(pilib.controldatabase, querylist)
 
     querylist = []
     for interface in interfaces:
         if interface['interface'] == 'I2C':
             if interface['enabled']:
-                print('processing enabled I2C')
+                # print('processing enabled I2C')
                 if interface['type'] == 'DS2483':
-                    import subprocess
-                    subprocess.call(['python', '/usr/lib/iicontrollibs/cupid/owfslib.py', '&'])
-                    # import owfslib, time
-                    # print('getting buses')
-                    # starttime = time.time()
-                    # busdevices = owfslib.owfsgetbusdevices(pilib.onewiredir)
-                    # print('done getting devices, took ' + str(time.time() - starttime))
-                    # print('updating owfs table')
-                    # starttime = time.time()
-                    # owfslib.updateowfstable(pilib.controldatabase, 'owfs', busdevices)
-                    # print('done updating owfstable, took ' + str(time.time() - starttime))
-                    # print('updating entries')
-                    # starttime = time.time()
-                    # owfslib.updateowfsentries(pilib.controldatabase, 'inputs', busdevices)
-                    # print('done reading devices, took ' + str(time.time() - starttime))
-                    # print('your devices: ')
-                    # for device in busdevices:
-                    #     print(device.id)
+                    from owfslib import runowfsupdate
+                    runowfsupdate()
 
 
         elif interface['interface'] == 'GPIO':
@@ -102,63 +88,77 @@ def updateiodata(database):
 
             # TODO : respond to more option, like pullup and pulldown
 
-            address = interface['id'][4:]
+            address = int(interface['address'])
 
-            # Check if interface is enabled
+            if address in allowedGPIOaddresses:
 
-            if interface['enabled']:
+                # Check if interface is enabled
 
-                # Get name from ioinfo table to give it a colloquial name
-                gpioname = pilib.sqlitedatumquery(database, 'select name from ioinfo where id=\'' +
-                                                            interface['id'] + '\'')
+                if interface['enabled']:
 
-                # print('name = ' + gpioname + ' for id ' + interface['id'])
+                    # Get name from ioinfo table to give it a colloquial name
+                    gpioname = pilib.sqlitedatumquery(database, 'select name from ioinfo where id=\'' +
+                                                                interface['id'] + '\'')
+                    polltime = pilib.gettimestring()
 
-                # Append to inputs and update name, even if it's an output (can read status as input)
+                    # Append to inputs and update name, even if it's an output (can read status as input)
 
-                if options['mode'] == 'output':
-                    GPIO.setup(int(address), GPIO.OUT)
-                    value = GPIO.input(int(address))
+                    if options['mode'] == 'output':
+                        GPIO.setup(address, GPIO.OUT)
 
+                        # Set the value of the gpio.
+                        # Get previous value if exists
+                        if interface['id'] in prevoutputids:
+                            value = prevoutputvalues[prevoutputids.index(interface['id'])]
+                        else:
+                            value = 0
+                        if value == 1:
+                            GPIO.output(address, True)
+                        else:
+                            GPIO.output(address, False)
+
+                        # Get output settings and keep them if the GPIO previously existed
+                        if interface['id'] in prevoutputids:
+                            pollfreq = prevoutputs[prevoutputids.index(interface['id'])]['pollfreq']
+                        else:
+                            pollfreq = defaultoutputpollfreq
+
+                        # Add entry to outputs tables
+                        querylist.append('insert into outputs values (\'' + interface['id'] + '\',\'' +
+                            interface['interface'] + '\',\'' + interface['type'] + '\',\'' + str(address) + '\',\'' +
+                                         gpioname + '\',\'' + str(value) + '\',\'\',\'' + str(polltime) + '\',\'' +
+                                         str(pollfreq) + '\')')
+                    else:
+                        GPIO.setup(address, GPIO.IN)
+                        value = GPIO.input(address)
+                        polltime = pilib.gettimestring()
+
+                    # Get input settings and keep them if the GPIO previously existed
+                    if interface['id'] in prevoutputids:
+                        pollfreq = previnputs[prevoutputids.index(interface['id'])]['pollfreq']
+                        polltime = previnputs[prevoutputids.index(interface['id'])]['polltime']
+                    else:
+                        pollfreq = defaultinputpollfreq
+
+
+                    # Add entry to inputs tables
                     # Get output settings and keep them if the GPIO previously existed
                     if interface['id'] in prevoutputids:
                         pollfreq = prevoutputs[prevoutputids.index(interface['id'])]['pollfreq']
-                        polltime = prevoutputs[prevoutputids.index(interface['id'])]['polltime']
                     else:
                         pollfreq = defaultoutputpollfreq
-                        polltime = pilib.gettimestring()
+                    querylist.append(
+                        'insert into inputs values (\'' + interface['id'] + '\',\'' + interface['interface'] + '\',\'' +
+                        interface['type'] + '\',\'' + str(address) + '\',\'' + gpioname + '\',\'' + str(value) + '\',\'\',\'' +
+                        str(polltime) + '\',\'' + str(pollfreq) + '\')')
 
-                    # Add entry to outputs tables
-                    querylist.append('insert into outputs values (\'' + interface['id'] + '\',\'' +
-                        interface['interface'] + '\',\'' + interface['type'] + '\',\'' + address + '\',\'' +
-                                     gpioname + '\',\'' + str(value) + '\',\'\',\'' + str(polltime) + '\',\'' +
-                                     str(pollfreq) + '\')')
                 else:
-                    GPIO.setup(int(address), GPIO.IN)
-                    value = GPIO.input(int(address))
-                    polltime = pilib.gettimestring()
-                    pass
-
-                # Get input settings and keep them if the GPIO previously existed
-                if interface['id'] in prevoutputids:
-                    pollfreq = previnputs[prevoutputids.index(interface['id'])]['pollfreq']
-                    polltime = previnputs[prevoutputids.index(interface['id'])]['polltime']
-                else:
-                    pollfreq = defaultinputpollfreq
-
-
-                # Add entry to outputs tables
-
-                querylist.append(
-                    'insert into inputs values (\'' + interface['id'] + '\',\'' + interface['interface'] + '\',\'' +
-                    interface['type'] + '\',\'' + address + '\',\'' + gpioname + '\',\'' + str(value) + '\',\'\',\'' +
-                    str(polltime) + '\',\'' + str(pollfreq) + '\')')
-
+                    GPIO.setup(address, GPIO.IN)
             else:
-                GPIO.setup(int(address), GPIO.IN)
+                print('GPIO address ' + address + 'not allowed. BAD THINGS CAN HAPPEN.')
 
         elif interface['interface'] == 'SPI':
-            print('processing SPI')
+            # print('processing SPI')
             if interface['type'] == 'SPITC':
                 import readspi
 
@@ -185,6 +185,7 @@ def updateioinfo(database, table):
         querylist.append(database, 'update ' + table + ' set name=\'' + name + '\' where id = \'' + itemid + '\'')
     if querylist:
         sqlitemultquery(querylist)
+
 
 def testupdateio(times):
     from pilib import controldatabase

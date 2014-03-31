@@ -34,13 +34,10 @@ while inputsreadenabled:
     pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set lastinputspoll=\'' + pilib.gettimestring() + '\'')
     pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set inputsreadstatus=\'1\'')
 
-    # Read and record everything as specified in controldatabase 
+    # Read and record everything as specified in controldatabase
+    # Update database of inputs with read data
 
-    reply = updateio.readio(pilib.controldatabase)
-
-    # Match inputsdata with ioinfo and update inputsdata table
-
-    updateio.updateioinfo(pilib.controldatabase)
+    reply = updateio.updateiodata(pilib.controldatabase)
 
     result = pilib.readonedbrow(pilib.controldatabase, 'systemstatus', 0)
     systemsdict = result[0]

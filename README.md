@@ -8,7 +8,7 @@ This library is designed to be used in conjunction with cupidweblibs, for a web-
 
 ## Requirements and installation
 
-Please see http://interfaceinnovations.org/cclibsinstall.html for requirements and installation
+Please see http://interfaceinnovations.org/cclibsinstall.html for requirements and installation, and http://interfaceinnovations.org/cclibsusage.html for usage.
 
 ## Contact
 

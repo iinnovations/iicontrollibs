@@ -36,7 +36,7 @@ def owfsbuslist(owdir):
         if item.split('.')[0] in families:
             devices.append(item)
             devicedirs.append(owdir + '/' + item)
-    print(devices)
+    # print(devices)
     return devices
 
 def owfsgetbusdevices(owdir):
@@ -162,7 +162,7 @@ def updateowfstable(database, tablename, busdevices):
 
     querylist = []
     for device in busdevices:
-        print(device.id)
+        # print(device.id)
         # print([device.address, device.family, device.id, device.type, device.crc8])
         querylist.append(
             makesqliteinsert(tablename, [device.address, device.family, device.id, device.type, device.crc8]))
@@ -175,6 +175,7 @@ def updateowfsentries(database, tablename, busdevices, myProxy=None):
     import pilib
 
     querylist = []
+
     querylist.append('delete from ' + tablename + ' where interface = \'i2c1wire\'')
 
     # We're going to set a name because calling things by their ids is getting
@@ -182,7 +183,7 @@ def updateowfsentries(database, tablename, busdevices, myProxy=None):
     # being there. They need to be unique, so we'll name them by type and increment them
 
     for device in busdevices:
-        print(device.id)
+        # print(device.id)
         if device.type == 'DS18B20':
             sensorid = 'i2c1wire' + '_' + device.address
 
@@ -209,31 +210,40 @@ def updateowfsentries(database, tablename, busdevices, myProxy=None):
             # Is it time to read temperature?
             # At the moment, we assume yes.
             device.readprop('temperature', myProxy)
-            print('temperature:')
-            print(device.temperature)
+            # print('temperature:')
+            # print(device.temperature)
+
             querylist.append(pilib.makesqliteinsert(tablename, [sensorid, 'i2c1wire', device.type, device.address, name,
-                                                                float(device.temperature), 'C', pilib.gettimestring(),
+                                                                float(device.temperature), 'F', pilib.gettimestring(),
                                                                 '']))
     # print(querylist)
     pilib.sqlitemultquery(database, querylist)
 
+# Currently we are using straight fuse/owfs directory listing, rather than the pyownet functions (also
+# available above)
 
-if __name__ == '__main__':
+def runowfsupdate(debug=False):
     import time
     from pilib import onewiredir, controldatabase
-    print('getting buses')
-    starttime = time.time()
+    if debug:
+        print('getting buses')
+        starttime = time.time()
     busdevices = owfsgetbusdevices(onewiredir)
-    print('done getting devices, took ' + str(time.time() - starttime))
-    print('updating owfs table')
-    starttime = time.time()
+    if debug:
+        print('done getting devices, took ' + str(time.time() - starttime))
+        print('updating owfs table')
+        starttime = time.time()
     updateowfstable(controldatabase, 'owfs', busdevices)
-    print('done updating owfstable, took ' + str(time.time() - starttime))
-    print('updating entries')
-    starttime = time.time()
+    if debug:
+        print('done updating owfstable, took ' + str(time.time() - starttime))
+        print('updating entries')
+        starttime = time.time()
     updateowfsentries(controldatabase, 'inputs', busdevices)
-    print('done reading devices, took ' + str(time.time() - starttime))
-    print('your devices: ')
-    for device in busdevices:
-        print(device.id)
+    if debug:
+        print('done reading devices, took ' + str(time.time() - starttime))
+        print('your devices: ')
+        for device in busdevices:
+            print(device.id)
 
+if __name__ == '__main__':
+    runowfsupdate()
