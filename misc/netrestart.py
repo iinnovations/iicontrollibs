@@ -21,7 +21,7 @@ from cupid.pilib import readonedbrow,systemdatadatabase
 netsettings = readonedbrow(systemdatadatabase,'netconfig')[0]
 
 args = sys.argv
-reboot=False
+reboot = False
 if len(args)>1:
     print('argument found')
     arg2 = args[1]
@@ -65,4 +65,5 @@ def apinit():
     subprocess.call(['service','isc-dhcp-server','start'])
 
 if __name__=="__main__":
-    runconfig(reboot)
+    if netsettings['enable']:
+        runconfig(reboot)

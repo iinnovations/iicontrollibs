@@ -89,15 +89,15 @@ def rebuildcontroldb(tabledict):
         querylist.append('drop table if exists ' + table)
         querylist.append(
              'create table ' + table + ' (id text primary key, interface text, type text, address text, name text, ' +
-             'value real, unit text, polltime text, pollfreq real)')
-    ### Outputs table
+             'value real, unit text, polltime text, pollfreq real, ontime text, offtime text)')
+    ### Inputs table
     if 'inputs' in tabledict:
         runquery = True
-        table = 'outputs'
+        table = 'inputs'
         querylist.append('drop table if exists ' + table)
         querylist.append(
              'create table ' + table + ' (id text primary key, interface text, type text, address text, name text, ' +
-             'value real, unit text, polltime text, pollfreq real)')
+             'value real, unit text, polltime text, pollfreq real, ontime text, offtime text)')
 
 
     ### OWFS Table
@@ -113,7 +113,7 @@ def rebuildcontroldb(tabledict):
         runquery = True
         table = 'ioinfo'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (id text primary key, name text)")
+        querylist.append("create table " + table + " (id text primary key, eame text)")
         if addentries:
             querylist.append(
                 "insert into " + table + " values ('GPIO18', 'GPIO1')")
@@ -167,10 +167,10 @@ def rebuildcontroldb(tabledict):
         table = 'controlalgorithms'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (name text primary key, type text, maxposrate real default 0, maxnegrate real default 0, derivativemode text default time, derivativeperiod real default 0, integralmode text default time, integralperiod real default 0, proportional real default 1, integral real default 0, derivative real default 0, deadbandhigh real default 0, deadbandlow real default 0, dutypercent real default 0, dutyperiod real default 1)")
+            "create table " + table + " (name text primary key, type text, maxposrate real default 0, maxnegrate real default 0, derivativemode text default time, derivativeperiod real default 0, integralmode text default time, integralperiod real default 0, proportional real default 1, integral real default 0, derivative real default 0, deadbandhigh real default 0, deadbandlow real default 0, dutypercent real default 0, dutyperiod real default 1, minontime float, minofftime float)")
         if addentries:
             querylist.append(
-                "insert into " + table + " values ('on/off 1', 'on/off with deadband',1,1,0,0,0,0,0,0,0,0,0,0,1)")
+                "insert into " + table + " values ('on/off 1', 'on/off with deadband',1,1,0,0,0,0,0,0,0,0,0,0,1,0,0)")
 
     ### Algorithmtypes
     if 'algorithmtypes' in tabledict:
@@ -264,8 +264,8 @@ def rebuildsystemdatadb(tabledict):
         runquery = "True"
         table = 'netconfig'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (nettype text, addtype text, address text, gateway text, networkSSID text, networkpassword text,dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99')")
-        querylist.append("insert into " + table + " values ('station','static','192.168.1.40','192.168.1.1','','')")
+        querylist.append("create table " + table + " (enabled text, nettype text, addtype text, address text, gateway text, dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99')")
+        querylist.append("insert into " + table + " values ('1','station','static','192.168.1.40','192.168.1.1','','')")
 
     if 'metadata' in tabledict:
         runquery = "True"

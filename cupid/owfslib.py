@@ -215,7 +215,7 @@ def updateowfsentries(database, tablename, busdevices, myProxy=None):
 
             querylist.append(pilib.makesqliteinsert(tablename, [sensorid, 'i2c1wire', device.type, device.address, name,
                                                                 float(device.temperature), 'F', pilib.gettimestring(),
-                                                                '']))
+                                                                '','','']))
     # print(querylist)
     pilib.sqlitemultquery(database, querylist)
 

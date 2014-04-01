@@ -64,9 +64,9 @@ while inputsreadenabled:
 
         if controlinput:
             controlvalue = pilib.sqlitedatumquery(pilib.controldatabase,
-                                                  'select value from inputsdata where id=' + "'" + controlinput + "'")
+                                                  'select value from inputs where id=' + "'" + controlinput + "'")
             controltime = pilib.sqlitedatumquery(pilib.controldatabase,
-                                                 'select polltime from inputsdata where id=' + "'" + controlinput + "'")
+                                                 'select polltime from inputs where id=' + "'" + controlinput + "'")
 
             # Only update channel value if value was found
 

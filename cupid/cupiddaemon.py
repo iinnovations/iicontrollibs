@@ -104,20 +104,21 @@ if __name__ == "__main__":
     import pilib
     from subprocess import Popen
 
-    procstofind = ['periodicreadio.py', 'picontrol.py', 'sessioncontrol.py', 'systemstatus.py']
+    procstofind = ['cupid/periodicreadio.py', 'cupid/picontrol.py', 'cupid/sessioncontrol.py', 'cupid/systemstatus.py']
 
     # Set up list of enabled statuses (whether to restart if
     # we find that the process is not currently running
 
-    picontrolenabled = pilib.sqlitedatumquery(pilib.controldb, 'select picontrolenabled from systemstatus')
-    inputsreadenabled = pilib.sqlitedatumquery(pilib.controldb, 'select inputsreadenabled from systemstatus')
-    sessioncontrolenabled = pilib.sqlitedatumquery(pilib.controldb, 'select sessioncontrolenabled from systemstatus')
-    systemstatusenabled = pilib.sqlitedatumquery(pilib.controldb, 'select systemstatusenabled from systemstatus')
+    picontrolenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select picontrolenabled from systemstatus')
+    inputsreadenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select inputsreadenabled from systemstatus')
+    sessioncontrolenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select sessioncontrolenabled from systemstatus')
+    systemstatusenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select systemstatusenabled from systemstatus')
 
     enableditemlist = [(int(inputsreadenabled)), (int(picontrolenabled)), int(sessioncontrolenabled),
                        int(systemstatusenabled)]
 
     itemstatuses = findprocstatuses(procstofind)
+    print(itemstatuses)
     # Set up list of itemnames in the systemstatus table that
     # we assign the values to when we detect if the process
     # is running or not
@@ -128,11 +129,12 @@ if __name__ == "__main__":
         index = procstofind.index(item)
         # set status
         if itemstatuses[index]:
-            pilib.sqlitequery(pilib.controldb, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
+            pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
         else:
-            pilib.sqlitequery(pilib.controldb, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')
+            pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')
 
             # run if set to enable
             if enableditemlist[index]:
+                print(pilib.baselibdir + procstofind[index])
                 Popen(pilib.baselibdir + procstofind[index], shell=False)
 

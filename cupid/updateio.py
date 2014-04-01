@@ -126,10 +126,10 @@ def updateiodata(database):
                         # Add entry to outputs tables
                         querylist.append('insert into outputs values (\'' + interface['id'] + '\',\'' +
                             interface['interface'] + '\',\'' + interface['type'] + '\',\'' + str(address) + '\',\'' +
-                                         gpioname + '\',\'' + str(value) + '\',\'\',\'' + str(polltime) + '\',\'' +
-                                         str(pollfreq) + '\')')
+                                         gpioname + '\',\'' + str(value) + "','','" + str(polltime) + '\',\'' +
+                                         str(pollfreq) + "','','')")
                     else:
-                        GPIO.setup(address, GPIO.IN)
+                        # GPIO.setup(address, GPIO.IN)
                         value = GPIO.input(address)
                         polltime = pilib.gettimestring()
 
@@ -149,8 +149,8 @@ def updateiodata(database):
                         pollfreq = defaultoutputpollfreq
                     querylist.append(
                         'insert into inputs values (\'' + interface['id'] + '\',\'' + interface['interface'] + '\',\'' +
-                        interface['type'] + '\',\'' + str(address) + '\',\'' + gpioname + '\',\'' + str(value) + '\',\'\',\'' +
-                        str(polltime) + '\',\'' + str(pollfreq) + '\')')
+                        interface['type'] + '\',\'' + str(address) + '\',\'' + gpioname + '\',\'' + str(value) + "','','" +
+                        str(polltime) + '\',\'' + str(pollfreq) + "','','')")
 
                 else:
                     GPIO.setup(address, GPIO.IN)
