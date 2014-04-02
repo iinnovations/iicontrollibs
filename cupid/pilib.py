@@ -109,7 +109,7 @@ class action:
 
 class gmail:
     def __init__(self, server='smtp.gmail.com', port=587, subject='default subject', message='default message',
-                 login='cupidmailer@interfaceinnovations.org', password='cupidmail', recipient='info@interfaceinnovations.org', sender='CuPID Mailer'):
+                 login='cupidmailer@interfaceinnovations.org', password='blurg', recipient='info@interfaceinnovations.org', sender='CuPID Mailer'):
         self.server = server
         self.port = port
         self.message = message
