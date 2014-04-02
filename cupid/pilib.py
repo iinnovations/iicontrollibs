@@ -378,10 +378,10 @@ def sqlitedatumquery(database, query):
 
 
 def getsinglevalue(database, table, valuename, condition=None):
-    query = 'select \'' + valuename + '\' from \'' + table + '\''
+    query = 'select \"' + valuename + '\" from \'' + table + '\''
     if condition:
         query += ' where ' + condition
-    print(query)
+    # print(query)
     response = sqlitedatumquery(database, query)
     return (response)
 

@@ -104,17 +104,17 @@ if __name__ == "__main__":
     import pilib
     from subprocess import Popen
 
-    procstofind = ['cupid/periodicreadio.py', 'cupid/picontrol.py', 'cupid/sessioncontrol.py', 'cupid/systemstatus.py']
+    procstofind = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/sessioncontrol.py', 'cupid/systemstatus.py']
 
     # Set up list of enabled statuses (whether to restart if
     # we find that the process is not currently running
 
     picontrolenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select picontrolenabled from systemstatus')
-    inputsreadenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select inputsreadenabled from systemstatus')
+    updateioenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select updateioenabled from systemstatus')
     sessioncontrolenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select sessioncontrolenabled from systemstatus')
     systemstatusenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select systemstatusenabled from systemstatus')
 
-    enableditemlist = [(int(inputsreadenabled)), (int(picontrolenabled)), int(sessioncontrolenabled),
+    enableditemlist = [(int(updateioenabled)), (int(picontrolenabled)), int(sessioncontrolenabled),
                        int(systemstatusenabled)]
 
     itemstatuses = findprocstatuses(procstofind)
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     # we assign the values to when we detect if the process
     # is running or not
 
-    statustableitemnames = ['inputsreadstatus', 'picontrolstatus', 'sessioncontrolstatus', 'systemstatusstatus']
+    statustableitemnames = ['updateiostatus', 'picontrolstatus', 'sessioncontrolstatus', 'systemstatusstatus']
 
     for item in procstofind:
         index = procstofind.index(item)

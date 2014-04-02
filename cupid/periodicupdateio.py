@@ -19,9 +19,9 @@ from time import sleep
 readtime = 10  # default, seconds
 
 # Read from systemstatus to make sure we should be running
-inputsreadenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select inputsreadenabled from systemstatus')
-
-while inputsreadenabled:
+updateioenabled = pilib.getsinglevalue(pilib.controldatabase, 'systemstatus', 'updateioenabled')
+print(updateioenabled)
+while updateioenabled:
 
     #print("runtime")
     #print("reading input")
@@ -32,7 +32,7 @@ while inputsreadenabled:
 
     # Set last run time
     pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set lastinputspoll=\'' + pilib.gettimestring() + '\'')
-    pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set inputsreadstatus=\'1\'')
+    pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set updateiostatus=\'1\'')
 
     # Read and record everything as specified in controldatabase
     # Update database of inputs with read data
@@ -43,7 +43,7 @@ while inputsreadenabled:
     systemsdict = result[0]
     #print("here is the systems dict")
     #print(systemsdict)
-    readtime = systemsdict['inputsreadfreq']
+    readtime = systemsdict['updateiofreq']
 
     plotpoints = 20
     logpoints = 100
@@ -115,5 +115,5 @@ while inputsreadenabled:
     #print("sleeping")
     sleep(readtime)
 
-pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set inputsreadstatus=\'0\'')
+pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set updateiostatus=\'0\'')
 

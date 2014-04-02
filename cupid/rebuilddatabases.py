@@ -25,7 +25,7 @@ def rebuildcontroldb(tabledict):
     querylist = []
     runquery = False
 
-    ### SystemStatus table
+    ### Actions table
     if 'actions' in tabledict:
         runquery = True
         table = 'actions'
@@ -41,7 +41,7 @@ def rebuildcontroldb(tabledict):
         table = 'systemstatus'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text, inputsreadenabled boolean default 1, inputsreadstatus boolean default 0, inputsreadfreq real default 15, lastinputspoll text, enableoutputs boolean default 0, sessioncontrolenabled boolean, sessioncontrolstatus boolean, systemstatusenabled boolean, systemstatusstatus boolean, systemmessage text)")
+            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text, updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 5, lastiopoll text, enableoutputs boolean default 0, sessioncontrolenabled boolean, sessioncontrolstatus boolean, systemstatusenabled boolean, systemstatusstatus boolean, systemmessage text)")
         if addentries:
             querylist.append("insert into " + table + " values (0,0,15,'',1,0,15,'',0,1,0,1,0,'')")
 
