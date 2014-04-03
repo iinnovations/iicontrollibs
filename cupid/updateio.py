@@ -166,9 +166,9 @@ def updateiodata(database):
         elif interface['interface'] == 'SPI1':
             # print('processing SPI1')
 
-            if interface['type'] == 'CuPIDLights':
+            if interface['type'] == 'CuPIDlights':
                 import spilights
-                spilights.updatelightsfromdb(pilib.controldatabase, 'indicators',1)
+                spilights.updatelightsfromdb(pilib.controldatabase, 'indicators', 1)
 
     # Set tables
     # print(querylist)
