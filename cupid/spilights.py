@@ -125,8 +125,8 @@ def updatelightsfromdb(database, table):
     import pilib
 
     # get settings from database
-    query = 'select status from \"' + table + '\" where type="SPI"'
-    query2 = 'select name from \"' + table + '\" where type="SPI"'
+    query = 'select status from \'' + table + '\' where type=\'SPI\''
+    query2 = 'select name from \'' + table + '\' where type=\'SPI\''
 
     statuses = pilib.sqlitequery(database, query)
     names = pilib.sqlitequery(database, query2)
@@ -142,5 +142,7 @@ def updatelightsfromdb(database, table):
 
 
 if __name__ == '__main__':
+    from pilib import controldatabase
+    updatelightsfromdb(controldatabase,'indicators')
     #twitterspilights(1)
-    setspilightsoff()
+    #setspilightsoff()
