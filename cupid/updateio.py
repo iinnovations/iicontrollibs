@@ -70,9 +70,7 @@ def updateiodata(database):
     querylist = []
     querylist.append('delete from inputs')
     querylist.append('delete from outputs')
-    pilib.sqlitemultquery(pilib.controldatabase, querylist)
 
-    querylist = []
     for interface in interfaces:
         if interface['interface'] == 'I2C':
             if interface['enabled']:
@@ -129,7 +127,7 @@ def updateiodata(database):
                                          gpioname + '\',\'' + str(value) + "','','" + str(polltime) + '\',\'' +
                                          str(pollfreq) + "','','')")
                     else:
-                        # GPIO.setup(address, GPIO.IN)
+                        GPIO.setup(address, GPIO.IN)
                         value = GPIO.input(address)
                         polltime = pilib.gettimestring()
 
@@ -166,11 +164,11 @@ def updateiodata(database):
                 readspi.recordspidata(database, spidata)
             elif interface['type'] == 'CuPIDLights':
                 import spilights
-
                 spilights.updatelightsfromdb(pilib.controldatabase, 'indicators')
 
     # Set tables
-    # print(querylist)
+    print(querylist)
+
     pilib.sqlitemultquery(pilib.controldatabase, querylist)
 
 
