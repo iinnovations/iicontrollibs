@@ -22,6 +22,8 @@ class MAX31855(object):
      - [Raspberry Pi](http://www.raspberrypi.org/)
 
     '''
+
+    # TODO : include pin select for SPI TC read
     def __init__(self, pin, units = "c"):
         '''Initialize SPI bus
         

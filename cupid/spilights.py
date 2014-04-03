@@ -10,7 +10,7 @@ __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
 
-def setrawspilights(enabledlists):
+def setrawspilights(enabledlists, CS=1):
     try:
         import spidev
     except ImportError:
@@ -19,7 +19,7 @@ def setrawspilights(enabledlists):
 
     spi = spidev.SpiDev()
     try:
-        spi.open(0, 1)  # Port 0, CS1
+        spi.open(0, CS)  # Port 0, CS1
     except:
         print('error raised. exiting.')
         exit
@@ -44,7 +44,7 @@ def setrawspilights(enabledlists):
         return resp
 
 
-def setspilights(lightsettingsarray):
+def setspilights(lightsettingsarray, CS=1):
     # Color LED assignments:
     # list 1:
     # 1 : RGB 2 Green 
@@ -82,11 +82,11 @@ def setspilights(lightsettingsarray):
     # print('enabled lists')
     # print(enabledlist1)
     # print(enabledlist2)
-    setrawspilights([enabledlist1, enabledlist2])
+    setrawspilights([enabledlist1, enabledlist2],CS)
 
 
-def setspilightsoff():
-    setrawspilights([[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]])
+def setspilightsoff(CS=1):
+    setrawspilights([[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]],CS)
 
 
 def twitterspilights(delay):
@@ -112,7 +112,7 @@ def twitterspilights(delay):
     run = True
     index = 0
     while run == True:
-        setspilights(settingsarray[index])
+        setspilights(settingsarray[index],CS)
         print('sending')
         print(settingsarray[index])
         time.sleep(delay)
@@ -121,7 +121,7 @@ def twitterspilights(delay):
             index = 0
 
 
-def updatelightsfromdb(database, table):
+def updatelightsfromdb(database, table, CS):
     import pilib
 
     # get settings from database
@@ -138,11 +138,11 @@ def updatelightsfromdb(database, table):
                 [d['SPI_RGB3_R'], d['SPI_RGB3_G'], d['SPI_RGB3_B']],
                 [d['SPI_RGB4_R'], d['SPI_RGB4_G'], d['SPI_RGB4_B']], d['SPI_SC_R'], d['SPI_SC_G'], d['SPI_SC_B'],
                 d['SPI_SC_Y']]
-    setspilights(setarray)
+    setspilights(setarray, CS)
 
 
 if __name__ == '__main__':
     from pilib import controldatabase
-    updatelightsfromdb(controldatabase,'indicators')
+    updatelightsfromdb(controldatabase,'indicators',1)
     #twitterspilights(1)
     #setspilightsoff()

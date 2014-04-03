@@ -155,19 +155,23 @@ def updateiodata(database):
             else:
                 print('GPIO address ' + address + 'not allowed. BAD THINGS CAN HAPPEN.')
 
-        elif interface['interface'] == 'SPI':
-            # print('processing SPI')
+        elif interface['interface'] == 'SPI0':
+            print('processing SPI0')
             if interface['type'] == 'SPITC':
                 import readspi
 
-                spidata = readspi.readspitc()
+                spidata = readspi.readspitc(0)
                 readspi.recordspidata(database, spidata)
-            elif interface['type'] == 'CuPIDLights':
+
+        elif interface['interface'] == 'SPI1':
+            # print('processing SPI1')
+
+            if interface['type'] == 'CuPIDLights':
                 import spilights
-                spilights.updatelightsfromdb(pilib.controldatabase, 'indicators')
+                spilights.updatelightsfromdb(pilib.controldatabase, 'indicators',1)
 
     # Set tables
-    print(querylist)
+    # print(querylist)
 
     pilib.sqlitemultquery(pilib.controldatabase, querylist)
 
