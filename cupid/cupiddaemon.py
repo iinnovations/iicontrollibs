@@ -103,6 +103,7 @@ def findprocstatuses(procstofind):
 if __name__ == "__main__":
     import pilib
     from subprocess import Popen
+    from time import sleep
 
     procstofind = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/sessioncontrol.py', 'cupid/systemstatus.py']
 
@@ -119,6 +120,7 @@ if __name__ == "__main__":
 
     itemstatuses = findprocstatuses(procstofind)
     print(itemstatuses)
+
     # Set up list of itemnames in the systemstatus table that
     # we assign the values to when we detect if the process
     # is running or not
@@ -138,3 +140,14 @@ if __name__ == "__main__":
                 print(pilib.baselibdir + procstofind[index])
                 Popen(pilib.baselibdir + procstofind[index], shell=False)
 
+    sleep(1)
+
+    # Refresh after set
+    itemstatuses = findprocstatuses(procstofind)
+    for item in procstofind:
+        index = procstofind.index(item)
+        # set status
+        if itemstatuses[index]:
+            pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
+        else:
+            pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')

@@ -41,6 +41,7 @@ while systemstatus['picontrolenabled']:
 
     for channel in channels:
         statusmsg = ''
+        querylist = []
         channelindex = str(int(channel['channelindex']))
         channelname = channel['name']
         logtablename = channel['name'] + '_log'
@@ -164,7 +165,6 @@ while systemstatus['picontrolenabled']:
                         
                         # Temporary
                         readytoenable = True
-                        querylist=[]
                         time = pilib.gettimestring()
                         if len(outputsetnames) > 0 or len(outputresetnames)>0:
                             for output in outputs:
@@ -222,7 +222,7 @@ while systemstatus['picontrolenabled']:
             statusmsg += 'Channel not enabled. '
 
         # Set status message for channel
-        print(statusmsg)
+        # print(statusmsg)
         querylist.append('update channels set statusmessage=\'' + statusmsg + '\'' + 'where channelindex=' + channelindex)
 
         # Set update time for channel 
@@ -233,8 +233,11 @@ while systemstatus['picontrolenabled']:
     # Wait for delay time 
     #print('sleeping')
 
-    spilights.updatelightsfromdb(pilib.controldatabase, 'indicators')
+    # spilights.updatelightsfromdb(pilib.controldatabase, 'indicators')
     sleep(systemstatus['picontrolfreq'])
 
     # We do this system status again to refresh settings
     systemstatus = pilib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
+
+    from processactions import processactions
+    processactions()

@@ -69,7 +69,7 @@ class action:
             # process email action
             self.statusmsg += 'Processing email alert. '
             email = self.actiondetail
-            message = 'Alert is active for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + self.criterion + ' with an operator of ' + self.operator + '. This alarm status has been on since ' + self.ontime + '.'
+            message = 'Alert is active for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + str(self.criterion) + ' with an operator of ' + self.operator + '. This alarm status has been on since ' + self.ontime + '.'
             subject = 'CuPID Alert : Alarm On - ' + self.name
             actionmail = gmail(message=message, subject=subject, recipient=email)
             actionmail.send()
@@ -85,7 +85,7 @@ class action:
             # process email action
             self.statusmsg +='Processing email alert.'
             email = self.actiondetail
-            message = 'Alert has gone inactive for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + self.criterion + ' with an operator of ' + self.operator + '. This alarm status has been of since ' + self.offtime + '.'
+            message = 'Alert has gone inactive for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + str(self.criterion) + ' with an operator of ' + self.operator + '. This alarm status has been of since ' + self.offtime + '.'
             subject = 'CuPID Alert : Alarm Off - ' + self.name
             actionmail = gmail(message=message, subject=subject, recipient=email)
             actionmail.send()
@@ -109,7 +109,7 @@ class action:
 
 class gmail:
     def __init__(self, server='smtp.gmail.com', port=587, subject='default subject', message='default message',
-                 login='cupidmailer@interfaceinnovations.org', password='blurg', recipient='info@interfaceinnovations.org', sender='CuPID Mailer'):
+                 login='cupidmailer@interfaceinnovations.org', password='cupidmail', recipient='info@interfaceinnovations.org', sender='CuPID Mailer'):
         self.server = server
         self.port = port
         self.message = message

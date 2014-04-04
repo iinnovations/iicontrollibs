@@ -77,7 +77,9 @@ def updateiodata(database):
                 # print('processing enabled I2C')
                 if interface['type'] == 'DS2483':
                     from owfslib import runowfsupdate
-                    runowfsupdate()
+                    owfsqueries = runowfsupdate(execute=False)
+                    # print(owfsqueries)
+                    querylist.extend(owfsqueries)
 
 
         elif interface['interface'] == 'GPIO':
