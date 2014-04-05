@@ -12,7 +12,7 @@ __status__ = "Development"
 
 # This script resets the control databases
 
-from pilib import sqlitemultquery, controldatabase, systemdatadatabase, recipedatabase, sessiondatabase
+from pilib import sqlitemultquery, controldatabase, systemdatadatabase, recipedatabase, sessiondatabase, safedatabase
 
 ################################################
 # Main control database
@@ -167,7 +167,7 @@ def rebuildcontroldb(tabledict):
         table = 'controlalgorithms'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (name text primary key, type text, maxposrate real default 0, maxnegrate real default 0, derivativemode text default time, derivativeperiod real default 0, integralmode text default time, integralperiod real default 0, proportional real default 1, integral real default 0, derivative real default 0, deadbandhigh real default 0, deadbandlow real default 0, dutypercent real default 0, dutyperiod real default 1, minontime float, minofftime float)")
+            "create table " + table + " (name text primary key, type text, maxposrate real default 0, maxnegrate real default 0, derivativemode text default time, derivativeperiod real default 0, integralmode text default time, integralperiod real default 0, proportional real default 1, integral real default 0, derivative real default 0, deadbandhigh real default 0, deadbandlow real default 0, dutypercent real default 0, dutyperiod real default 1, minontime real, minofftime real)")
         if addentries:
             querylist.append(
                 "insert into " + table + " values ('on/off 1', 'on/off with deadband',1,1,0,0,0,0,0,0,0,0,0,0,1,0,0)")
@@ -245,7 +245,7 @@ def rebuildsessiondb():
 
 
     #print(querylist)
-    sqlitemultquery(sessiondatabase,querylist)
+    sqlitemultquery(sessiondatabase, querylist)
 
 
 ############################################
@@ -255,20 +255,20 @@ def rebuildsystemdatadb(tabledict):
     runquery = "False"
     querylist = []
     if 'netstatus' in tabledict:
-        runquery = "True"
+        runquery = True
         table = 'netstatus'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " ( IPAddress text, gateway text, WANaccess text, networkSSID text, dhcpstatus boolean default 0, hostapdstatus boolean default 0)")
-        querylist.append("insert into " + table + " values ('','','','','','')")
+        querylist.append("create table " + table + " ( IPAddress text, connected text, WANaccess text, latency real, networkSSID text, dhcpstatus boolean default 0, mode text , onlinetime text, offlinetime text)")
+        querylist.append("insert into " + table + " values ('','','','','','','','','')")
     if 'netconfig' in tabledict:
-        runquery = "True"
+        runquery = True
         table = 'netconfig'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (enabled text, nettype text, addtype text, address text, gateway text, dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99')")
-        querylist.append("insert into " + table + " values ('1','station','static','192.168.1.40','192.168.1.1','','')")
+        querylist.append("create table " + table + " (enabled text, SSID text, nettype text, aprevert text default 'temprevert', addtype text, address text, gateway text, dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99', aprevert boolean default 0, apreverttime integer default 60, pingthreshold integer default 200)")
+        querylist.append("insert into " + table + " values ('1','OurHouse','station','temprevert','static','192.168.1.40','192.168.1.1','','',1,60,200)")
 
     if 'metadata' in tabledict:
-        runquery = "True"
+        runquery = True
         table = 'metadata'
         querylist.append('drop table if exists ' + table)
         querylist.append("create table " + table + " (  devicename text, groupname text)")
@@ -291,7 +291,7 @@ def rebuildrecipesdb(tabledict):
     querylist = []
     addentries = True
     if 'recipes' in tabledict:
-        runquery = "True"
+        runquery = True
 
         table = 'stdreflow'
         querylist.append('drop table if exists ' + table)
@@ -308,8 +308,31 @@ def rebuildrecipesdb(tabledict):
 
         sqlitemultquery(recipedatabase, querylist)
 
+############################################
+# safedata
+
+def rebuildsafedata(tabledict):
+    runquery = False
+    querylist = []
+    if 'safedata' in tabledict:
+        runquery = True
+        querylist.append('drop table if exists wireless')
+        querylist.append('create table wireless (SSID text, password text)')
+
+    if runquery:
+        sqlitemultquery(safedatabase, querylist)
+
+
+
+
 # default routine
 if __name__ == "__main__":
+
+    controltabledict = {}
+    answer = raw_input('Rebuild wireless table (y/N)?')
+    if answer == 'y':
+        controltabledict['safedata'] = True
+    rebuildsafedata(controltabledict)
 
     controltabledict = {}
     answer = raw_input('Rebuild actions table (y/N)?')
@@ -370,15 +393,19 @@ if __name__ == "__main__":
     answer = raw_input('Rebuild metadata table (y/N)?')
     if answer == 'y':
         systemtabledict['metadata'] = True
+
     answer = raw_input('Rebuild versions table (y/N)?')
     if answer == 'y':
         systemtabledict['versions'] = True
+
     answer = raw_input('Rebuild netconfig table (y/N)?')
     if answer == 'y':
         systemtabledict['netconfig'] = True
+
     answer = raw_input('Rebuild netstatus table (y/N)?')
     if answer == 'y':
         systemtabledict['netstatus'] = True
+
     rebuildsystemdatadb(systemtabledict)
 
     recipetabledict = {}

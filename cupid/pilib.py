@@ -23,6 +23,7 @@ logdatabase = databasedir + 'logdata.db'
 sessiondatabase = databasedir + 'authlog.db'
 recipedatabase = databasedir + 'recipedata.db'
 systemdatadatabase = databasedir + 'systemdata.db'
+safedatabase = '/var/wwwsafe/safedata.db'
 
 #############################################
 ## Utility Functions

@@ -16,7 +16,7 @@ import socket
 from ctypes import *
 from binascii import hexlify
 
-from .pyiface.ifreqioctls import *
+from ifreqioctls import *
 
 
 flags2str = {

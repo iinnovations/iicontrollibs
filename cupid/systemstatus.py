@@ -13,59 +13,13 @@ __status__ = "Development"
 import os
 import sys
 import inspect
+import netconfig
 
 top_folder = \
     os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
-def getwpasupplicantdata(conffile='/etc/wpa_supplicant/wpa_supplicant.conf'):
-    class data():
-        pass
-
-    file = open(conffile)
-    lines = file.readlines()
-    header=''
-    tail=''
-    datalines=[]
-    readheader=True
-    readbody=False
-    readtail=False
-    for line in lines:
-        if readheader:
-            header = header + line
-        if '}' in line:
-            print('parsing ended')
-            readbody = False
-            readtail = True
-        if readbody:
-            datalines.append(line)
-        if readtail:
-            tail = tail + line
-        if '{' in line:
-            print('starting parse')
-            readheader = False
-            readbody = True
-
-    datadict={}
-    for line in datalines:
-        split = line.split('=')
-        datadict[split[0].strip()] = split[1].strip()
-
-    returndict = data()
-    returndict.header = header
-    returndict.tail = tail
-    returndict.data = datadict
-    return returndict
-
-def writesupplicantfile(filepath,filedata):
-    writestring=''
-    writestring += filedata.header
-    for key,value in filedata.data.items():
-        writestring += key + '=' + value + '\n'
-    writestring += filedata.tail
-    myfile = open(filepath,'w')
-    myfile.write(writestring)
 
 def runping(pingAddress,numpings=1):
     pingtimes=[]
@@ -99,14 +53,17 @@ def runping(pingAddress,numpings=1):
             # Ping stored in latency in milliseconds
             #print '%f ms' % (latency)
             pingtimes.append(latency)
+    # print(pingtimes)
     return pingtimes
 
 def updateifacestatus():
 
     import resource.pyiface.iface as pyiface
-    from cupid.pilib import sqlitemultquery, setsinglevalue, systemdatadatabase
+    from cupid.pilib import sqlitemultquery, setsinglevalue, systemdatadatabase, readonedbrow, gettimestring
     import subprocess
 
+    netconfigdata = readonedbrow(systemdatadatabase, 'netconfig')[0]
+    netstatus = readonedbrow(systemdatadatabase, 'netstatus')[0]
     # Networking check
 
     querylist = []
@@ -127,20 +84,80 @@ def updateifacestatus():
 
 
     # Interfaces check
-    pingresult = runping('8.8.8.8')
+    # WAN check
+
+    okping = float(netconfigdata['pingthreshold'])
+    pingresults = runping('8.8.8.8')
+    pingresult = sum(pingresults)/float(len(pingresults))
     if pingresult == 0:
         wanaccess = 0
         latency = 0
     else:
-        wanaccess = 0
+        if pingresult < okping:
+            wanaccess = 1
+        else:
+            wanaccess = 0
         latency = pingresult
+    setsinglevalue(systemdatadatabase, 'netstatus', 'latency', str(latency))
 
-    # Check supplicant configuration
-    wpaconfig = getwpasupplicantdata()
-    print(wpaconfig.data)
-    print(wpaconfig.data['ssid'])
-    setsinglevalue(systemdatadatabase, 'netstatus', 'networkSSID', '\"' + wpaconfig.data['ssid'] + '\"')
+    # Check supplicant status, set on/offtime if necessary.
+    wpastatusdict = netconfig.getwpaclientstatus()
+    if wpastatusdict['wpa_state'] == 'COMPLETED':
+        wpaconnected = 1
+        if netstatus['connected'] == 0 or netstatus['onlinetime'] == '':
+            setsinglevalue(systemdatadatabase, 'netstatus', 'onlinetime', gettimestring())
+            setsinglevalue(systemdatadatabase, 'netstatus', 'offlinetime', '')
+    else:
+        wpaconnected = 0
+        if netstatus['connected'] == 1 or netstatus['offlinetime'] == '':
+            setsinglevalue(systemdatadatabase, 'netstatus', 'offlinetime', gettimestring())
+            setsinglevalue(systemdatadatabase, 'netstatus', 'onlinetime', '')
+
+    # Check dhcp server status
+    result = subprocess.Popen(['service','isc-dhcp-server','status'], stdout=subprocess.PIPE)
+    for line in result.stdout:
+        if line.find('not running') > 0:
+            dhcpstatus = 0
+        elif line.find('is running') > 0:
+            dhcpstatus = 1
+        else:
+            dhcpstatus = '\?'
+
+    wpastatusdict['dhcptatus'] = str(dhcpstatus)
+    wpastatusdict['connected'] = wpaconnected
+
+    # This is not the most efficient way to do this. Laziness...
+    setsinglevalue(systemdatadatabase, 'netstatus', 'dhcpstatus', str(dhcpstatus))
+    setsinglevalue(systemdatadatabase, 'netstatus', 'connected', str(wpaconnected))
+    setsinglevalue(systemdatadatabase, 'netstatus', 'mode', wpastatusdict['mode'])
+    setsinglevalue(systemdatadatabase, 'netstatus', 'networkSSID', wpastatusdict['ssid'])
     setsinglevalue(systemdatadatabase, 'netstatus', 'WANaccess', str(wanaccess))
+    setsinglevalue(systemdatadatabase, 'netstatus', 'IPAddress', wpastatusdict['ip_address'])
+
+    return wpastatusdict
 
 
-# Other stuff
+if __name__ == '__main__':
+    wpastatusdict = updateifacestatus()
+    import pilib
+    netconfigdata = pilib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
+    netstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
+
+    # If not connected
+
+    # If mode is temprevert, set to apmode, but don't update config
+    # If mode is aprevert, set to apmode and update netconfig
+    if not wpastatusdict['connected']:
+        currenttime = pilib.gettimestring()
+        if pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(netstatus['offtime']) > pilib.timestringtoseconds(netconfigdata['apreverttime']):
+            if netconfigdata['aprevert'] == 'temprevert' or netconfigdata['temprevert'] == 'aprevert':
+                netconfig.setapmode()
+
+            # set mode to ap if 'permanent' revet
+            if netconfigdata['aprevert'] == 'aprevert':
+                pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'ap')
+
+    suppconfig = netconfig.getwpasupplicantconfig()
+
+
+
