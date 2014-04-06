@@ -174,7 +174,7 @@ def updateiodata(database):
 
     # Set tables
     # print(querylist)
-
+    querylist.append(pilib.makesinglevaluequery('systemstatus', 'lastiopoll', pilib.gettimestring()))
     pilib.sqlitemultquery(pilib.controldatabase, querylist)
 
 

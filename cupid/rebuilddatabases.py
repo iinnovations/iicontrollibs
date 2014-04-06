@@ -258,8 +258,8 @@ def rebuildsystemdatadb(tabledict):
         runquery = True
         table = 'netstatus'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " ( IPAddress text, connected text, WANaccess text, latency real, networkSSID text, dhcpstatus boolean default 0, mode text , onlinetime text, offlinetime text)")
-        querylist.append("insert into " + table + " values ('','','','','','','','','')")
+        querylist.append("create table " + table + " ( IPAddress text, connected text, WANaccess text, latency real, networkSSID text, dhcpstatus boolean default 0, mode text , onlinetime text, offlinetime text, statusmsg text)")
+        querylist.append("insert into " + table + " values ('','','','','','','','','','')")
     if 'netconfig' in tabledict:
         runquery = True
         table = 'netconfig'

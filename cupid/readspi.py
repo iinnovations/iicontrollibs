@@ -25,16 +25,15 @@ querylist = [];
 # we need to have a selector for what to 
 # read/write on our SPI interface
 
-def readspitc():
+def readspitc(CS=1):
     valuedict = {}
-    valuedict['SPITC1'] = getspitctemp().rstrip()
+    valuedict['SPITC1'] = getspitctemp(CS).rstrip()
     return valuedict
 
 
-def getspitctemp():
+def getspitctemp(CS):
     import subprocess
-
-    tctemp = subprocess.check_output(['python3', '/usr/lib/iicontrollibs/cupid/max31855-1.0/getmaxtemp.py'])
+    tctemp = subprocess.check_output(['python3', '/usr/lib/iicontrollibs/cupid/getmaxtemp.py'])
     return tctemp
 
 

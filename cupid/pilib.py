@@ -395,6 +395,13 @@ def setsinglevalue(database, table, valuename, value, condition=None):
     response = sqlitequery(database, query)
     return (response)
 
+def makesinglevaluequery(table, valuename, value, condition=None):
+    query = 'update ' + '\'' + table + '\' set \'' + valuename + '\'=\'' + value + '\''
+    if condition:
+        query += ' where ' + condition
+
+    return query
+
 
 def readonedbrow(database, table, rownumber=0):
     data = sqlitequery(database, 'select * from \'' + table + '\'')

@@ -20,7 +20,6 @@ readtime = 10  # default, seconds
 
 # Read from systemstatus to make sure we should be running
 updateioenabled = pilib.getsinglevalue(pilib.controldatabase, 'systemstatus', 'updateioenabled')
-print(updateioenabled)
 while updateioenabled:
 
     #print("runtime")

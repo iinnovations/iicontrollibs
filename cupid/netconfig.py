@@ -18,6 +18,7 @@ if top_folder not in sys.path:
 
 from cupid.pilib import readonedbrow, systemdatadatabase
 
+
 def getwpaclientstatus():
     import subprocess
     result = subprocess.Popen(['wpa_cli','status'], stdout=subprocess.PIPE)
@@ -72,27 +73,80 @@ def getwpasupplicantconfig(conffile='/etc/wpa_supplicant/wpa_supplicant.conf'):
     return returndict
 
 
-def writesupplicantfile(filepath,filedata):
+def updatesupplicantdata(configdata):
+    from pilib import readalldbrows, safedatabase, systemdatadatabase
+    netconfig = readalldbrows(systemdatadatabase,'netconfig')[0]
+    wirelessauths = readalldbrows(safedatabase, 'wireless')
+    password = ''
+    for auth in wirelessauths:
+        if auth['SSID'] == netconfig['SSID']:
+            password = auth['password']
+            # print(password)
+    configdata.data['psk'] = password
+    return configdata
+
+
+def writesupplicantfile(filedata,filepath='/etc/wpa_supplicant/wpa_supplicant.conf'):
     writestring=''
     writestring += filedata.header
-    for key,value in filedata.data.items():
+    for key, value in filedata.data.items():
         writestring += key + '=' + value + '\n'
     writestring += filedata.tail
-    myfile = open(filepath,'w')
+    myfile = open(filepath, 'w')
     myfile.write(writestring)
 
-def setstationmode(netsettings=None):
-    if not netsettings:
-        netsettings = readonedbrow(systemdatadatabase, 'netconfig')[0]
+
+def updatewpasupplicant():
+    suppdata = getwpasupplicantconfig()
+    updateddata = updatesupplicantdata(suppdata)
+    writesupplicantfile(updateddata)
+
+
+def replaceifaceparameters(iffilein, iffileout, iface, parameternames, parametervalues):
+    file = open(iffilein)
+    lines = file.readlines()
+    writestring=''
+    ifacename = None
+    for line in lines:
+        if line.find('iface') >= 0 and line.find('default') < 0:
+
+            # we are at an iface stanza beginning
+            ifacename = line[6:11].strip()
+
+        if ifacename == iface:
+            # do our replace
+            for parametername, parametervalue in zip(parameternames, parametervalues):
+                if line.find(parametername) > 0:
+                    split = line.split(' ')
+                    # We find where the parameter is, then assume the value is the
+                    # next position. We then trim everything past the parameter
+                    # This safeguards against whitespace at the end of lines creating problems.
+                    index = split.index(parametername)
+                    split[index + 1] = str(parametervalue) + '\n'
+                    line = ' '.join(split[0:index+2])
+
+        writestring += line
+    myfile = open(iffileout, 'w')
+    myfile.write(writestring)
+
+
+def setstationmode(netconfig=None):
+    if not netconfig:
+        netconfig = readonedbrow(systemdatadatabase, 'netconfig')[0]
     subprocess.call(['service', 'isc-dhcp-server', 'stop'])
     subprocess.call(['service', 'hostapd', 'stop'])
-    if netsettings['addtype'] == 'static':
+    if netconfig['addtype'] == 'static':
         subprocess.call(['cp', '/etc/network/interfaces.sta.static', '/etc/network/interfaces'])
-    elif netsettings['addtype'] == 'dhcp':
+        # update IP from netconfig
+        replaceifaceparameters('/etc/network/interfaces', '/home/pi/testinterfaces', 'wlan0', ['address'], [netconfig['address']])
+    elif netconfig['addtype'] == 'dhcp':
         subprocess.call(['cp', '/etc/network/interfaces.sta.dhcp', '/etc/network/interfaces'])
 
 
-def setapmode():
+def setapmode(netconfig=None):
+    if not netconfig:
+        netconfig = readonedbrow(systemdatadatabase, 'netconfig')[0]
+
     # Run hostapd
     print('*********************************')
     print('starting hostapd and dhcp server')
@@ -103,10 +157,13 @@ def setapmode():
     subprocess.call(['service', 'isc-dhcp-server', 'start'])
 
 
-def runconfig(reboot):
+def runconfig(reboot=False):
     import subprocess
     netsettings = readonedbrow(systemdatadatabase, 'netconfig')[0]
     if netsettings['enabled']:
+        # This will grab the specified SSID and the credentials and update
+        # the wpa_supplicant file
+        updatewpasupplicant()
         # Copy the correct interfaces file
         if netsettings['nettype'] == 'station':
             print('station mode')
@@ -122,6 +179,7 @@ def runconfig(reboot):
             print('resetting wlan0')
             subprocess.call(['ifdown', 'wlan0'])
             subprocess.call(['ifup', 'wlan0'])
+
     else:
         print('automatic net configuration disabled')
 
@@ -135,4 +193,10 @@ if __name__ == "__main__":
         print('argument ' + arg2)
         if args == 'reboot':
             reboot = True
-    runconfig(reboot)
+
+
+
+    # This will run the configuration script (if netconfig is enabled) and set
+    # ap or station mode, and finally bring down and up wlan0
+    # runconfig(reboot)
+    # replaceifaceparameter('/etc/network/interfaces', '/home/pi/testifacesfile', 'wlan0', ['address'], ['192.168.1.35'])
