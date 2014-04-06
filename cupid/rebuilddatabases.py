@@ -51,25 +51,25 @@ def rebuildcontroldb(tabledict):
         table = 'indicators'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " ( name text primary key, type text, status boolean default 0, detail text)")
+            "create table " + table + " ( name text primary key, interface text, type text, status boolean default 0, detail text)")
         addentries = True
         if addentries:
-            querylist.append("insert into " + table + " values ('SPI_RGB1_R', 'SPI', 0,'red')")
-            querylist.append("insert into " + table + " values ('SPI_RGB1_G', 'SPI', 0,'green')")
-            querylist.append("insert into " + table + " values ('SPI_RGB1_B', 'SPI', 0,'blue')")
-            querylist.append("insert into " + table + " values ('SPI_RGB2_R', 'SPI', 0,'red')")
-            querylist.append("insert into " + table + " values ('SPI_RGB2_G', 'SPI', 0,'green')")
-            querylist.append("insert into " + table + " values ('SPI_RGB2_B', 'SPI', 0,'blue')")
-            querylist.append("insert into " + table + " values ('SPI_RGB3_R', 'SPI', 0,'red')")
-            querylist.append("insert into " + table + " values ('SPI_RGB3_G', 'SPI', 0,'green')")
-            querylist.append("insert into " + table + " values ('SPI_RGB3_B', 'SPI', 0,'blue')")
-            querylist.append("insert into " + table + " values ('SPI_RGB4_R', 'SPI', 0,'red')")
-            querylist.append("insert into " + table + " values ('SPI_RGB4_G', 'SPI', 0,'green')")
-            querylist.append("insert into " + table + " values ('SPI_RGB4_B', 'SPI', 0,'blue')")
-            querylist.append("insert into " + table + " values ('SPI_SC_R', 'SPI', 0,'red')")
-            querylist.append("insert into " + table + " values ('SPI_SC_G', 'SPI', 0,'green')")
-            querylist.append("insert into " + table + " values ('SPI_SC_B', 'SPI', 0,'blue')")
-            querylist.append("insert into " + table + " values ('SPI_SC_Y', 'SPI', 0,'yellow')")
+            querylist.append("insert into " + table + " values ('SPI_RGB1_R', 'SPI1', 'CuPIDlights',0,'red')")
+            querylist.append("insert into " + table + " values ('SPI_RGB1_G', 'SPI1', 'CuPIDlights',0,'green')")
+            querylist.append("insert into " + table + " values ('SPI_RGB1_B', 'SPI1', 'CuPIDlights',0,'blue')")
+            querylist.append("insert into " + table + " values ('SPI_RGB2_R', 'SPI1', 'CuPIDlights',0,'red')")
+            querylist.append("insert into " + table + " values ('SPI_RGB2_G', 'SPI1', 'CuPIDlights',0,'green')")
+            querylist.append("insert into " + table + " values ('SPI_RGB2_B', 'SPI1', 'CuPIDlights',0,'blue')")
+            querylist.append("insert into " + table + " values ('SPI_RGB3_R', 'SPI1', 'CuPIDlights',0,'red')")
+            querylist.append("insert into " + table + " values ('SPI_RGB3_G', 'SPI1', 'CuPIDlights',0,'green')")
+            querylist.append("insert into " + table + " values ('SPI_RGB3_B', 'SPI1', 'CuPIDlights',0,'blue')")
+            querylist.append("insert into " + table + " values ('SPI_RGB4_R', 'SPI1', 'CuPIDlights',0,'red')")
+            querylist.append("insert into " + table + " values ('SPI_RGB4_G', 'SPI1', 'CuPIDlights',0,'green')")
+            querylist.append("insert into " + table + " values ('SPI_RGB4_B', 'SPI1', 'CuPIDlights',0,'blue')")
+            querylist.append("insert into " + table + " values ('SPI_SC_R', 'SPI1', 'CuPIDlights',0,'red')")
+            querylist.append("insert into " + table + " values ('SPI_SC_G', 'SPI1', 'CuPIDlights',0,'green')")
+            querylist.append("insert into " + table + " values ('SPI_SC_B', 'SPI1', 'CuPIDlights',0,'blue')")
+            querylist.append("insert into " + table + " values ('SPI_SC_Y', 'SPI1', 'CuPIDlights',0,'yellow')")
 
     ### Defaults table
     if 'defaults' in tabledict:

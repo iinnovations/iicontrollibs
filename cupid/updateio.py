@@ -64,12 +64,28 @@ def updateiodata(database):
         defaultinputpollfreq = 60
         defaultoutputpollfreq = 60
 
+    if 'indicators' in tables:
+        indicatornames = []
+        previndicators = pilib.readalldbrows(pilib.controldatabase, 'indicators')
+        for indicator in previndicators:
+            indicatornames.append(indicator['name'])
+    else:
+        previndicators = []
+        indicatornames = []
+
     # We drop all inputs and outputs and recreate
     # Add all into one query so there is no time when the IO don't exist.
 
     querylist = []
     querylist.append('delete from inputs')
     querylist.append('delete from outputs')
+
+    # This is temporary. Clearing the table here and adding entries below can result in a gap in time
+    # where there are no database indicator entries. This is not too much of a problem with indicators, as we
+    # update the hardware explicitly after we add the entries. If the interface queries the table during
+    # this period, however, we could end up with an apparently empty table.
+    # The reason they are updated within the table rather than compiling
+    pilib.sqlitequery(pilib.controldatabase,'delete from indicators')
 
     for interface in interfaces:
         if interface['interface'] == 'I2C':
@@ -93,7 +109,6 @@ def updateiodata(database):
             if address in allowedGPIOaddresses:
 
                 # Check if interface is enabled
-
                 if interface['enabled']:
 
                     # Get name from ioinfo table to give it a colloquial name
@@ -102,7 +117,6 @@ def updateiodata(database):
                     polltime = pilib.gettimestring()
 
                     # Append to inputs and update name, even if it's an output (can read status as input)
-
                     if options['mode'] == 'output':
                         GPIO.setup(address, GPIO.OUT)
 
@@ -151,7 +165,6 @@ def updateiodata(database):
                         'insert into inputs values (\'' + interface['id'] + '\',\'' + interface['interface'] + '\',\'' +
                         interface['type'] + '\',\'' + str(address) + '\',\'' + gpioname + '\',\'' + str(value) + "','','" +
                         str(polltime) + '\',\'' + str(pollfreq) + "','','')")
-
                 else:
                     GPIO.setup(address, GPIO.IN)
             else:
@@ -165,12 +178,24 @@ def updateiodata(database):
                 spidata = readspi.readspitc(0)
                 readspi.recordspidata(database, spidata)
 
+            if interface['type'] == 'CuPIDlights':
+                import spilights
+                spilightsentries, setlist = spilights.getCuPIDlightsentries('indicators', 0, previndicators)
+                querylist.extend(spilightsentries)
+                spilights.updatelightsfromdb(pilib.controldatabase, 'indicators', 0)
+                spilights.setspilights(setlist, 0)
+
         elif interface['interface'] == 'SPI1':
             # print('processing SPI1')
 
             if interface['type'] == 'CuPIDlights':
                 import spilights
-                spilights.updatelightsfromdb(pilib.controldatabase, 'indicators', 1)
+                spilightsentries, setlist = spilights.getCuPIDlightsentries('indicators', 1, previndicators)
+                print(setlist)
+                querylist.extend(spilightsentries)
+                spilights.setspilights(setlist, 1)
+
+
 
     # Set tables
     # print(querylist)
