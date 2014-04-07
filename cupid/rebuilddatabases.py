@@ -41,9 +41,9 @@ def rebuildcontroldb(tabledict):
         table = 'systemstatus'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text, updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 5, lastiopoll text, enableoutputs boolean default 0, sessioncontrolenabled boolean, sessioncontrolstatus boolean, systemstatusenabled boolean, systemstatusstatus boolean, systemmessage text)")
+            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text, updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 5, lastiopoll text, enableoutputs boolean default 0, sessioncontrolenabled boolean, sessioncontrolstatus boolean, systemstatusenabled boolean, systemstatusstatus boolean, systemstatusfreq real default 15, lastsystemstatuspoll text, systemmessage text)")
         if addentries:
-            querylist.append("insert into " + table + " values (0,0,15,'',1,0,15,'',0,1,0,1,0,'')")
+            querylist.append("insert into " + table + " values (0,0,15,'',1,0,15,'',0,1,0,1,0,15,'','')")
 
     ### Indicators table
     if 'indicators' in tabledict:
@@ -260,12 +260,23 @@ def rebuildsystemdatadb(tabledict):
         querylist.append('drop table if exists ' + table)
         querylist.append("create table " + table + " ( IPAddress text, connected text, WANaccess text, latency real, networkSSID text, dhcpstatus boolean default 0, mode text , onlinetime text, offlinetime text, statusmsg text)")
         querylist.append("insert into " + table + " values ('','','','','','','','','','')")
+
     if 'netconfig' in tabledict:
         runquery = True
         table = 'netconfig'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (enabled text, SSID text, nettype text, aprevert text default 'temprevert', addtype text, address text, gateway text, dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99', aprevert boolean default 0, apreverttime integer default 60, pingthreshold integer default 200)")
-        querylist.append("insert into " + table + " values ('1','OurHouse','station','temprevert','static','192.168.1.40','192.168.1.1','','',1,60,200)")
+        querylist.append("create table " + table + " (enabled text, SSID text, nettype text, aprevert text default 'temprevert', addtype text, address text, gateway text, dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99', apreverttime integer default 60, pingthreshold integer default 200)")
+        querylist.append("insert into " + table + " values ('1','OurHouse','station','temprevert','static','192.168.1.40','192.168.1.1','','',60,200)")
+
+    if 'systemflags' in tabledict:
+        runquery = True
+        table = 'systemflags'
+        querylist.append('drop table if exists ' + table)
+        querylist.append("create table " + table + " (name text, value boolean default 0)")
+        querylist.append("insert into " + table + " values ('reboot', 0)")
+        querylist.append("insert into " + table + " values ('netconfig', 0)")
+        querylist.append("insert into " + table + " values ('updateiicontrollib', 0)")
+        querylist.append("insert into " + table + " values ('updatecupidweblibs', 0)")
 
     if 'metadata' in tabledict:
         runquery = True
@@ -273,6 +284,7 @@ def rebuildsystemdatadb(tabledict):
         querylist.append('drop table if exists ' + table)
         querylist.append("create table " + table + " (  devicename text, groupname text)")
         querylist.append("insert into " + table + " values ( 'My CuPID', 'None' )")
+
     if 'versions' in tabledict:
         runquery = True
         table = 'versions'
@@ -405,6 +417,10 @@ if __name__ == "__main__":
     answer = raw_input('Rebuild netstatus table (y/N)?')
     if answer == 'y':
         systemtabledict['netstatus'] = True
+
+    answer = raw_input('Rebuild systemflags table (y/N)?')
+    if answer == 'y':
+        systemtabledict['systemflags'] = True
 
     rebuildsystemdatadb(systemtabledict)
 

@@ -56,6 +56,7 @@ def runping(pingAddress,numpings=1):
     # print(pingtimes)
     return pingtimes
 
+
 def updateifacestatus():
 
     import resource.pyiface.iface as pyiface
@@ -138,34 +139,57 @@ def updateifacestatus():
     return wpastatusdict
 
 
+def processsystemflags(systemflags=None):
+    if not systemflags:
+        systemflags = pilib.readalldbrows(pilib.systemdatadatabase, 'systemflags')
+
+    flagnames = []
+    for flag in systemflags:
+        flagnames.append(flag['name'])
+
+    if 'reboot' in flagnames:
+        if systemflags[flagnames.index('reboot')].value:
+            print('i would reboot here')
+
 if __name__ == '__main__':
 
     import pilib
+    import time
 
-    wpastatusdict = updateifacestatus()
-    netconfigdata = pilib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
-    netstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
-    wpastatusmsg = ''
+    systemstatus = pilib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
 
-    # If not connected:
-    # If mode is temprevert, set to apmode, but don't update config
-    # If mode is aprevert, set to apmode and update netconfig
-    if not wpastatusdict['connected']:
-        wpastatusmsg += 'WPA does not appear to be connected. '
-        currenttime = pilib.gettimestring()
-        if pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(netstatus['offtime']) > pilib.timestringtoseconds(netconfigdata['apreverttime']):
-            if netconfigdata['aprevert'] == 'temprevert' or netconfigdata['temprevert'] == 'aprevert':
-                wpastatusmsg += 'Reverting to AP mode. '
-                netconfig.setapmode()
+    while systemstatus['systemstatusenabled']:
+        print('starting')
+        starttime = time.time()
+        pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'lastsystemstatuspoll', pilib.gettimestring())
 
-            # set mode to ap if 'permanent' revet
-            if netconfigdata['aprevert'] == 'aprevert':
-                wpastatusmsg += 'Changing netconfig for aprevert. '
-                pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'ap')
-    else:
-        wpastatusmsg += 'WPA appears to be connected.'
+        # print('before iface status ' + str(time.time()-starttime))
+        wpastatusdict = updateifacestatus()
+        # print('after iface status ' + str(time.time()-starttime))
+        netconfigdata = pilib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
+        netstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
 
-    pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
+        # print('after stuff ' + str(time.time()-starttime))
 
+        # If not connected:
+        # If mode is temprevert, set to apmode, but don't update config
+        # If mode is aprevert, set to apmode and update netconfig
+        wpastatusmsg = ''
+        if not wpastatusdict['connected']:
+            wpastatusmsg += 'WPA does not appear to be connected. '
+            currenttime = pilib.gettimestring()
+            if pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(netstatus['offtime']) > pilib.timestringtoseconds(netconfigdata['apreverttime']):
+                if netconfigdata['aprevert'] == 'temprevert' or netconfigdata['temprevert'] == 'aprevert':
+                    wpastatusmsg += 'Reverting to AP mode. '
+                    netconfig.setapmode()
 
+                # set mode to ap if 'permanent' revet
+                if netconfigdata['aprevert'] == 'aprevert':
+                    wpastatusmsg += 'Changing netconfig for aprevert. '
+                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'ap')
+        else:
+            wpastatusmsg += 'WPA appears to be connected.'
 
+        pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
+        print('Status routine took ' + str(time.time()-starttime))
+        time.sleep(systemstatus['systemstatusfreq'])

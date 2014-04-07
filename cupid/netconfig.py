@@ -80,7 +80,7 @@ def updatesupplicantdata(configdata):
     password = ''
     for auth in wirelessauths:
         if auth['SSID'] == netconfig['SSID']:
-            password = auth['password']
+            password = '"' + auth['password'] + '"'
             # print(password)
     configdata.data['psk'] = password
     return configdata
@@ -138,7 +138,8 @@ def setstationmode(netconfig=None):
     if netconfig['addtype'] == 'static':
         subprocess.call(['cp', '/etc/network/interfaces.sta.static', '/etc/network/interfaces'])
         # update IP from netconfig
-        replaceifaceparameters('/etc/network/interfaces', '/home/pi/testinterfaces', 'wlan0', ['address'], [netconfig['address']])
+        print(netconfig['address'])
+        replaceifaceparameters('/etc/network/interfaces', '/etc/network/interfaces', 'wlan0', ['address'], [netconfig['address']])
     elif netconfig['addtype'] == 'dhcp':
         subprocess.call(['cp', '/etc/network/interfaces.sta.dhcp', '/etc/network/interfaces'])
 
@@ -198,5 +199,5 @@ if __name__ == "__main__":
 
     # This will run the configuration script (if netconfig is enabled) and set
     # ap or station mode, and finally bring down and up wlan0
-    # runconfig(reboot)
-    # replaceifaceparameter('/etc/network/interfaces', '/home/pi/testifacesfile', 'wlan0', ['address'], ['192.168.1.35'])
+    runconfig(reboot)
+    # updatewpasupplicant()
