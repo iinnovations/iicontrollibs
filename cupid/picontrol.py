@@ -1,14 +1,8 @@
 #!/usr/bin/env python
 
 import pilib
-import spilights
 import controllib
-import RPi.GPIO as GPIO
 from time import sleep
-
-T = True
-F = False
-GPIO.setmode(GPIO.BCM)
 
 # Run the script periodically based on systemstatus
 
@@ -230,14 +224,14 @@ while systemstatus['picontrolenabled']:
         # Execute query
 
         pilib.sqlitemultquery(pilib.controldatabase, querylist)
-    # Wait for delay time 
-    #print('sleeping')
-
-    # spilights.updatelightsfromdb(pilib.controldatabase, 'indicators')
-    sleep(systemstatus['picontrolfreq'])
 
     # We do this system status again to refresh settings
     systemstatus = pilib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
 
     from processactions import processactions
     processactions()
+
+    # Wait for delay time
+    #print('sleeping')
+    # spilights.updatelightsfromdb(pilib.controldatabase, 'indicators')
+    sleep(systemstatus['systemstatusfreq'])
