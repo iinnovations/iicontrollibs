@@ -191,7 +191,7 @@ def updateiodata(database):
             if interface['type'] == 'CuPIDlights':
                 import spilights
                 spilightsentries, setlist = spilights.getCuPIDlightsentries('indicators', 1, previndicators)
-                print(setlist)
+                # print(setlist)
                 querylist.extend(spilightsentries)
                 spilights.setspilights(setlist, 1)
 

@@ -113,8 +113,8 @@ def twitterspilights(delay):
     index = 0
     while run == True:
         setspilights(settingsarray[index],CS)
-        print('sending')
-        print(settingsarray[index])
+        # print('sending')
+        # print(settingsarray[index])
         time.sleep(delay)
         index += 1
         if index >= len(settingsarray):

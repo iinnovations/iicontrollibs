@@ -258,15 +258,15 @@ def rebuildsystemdatadb(tabledict):
         runquery = True
         table = 'netstatus'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " ( IPAddress text, connected text, WANaccess text, latency real, networkSSID text, dhcpstatus boolean default 0, mode text , onlinetime text, offlinetime text, statusmsg text)")
-        querylist.append("insert into " + table + " values ('','','','','','','','','','')")
+        querylist.append("create table " + table + " ( address text, connected boolean, WANaccess text, latency real, SSID text, dhcpstatus boolean default 0, mode text , onlinetime text, offlinetime text, statusmsg text)")
+        querylist.append("insert into " + table + " values ('',0,'','','','','','','','')")
 
     if 'netconfig' in tabledict:
         runquery = True
         table = 'netconfig'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (enabled text, SSID text, nettype text, aprevert text default 'temprevert', addtype text, address text, gateway text, dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99', apreverttime integer default 60, pingthreshold integer default 200)")
-        querylist.append("insert into " + table + " values ('1','OurHouse','station','temprevert','static','192.168.1.40','192.168.1.1','','',60,200)")
+        querylist.append("create table " + table + " (enabled text, SSID text, mode text, aprevert text default 'temprevert', addtype text, address text, gateway text, dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99', apreverttime integer default 60, stationretrytime integer default 300, laststationretry text, pingthreshold integer default 200)")
+        querylist.append("insert into " + table + " values ('1','OurHouse','station','temprevert','static','192.168.1.40','192.168.1.1','','',60,300,0,200)")
 
     if 'systemflags' in tabledict:
         runquery = True
@@ -275,8 +275,8 @@ def rebuildsystemdatadb(tabledict):
         querylist.append("create table " + table + " (name text, value boolean default 0)")
         querylist.append("insert into " + table + " values ('reboot', 0)")
         querylist.append("insert into " + table + " values ('netconfig', 0)")
-        querylist.append("insert into " + table + " values ('updateiicontrollib', 0)")
-        querylist.append("insert into " + table + " values ('updatecupidweblibs', 0)")
+        querylist.append("insert into " + table + " values ('updateiicontrollibs', 0)")
+        querylist.append("insert into " + table + " values ('updatecupidweblib', 0)")
 
     if 'metadata' in tabledict:
         runquery = True

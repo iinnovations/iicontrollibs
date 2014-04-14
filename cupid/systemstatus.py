@@ -25,30 +25,36 @@ def runping(pingAddress,numpings=1):
     pingtimes=[]
     for i in range(numpings):
         # Perform the ping using the system ping command (one ping only)
-        rawPingFile = os.popen('ping -c 1 %s' % (pingAddress))
-        rawPingData = rawPingFile.readlines()
-        rawPingFile.close()
-        # Extract the ping time
-        if len(rawPingData) < 2:
-            # Failed to find a DNS resolution or route
+        try:
+            rawPingFile = os.popen('ping -c 1 %s' % (pingAddress))
+        except:
             failed = True
             latency = 0
         else:
-            index = rawPingData[1].find('time=')
-            if index == -1:
-                # Ping failed or timed-out
+            # Extract the ping time
+            rawPingData = rawPingFile.readlines()
+            rawPingFile.close()
+            if len(rawPingData) < 2:
+                # Failed to find a DNS resolution or route
                 failed = True
                 latency = 0
             else:
-                # We have a ping time, isolate it and convert to a number
-                failed = False
-                latency = rawPingData[1][index + 5:]
-                latency = latency[:latency.find(' ')]
-                latency = float(latency)
+                index = rawPingData[1].find('time=')
+                if index == -1:
+                    # Ping failed or timed-out
+                    failed = True
+                    latency = 0
+                else:
+                    # We have a ping time, isolate it and convert to a number
+                    failed = False
+                    latency = rawPingData[1][index + 5:]
+                    latency = latency[:latency.find(' ')]
+                    latency = float(latency)
+
         # Set our outputs
         if failed:
             # Could not ping
-            pingtimes.append[-1]
+            pingtimes.append(0)
         else:
             # Ping stored in latency in milliseconds
             #print '%f ms' % (latency)
@@ -103,14 +109,21 @@ def updateifacestatus():
 
     # Check supplicant status, set on/offtime if necessary.
     wpastatusdict = netconfig.getwpaclientstatus()
-    if wpastatusdict['wpa_state'] == 'COMPLETED':
-        wpaconnected = 1
-        if netstatus['connected'] == 0 or netstatus['onlinetime'] == '':
-            querylist.append(pilib.makesinglevaluequery('netstatus', 'onlinetime', gettimestring()))
-            querylist.append(pilib.makesinglevaluequery('netstatus', 'offlinetime', ''))
-    else:
+    try:
+        if wpastatusdict['wpa_state'] == 'COMPLETED':
+            wpaconnected = 1
+            if netstatus['connected'] == 0 or netstatus['onlinetime'] == '':
+                print('setting online time')
+                querylist.append(pilib.makesinglevaluequery('netstatus', 'onlinetime', gettimestring()))
+                querylist.append(pilib.makesinglevaluequery('netstatus', 'offlinetime', ''))
+        else:
+            wpaconnected = 0
+    except KeyError:
         wpaconnected = 0
+
+    if wpaconnected == 0:
         if netstatus['connected'] == 1 or netstatus['offlinetime'] == '':
+            print('setting offline time')
             querylist.append(pilib.makesinglevaluequery('netstatus', 'offlinetime', gettimestring()))
             querylist.append(pilib.makesinglevaluequery('netstatus', 'onlinetime', ''))
 
@@ -124,18 +137,33 @@ def updateifacestatus():
         else:
             dhcpstatus = '\?'
 
-    wpastatusdict['dhcptatus'] = str(dhcpstatus)
     wpastatusdict['connected'] = wpaconnected
+    try:
+        wpastatusdict['dhcpstatus'] = str(dhcpstatus)
+    except KeyError:
+        wpastatusdict['dhcpstatus'] = 0
+    try:
+        mode = wpastatusdict['mode']
+    except KeyError:
+        mode = 'none'
+    try:
+        ssid = wpastatusdict['ssid']
+    except KeyError:
+        ssid = 'none'
+    try:
+        address = wpastatusdict['ip_address']
+    except KeyError:
+        address = 'none'
 
+    # print('myaddress is ' + address)
     querylist.append(pilib.makesinglevaluequery('netstatus', 'dhcpstatus', str(dhcpstatus)))
     querylist.append(pilib.makesinglevaluequery('netstatus', 'connected', str(wpaconnected)))
-    querylist.append(pilib.makesinglevaluequery('netstatus', 'mode', wpastatusdict['mode']))
-    querylist.append(pilib.makesinglevaluequery('netstatus', 'networkSSID', wpastatusdict['ssid']))
+    querylist.append(pilib.makesinglevaluequery('netstatus', 'mode', str(mode)))
+    querylist.append(pilib.makesinglevaluequery('netstatus', 'SSID', str(ssid)))
     querylist.append(pilib.makesinglevaluequery('netstatus', 'WANaccess', str(wanaccess)))
-    querylist.append(pilib.makesinglevaluequery('netstatus', 'IPAddress', wpastatusdict['ip_address']))
+    querylist.append(pilib.makesinglevaluequery('netstatus', 'address', str(address)))
 
-    pilib.sqlitemultquery(pilib.systemdatadatabase,querylist)
-
+    pilib.sqlitemultquery(pilib.systemdatadatabase, querylist)
     return wpastatusdict
 
 
@@ -144,12 +172,40 @@ def processsystemflags(systemflags=None):
         systemflags = pilib.readalldbrows(pilib.systemdatadatabase, 'systemflags')
 
     flagnames = []
+    flagvalues = []
     for flag in systemflags:
         flagnames.append(flag['name'])
+        flagvalues.append(flag['value'])
 
+    stop = False
     if 'reboot' in flagnames:
-        if systemflags[flagnames.index('reboot')].value:
-            print('i would reboot here')
+        if flagvalues[flagnames.index('reboot')]:
+            stop = True
+            pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, "name='reboot'")
+            import subprocess
+            print('i reboot here')
+            subprocess.call(['reboot'])
+    if 'netconfig' in flagnames:
+        if flagvalues[flagnames.index('netconfig')]:
+            stop = True
+            pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, "name='netconfig'")
+            from netconfig import runconfig
+            print('restarting network configuration')
+            runconfig()
+    if 'updateiicontrollibs' in flagnames and not stop:
+        if flagvalues[flagnames.index('updateiicontrollibs')]:
+            stop = True
+            pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, 'name=updateiicontrollibs')
+            from misc.gitupdatelib import updateiicontrollibs
+            print('updating iicontrollibs')
+            updateiicontrollibs(True)
+    if 'updatecupidweblib' in flagnames and not stop:
+        if flagvalues[flagnames.index('updatecupidweblib')]:
+            stop = True
+            pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, 'name=updatecupidweblib')
+            from misc.gitupdatelib import updatecupidweblib
+            print('updating cupidweblib')
+            updatecupidweblib(True)
 
 if __name__ == '__main__':
 
@@ -158,38 +214,84 @@ if __name__ == '__main__':
 
     systemstatus = pilib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
 
+    # Keep reading and updating system status?
     while systemstatus['systemstatusenabled']:
-        print('starting')
-        starttime = time.time()
+        # print('starting')
+        currenttime = pilib.gettimestring()
         pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'lastsystemstatuspoll', pilib.gettimestring())
 
-        # print('before iface status ' + str(time.time()-starttime))
+        # Update network interfaces statuses for all interfaces, in database tables as well
+        # Check on wpa supplicant status as well. Function returns wpastatusdict
+
         wpastatusdict = updateifacestatus()
-        # print('after iface status ' + str(time.time()-starttime))
         netconfigdata = pilib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
         netstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
 
-        # print('after stuff ' + str(time.time()-starttime))
-
-        # If not connected:
-        # If mode is temprevert, set to apmode, but don't update config
-        # If mode is aprevert, set to apmode and update netconfig
         wpastatusmsg = ''
-        if not wpastatusdict['connected']:
-            wpastatusmsg += 'WPA does not appear to be connected. '
-            currenttime = pilib.gettimestring()
-            if pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(netstatus['offtime']) > pilib.timestringtoseconds(netconfigdata['apreverttime']):
-                if netconfigdata['aprevert'] == 'temprevert' or netconfigdata['temprevert'] == 'aprevert':
-                    wpastatusmsg += 'Reverting to AP mode. '
-                    netconfig.setapmode()
+        # If mode is ap or tempap
+        if netconfigdata['mode'] in ['ap', 'tempap']:
+            timesincelastretry = pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(netconfigdata['laststationretry'])
+            # If it's time to go back to station mode, we don't care whether we are connected as ap or not
+            # We use dhcp status as indicator of ap status. Imperfect, but functional.
+            if netconfigdata['mode'] == 'tempap' and timesincelastretry > netconfigdata['stationretrytime']:
+                # We go back to station mode
+                wpastatusmsg += 'Time to go back to station mode. '
+                pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'station')
+                pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'laststationretry', '')
+                netconfig.runconfig()
+            else:
+                # If we have ap up, do nothing
+                if wpastatusdict['dhcpstatus']:
+                    wpastatusmsg += 'AP checked and ok. '
 
-                # set mode to ap if 'permanent' revet
-                if netconfigdata['aprevert'] == 'aprevert':
-                    wpastatusmsg += 'Changing netconfig for aprevert. '
-                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'ap')
+                # If we don't have dhcp up, restart ap mode
+                # this will currently cause reboot if we don't set onboot=True
+                # We set status message in case we change our minds and reboot here.
+                else:
+                    wpastatusmsg += 'Restarting AP. '
+                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
+                    netconfig.runconfig(onboot=True)
+
+        # If mode is station
+        elif netconfigdata['mode'] == 'station':
+            # If we have wpa up, do nothing
+            if netstatus['connected']:
+                wpastatusmsg += 'Station wpamode appears ok. '
+
+            # If wpa is not connected
+            else:
+                wpastatusmsg += 'Station wpamode appears disconnected. '
+
+                offlinetime = pilib.timestringtoseconds(currenttime)-pilib.timestringtoseconds(netstatus['offlinetime'])
+                wpastatusmsg += 'we have been offline for ' + str(offlinetime) + '. '
+                # If aprevert is aprevert or temprevert and we've been offline long enough, flip over to ap
+                if netconfigdata['aprevert'] in ['temprevert', 'aprevert'] and offlinetime > netconfigdata['apreverttime']:
+
+                    # set laststationretry to currenttime
+                    wpastatusmsg += 'Setting last station retry time. '
+                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'laststationretry', currenttime)
+                    if netconfigdata['aprevert'] == 'aprevert':
+                        # set mode to ap
+                        wpastatusmsg += 'Setting mode to ap. '
+                        pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'ap')
+                    elif netconfigdata['aprevert'] == 'temprevert':
+                        # set mode to tempap
+                        wpastatusmsg += 'Setting mode to tempap. '
+                        pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'tempap')
+
+                # Unfortunately, to revert to ap mode successfully, we currently have to reboot
+                # this is built into the netconfig script - any time you set ap mode except at boot, it reboots
+                pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
+                wpastatusmsg += 'Rebooting on wpaset ap mode. '
+                print(wpastatusmsg)
+                netconfig.runconfig()
         else:
-            wpastatusmsg += 'WPA appears to be connected.'
+            wpastatusmsg += 'mode error: ' + netconfigdata['mode']
+
 
         pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
-        print('Status routine took ' + str(time.time()-starttime))
+        print(wpastatusmsg)
+        updateifacestatus()
+        processsystemflags()
+        # print('Status routine took ' + str(time.time()-starttime))
         time.sleep(systemstatus['systemstatusfreq'])

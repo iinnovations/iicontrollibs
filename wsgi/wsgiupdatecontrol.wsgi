@@ -84,8 +84,14 @@ def application(environ, start_response):
     else:
         index = False
 
+    if 'systemflag' in d:
+        systemflag = d['systemflag']
+
     # carry out generic set value
-    if action=='setvalue':
+    if action == 'setsystemflag':
+        database = pilib.systemdatadatabase
+        pilib.setsinglevalue(database, 'systemflags', 'value', 1, "name=\'" + systemflag + "'")
+    elif action=='setvalue':
         if database and table and valuename and value:
             output+='Carrying out setvalue. '
             if condition:

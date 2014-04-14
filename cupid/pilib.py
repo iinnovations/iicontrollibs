@@ -388,18 +388,15 @@ def getsinglevalue(database, table, valuename, condition=None):
 
 
 def setsinglevalue(database, table, valuename, value, condition=None):
-    query = 'update ' + '\'' + table + '\' set \'' + valuename + '\'=\'' + value + '\''
-    if condition:
-        query += ' where ' + condition
-
+    query = makesinglevaluequery(table, valuename, value, condition)
     response = sqlitequery(database, query)
     return (response)
 
+
 def makesinglevaluequery(table, valuename, value, condition=None):
-    query = 'update ' + '\'' + table + '\' set \'' + valuename + '\'=\'' + value + '\''
+    query = 'update ' + '\'' + table + '\' set \'' + valuename + '\'=\'' + str(value) + '\''
     if condition:
         query += ' where ' + condition
-
     return query
 
 

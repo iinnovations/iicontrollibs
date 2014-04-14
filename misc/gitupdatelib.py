@@ -10,61 +10,83 @@ __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
 # do this stuff to access the pilib for sqlite
-import os,sys,inspect
+import os, sys, inspect
 
-top_folder = os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile( inspect.currentframe() ))[0])))[0]
+top_folder = \
+    os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
 if top_folder not in sys.path:
-    sys.path.insert(0,top_folder)
+    sys.path.insert(0, top_folder)
 
-from cupid.pilib import * 
+from cupid.pilib import *
 from git import *
 
-defaultrepo = "/usr/lib/iicontrollibs"
-versiondb = "/var/www/data/systemdata.db"
-versiontablename="versions"
-librarydict={'/usr/lib/iicontrollibs':'iicontrollibs','/var/www':'cupidweblibs'}
+
+iicontrollibsrepodir = '/usr/lib/iicontrollibs'
+cupidweblibrepodir = '/var/www'
+defaultrepo = iicontrollibsrepodir
+versiondb = systemdatadatabase
+versiontablename = "versions"
+librarydict = {iicontrollibsrepodir: 'iicontrollibs', cupidweblibrepodir: 'cupidweblibs'}
+
 
 def getrepoinfo(repodirectory):
-    repoinfo={}
+    repoinfo = {}
     repo = Repo(repodirectory)
-    repoinfo['headcommit']=repo.head.commit
-    repoinfo['origin']=repo.remotes.origin
-    repoinfo['headcommithexsha']=repo.head.commit.hexsha
-    repoinfo['headcommitdate']=repo.head.commit.committed_date
-    repoinfo['headcommitmsg']=repo.head.commit.message
-    repoinfo['name']=librarydict[repodirectory]
+    repoinfo['headcommit'] = repo.head.commit
+    repoinfo['origin'] = repo.remotes.origin
+    repoinfo['headcommithexsha'] = repo.head.commit.hexsha
+    repoinfo['headcommitdate'] = repo.head.commit.committed_date
+    repoinfo['headcommitmsg'] = repo.head.commit.message
+    repoinfo['name'] = librarydict[repodirectory]
     return repoinfo
 
-def updateversion(repodirectory):
-    repoinfo=getrepoinfo(repodirectory)
-    addversionentry(versiondb,versiontablename,repoinfo)
 
-def pullrepo(repodirectory,originname):
+def updateversion(repodirectory):
+    repoinfo = getrepoinfo(repodirectory)
+    addversionentry(versiondb, versiontablename, repoinfo)
+
+
+def pullrepo(repodirectory, originname):
     repo = Repo(repodirectory)
-    origin=repo.remotes.origin
-    gitresponse=origin.pull(originname)
+    origin = repo.remotes.origin
+    gitresponse = origin.pull(originname)
     return gitresponse
 
-def addversionentry(database,table,entrydict):
-    sqliteinsertsingle(database,table,[entrydict['name'],entrydict['headcommithexsha'],gettimestring(entrydict['headcommitdate']),gettimestring()])
+def stashrepo(repodirectory, originname):
+    gitresponse = 'not implemented yet'
+    return gitresponse
 
-def updateiicontrollibs():
-    repo='/usr/lib/iicontrollibs'
-    originname='master'
-    pullrepo(repo,originname)
+def addversionentry(database, table, entrydict):
+    sqliteinsertsingle(database, table,
+                       [entrydict['name'], entrydict['headcommithexsha'], gettimestring(entrydict['headcommitdate']),
+                        gettimestring()])
+
+
+def updateiicontrollibs(stash=False):
+    repodirectory = iicontrollibsrepodir
+    originname = 'master'
+    if stash:
+        stashrepo(repodirectory,originname)
+    pullrepo(repodirectory, originname)
     updateversion(repo)
     print('update complete')
 
-def updatecupidweblibs():
-    repo='/var/www'
-    originname='master'
-    pullrepo(repo,originname)
-    updateversion(repo)
+
+def updatecupidweblib(stash=False):
+    repodirectory = cupidweblibrepodir
+    originname = 'master'
+    if stash:
+        stashrepo(repodirectory,originname)
+    pullrepo(repodirectory, originname)
+    updateversion(repodirectory)
     print('update complete')
-    
-if __name__=="__main__":
+
+
+if __name__ == "__main__":
     #pullrepo(defaultrepo)
-    repoinfo=getrepoinfo(defaultrepo) 
+    repoinfo = getrepoinfo(defaultrepo)
+    updateversion(iicontrollibsrepodir)
+    updateversion(cupidweblibrepodir)
     #print(repoinfo)
     print('blurg')
     
