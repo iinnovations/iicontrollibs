@@ -40,6 +40,7 @@ while systemstatus['picontrolenabled']:
         channelname = channel['name']
         logtablename = channel['name'] + '_log'
         time = pilib.gettimestring()
+        disableoutputs = True
 
         # Get outputs to avoid multiple queries
         outputs = pilib.readalldbrows(pilib.controldatabase,'outputs')
@@ -58,6 +59,7 @@ while systemstatus['picontrolenabled']:
             else:
                 statusmsg += 'No setpoint. '
 
+            # Need to test for age of data. If stale or disconnected, invalidate
             if 'controlvalue' in channel:
                 try:
                     controlvalue = float(channel['controlvalue'])
@@ -130,6 +132,7 @@ while systemstatus['picontrolenabled']:
                     statusmsg += 'System outputs enabled. '
                     if channel['outputsenabled']:
                         statusmsg += 'Channel outputs enabled. '
+                        disableoutputs = False
 
                         # find out whether action is positive or negative or
                         # not at all.
@@ -160,9 +163,9 @@ while systemstatus['picontrolenabled']:
                         # Temporary
                         readytoenable = True
                         time = pilib.gettimestring()
-                        if len(outputsetnames) > 0 or len(outputresetnames)>0:
+                        if len(outputsetnames) > 0 or len(outputresetnames) > 0:
                             for output in outputs:
-                                if output['name'] in outputsetnames > 0:
+                                if output['name'] in outputsetnames:
                                     # check current status
                                     currvalue = output['value']
                                     if currvalue == 0: # No need to set if otherwise. Will be different for analog out
@@ -175,33 +178,32 @@ while systemstatus['picontrolenabled']:
                                             statusmsg += 'Output ' + output['name'] + ' enabled. '
                                         else:
                                             statusmsg += 'Output ' + output['name'] + ' not ready to enable. '
-                                    statusmsg += 'Output ' + output['name'] + ' already enabled. '
+                                    else:
+                                        statusmsg += 'Output ' + output['name'] + ' already enabled. '
 
-                                if output['name'] in outputresetnames > 0:
+                                if output['name'] in outputresetnames:
                                     
                                     # check current status
                                     currvalue = output['value']
-                                    if currvalue == 1: # No need to set if otherwise. Will be different for analog out
-                                         # Check if ready to disable
-                                         if readytoenable:
-                                             # set ontime
-                                             querylist.append('update outputs set ontime=\'' + time + '\'' + 'where id=\'' +
-                                                      output['id'] + '\'')
-                                             # set value
-                                             querylist.append('update outputs set value = 0 where id=\'' + output['id'] + '\'')
-                                             statusmsg += 'Output ' + output['name'] + ' disabled. '
-                                         else:
+                                    if currvalue == 1:  # No need to set if otherwise. Will be different for analog out
+                                        # Check if ready to disable
+                                        if readytoenable:
+                                            # set ontime
+                                            querylist.append('update outputs set ontime=\'' + time + '\'' + 'where id=\'' +
+                                                  output['id'] + '\'')
+                                            # set value
+                                            querylist.append('update outputs set value = 0 where id=\'' + output['id'] + '\'')
+                                            statusmsg += 'Output ' + output['name'] + ' disabled. '
+                                        else:
                                              statusmsg += 'Output ' + output['name'] + ' not ready to disable. '
-                                    statusmsg += 'Output ' + output['name'] + ' already disabled. '
+                                    else:
+                                        statusmsg += 'Output ' + output['name'] + ' already disabled. '
 
                     else:
                         statusmsg += 'Channel outputs disabled. '
-                        #print('Channel outputs disabled. ')
-                        # Disable outputs, or leave alone?
+
                 else:
                     statusmsg += 'System outputs disabled. '
-                    #print('System outputs disabled. ')
-                     # Disable outputs, or leave alone?
 
                 # Insert entry into control log
                 pilib.sqliteinsertsingle(pilib.logdatabase, logtablename,
@@ -214,6 +216,18 @@ while systemstatus['picontrolenabled']:
         else:
             print('i am actually here')
             statusmsg += 'Channel not enabled. '
+
+        # If active reset and we didn't set channnel modes, disable outputs
+        # Active reset is not yet explicitly declared, but implied
+
+        if disableoutputs:
+            statusmsg += 'Disabling Outputs. '
+            for output in outputs:
+                if output['name'] in [channel['positiveoutput'], channel['negativeoutput']]:
+                        # set value
+                        querylist.append("update outputs set value = 0 where id='" + output['id'] + '\'')
+                        statusmsg += 'Output ' + output['name'] + ' disabled. '
+
 
         # Set status message for channel
         # print(statusmsg)

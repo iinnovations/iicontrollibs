@@ -115,9 +115,10 @@ def replaceifaceparameters(iffilein, iffileout, iface, parameternames, parameter
     writestring = ''
     ifacename = None
     for line in lines:
-        if line.find('iface') >= 0 < line.find('default'):
+        if line.find('iface') >= 0 > line.find('default'):
             # we are at an iface stanza beginning
-            ifacename = line[6:11].strip()
+            foundname = line[6:11].strip()
+            ifacename = foundname
 
         if ifacename == iface:
             # do our replace
@@ -134,19 +135,21 @@ def replaceifaceparameters(iffilein, iffileout, iface, parameternames, parameter
         writestring += line
     myfile = open(iffileout, 'w')
     myfile.write(writestring)
+    print(writestring)
 
 
-def setstationmode(netconfig=None):
-    if not netconfig:
-        netconfig = readonedbrow(systemdatadatabase, 'netconfig')[0]
+def setstationmode(netconfigdata=None):
+    if not netconfigdata:
+        netconfigdata = readonedbrow(systemdatadatabase, 'netconfig')[0]
     killapservices()
-    if netconfig['addtype'] == 'static':
+    if netconfigdata['addtype'] == 'static':
+
         subprocess.call(['cp', '/etc/network/interfaces.sta.static', '/etc/network/interfaces'])
         # update IP from netconfig
-        print(netconfig['address'])
+        print(netconfigdata['address'])
         replaceifaceparameters('/etc/network/interfaces', '/etc/network/interfaces', 'wlan0', ['address', 'gateway'],
-                               [netconfig['address'], netconfig['gateway']])
-    elif netconfig['addtype'] == 'dhcp':
+                               [netconfigdata['address'], netconfigdata['gateway']])
+    elif netconfigdata['addtype'] == 'dhcp':
         subprocess.call(['cp', '/etc/network/interfaces.sta.dhcp', '/etc/network/interfaces'])
     resetwlan()
 
