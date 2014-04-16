@@ -21,9 +21,10 @@ from cupid.pilib import readonedbrow, systemdatadatabase
 
 def getwpaclientstatus():
     import subprocess
+
     result = subprocess.Popen(['wpa_cli', 'status'], stdout=subprocess.PIPE)
     # prune interface ID
-    resultdict={}
+    resultdict = {}
 
     for result in result.stdout:
         if result.find('=') > 0:
@@ -39,12 +40,12 @@ def getwpasupplicantconfig(conffile='/etc/wpa_supplicant/wpa_supplicant.conf'):
 
     file = open(conffile)
     lines = file.readlines()
-    header=''
-    tail=''
-    datalines=[]
-    readheader=True
-    readbody=False
-    readtail=False
+    header = ''
+    tail = ''
+    datalines = []
+    readheader = True
+    readbody = False
+    readtail = False
     for line in lines:
         if readheader:
             header = header + line
@@ -61,7 +62,7 @@ def getwpasupplicantconfig(conffile='/etc/wpa_supplicant/wpa_supplicant.conf'):
             readheader = False
             readbody = True
 
-    datadict={}
+    datadict = {}
     for line in datalines:
         split = line.split('=')
         datadict[split[0].strip()] = split[1].strip()
@@ -75,6 +76,7 @@ def getwpasupplicantconfig(conffile='/etc/wpa_supplicant/wpa_supplicant.conf'):
 
 def updatesupplicantdata(configdata):
     from pilib import readalldbrows, safedatabase, systemdatadatabase
+
     netconfig = readalldbrows(systemdatadatabase, 'netconfig')[0]
     wirelessauths = readalldbrows(safedatabase, 'wireless')
     password = ''
@@ -91,8 +93,8 @@ def updatesupplicantdata(configdata):
     return configdata
 
 
-def writesupplicantfile(filedata,filepath='/etc/wpa_supplicant/wpa_supplicant.conf'):
-    writestring=''
+def writesupplicantfile(filedata, filepath='/etc/wpa_supplicant/wpa_supplicant.conf'):
+    writestring = ''
     writestring += filedata.header
     for key, value in filedata.data.items():
         writestring += key + '=' + value + '\n'
@@ -110,11 +112,10 @@ def updatewpasupplicant():
 def replaceifaceparameters(iffilein, iffileout, iface, parameternames, parametervalues):
     file = open(iffilein)
     lines = file.readlines()
-    writestring=''
+    writestring = ''
     ifacename = None
     for line in lines:
-        if line.find('iface') >= 0 and line.find('default') < 0:
-
+        if line.find('iface') >= 0 < line.find('default'):
             # we are at an iface stanza beginning
             ifacename = line[6:11].strip()
 
@@ -128,7 +129,7 @@ def replaceifaceparameters(iffilein, iffileout, iface, parameternames, parameter
                     # This safeguards against whitespace at the end of lines creating problems.
                     index = split.index(parametername)
                     split[index + 1] = str(parametervalue) + '\n'
-                    line = ' '.join(split[0:index+2])
+                    line = ' '.join(split[0:index + 2])
 
         writestring += line
     myfile = open(iffileout, 'w')
@@ -143,7 +144,8 @@ def setstationmode(netconfig=None):
         subprocess.call(['cp', '/etc/network/interfaces.sta.static', '/etc/network/interfaces'])
         # update IP from netconfig
         print(netconfig['address'])
-        replaceifaceparameters('/etc/network/interfaces', '/etc/network/interfaces', 'wlan0', ['address'], [netconfig['address']])
+        replaceifaceparameters('/etc/network/interfaces', '/etc/network/interfaces', 'wlan0', ['address', 'gateway'],
+                               [netconfig['address'], netconfig['gateway']])
     elif netconfig['addtype'] == 'dhcp':
         subprocess.call(['cp', '/etc/network/interfaces.sta.dhcp', '/etc/network/interfaces'])
     resetwlan()
@@ -153,11 +155,14 @@ def killapservices():
     subprocess.call(['service', 'hostapd', 'stop'])
     subprocess.call(['service', 'isc-dhcp-server', 'stop'])
 
+
 def startapservices():
     from time import sleep
+
     subprocess.call(['hostapd', '-B', '/etc/hostapd/hostapd.conf'])
     sleep(1)
     subprocess.call(['service', 'isc-dhcp-server', 'start'])
+
 
 def setapmode(netconfig=None):
     if not netconfig:
@@ -174,14 +179,16 @@ def setapmode(netconfig=None):
 
 def resetwlan():
     from time import sleep
+
     print('resetting wlan0')
-    subprocess.call(['ifdown','--force', 'wlan0'])
+    subprocess.call(['ifdown', '--force', 'wlan0'])
     sleep(2)
     subprocess.call(['ifup', 'wlan0'])
 
 
 def runconfig(onboot=False):
     import subprocess
+
     netconfigdata = readonedbrow(systemdatadatabase, 'netconfig')[0]
     if netconfigdata['enabled']:
         # This will grab the specified SSID and the credentials and update
