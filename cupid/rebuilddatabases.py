@@ -12,7 +12,7 @@ __status__ = "Development"
 
 # This script resets the control databases
 
-from pilib import sqlitemultquery, controldatabase, systemdatadatabase, recipedatabase, sessiondatabase, safedatabase
+from pilib import sqlitemultquery, controldatabase, systemdatadatabase, recipedatabase, sessiondatabase, safedatabase, usersdatabase
 
 ################################################
 # Main control database
@@ -41,7 +41,7 @@ def rebuildcontroldb(tabledict):
         table = 'systemstatus'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text, updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 5, lastiopoll text, enableoutputs boolean default 0, sessioncontrolenabled boolean, sessioncontrolstatus boolean, systemstatusenabled boolean, systemstatusstatus boolean, systemstatusfreq real default 15, lastsystemstatuspoll text, systemmessage text)")
+            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text, updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 5, lastiopoll text, enableoutputs boolean default 0, sessioncontrolenabled boolean, sessioncontrolstatus boolean, systemstatusenabled boolean default0, systemstatusstatus boolean, systemstatusfreq real default 15, lastsystemstatuspoll text, systemmessage text)")
         if addentries:
             querylist.append("insert into " + table + " values (0,0,15,'',1,0,15,'',0,1,0,1,0,15,'','')")
 
@@ -321,9 +321,33 @@ def rebuildrecipesdb(tabledict):
         sqlitemultquery(recipedatabase, querylist)
 
 ############################################
+# userstabledata
+
+
+def rebuildusersdata():
+    import hashlib
+    runquery = False
+    querylist = []
+    runquery = True
+    querylist.append('drop table if exists users')
+    querylist.append('create table users (id integer primary key not null, name text not null, password text not null, email text not null, temp text not null, authlevel integer default 0)')
+    userslist=[{'name':'owner','authlevel':4,'email':'cupidcontrols@interfaceinnovations.org','password':'owner'},
+               {'name':'administrator','authlevel':3,'email':'cupidcontrols@interfaceinnovations.org','password':'administrator'},
+               {'name':'controller','authlevel':2,'email':'cupidcontrols@interfaceinnovations.org','password':'controller'},
+               {'name':'viewer','authlevel':1,'email':'cupidcontrols@interfaceinnovations.org','password':'viewer'}
+               ]
+    for index, user in enumerate(userslist):
+        h = hashlib.new('sha1')
+        h.update(user['password'])
+        password = h.hexdigest()
+        querylist.append("insert into users values(" + str(index) + ",'" + user['name'] + "','" + password + "','" + user['email'] + "','fff',"+ str(user['authlevel']) + ")")
+
+    sqlitemultquery(usersdatabase, querylist)
+
+############################################
 # safedata
 
-def rebuildsafedata(tabledict):
+def rebuildsafedata():
     runquery = False
     querylist = []
     if 'safedata' in tabledict:
@@ -335,8 +359,6 @@ def rebuildsafedata(tabledict):
         sqlitemultquery(safedatabase, querylist)
 
 
-
-
 # default routine
 if __name__ == "__main__":
 
@@ -344,7 +366,13 @@ if __name__ == "__main__":
     answer = raw_input('Rebuild wireless table (y/N)?')
     if answer == 'y':
         controltabledict['safedata'] = True
-    rebuildsafedata(controltabledict)
+        rebuildsafedata()
+
+    answer = raw_input('Rebuild users table (y/N)?')
+    if answer == 'y':
+        controltabledict['usersdata'] = True
+        print('i rebuild the things')
+        rebuildusersdata()
 
     controltabledict = {}
     answer = raw_input('Rebuild actions table (y/N)?')
