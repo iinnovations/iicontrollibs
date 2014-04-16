@@ -91,6 +91,9 @@ def application(environ, start_response):
     if action == 'setsystemflag':
         database = pilib.systemdatadatabase
         pilib.setsinglevalue(database, 'systemflags', 'value', 1, "name=\'" + systemflag + "'")
+    elif action == 'rundaemon':
+        from cupiddaemon import rundaemon
+        rundaemon()
     elif action=='setvalue':
         if database and table and valuename and value:
             output+='Carrying out setvalue. '

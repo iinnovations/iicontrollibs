@@ -41,7 +41,12 @@ def getrepoinfo(repodirectory):
     return repoinfo
 
 
-def updateversion(repodirectory):
+def updategitversions():
+    updaterepoversion(iicontrollibsrepodir)
+    updaterepoversion(cupidweblibrepodir)
+
+
+def updaterepoversion(repodirectory):
     repoinfo = getrepoinfo(repodirectory)
     addversionentry(versiondb, versiontablename, repoinfo)
 
@@ -52,9 +57,11 @@ def pullrepo(repodirectory, originname):
     gitresponse = origin.pull(originname)
     return gitresponse
 
+
 def stashrepo(repodirectory, originname):
     gitresponse = 'not implemented yet'
     return gitresponse
+
 
 def addversionentry(database, table, entrydict):
     sqliteinsertsingle(database, table,
@@ -66,9 +73,9 @@ def updateiicontrollibs(stash=False):
     repodirectory = iicontrollibsrepodir
     originname = 'master'
     if stash:
-        stashrepo(repodirectory,originname)
+        stashrepo(repodirectory, originname)
     pullrepo(repodirectory, originname)
-    updateversion(repo)
+    updaterepoversion(repodirectory)
     print('update complete')
 
 
@@ -78,16 +85,13 @@ def updatecupidweblib(stash=False):
     if stash:
         stashrepo(repodirectory,originname)
     pullrepo(repodirectory, originname)
-    updateversion(repodirectory)
+    updaterepoversion(repodirectory)
     print('update complete')
 
 
 if __name__ == "__main__":
-    #pullrepo(defaultrepo)
-    repoinfo = getrepoinfo(defaultrepo)
-    updateversion(iicontrollibsrepodir)
-    updateversion(cupidweblibrepodir)
-    #print(repoinfo)
+    updaterepoversion(iicontrollibsrepodir)
+    updaterepoversion(cupidweblibrepodir)
     print('blurg')
     
 

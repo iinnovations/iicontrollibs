@@ -22,14 +22,14 @@ def processactions():
 
         thisaction = pilib.action(actiondict)
         thisaction.statusmsg = ''
-        print(actiondict)
+        # print(actiondict)
         # process condition
         if thisaction.conditiontype == 'dbvalue':
             if thisaction.enabled:
                 thisaction.statusmsg += 'Action enabled.'
 
                 dbdir = getattr(pilib, 'databasedir')
-                print(dbdir)
+                # print(dbdir)
                 dbpath = dbdir + thisaction.database + '.db'
 
                 # variablename is columnname for dbvalue conditiontype
@@ -48,7 +48,7 @@ def processactions():
                         curstatus = True
                 elif vartype == 'integer' or vartype == 'real':
                     thisaction.statusmsg += ' Processing integer/real. '
-                    print(thisaction.operator)
+                    # print(thisaction.operator)
                     thisaction.variablevalue = float(thisaction.variablevalue)
                     thisaction.criterion = float(thisaction.criterion)
                     if thisaction.operator == '>':
@@ -86,7 +86,7 @@ def processactions():
 
                 # if status is true and current status is false, set ontime
                 if curstatus and not thisaction.status:
-                    print(str(curstatus) + ' ' + str(thisaction.status))
+                    # print(str(curstatus) + ' ' + str(thisaction.status))
                     thisaction.statusmsg += 'Setting status ontime. '
                     thisaction.ontime = pilib.gettimestring()
                     thisaction.status = 1
@@ -98,16 +98,16 @@ def processactions():
                 # Set current status
                 if curstatus:
                     thisaction.status = 1
-                    print('settings status')
+                    # print('settings status')
                 else:
                     thisaction.status = 0
-                    print('resetting status')
+                    # print('resetting status')
 
                 # if status is true and alarm isn't yet active, see if ondelay exceeded
                 if curstatus and not thisaction.active:
-                    print(pilib.timestringtoseconds(currenttime))
+                    # print(pilib.timestringtoseconds(currenttime))
                     statusontime = pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(thisaction.ontime)
-                    print(statusontime)
+                    # print(statusontime)
                     if statusontime > thisaction.ondelay:
                         thisaction.statusmsg += 'Setting action active'
                         thisaction.active = 1
@@ -129,10 +129,10 @@ def processactions():
                 # test to see if it is time to alert, based on delay ond alert time
                 if thisaction.active:
                     # check to see if it is time to alert
-                    print(pilib.timestringtoseconds(currenttime))
-                    print(pilib.timestringtoseconds(thisaction.lastactiontime))
-                    print(float(thisaction.actionfrequency))
-                    print(pilib.timestringtoseconds(currenttime)-pilib.timestringtoseconds(thisaction.lastactiontime))
+                    # print(pilib.timestringtoseconds(currenttime))
+                    # print(pilib.timestringtoseconds(thisaction.lastactiontime))
+                    # print(float(thisaction.actionfrequency))
+                    # print(pilib.timestringtoseconds(currenttime)-pilib.timestringtoseconds(thisaction.lastactiontime))
                     if pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(thisaction.lastactiontime) > float(thisaction.actionfrequency):
                         alert = True
                         thisaction.statusmsg += "Time to act. "

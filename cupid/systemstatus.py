@@ -21,6 +21,21 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 
+def readhardwarefileintoversions():
+    from pilib import systemdatadatabase, makesqliteinsert, sqlitequery
+    devicefile = '/var/wwwsafe/devicedata'
+    file = open(devicefile)
+    lines = file.readlines()
+    devicedict={}
+    for line in lines:
+        split = line.split(':')
+        try:
+            devicedict[split[0].strip()] = split[1].strip()
+        except:
+            print('parse error')
+    sqlitequery(systemdatadatabase, makesqliteinsert('versions', ['hardware',devicedict['hardware']], ['item', 'version']))
+
+
 def runping(pingAddress,numpings=1):
     pingtimes=[]
     for i in range(numpings):
@@ -211,6 +226,9 @@ if __name__ == '__main__':
 
     import pilib
     import time
+    from misc.gitupdatelib import updategitversions
+
+    updategitversions()
 
     systemstatus = pilib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
 

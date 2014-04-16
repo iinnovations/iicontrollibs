@@ -173,8 +173,10 @@ def setapmode(netconfig=None):
 
 
 def resetwlan():
+    from time import sleep
     print('resetting wlan0')
     subprocess.call(['ifdown','--force', 'wlan0'])
+    sleep(2)
     subprocess.call(['ifup', 'wlan0'])
 
 

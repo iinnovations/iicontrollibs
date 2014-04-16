@@ -100,7 +100,8 @@ def findprocstatuses(procstofind):
     return foundstatuses
 
 
-if __name__ == "__main__":
+def rundaemon():
+
     import pilib
     from subprocess import Popen
     from time import sleep
@@ -151,3 +152,6 @@ if __name__ == "__main__":
             pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
         else:
             pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')
+
+if __name__ == "__main__":
+    rundaemon()
