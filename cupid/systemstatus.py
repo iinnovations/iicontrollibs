@@ -11,14 +11,7 @@ __status__ = "Development"
 
 # do this stuff to access stuff in other directories
 import os
-import sys
-import inspect
 import netconfig
-
-top_folder = \
-    os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
-if top_folder not in sys.path:
-    sys.path.insert(0, top_folder)
 
 
 def readhardwarefileintoversions():
@@ -110,6 +103,7 @@ def updateifacestatus():
 
     okping = float(netconfigdata['pingthreshold'])
     pingresults = runping('8.8.8.8')
+    # pingresults = [20, 20, 20]
     pingresult = sum(pingresults)/float(len(pingresults))
     if pingresult == 0:
         wanaccess = 0
@@ -210,14 +204,14 @@ def processsystemflags(systemflags=None):
     if 'updateiicontrollibs' in flagnames and not stop:
         if flagvalues[flagnames.index('updateiicontrollibs')]:
             stop = True
-            pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, 'name=updateiicontrollibs')
+            pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, 'name=\'updateiicontrollibs\'')
             from misc.gitupdatelib import updateiicontrollibs
             print('updating iicontrollibs')
             updateiicontrollibs(True)
     if 'updatecupidweblib' in flagnames and not stop:
         if flagvalues[flagnames.index('updatecupidweblib')]:
             stop = True
-            pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, 'name=updatecupidweblib')
+            pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, 'name=\'updatecupidweblib\'')
             from misc.gitupdatelib import updatecupidweblib
             print('updating cupidweblib')
             updatecupidweblib(True)
@@ -234,6 +228,7 @@ if __name__ == '__main__':
 
     # Keep reading and updating system status?
     while systemstatus['systemstatusenabled']:
+
         # print('starting')
         currenttime = pilib.gettimestring()
         pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'lastsystemstatuspoll', pilib.gettimestring())
@@ -308,8 +303,15 @@ if __name__ == '__main__':
 
 
         pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
+
         print(wpastatusmsg)
+
         updateifacestatus()
+
         processsystemflags()
+
+        # Get system status again
+        systemstatus = pilib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
+
         # print('Status routine took ' + str(time.time()-starttime))
         time.sleep(systemstatus['systemstatusfreq'])
