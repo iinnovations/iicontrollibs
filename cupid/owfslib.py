@@ -196,7 +196,10 @@ def updateowfsdevices(busdevices, myProxy=None):
 
     for index, device in enumerate(busdevices):
         if device.sensorid in previnputids:
-            device.pollfreq = previnputs[previnputids.index(device.sensorid)]['pollfreq']
+            if int(previnputs[previnputids.index(device.sensorid)]['pollfreq']) >= 0:
+                device.pollfreq = previnputs[previnputids.index(device.sensorid)]['pollfreq']
+            else:
+                device.pollfreq = defaults['inputpollfreq']
             device.ontime = previnputs[previnputids.index(device.sensorid)]['ontime']
             device.offtime = previnputs[previnputids.index(device.sensorid)]['offtime']
             device.polltime = previnputs[previnputids.index(device.sensorid)]['polltime']
@@ -263,7 +266,7 @@ def updateowfsinputentries(database, tablename, devices, execute=True):
                         str(device.type) + "','" + str(device.id) + "','" + str(device.name) + "','" + str(device.value) + "','" + str(device.unit)+ "','" +
                         str(device.polltime) + "'," + str(device.pollfreq) + ",'" + device.ontime + "','" + device.offtime + "')")
 
-    # print(querylist)
+    print(querylist)
     if execute:
         sqlitemultquery(controldatabase, querylist)
 
