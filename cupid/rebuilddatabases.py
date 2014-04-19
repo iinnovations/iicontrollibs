@@ -211,7 +211,7 @@ def rebuildsessiondb():
     querylist.append("insert into " + table + " values ('viewer', 5)")
     querylist.append("insert into " + table + " values ('controller', 5)")
     querylist.append("insert into " + table + " values ('administrator', 5)")
-    querylist.append("insert into " + table + " values ('colin', 3)")
+    querylist.append("insert into " + table + " values ('owner', 3)")
 
     ### Settings table
 
@@ -329,18 +329,27 @@ def rebuildusersdata():
     runquery = False
     querylist = []
     runquery = True
+    salt = 'a bunch of random characters and symbols for security'
     querylist.append('drop table if exists users')
     querylist.append('create table users (id integer primary key not null, name text not null, password text not null, email text not null, temp text not null, authlevel integer default 0)')
-    userslist=[{'name':'owner','authlevel':4,'email':'cupidcontrols@interfaceinnovations.org','password':'owner'},
+    userslist=[{'name':'owner','authlevel':4,'email':'cupidcontrols@interfaceinnovations.org','password':'owner!'},
                {'name':'administrator','authlevel':3,'email':'cupidcontrols@interfaceinnovations.org','password':'administrator'},
                {'name':'controller','authlevel':2,'email':'cupidcontrols@interfaceinnovations.org','password':'controller'},
                {'name':'viewer','authlevel':1,'email':'cupidcontrols@interfaceinnovations.org','password':'viewer'}
                ]
     for index, user in enumerate(userslist):
-        h = hashlib.new('sha1')
-        h.update(user['password'])
-        password = h.hexdigest()
-        querylist.append("insert into users values(" + str(index) + ",'" + user['name'] + "','" + password + "','" + user['email'] + "','fff',"+ str(user['authlevel']) + ")")
+        # Create hashed, salted password entry
+        hpass = hashlib.new('sha1')
+        hpass.update(user['password'])
+        hashedpassword = hpass.hexdigest()
+        hname = hashlib.new('sha1')
+        hname.update(user['name'])
+        hashedname = hname.hexdigest()
+        hentry = hashlib.new('md5')
+        hentry.update(hashedname + salt + hashedpassword)
+        hashedentry = hentry.hexdigest()
+
+        querylist.append("insert into users values(" + str(index) + ",'" + user['name'] + "','" + hashedentry + "','" + user['email'] + "','fff',"+ str(user['authlevel']) + ")")
 
     sqlitemultquery(usersdatabase, querylist)
 

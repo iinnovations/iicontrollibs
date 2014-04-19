@@ -143,21 +143,23 @@ while systemstatus['picontrolenabled']:
                         outputsetnames = []
                         outputresetnames = []
                         if action > 0:
-                            #print("set positive output on")
+                            print("set positive output on")
                             outputsetnames.append(channel['positiveoutput'])
                             outputresetnames.append(channel['negativeoutput'])
                         elif action < 0:
-                            #print("set negative GPIO on")
-                            outputsetnames.append(['negativeoutput'])
-                            outputresetnames.append(['negativeoutput'])
+                            print("set negative GPIO on")
+                            outputsetnames.append(channel['negativeoutput'])
+                            outputresetnames.append(channel['positiveoutput'])
                         elif action == 0:
                             statusmsg += 'No action. '
-                            outputresetnames.append(['positiveoutput'])
-                            outputresetnames.append(['negativeoutput'])
+                            outputresetnames.append(channel['positiveoutput'])
+                            outputresetnames.append(channel['negativeoutput'])
                         else:
                             statusmsg += 'Algorithm error. Doing nothing.'
                             outputsetname = None
 
+                        print(outputsetnames)
+                        print(outputresetnames)
                         # Find output in list of outputs if we have one to set
                         
                         # Temporary

@@ -24,6 +24,8 @@ sessiondatabase = databasedir + 'authlog.db'
 recipedatabase = databasedir + 'recipedata.db'
 systemdatadatabase = databasedir + 'systemdata.db'
 safedatabase = '/var/wwwsafe/safedata.db'
+usersdatabase = '/var/wwwsafe/users.db'
+netlogfile = baselibdir + 'misc/netlog'
 
 #############################################
 ## Utility Functions

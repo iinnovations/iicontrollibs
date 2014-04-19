@@ -34,7 +34,7 @@ if runi2cowfs or runusbowfs:
 
 # Run netstart script
 from netconfig import runconfig
-# runconfig(onboot=True)
+runconfig(onboot=True)
 
 # Run daemon
 from cupiddaemon import runallprocs

@@ -139,6 +139,7 @@ def replaceifaceparameters(iffilein, iffileout, iface, parameternames, parameter
 
 
 def setstationmode(netconfigdata=None):
+    from time import sleep
     if not netconfigdata:
         netconfigdata = readonedbrow(systemdatadatabase, 'netconfig')[0]
     killapservices()
@@ -151,6 +152,8 @@ def setstationmode(netconfigdata=None):
                                [netconfigdata['address'], netconfigdata['gateway']])
     elif netconfigdata['addtype'] == 'dhcp':
         subprocess.call(['cp', '/etc/network/interfaces.sta.dhcp', '/etc/network/interfaces'])
+    resetwlan()
+    sleep(1)
     resetwlan()
 
 
