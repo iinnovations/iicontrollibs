@@ -60,11 +60,11 @@ def owfsgetbusdevices(owdir):
             if propavailable in initprops:
                 propvalue = open(devicepath + '/' + propavailable).read().strip()
                 propdict[propavailable] = propvalue
-        devices.append(owfsdevice(propdict))
+        devices.append(owfsDevice(propdict))
     return devices
 
 
-class owfsdevice():
+class owfsDevice():
     def __init__(self, propdict):
         for key, value in propdict.items():
             setattr(self, key, value)
@@ -99,7 +99,7 @@ def owbuslist(host='localhost'):
     return owProxy, buslist
 
 
-class owdevice():
+class owDevice():
     def __init__(self, propdict):
         for key, value in propdict.items():
             setattr(self, key, value)
@@ -132,7 +132,7 @@ class owdevice():
         return propvalues
 
 
-def getbusdevices(host='localhost'):
+def getowbusdevices(host='localhost'):
     # These are the properties we will always read on initialization
     # They should exist for every device type. We can add device-specific properties
     # to read below, based on type. We also want these to be properties that do not require
@@ -155,7 +155,7 @@ def getbusdevices(host='localhost'):
                 pass
                 # Could put in default values here, but cleaner if not
 
-        deviceobjects.append(owdevice(propdict))
+        deviceobjects.append(owDevice(propdict))
 
     return myProxy, deviceobjects
 
@@ -175,59 +175,89 @@ def updateowfstable(database, tablename, busdevices, execute=True):
     return querylist
 
 
-def updateowfsentries(database, tablename, busdevices, myProxy=None, execute=True):
+def updateowfsdevices(busdevices, myProxy=None):
     import pilib
 
     querylist = []
-
-    querylist.append('delete from ' + tablename + ' where interface = \'1wire\'')
 
     # We're going to set a name because calling things by their ids is getting
     # a bit ridiculous, but we can't have empty name fields if we rely on them
     # being there. They need to be unique, so we'll name them by type and increment them
 
-    for device in busdevices:
+    for index, device in enumerate(busdevices):
         # print(device.id)
+        # We only
         if device.type == 'DS18B20':
-            sensorid = '1wire' + '_' + device.address
+            device.sensorid = '1wire' + '_' + device.address
 
             # Get name if one exists
-            name = pilib.sqlitedatumquery(database, 'select name from ioinfo where id=\'' + sensorid + '\'')
+            name = pilib.sqlitedatumquery(pilib.controldatabase, 'select name from ioinfo where id=\'' + device.sensorid + '\'')
 
             # If doesn't exist, check to see if proposed name exists. If it doesn't, add it.
             # If it does, keep trying.
 
             if name == '':
-                for index in range(100):
+                for rangeindex in range(100):
                     # check to see if name exists
                     name = device.type + '-' + str(int(index + 1))
                     # print(name)
-                    foundid = pilib.sqlitedatumquery(database, 'select id from ioinfo where name=\'' + name + '\'')
+                    foundid = pilib.sqlitedatumquery(pilib.controldatabase, 'select id from ioinfo where name=\'' + name + '\'')
                     # print('foundid' + foundid)
                     if foundid:
                         pass
                     else:
-                        pilib.sqlitequery(database, pilib.makesqliteinsert('ioinfo', valuelist=[sensorid, name],
+                        pilib.sqlitequery(pilib.controldatabase, pilib.makesqliteinsert('ioinfo', valuelist=[device.sensorid, name],
                                                                            valuenames=['id', 'name']))
+
                         break
+            device.name = name
 
             # Is it time to read temperature?
             # At the moment, we assume yes.
             device.readprop('temperature', myProxy)
-            # print('temperature:')
-            # print(device.temperature)
-            # print(pilib.makesqliteinsert(tablename, [sensorid, 'i2c1wire', device.type, device.address, name,
-            #                                                     float(device.temperature), 'F', pilib.gettimestring(),
-            #                                                     '','','']))
-            querylist.append(pilib.makesqliteinsert(tablename, [sensorid, '1wire', device.type, device.address, name,
-                                                                float(device.temperature), 'F', pilib.gettimestring(),
-                                                                '', '', '']))
-    # print(querylist)
+            device.value = device.temperature
+
+        # We update the device and send them back for other purposes.
+        busdevices[index] = device
+
+    return busdevices
+
+
+def updateowfsinputentries(database, tablename, devices, execute=True):
+    from pilib import readalldbrows, controldatabase, sqlitemultquery
+    querylist = []
+    querylist.append("delete from '" + tablename + "' where interface='1wire'")
+
+    # get defaults
+    defaults = readalldbrows(controldatabase, 'defaults')[0]
+
+    # get current entries
+    previnputs = readalldbrows(controldatabase, 'inputs')
+
+    # Make list of IDs for easy indexing
+    previnputids = []
+    for input in previnputs:
+        previnputids.append(input['id'])
+
+    for device in devices:
+        if device.sensorid in previnputids:
+            device.pollfreq = previnputs[previnputids.index['device.sensorid']]['pollfreq']
+            device.ontime = previnputs[previnputids.index['device.sensorid']]['ontime']
+            device.offtime = previnputs[previnputids.index['device.sensorid']]['offtime']
+        else:
+            device.pollfreq = defaults['pollfreq']
+            device.ontime = ''
+            device.offtime = ''
+
+            querylist.append('insert into inputs values (\'' + device.sensorid + '\',\'' + '1Wire' + '\',\'' +
+                        str(device.type) + '\',\'' + str(device.id) + '\',\'' + str(device.name) + '\',\'' + str(device.value) + "','','" +
+                        str(device.polltime) + '\',' + str(device.pollfreq) + "," + device.ontime + "," + device.offtime + ")")
+
+    print(querylist)
     if execute:
-        pilib.sqlitemultquery(database, querylist)
+        sqlitemultquery(controldatabase,querylist)
 
     return querylist
-
 
 # Currently we are using straight fuse/owfs directory listing, rather than the pyownet functions (also
 # available above)
@@ -236,7 +266,7 @@ def runowfsupdate(debug=False, execute=True):
     import time
 
     queries = []
-    from pilib import onewiredir, controldatabase
+    from pilib import onewiredir, controldatabase, sqlitemultquery
 
     if debug:
         print('getting buses')
@@ -244,22 +274,26 @@ def runowfsupdate(debug=False, execute=True):
     busdevices = owfsgetbusdevices(onewiredir)
     if debug:
         print('done getting devices, took ' + str(time.time() - starttime))
-        print('updating owfs table')
+        print('updating device data')
         starttime = time.time()
-    owfstableentries = updateowfstable(controldatabase, 'owfs', busdevices, execute=execute)
-    if debug:
-        print('done updating owfstable, took ' + str(time.time() - starttime))
-        print('updating entries')
-        starttime = time.time()
-    addtableentries = updateowfsentries(controldatabase, 'inputs', busdevices, execute=execute)
+    updateddevices = updateowfsdevices(busdevices)
     if debug:
         print('done reading devices, took ' + str(time.time() - starttime))
         print('your devices: ')
         for device in busdevices:
             print(device.id)
+        print('updating entries in owfstable')
+        starttime = time.time()
+    owfstableentries = updateowfstable(controldatabase, 'owfs', updateddevices, execute=execute)
+    if debug:
+        print('done updating owfstable, took ' + str(time.time() - starttime))
+
+    owfsinputentries = updateowfsinputentries(controldatabase, 'inputs', updateddevices, execute=execute)
     queries.extend(owfstableentries)
-    queries.extend(addtableentries)
-    return queries
+    queries.extend(owfsinputentries)
+    if execute:
+        sqlitemultquery(controldatabase, queries)
+    return busdevices, queries
 
 
 if __name__ == '__main__':

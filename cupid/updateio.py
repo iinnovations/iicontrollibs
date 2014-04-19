@@ -87,23 +87,18 @@ def updateiodata(database):
     # The reason they are updated within the table rather than compiling
     pilib.sqlitequery(pilib.controldatabase, 'delete from indicators')
 
+    owfsupdate = False
     for interface in interfaces:
         if interface['interface'] == 'I2C':
             if interface['enabled']:
                 # print('processing enabled I2C')
                 if interface['type'] == 'DS2483':
-                    from owfslib import runowfsupdate
-                    owfsqueries = runowfsupdate(execute=False)
-                    # print(owfsqueries)
-                    querylist.extend(owfsqueries)
+                    owfsupdate = True
         elif interface['interface'] == 'USB':
             if interface['enabled']:
                 # print('processing enabled USB')
                 if interface['type'] == 'DS9490':
-                    from owfslib import runowfsupdate
-                    owfsqueries = runowfsupdate(execute=False)
-                    print(owfsqueries)
-                    querylist.extend(owfsqueries)
+                    owfsupdate = True
 
         elif interface['interface'] == 'GPIO':
 
@@ -155,19 +150,12 @@ def updateiodata(database):
                         polltime = pilib.gettimestring()
 
                     # Get input settings and keep them if the GPIO previously existed
-                    if interface['id'] in prevoutputids:
-                        pollfreq = previnputs[prevoutputids.index(interface['id'])]['pollfreq']
-                        polltime = previnputs[prevoutputids.index(interface['id'])]['polltime']
+                    if interface['id'] in previnputids:
+                        pollfreq = previnputs[previnputids.index(interface['id'])]['pollfreq']
+                        polltime = previnputs[previnputids.index(interface['id'])]['polltime']
                     else:
                         pollfreq = defaultinputpollfreq
 
-
-                    # Add entry to inputs tables
-                    # Get output settings and keep them if the GPIO previously existed
-                    if interface['id'] in prevoutputids:
-                        pollfreq = prevoutputs[prevoutputids.index(interface['id'])]['pollfreq']
-                    else:
-                        pollfreq = defaultoutputpollfreq
                     querylist.append(
                         'insert into inputs values (\'' + interface['id'] + '\',\'' + interface['interface'] + '\',\'' +
                         interface['type'] + '\',\'' + str(address) + '\',\'' + gpioname + '\',\'' + str(value) + "','','" +
@@ -202,11 +190,15 @@ def updateiodata(database):
                 querylist.extend(spilightsentries)
                 spilights.setspilights(setlist, 1)
 
-
-
     # Set tables
     # print(querylist)
     querylist.append(pilib.makesinglevaluequery('systemstatus', 'lastiopoll', pilib.gettimestring()))
+
+    if owfsupdate:
+        from owfslib import runowfsupdate
+        owfsentries = runowfsupdate(execute=False)
+        querylist.extend(owfsentries)
+
     pilib.sqlitemultquery(pilib.controldatabase, querylist)
 
 
