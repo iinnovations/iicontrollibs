@@ -60,6 +60,7 @@ def owfsgetbusdevices(owdir):
             if propavailable in initprops:
                 propvalue = open(devicepath + '/' + propavailable).read().strip()
                 propdict[propavailable] = propvalue
+            propdict['sensorid'] = '1wire' + '_' + propdict['address']
         devices.append(owfsDevice(propdict))
     return devices
 
@@ -178,17 +179,41 @@ def updateowfstable(database, tablename, busdevices, execute=True):
 def updateowfsdevices(busdevices, myProxy=None):
     import pilib
 
-    querylist = []
+    # get defaults
+    defaults = pilib.readalldbrows(pilib.controldatabase, 'defaults')[0]
 
-    # We're going to set a name because calling things by their ids is getting
-    # a bit ridiculous, but we can't have empty name fields if we rely on them
-    # being there. They need to be unique, so we'll name them by type and increment them
+    # get current entries
+    previnputs = pilib.readalldbrows(pilib.controldatabase, 'inputs')
+
+    # Make list of IDs for easy indexing
+    previnputids = []
+    for input in previnputs:
+        previnputids.append(input['id'])
+
+    # Iterate over devices. Determine if values exist for polltime, frequency.
+    # If so, update the device. If not, use defaults.
+    # Then determine whether we should update value or not (Read temperature)
 
     for index, device in enumerate(busdevices):
-        # print(device.id)
-        # We only
+        if device.sensorid in previnputids:
+            device.pollfreq = previnputs[previnputids.index(device.sensorid)]['pollfreq']
+            device.ontime = previnputs[previnputids.index(device.sensorid)]['ontime']
+            device.offtime = previnputs[previnputids.index(device.sensorid)]['offtime']
+            device.polltime = previnputs[previnputids.index(device.sensorid)]['polltime']
+            device.value = previnputs[previnputids.index(device.sensorid)]['value']
+        else:
+            device.pollfreq = defaults['inputpollfreq']
+            device.ontime = ''
+            device.offtime = ''
+            device.polltime = ''
+            device.value = ''
+
+        # We're going to set a name because calling things by their ids is getting
+        # a bit ridiculous, but we can't have empty name fields if we rely on them
+        # being there. They need to be unique, so we'll name them by type and increment them
+
         if device.type == 'DS18B20':
-            device.sensorid = '1wire' + '_' + device.address
+
 
             # Get name if one exists
             name = pilib.sqlitedatumquery(pilib.controldatabase, 'select name from ioinfo where id=\'' + device.sensorid + '\'')
@@ -208,14 +233,19 @@ def updateowfsdevices(busdevices, myProxy=None):
                     else:
                         pilib.sqlitequery(pilib.controldatabase, pilib.makesqliteinsert('ioinfo', valuelist=[device.sensorid, name],
                                                                            valuenames=['id', 'name']))
-
                         break
             device.name = name
 
-            # Is it time to read temperature?
-            # At the moment, we assume yes.
+        # Is it time to read temperature?
+        if pilib.timestringtoseconds(pilib.gettimestring()) - pilib.timestringtoseconds(device.polltime) > device.pollfreq:
             device.readprop('temperature', myProxy)
+            device.polltime = pilib.gettimestring()
             device.value = device.temperature
+        else:
+            pass
+            # print('not time to poll')
+
+        device.unit = 'F'
 
         # We update the device and send them back for other purposes.
         busdevices[index] = device
@@ -228,39 +258,20 @@ def updateowfsinputentries(database, tablename, devices, execute=True):
     querylist = []
     querylist.append("delete from '" + tablename + "' where interface='1wire'")
 
-    # get defaults
-    defaults = readalldbrows(controldatabase, 'defaults')[0]
-
-    # get current entries
-    previnputs = readalldbrows(controldatabase, 'inputs')
-
-    # Make list of IDs for easy indexing
-    previnputids = []
-    for input in previnputs:
-        previnputids.append(input['id'])
-
     for device in devices:
-        if device.sensorid in previnputids:
-            device.pollfreq = previnputs[previnputids.index['device.sensorid']]['pollfreq']
-            device.ontime = previnputs[previnputids.index['device.sensorid']]['ontime']
-            device.offtime = previnputs[previnputids.index['device.sensorid']]['offtime']
-        else:
-            device.pollfreq = defaults['pollfreq']
-            device.ontime = ''
-            device.offtime = ''
+        querylist.append("insert into inputs values ('" + device.sensorid +"','" + '1wire' + "','" +
+                        str(device.type) + "','" + str(device.id) + "','" + str(device.name) + "','" + str(device.value) + "','" + str(device.unit)+ "','" +
+                        str(device.polltime) + "'," + str(device.pollfreq) + ",'" + device.ontime + "','" + device.offtime + "')")
 
-            querylist.append('insert into inputs values (\'' + device.sensorid + '\',\'' + '1Wire' + '\',\'' +
-                        str(device.type) + '\',\'' + str(device.id) + '\',\'' + str(device.name) + '\',\'' + str(device.value) + "','','" +
-                        str(device.polltime) + '\',' + str(device.pollfreq) + "," + device.ontime + "," + device.offtime + ")")
-
-    print(querylist)
+    # print(querylist)
     if execute:
-        sqlitemultquery(controldatabase,querylist)
+        sqlitemultquery(controldatabase, querylist)
 
     return querylist
 
 # Currently we are using straight fuse/owfs directory listing, rather than the pyownet functions (also
 # available above)
+
 
 def runowfsupdate(debug=False, execute=True):
     import time
@@ -272,11 +283,13 @@ def runowfsupdate(debug=False, execute=True):
         print('getting buses')
         starttime = time.time()
     busdevices = owfsgetbusdevices(onewiredir)
+
     if debug:
         print('done getting devices, took ' + str(time.time() - starttime))
         print('updating device data')
         starttime = time.time()
     updateddevices = updateowfsdevices(busdevices)
+
     if debug:
         print('done reading devices, took ' + str(time.time() - starttime))
         print('your devices: ')
@@ -284,11 +297,13 @@ def runowfsupdate(debug=False, execute=True):
             print(device.id)
         print('updating entries in owfstable')
         starttime = time.time()
+
     owfstableentries = updateowfstable(controldatabase, 'owfs', updateddevices, execute=execute)
     if debug:
         print('done updating owfstable, took ' + str(time.time() - starttime))
 
     owfsinputentries = updateowfsinputentries(controldatabase, 'inputs', updateddevices, execute=execute)
+
     queries.extend(owfstableentries)
     queries.extend(owfsinputentries)
     if execute:

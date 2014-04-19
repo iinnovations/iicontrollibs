@@ -191,13 +191,13 @@ def updateiodata(database):
                 spilights.setspilights(setlist, 1)
 
     # Set tables
-    # print(querylist)
     querylist.append(pilib.makesinglevaluequery('systemstatus', 'lastiopoll', pilib.gettimestring()))
 
     if owfsupdate:
         from owfslib import runowfsupdate
-        owfsentries = runowfsupdate(execute=False)
+        devices, owfsentries = runowfsupdate(execute=False)
         querylist.extend(owfsentries)
+    # print(querylist)
 
     pilib.sqlitemultquery(pilib.controldatabase, querylist)
 
