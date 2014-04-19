@@ -18,12 +18,13 @@ top_folder = \
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
+
 # Using fuse / owfs
 def owfsbuslist(owdir):
     from os import walk
 
     # Should get this from somewhere for recognized types
-    families=['28']
+    families = ['28']
 
     d = []
     for (dirpath, dirnames, filenames) in walk(owdir):
@@ -39,17 +40,17 @@ def owfsbuslist(owdir):
     # print(devices)
     return devices
 
-def owfsgetbusdevices(owdir):
 
+def owfsgetbusdevices(owdir):
     from os import walk
 
     buslist = owfsbuslist(owdir)
 
     initprops = ['id', 'address', 'crc8', 'alias', 'family', 'type']
 
-    devices=[]
+    devices = []
     for devicedir in buslist:
-        propdict={}
+        propdict = {}
         devicepath = owdir + '/' + devicedir
         propdict['devicedir'] = devicepath
         for (dirpath, dirnames, filenames) in walk(devicepath):
@@ -61,6 +62,7 @@ def owfsgetbusdevices(owdir):
                 propdict[propavailable] = propvalue
         devices.append(owfsdevice(propdict))
     return devices
+
 
 class owfsdevice():
     def __init__(self, propdict):
@@ -77,7 +79,7 @@ class owfsdevice():
     def readprops(self, proplist, garbage=None):
         propvalues = []
         for propname in proplist:
-            propvalue = self.readprop(self,propname)
+            propvalue = self.readprop(self, propname)
             propvalues.append(propvalue)
         return propvalues
 
@@ -87,6 +89,7 @@ class owfsdevice():
 
 def owbuslist(host='localhost'):
     from resource.pyownet.protocol import OwnetProxy
+
     owProxy = OwnetProxy(host)
     buslist = []
     if host == 'localhost':
@@ -115,6 +118,7 @@ class owdevice():
 
     def readprops(self, proplist, myProxy=None):
         from resource.pyownet.protocol import OwnetProxy
+
         if myProxy:
             pass
         else:
@@ -129,7 +133,6 @@ class owdevice():
 
 
 def getbusdevices(host='localhost'):
-
     # These are the properties we will always read on initialization
     # They should exist for every device type. We can add device-specific properties
     # to read below, based on type. We also want these to be properties that do not require
@@ -173,12 +176,11 @@ def updateowfstable(database, tablename, busdevices, execute=True):
 
 
 def updateowfsentries(database, tablename, busdevices, myProxy=None, execute=True):
-
     import pilib
 
     querylist = []
 
-    querylist.append('delete from ' + tablename + ' where interface = \'i2c1wire\'')
+    querylist.append('delete from ' + tablename + ' where interface = \'1wire\'')
 
     # We're going to set a name because calling things by their ids is getting
     # a bit ridiculous, but we can't have empty name fields if we rely on them
@@ -187,7 +189,7 @@ def updateowfsentries(database, tablename, busdevices, myProxy=None, execute=Tru
     for device in busdevices:
         # print(device.id)
         if device.type == 'DS18B20':
-            sensorid = 'i2c1wire' + '_' + device.address
+            sensorid = '1wire' + '_' + device.address
 
             # Get name if one exists
             name = pilib.sqlitedatumquery(database, 'select name from ioinfo where id=\'' + sensorid + '\'')
@@ -217,22 +219,25 @@ def updateowfsentries(database, tablename, busdevices, myProxy=None, execute=Tru
             # print(pilib.makesqliteinsert(tablename, [sensorid, 'i2c1wire', device.type, device.address, name,
             #                                                     float(device.temperature), 'F', pilib.gettimestring(),
             #                                                     '','','']))
-            querylist.append(pilib.makesqliteinsert(tablename, [sensorid, 'i2c1wire', device.type, device.address, name,
+            querylist.append(pilib.makesqliteinsert(tablename, [sensorid, '1wire', device.type, device.address, name,
                                                                 float(device.temperature), 'F', pilib.gettimestring(),
-                                                                '','','']))
+                                                                '', '', '']))
     # print(querylist)
     if execute:
         pilib.sqlitemultquery(database, querylist)
 
     return querylist
 
+
 # Currently we are using straight fuse/owfs directory listing, rather than the pyownet functions (also
 # available above)
 
-def runowfsupdate(debug=False,execute=True):
+def runowfsupdate(debug=False, execute=True):
     import time
+
     queries = []
     from pilib import onewiredir, controldatabase
+
     if debug:
         print('getting buses')
         starttime = time.time()
@@ -255,6 +260,7 @@ def runowfsupdate(debug=False,execute=True):
     queries.extend(owfstableentries)
     queries.extend(addtableentries)
     return queries
+
 
 if __name__ == '__main__':
     runowfsupdate()
