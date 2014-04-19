@@ -85,7 +85,7 @@ def updateiodata(database):
     # update the hardware explicitly after we add the entries. If the interface queries the table during
     # this period, however, we could end up with an apparently empty table.
     # The reason they are updated within the table rather than compiling
-    pilib.sqlitequery(pilib.controldatabase,'delete from indicators')
+    pilib.sqlitequery(pilib.controldatabase, 'delete from indicators')
 
     for interface in interfaces:
         if interface['interface'] == 'I2C':
@@ -102,7 +102,7 @@ def updateiodata(database):
                 if interface['type'] == 'DS9490':
                     from owfslib import runowfsupdate
                     owfsqueries = runowfsupdate(execute=False)
-                    # print(owfsqueries)
+                    print(owfsqueries)
                     querylist.extend(owfsqueries)
 
         elif interface['interface'] == 'GPIO':
