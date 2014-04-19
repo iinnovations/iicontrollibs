@@ -96,7 +96,7 @@ def updateiodata(database):
                     owfsqueries = runowfsupdate(execute=False)
                     # print(owfsqueries)
                     querylist.extend(owfsqueries)
-        if interface['interface'] == 'USB':
+        elif interface['interface'] == 'USB':
             if interface['enabled']:
                 # print('processing enabled USB')
                 if interface['type'] == 'DS9490':
