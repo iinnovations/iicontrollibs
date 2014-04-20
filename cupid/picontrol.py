@@ -29,6 +29,9 @@ while systemstatus['picontrolenabled']:
     channels = pilib.readalldbrows(pilib.controldatabase, 'channels')
     outputs = pilib.readalldbrows(pilib.controldatabase, 'outputs')
     controlalgorithms = pilib.readalldbrows(pilib.controldatabase, 'controlalgorithms')
+    algorithmnames=[]
+    for algorithm in controlalgorithms:
+        algorithmnames.append(algorithm['name'])
 
     # Cycle through channels and set action based on setpoint
     # and algorithm if set to auto mode
@@ -41,9 +44,6 @@ while systemstatus['picontrolenabled']:
         logtablename = channel['name'] + '_log'
         time = pilib.gettimestring()
         disableoutputs = True
-
-        # Get outputs to avoid multiple queries
-        outputs = pilib.readalldbrows(pilib.controldatabase,'outputs')
 
         # Make sure channel is enabled
         if channel['enabled']:
@@ -78,28 +78,12 @@ while systemstatus['picontrolenabled']:
                 statusmsg += 'Error. Enabled key does not exist'
 
             mode = channel['mode']
-            algorithm = channel['controlalgorithm']
+            channelalgorithmname = channel['controlalgorithm']
             controlinput = channel['controlinput']
             logpoints = channel['logpoints']
 
             # Move forward if everything is defined for control
             if channel['enabled'] and 'controlvalue' in locals() and 'setpointvalue' in locals():
-
-                # grab the names of the outputs for the channel
-                # these could be things like 'output1', 'output2', etc.
-
-                # channeloutputnames = []
-                # channeloutputnames.append(channel['positiveoutput'])
-                # channeloutputnames.append(channel['negativeoutput'])
-
-                # create a dict array of just the outputs for this channe
-                # this will ignore 'none' values in channeloutputnames
-                # as there will not be an output of this name
-
-                # channeloutputs = []
-                # for output in outputs:
-                #     if output['name'] in channeloutputnames:
-                #         channeloutputs.append(output)
 
                 statusmsg += 'Channel Enabled. '
 
@@ -158,46 +142,60 @@ while systemstatus['picontrolenabled']:
                             statusmsg += 'Algorithm error. Doing nothing.'
                             outputsetname = None
 
-                        print(outputsetnames)
-                        print(outputresetnames)
+                        # Check to see if outputs are ready to enable/disable
+                        # If not, pull them from list of set/reset
+
+                        outputstoset=[]
+                        for outputname in outputsetnames:
+                            if channelalgorithmname in algorithmnames:
+                                offtime = pilib.sqlitedatumquery(pilib.controldatabase, 'select offtime from outputs where name=' + outputname )
+                                if pilib.timestringtoseconds(pilib.gettimestring()) - pilib.timestringtoseconds(offtime) > controlalgorithms[algorithmnames.index(channelalgorithmname)]['minofftime']:
+                                    outputstoset.append(outputname)
+                                else:
+                                    statusmsg += 'Output ' + outputname + ' not ready to enable. '
+                            else:
+                                statusmsg += 'Algorithm Error: Not found. '
+
+                        outputstoreset=[]
+                        for outputname in outputresetnames:
+                            if channelalgorithmname in algorithmnames:
+                                offtime = pilib.sqlitedatumquery(pilib.controldatabase, 'select ontime from outputs where name=' + outputname )
+                                if pilib.timestringtoseconds(pilib.gettimestring()) - pilib.timestringtoseconds(offtime) > controlalgorithms[algorithmnames.index(channelalgorithmname)]['minontime']:
+                                    outputstoreset.append(outputname)
+                                else:
+                                    statusmsg += 'Output ' + outputname + ' not ready to disable. '
+                            else:
+                                statusmsg += 'Algorithm Error: Not found. '
+                        """ TODO: Change reference to controlinputs to name rather than id. Need to double-check
+                        enforcement of no duplicates."""
+
                         # Find output in list of outputs if we have one to set
-                        
-                        # Temporary
-                        readytoenable = True
+
                         time = pilib.gettimestring()
-                        if len(outputsetnames) > 0 or len(outputresetnames) > 0:
+                        if len(outputstoset) > 0 or len(outputstoreset) > 0:
                             for output in outputs:
-                                if output['name'] in outputsetnames:
+                                if output['name'] in outputstoset:
                                     # check current status
                                     currvalue = output['value']
                                     if currvalue == 0: # No need to set if otherwise. Will be different for analog out
-                                        # Check if ready to enable
-                                        if readytoenable:
-                                            # set ontime
-                                            querylist.append('update outputs set ontime=\'' + time + '\'' + 'where id=\'' + output['id'] + '\'')
-                                            # set value
-                                            querylist.append("update outputs set value = 1 where id='" + output['id'] + '\'')
-                                            statusmsg += 'Output ' + output['name'] + ' enabled. '
-                                        else:
-                                            statusmsg += 'Output ' + output['name'] + ' not ready to enable. '
+                                        # set ontime
+                                        querylist.append('update outputs set ontime=\'' + time + '\'' + 'where id=\'' + output['id'] + '\'')
+                                        # set value
+                                        querylist.append("update outputs set value = 1 where id='" + output['id'] + '\'')
+                                        statusmsg += 'Output ' + output['name'] + ' enabled. '
                                     else:
                                         statusmsg += 'Output ' + output['name'] + ' already enabled. '
 
-                                if output['name'] in outputresetnames:
-                                    
+                                if output['name'] in outputstoreset:
                                     # check current status
                                     currvalue = output['value']
                                     if currvalue == 1:  # No need to set if otherwise. Will be different for analog out
-                                        # Check if ready to disable
-                                        if readytoenable:
-                                            # set ontime
-                                            querylist.append('update outputs set ontime=\'' + time + '\'' + 'where id=\'' +
-                                                  output['id'] + '\'')
-                                            # set value
-                                            querylist.append('update outputs set value = 0 where id=\'' + output['id'] + '\'')
-                                            statusmsg += 'Output ' + output['name'] + ' disabled. '
-                                        else:
-                                             statusmsg += 'Output ' + output['name'] + ' not ready to disable. '
+                                        # set ontime
+                                        querylist.append('update outputs set ontime=\'' + time + '\'' + 'where id=\'' +
+                                              output['id'] + '\'')
+                                        # set value
+                                        querylist.append('update outputs set value = 0 where id=\'' + output['id'] + '\'')
+                                        statusmsg += 'Output ' + output['name'] + ' disabled. '
                                     else:
                                         statusmsg += 'Output ' + output['name'] + ' already disabled. '
 
@@ -208,8 +206,9 @@ while systemstatus['picontrolenabled']:
                     statusmsg += 'System outputs disabled. '
 
                 # Insert entry into control log
+                pilib.makesqliteinsert(pilib.logdatabase, logtablename,  [time, controlinput, controlvalue, setpointvalue, action, channelalgorithmname, channel['enabled'], statusmsg])
                 pilib.sqliteinsertsingle(pilib.logdatabase, logtablename,
-                                         [time, controlinput, controlvalue, setpointvalue, action, algorithm,
+                                         [time, controlinput, controlvalue, setpointvalue, action, channelalgorithmname,
                                           channel['enabled'], statusmsg])
 
                 # Size log 
