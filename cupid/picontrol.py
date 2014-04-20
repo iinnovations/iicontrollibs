@@ -191,7 +191,7 @@ while systemstatus['picontrolenabled']:
                                     currvalue = output['value']
                                     if currvalue == 1:  # No need to set if otherwise. Will be different for analog out
                                         # set ontime
-                                        querylist.append('update outputs set ontime=\'' + time + '\'' + 'where id=\'' +
+                                        querylist.append('update outputs set offtime=\'' + time + '\'' + 'where id=\'' +
                                               output['id'] + '\'')
                                         # set value
                                         querylist.append('update outputs set value = 0 where id=\'' + output['id'] + '\'')
