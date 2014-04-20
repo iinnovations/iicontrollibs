@@ -155,6 +155,7 @@ def updateifacestatus():
         wpastatusdict['dhcpstatus'] = dhcpstatus
     except:
         wpastatusdict['dhcpstatus'] = 0
+        dhcpstatus = 0
     try:
         mode = wpastatusdict['mode']
     except KeyError:
