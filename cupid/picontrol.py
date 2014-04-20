@@ -148,7 +148,7 @@ while systemstatus['picontrolenabled']:
                         outputstoset=[]
                         for outputname in outputsetnames:
                             if channelalgorithmname in algorithmnames:
-                                offtime = pilib.sqlitedatumquery(pilib.controldatabase, 'select offtime from outputs where name=' + outputname )
+                                offtime = pilib.sqlitedatumquery(pilib.controldatabase, "select offtime from outputs where name='" + outputname + "'" )
                                 if pilib.timestringtoseconds(pilib.gettimestring()) - pilib.timestringtoseconds(offtime) > controlalgorithms[algorithmnames.index(channelalgorithmname)]['minofftime']:
                                     outputstoset.append(outputname)
                                 else:
@@ -159,8 +159,8 @@ while systemstatus['picontrolenabled']:
                         outputstoreset=[]
                         for outputname in outputresetnames:
                             if channelalgorithmname in algorithmnames:
-                                offtime = pilib.sqlitedatumquery(pilib.controldatabase, 'select ontime from outputs where name=' + outputname )
-                                if pilib.timestringtoseconds(pilib.gettimestring()) - pilib.timestringtoseconds(offtime) > controlalgorithms[algorithmnames.index(channelalgorithmname)]['minontime']:
+                                ontime = pilib.sqlitedatumquery(pilib.controldatabase, "select ontime from outputs where name='" + outputname +"'")
+                                if pilib.timestringtoseconds(pilib.gettimestring()) - pilib.timestringtoseconds(ontime) > controlalgorithms[algorithmnames.index(channelalgorithmname)]['minontime']:
                                     outputstoreset.append(outputname)
                                 else:
                                     statusmsg += 'Output ' + outputname + ' not ready to disable. '
@@ -179,7 +179,7 @@ while systemstatus['picontrolenabled']:
                                     currvalue = output['value']
                                     if currvalue == 0: # No need to set if otherwise. Will be different for analog out
                                         # set ontime
-                                        querylist.append('update outputs set ontime=\'' + time + '\'' + 'where id=\'' + output['id'] + '\'')
+                                        querylist.append('update outputs set ontime=\'' + time + '\' ' + 'where id=\'' + output['id'] + '\'')
                                         # set value
                                         querylist.append("update outputs set value = 1 where id='" + output['id'] + '\'')
                                         statusmsg += 'Output ' + output['name'] + ' enabled. '
@@ -191,8 +191,7 @@ while systemstatus['picontrolenabled']:
                                     currvalue = output['value']
                                     if currvalue == 1:  # No need to set if otherwise. Will be different for analog out
                                         # set ontime
-                                        querylist.append('update outputs set offtime=\'' + time + '\'' + 'where id=\'' +
-                                              output['id'] + '\'')
+                                        querylist.append('update outputs set offtime=\'' + time + '\' ' + 'where id=\'' + output['id'] + '\'')
                                         # set value
                                         querylist.append('update outputs set value = 0 where id=\'' + output['id'] + '\'')
                                         statusmsg += 'Output ' + output['name'] + ' disabled. '
@@ -214,11 +213,11 @@ while systemstatus['picontrolenabled']:
                 # Size log 
                 pilib.sizesqlitetable(pilib.logdatabase, logtablename, logpoints)
                 # print(statusmsg)
-        else:
-            print('i am actually here')
-            statusmsg += 'Channel not enabled. '
 
-        # If active reset and we didn't set channnel modes, disable outputs
+            else:
+                statusmsg += 'Channel not enabled. '
+
+        # If active reset and we didn't set channel modes, disable outputs
         # Active reset is not yet explicitly declared, but implied
 
         if disableoutputs:
@@ -231,7 +230,7 @@ while systemstatus['picontrolenabled']:
 
 
         # Set status message for channel
-        # print(statusmsg)
+        print(statusmsg)
         querylist.append('update channels set statusmessage=\'' + statusmsg + '\'' + 'where channelindex=' + channelindex)
 
         # Set update time for channel 

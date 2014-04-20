@@ -126,6 +126,7 @@ def updateiodata(database):
                         # Get previous value if exists
                         if interface['id'] in prevoutputids:
                             value = prevoutputvalues[prevoutputids.index(interface['id'])]
+
                         else:
                             value = 0
                         if value == 1:
@@ -136,14 +137,20 @@ def updateiodata(database):
                         # Get output settings and keep them if the GPIO previously existed
                         if interface['id'] in prevoutputids:
                             pollfreq = prevoutputs[prevoutputids.index(interface['id'])]['pollfreq']
+                            ontime = prevoutputs[prevoutputids.index(interface['id'])]['ontime']
+                            offtime = prevoutputs[prevoutputids.index(interface['id'])]['offtime']
+                            polltime = prevoutputs[prevoutputids.index(interface['id'])]['polltime']
                         else:
                             pollfreq = defaultoutputpollfreq
+                            ontime = ''
+                            offtime = ''
+                            polltime = ''
 
                         # Add entry to outputs tables
                         querylist.append('insert into outputs values (\'' + interface['id'] + '\',\'' +
                             interface['interface'] + '\',\'' + interface['type'] + '\',\'' + str(address) + '\',\'' +
                                          gpioname + '\',\'' + str(value) + "','','" + str(polltime) + '\',\'' +
-                                         str(pollfreq) + "','','')")
+                                         str(pollfreq) + "','" + ontime + "','" + offtime + "')")
                     else:
                         GPIO.setup(address, GPIO.IN)
                         value = GPIO.input(address)
@@ -151,15 +158,20 @@ def updateiodata(database):
 
                     # Get input settings and keep them if the GPIO previously existed
                     if interface['id'] in previnputids:
-                        pollfreq = previnputs[previnputids.index(interface['id'])]['pollfreq']
-                        polltime = previnputs[previnputids.index(interface['id'])]['polltime']
+                        pollfreq = previnputs[prevoutputids.index(interface['id'])]['pollfreq']
+                        ontime = previnputs[prevoutputids.index(interface['id'])]['ontime']
+                        offtime = previnputs[prevoutputids.index(interface['id'])]['offtime']
+                        polltime = previnputs[prevoutputids.index(interface['id'])]['polltime']
                     else:
                         pollfreq = defaultinputpollfreq
+                        ontime = ''
+                        offtime = ''
+                        polltime = ''
 
                     querylist.append(
                         'insert into inputs values (\'' + interface['id'] + '\',\'' + interface['interface'] + '\',\'' +
                         interface['type'] + '\',\'' + str(address) + '\',\'' + gpioname + '\',\'' + str(value) + "','','" +
-                        str(polltime) + '\',\'' + str(pollfreq) + "','','')")
+                        str(polltime) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
                 else:
                     GPIO.setup(address, GPIO.IN)
             else:

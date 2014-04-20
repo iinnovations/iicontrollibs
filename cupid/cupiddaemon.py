@@ -126,8 +126,13 @@ def rundaemon(startall=False):
     enableditemlist = [(int(updateioenabled)), (int(picontrolenabled)), int(systemstatusenabled), int(sessioncontrolenabled)]
 
     itemstatuses = findprocstatuses(daemonprocs)
-    print(itemstatuses)
-    pilib.setsinglevalue(pilib.controldatabase, 'systemstatus','systemmessage', 'blurg' + str(picontrolenabled) + ' ' + str(updateioenabled) + ' ' + str(systemstatusenabled) + ' ' + str(sessioncontrolenabled))
+
+    # Set system message
+    systemstatusmsg = ''
+    for name, enabled, status in zip(daemonprocs, enableditemlist, itemstatuses):
+        systemstatusmsg += name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. '
+    pilib.setsinglevalue(pilib.controldatabase, 'systemstatus','systemmessage', systemstatusmsg)
+
     # Set up list of itemnames in the systemstatus table that
     # we assign the values to when we detect if the process
     # is running or not
@@ -158,6 +163,12 @@ def rundaemon(startall=False):
             pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
         else:
             pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')
+
+    # Set system message
+    systemstatusmsg = ''
+    for name, enabled, status in zip(daemonprocs, enableditemlist, itemstatuses):
+        systemstatusmsg += name + ' - Enabled: ' + str(bool(enabled)) + ' Status: ' + str(status) + '. '
+    pilib.setsinglevalue(pilib.controldatabase, 'systemstatus','systemmessage', systemstatusmsg)
 
 if __name__ == "__main__":
     rundaemon()
