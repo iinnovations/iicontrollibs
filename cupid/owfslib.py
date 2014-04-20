@@ -196,10 +196,15 @@ def updateowfsdevices(busdevices, myProxy=None):
 
     for index, device in enumerate(busdevices):
         if device.sensorid in previnputids:
-            if int(previnputs[previnputids.index(device.sensorid)]['pollfreq']) >= 0:
-                device.pollfreq = previnputs[previnputids.index(device.sensorid)]['pollfreq']
-            else:
+            try:
+                newpollfreq = int(previnputs[previnputids.index(device.sensorid)]['pollfreq'])
+            except ValueError:
                 device.pollfreq = defaults['inputpollfreq']
+            else:
+                if newpollfreq >= 0:
+                    device.pollfreq = previnputs[previnputids.index(device.sensorid)]['pollfreq']
+                else:
+                    device.pollfreq = defaults['inputpollfreq']
             device.ontime = previnputs[previnputids.index(device.sensorid)]['ontime']
             device.offtime = previnputs[previnputids.index(device.sensorid)]['offtime']
             device.polltime = previnputs[previnputids.index(device.sensorid)]['polltime']
