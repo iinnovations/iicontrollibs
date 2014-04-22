@@ -326,32 +326,54 @@ def rebuildrecipesdb(tabledict):
 
 def rebuildusersdata():
     import hashlib
-    runquery = False
     querylist = []
     runquery = True
     salt = 'a bunch of random characters and symbols for security'
     querylist.append('drop table if exists users')
+    enteringusers = True
+    runquery = False
+    index = 1
     querylist.append('create table users (id integer primary key not null, name text not null, password text not null, email text not null, temp text not null, authlevel integer default 0)')
-    userslist=[{'name':'owner','authlevel':4,'email':'cupidcontrols@interfaceinnovations.org','password':'owner!'},
-               {'name':'administrator','authlevel':3,'email':'cupidcontrols@interfaceinnovations.org','password':'administrator'},
-               {'name':'controller','authlevel':2,'email':'cupidcontrols@interfaceinnovations.org','password':'controller'},
-               {'name':'viewer','authlevel':1,'email':'cupidcontrols@interfaceinnovations.org','password':'viewer'}
-               ]
-    for index, user in enumerate(userslist):
-        # Create hashed, salted password entry
-        hpass = hashlib.new('sha1')
-        hpass.update(user['password'])
-        hashedpassword = hpass.hexdigest()
-        hname = hashlib.new('sha1')
-        hname.update(user['name'])
-        hashedname = hname.hexdigest()
-        hentry = hashlib.new('md5')
-        hentry.update(hashedname + salt + hashedpassword)
-        hashedentry = hentry.hexdigest()
+    while enteringusers:
+        validentry = True
+        input = raw_input("Enter username or Q to stop: ")
+        passone = raw_input("Enter password: ")
+        passtwo = raw_input("Confirm password: ")
+        emailentry = raw_input("Enter user email")
+        authlevelentry = raw_input("Enter authorization level (0-5)")
 
-        querylist.append("insert into users values(" + str(index) + ",'" + user['name'] + "','" + hashedentry + "','" + user['email'] + "','fff',"+ str(user['authlevel']) + ")")
+        if input == 'Q':
+            enteringusers = False
+            validentry = False
+            print('exiting ...')
+        if passone != passtwo:
+            validentry = False
+            print('passwords do not match')
+        if not len(passone) >= 6:
+            validentry = False
+            print('passwords must be at least six characters')
+        if not emailentry.find('@') > 0:
+            validentry = False
+            print('Email does not appear to be valid')
 
-    sqlitemultquery(usersdatabase, querylist)
+        if validentry:
+             # Create hashed, salted password entry
+            hpass = hashlib.new('sha1')
+            hpass.update(passone)
+            hashedpassword = hpass.hexdigest()
+            hname = hashlib.new('sha1')
+            hname.update(input)
+            hashedname = hname.hexdigest()
+            hentry = hashlib.new('md5')
+            hentry.update(hashedname + salt + hashedpassword)
+            hashedentry = hentry.hexdigest()
+            querylist.append("insert into users values(" + str(index) + ",'" + input + "','" + hashedentry + "','" + emailentry + "',''," + authlevelentry + ")")
+            index += 1
+            runquery = True
+
+    if runquery:
+        print(querylist)
+        sqlitemultquery(usersdatabase, querylist)
 
 ############################################
 # safedata
