@@ -120,6 +120,8 @@ def updateiodata(database):
 
                     # Append to inputs and update name, even if it's an output (can read status as input)
                     if options['mode'] == 'output':
+                        print('setting output mode')
+
                         GPIO.setup(address, GPIO.OUT)
 
                         # Set the value of the gpio.
@@ -139,12 +141,10 @@ def updateiodata(database):
                             pollfreq = prevoutputs[prevoutputids.index(interface['id'])]['pollfreq']
                             ontime = prevoutputs[prevoutputids.index(interface['id'])]['ontime']
                             offtime = prevoutputs[prevoutputids.index(interface['id'])]['offtime']
-                            polltime = prevoutputs[prevoutputids.index(interface['id'])]['polltime']
                         else:
                             pollfreq = defaultoutputpollfreq
                             ontime = ''
                             offtime = ''
-                            polltime = ''
 
                         # Add entry to outputs tables
                         querylist.append('insert into outputs values (\'' + interface['id'] + '\',\'' +
@@ -154,19 +154,17 @@ def updateiodata(database):
                     else:
                         GPIO.setup(address, GPIO.IN)
                         value = GPIO.input(address)
-                        polltime = pilib.gettimestring()
 
                     # Get input settings and keep them if the GPIO previously existed
                     if interface['id'] in previnputids:
                         pollfreq = previnputs[prevoutputids.index(interface['id'])]['pollfreq']
                         ontime = previnputs[prevoutputids.index(interface['id'])]['ontime']
                         offtime = previnputs[prevoutputids.index(interface['id'])]['offtime']
-                        polltime = previnputs[prevoutputids.index(interface['id'])]['polltime']
                     else:
                         pollfreq = defaultinputpollfreq
                         ontime = ''
                         offtime = ''
-                        polltime = ''
+
 
                     querylist.append(
                         'insert into inputs values (\'' + interface['id'] + '\',\'' + interface['interface'] + '\',\'' +
@@ -209,7 +207,7 @@ def updateiodata(database):
         from owfslib import runowfsupdate
         devices, owfsentries = runowfsupdate(execute=False)
         querylist.extend(owfsentries)
-    # print(querylist)
+    print(querylist)
 
     pilib.sqlitemultquery(pilib.controldatabase, querylist)
 

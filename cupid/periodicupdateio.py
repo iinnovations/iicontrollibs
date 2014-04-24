@@ -92,7 +92,7 @@ while updateioenabled:
 
     # Get data for all sensors online
 
-    inputsdata = pilib.readalldbrows(pilib.controldatabase, 'inputsdata')
+    inputsdata = pilib.readalldbrows(pilib.controldatabase, 'inputs')
     for inputrow in inputsdata:
         # Create table if it doesn't exist
 
