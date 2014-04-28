@@ -16,7 +16,7 @@ import pilib
 
 def writedaemonlog(message):
     logfile = open(pilib.daemonlog, 'a')
-    logfile.writelines([message])
+    logfile.writelines([message + '\n\n\n'])
     logfile.close()
 
 class Proc(object):
@@ -161,7 +161,9 @@ def rundaemon(startall=False):
                 print(pilib.baselibdir + daemonprocs[index])
                 if daemonloglevel>0:
                     writedaemonlog(pilib.gettimestring() + ' : starting ' + pilib.baselibdir + daemonprocs[index])
-                Popen([pilib.baselibdir + daemonprocs[index]], stdout=PIPE)
+                proc=Popen([pilib.baselibdir + daemonprocs[index]], stdout=PIPE)
+                if daemonloglevel>0:
+                    writedaemonlog(proc.stdout.read())
 
     sleep(1)
 
