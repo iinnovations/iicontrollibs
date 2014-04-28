@@ -12,6 +12,8 @@ __status__ = "Development"
 daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py']
 daemonloglevel = 1
 
+import pilib
+
 def writedaemonlog(message):
     logfile = open(pilib.daemonlog, 'a')
     logfile.write(message)
@@ -109,15 +111,12 @@ def findprocstatuses(procstofind):
 
 def runallprocs():
     from subprocess import Popen, PIPE
-    from pilib import baselibdir
 
     for index, proc in enumerate(daemonprocs):
-        proc = Popen([baselibdir + daemonprocs[index], '&'])
+        proc = Popen([pilib.baselibdir + daemonprocs[index], '&'])
 
 
 def rundaemon(startall=False):
-
-    import pilib
     from subprocess import Popen, PIPE
     from time import sleep
 
