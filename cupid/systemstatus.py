@@ -230,7 +230,7 @@ def processsystemflags(systemflags=None):
 
 def writenetlog(message):
     logfile = open(pilib.netstatuslog, 'a')
-    logfile.write(message + '\n')
+    logfile.writelines([message])
     logfile.close()
 
 
@@ -329,7 +329,7 @@ if __name__ == '__main__':
         else:
             wpastatusmsg += 'mode error: ' + netconfigdata['mode']
 
-        writenetlog(wpastatusmsg)
+        writenetlog(pilib.gettimestring() + wpastatusmsg)
 
         pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
 
