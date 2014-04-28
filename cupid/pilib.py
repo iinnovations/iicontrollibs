@@ -25,7 +25,7 @@ recipedatabase = databasedir + 'recipedata.db'
 systemdatadatabase = databasedir + 'systemdata.db'
 safedatabase = '/var/wwwsafe/safedata.db'
 usersdatabase = '/var/wwwsafe/users.db'
-netstatuslog = baselibdir + '/var/log/cupid/netstatus.log'
+netstatuslog = '/var/log/cupid/netstatus.log'
 daemonlog = '/var/log/cupid/daemon.log'
 
 
