@@ -25,7 +25,9 @@ recipedatabase = databasedir + 'recipedata.db'
 systemdatadatabase = databasedir + 'systemdata.db'
 safedatabase = '/var/wwwsafe/safedata.db'
 usersdatabase = '/var/wwwsafe/users.db'
-netlogfile = baselibdir + 'misc/netlog'
+netstatuslog = baselibdir + '/var/log/cupid/netstatus.log'
+daemonlog = '/var/log/cupid/daemon.log'
+
 
 #############################################
 ## Utility Functions
@@ -275,6 +277,7 @@ def getpragmatypes(database, table):
     for item in pragma:
         pragmanames.append(item[2])
     return pragmanames
+
 
 def getpragmanametypedict(database, table):
     pragma = getpragma(database, table)
