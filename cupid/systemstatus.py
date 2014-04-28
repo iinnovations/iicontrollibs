@@ -229,7 +229,7 @@ def processsystemflags(systemflags=None):
 
 
 def writenetlog(message):
-    logfile = open(pilib.netlogfile, 'a')
+    logfile = open(pilib.netstatuslog, 'a')
     logfile.write(message)
     logfile.close()
 
