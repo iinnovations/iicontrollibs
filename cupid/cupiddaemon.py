@@ -16,7 +16,7 @@ import pilib
 
 def writedaemonlog(message):
     logfile = open(pilib.daemonlog, 'a')
-    logfile.write(message)
+    logfile.write(message + '\n')
     logfile.close()
 
 class Proc(object):
