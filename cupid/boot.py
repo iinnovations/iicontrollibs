@@ -37,8 +37,8 @@ from netconfig import runconfig
 runconfig(onboot=True)
 
 # Run daemon
-from cupiddaemon import runallprocs
-runallprocs()
+from cupiddaemon import rundaemon
+rundaemon()
 
 # Update hardware version in table
 from systemstatus import readhardwarefileintoversions
