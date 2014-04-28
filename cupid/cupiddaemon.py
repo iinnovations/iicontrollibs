@@ -10,6 +10,7 @@ __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
 daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py']
+daemonloglevel = 1
 
 class Proc(object):
     ''' Data structure for a processes . The class properties are
@@ -123,6 +124,7 @@ def rundaemon(startall=False):
     systemstatusenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select systemstatusenabled from systemstatus')
     sessioncontrolenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select sessioncontrolenabled from systemstatus')
 
+
     enableditemlist = [(int(updateioenabled)), (int(picontrolenabled)), int(systemstatusenabled), int(sessioncontrolenabled)]
 
     itemstatuses = findprocstatuses(daemonprocs)
@@ -131,6 +133,9 @@ def rundaemon(startall=False):
     systemstatusmsg = ''
     for name, enabled, status in zip(daemonprocs, enableditemlist, itemstatuses):
         systemstatusmsg += name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. '
+        if daemonloglevel>0:
+            with open(pilib.daemonlog,'a') as log:
+                log.write(name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. ')
     pilib.setsinglevalue(pilib.controldatabase, 'systemstatus','systemmessage', systemstatusmsg)
 
     # Set up list of itemnames in the systemstatus table that
@@ -150,6 +155,9 @@ def rundaemon(startall=False):
             # run if set to enable
             if enableditemlist[index]:
                 print(pilib.baselibdir + daemonprocs[index])
+                if daemonloglevel>0:
+                    with open(pilib.daemonlog,'a') as log:
+                        log.write(pilib.gettimestring() + ' : starting ' + pilib.baselibdir + daemonprocs[index])
                 Popen([pilib.baselibdir + daemonprocs[index]], stdout=PIPE)
 
     sleep(1)
