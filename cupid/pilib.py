@@ -25,13 +25,37 @@ recipedatabase = databasedir + 'recipedata.db'
 systemdatadatabase = databasedir + 'systemdata.db'
 safedatabase = '/var/wwwsafe/safedata.db'
 usersdatabase = '/var/wwwsafe/users.db'
+
 netstatuslog = '/var/log/cupid/netstatus.log'
+systemstatuslog = '/var/log/cupid/systemstatus.log'
+netconfiglog = '/var/log/cupid/netconfig.log'
 daemonlog = '/var/log/cupid/daemon.log'
+daemonproclog = '/var/log/cupid/daemonproc.log'
+errorlog = '/var/log/cupid/error.log'
+
+maxlogsize = 1024  # kB
+numlogs = 2
+
+
+netconfigloglevel = 1
+netstatusloglevel = 1
+systemstatusloglevel = 1
+daemonloglevel = 1
+
+daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py']
 
 
 #############################################
 ## Utility Functions
 #############################################
+
+def writedatedlogmsg(logfile, message):
+    logfile = open(logfile, 'a')
+    logfile.writelines([gettimestring() + ' : ' + message + '\n'])
+    logfile.close()
+
+def rotatelogs(loglist):
+    pass
 
 def parseoptions(optionstring):
     list = optionstring.split(',')
@@ -470,7 +494,7 @@ def sizesqlitetable(databasename, tablename, size):
     logsize = sqlitedatumquery(databasename, 'select count(*) from \'' + tablename + '\'')
 
     if logsize > size:
-        logexcess = logsize - size
+        logexcess = int(logsize) - int(size)
         sqlitequery(databasename, 'delete from\'' + tablename + '\' order by time limit ' + str(logexcess))
     else:
         logexcess = -1

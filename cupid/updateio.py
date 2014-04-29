@@ -207,7 +207,7 @@ def updateiodata(database):
         from owfslib import runowfsupdate
         devices, owfsentries = runowfsupdate(execute=False)
         querylist.extend(owfsentries)
-    print(querylist)
+    # print(querylist)
 
     pilib.sqlitemultquery(pilib.controldatabase, querylist)
 

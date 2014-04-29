@@ -9,15 +9,7 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
-daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py']
-daemonloglevel = 1
-
 import pilib
-
-def writedaemonlog(message):
-    logfile = open(pilib.daemonlog, 'a')
-    logfile.writelines([message + '\n\n\n'])
-    logfile.close()
 
 class Proc(object):
     ''' Data structure for a processes . The class properties are
@@ -112,8 +104,8 @@ def findprocstatuses(procstofind):
 def runallprocs():
     from subprocess import Popen, PIPE
 
-    for index, proc in enumerate(daemonprocs):
-        proc = Popen([pilib.baselibdir + daemonprocs[index], '&'])
+    for index, proc in enumerate(pilib.daemonprocs):
+        proc = Popen([pilib.baselibdir + pilib.daemonprocs[index], '&'])
 
 
 def rundaemon(startall=False):
@@ -131,14 +123,14 @@ def rundaemon(startall=False):
 
     enableditemlist = [(int(updateioenabled)), (int(picontrolenabled)), int(systemstatusenabled), int(sessioncontrolenabled)]
 
-    itemstatuses = findprocstatuses(daemonprocs)
+    itemstatuses = findprocstatuses(pilib.daemonprocs)
 
     # Set system message
     systemstatusmsg = ''
-    for name, enabled, status in zip(daemonprocs, enableditemlist, itemstatuses):
+    for name, enabled, status in zip(pilib.daemonprocs, enableditemlist, itemstatuses):
         systemstatusmsg += name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. '
-        if daemonloglevel>0:
-            writedaemonlog(name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. ')
+        if pilib.daemonloglevel > 0:
+            pilib.writedatedlogmsg(pilib.daemonlog, name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. ')
 
     pilib.setsinglevalue(pilib.controldatabase, 'systemstatus','systemmessage', systemstatusmsg)
 
@@ -148,29 +140,32 @@ def rundaemon(startall=False):
 
     statustableitemnames = ['updateiostatus', 'picontrolstatus', 'systemstatusstatus', 'sessioncontrolstatus']
 
-    for item in daemonprocs:
-        index = daemonprocs.index(item)
+    for index, item in enumerate(pilib.daemonprocs):
         # set status
         if itemstatuses[index]:
             pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
+            if pilib.daemonloglevel > 0:
+                pilib.writedatedlogmsg(pilib.daemonlog, 'Process is running: ' + pilib.baselibdir + pilib.daemonprocs[index])
         else:
             pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')
+            if pilib.daemonloglevel > 0:
+                pilib.writedatedlogmsg(pilib.daemonlog, 'Process is not running: ' + pilib.baselibdir + pilib.daemonprocs[index])
 
             # run if set to enable
             if enableditemlist[index]:
-                print(pilib.baselibdir + daemonprocs[index])
-                if daemonloglevel>0:
-                    writedaemonlog(pilib.gettimestring() + ' : starting ' + pilib.baselibdir + daemonprocs[index])
-                proc=Popen([pilib.baselibdir + daemonprocs[index]], stdout=PIPE)
-                if daemonloglevel>0:
-                    writedaemonlog(proc.stdout.read())
+                print(pilib.baselibdir + pilib.daemonprocs[index])
+                if pilib.daemonloglevel > 0:
+                    pilib.writedatedlogmsg(pilib.daemonlog, 'Starting ' + pilib.baselibdir + pilib.daemonprocs[index])
+                procresult = Popen([pilib.baselibdir + pilib.daemonprocs[index]], stdout=PIPE)
+                # if pilib.daemonloglevel > 0:
+                #     pilib.writedatedlogmsg(pilib.daemonproclog, procresult.stdout.read())
 
     sleep(1)
 
     # Refresh after set
-    itemstatuses = findprocstatuses(daemonprocs)
-    for item in daemonprocs:
-        index = daemonprocs.index(item)
+    itemstatuses = findprocstatuses(pilib.daemonprocs)
+    for item in pilib.daemonprocs:
+        index = pilib.daemonprocs.index(item)
         # set status
         if itemstatuses[index]:
             pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
@@ -179,7 +174,7 @@ def rundaemon(startall=False):
 
     # Set system message
     systemstatusmsg = ''
-    for name, enabled, status in zip(daemonprocs, enableditemlist, itemstatuses):
+    for name, enabled, status in zip(pilib.daemonprocs, enableditemlist, itemstatuses):
         systemstatusmsg += name + ' - Enabled: ' + str(bool(enabled)) + ' Status: ' + str(status) + '. '
     pilib.setsinglevalue(pilib.controldatabase, 'systemstatus','systemmessage', systemstatusmsg)
 

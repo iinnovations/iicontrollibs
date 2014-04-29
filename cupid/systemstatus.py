@@ -141,14 +141,22 @@ def updateifacestatus():
                 querylist.append(pilib.makesinglevaluequery('netstatus', 'offlinetime', ''))
 
     # Check dhcp server status
-    result = subprocess.Popen(['service', 'isc-dhcp-server', 'status'], stdout=subprocess.PIPE)
-    for line in result.stdout:
-        if line.find('not running') > 0:
-            dhcpstatus = 0
-        elif line.find('is running') > 0:
-            dhcpstatus = 1
-        else:
-            dhcpstatus = '\?'
+    try:
+        result = subprocess.Popen(['service', 'isc-dhcp-server', 'status'], stdout=subprocess.PIPE)
+    except:
+        dhcpstatus = 0
+        if pilib.systemstatusloglevel > 0:
+            pilib.writedatedlogmsg(pilib.systemstatuslog,'Error in reading dhcp server status.')
+            logging.exception(pilib.gettimestring() + ' : read dhcp status error')
+    else:
+        for line in result.stdout:
+            if line.find('not running') > 0:
+                dhcpstatus = 0
+            elif line.find('is running') > 0:
+                dhcpstatus = 1
+            else:
+                dhcpstatus = '\?'
+
 
     wpastatusdict['connected'] = wpaconnected
     try:
@@ -228,16 +236,14 @@ def processsystemflags(systemflags=None):
             updatecupidweblib(True)
 
 
-def writenetlog(message):
-    logfile = open(pilib.netstatuslog, 'a')
-    logfile.writelines([message])
-    logfile.close()
-
-
 if __name__ == '__main__':
 
     import pilib
     import time
+
+    import logging
+    logging.basicConfig(level=logging.DEBUG,filename=pilib.errorlog)
+
     from misc.gitupdatelib import updategitversions
 
     updategitversions()
@@ -253,14 +259,23 @@ if __name__ == '__main__':
 
         # Update network interfaces statuses for all interfaces, in database tables as well
         # Check on wpa supplicant status as well. Function returns wpastatusdict
+        try:
+            wpastatusdict = updateifacestatus()
+        except:
+            pilib.writedatedlogmsg(pilib.systemstatuslog,'Exception in updateifacestatus. ')
+            logging.exception(pilib.gettimestring() + ' : updateifacestatus exception')
+        else:
+            pilib.writedatedlogmsg(pilib.systemstatuslog,'Updateifacestatus completed. ')
 
-        wpastatusdict = updateifacestatus()
         netconfigdata = pilib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
         netstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
 
         wpastatusmsg = ''
         # If mode is ap or tempap
         if netconfigdata['mode'] in ['ap', 'tempap']:
+            if pilib.systemstatusloglevel > 0:
+                pilib.writedatedlogmsg(pilib.systemstatuslog,'Configuring ap mode. ')
+
             timesincelastretry = pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(netconfigdata['laststationretry'])
             # If it's time to go back to station mode, we don't care whether we are connected as ap or not
             # We use dhcp status as indicator of ap status. Imperfect, but functional.
@@ -291,6 +306,9 @@ if __name__ == '__main__':
 
         # If mode is station
         elif netconfigdata['mode'] == 'station':
+            if pilib.systemstatusloglevel > 0:
+                pilib.writedatedlogmsg(pilib.systemstatuslog,'Configuring station mode. ')
+
             # If we have wpa up, do nothing
             if netstatus['connected']:
                 wpastatusmsg += 'Station wpamode appears ok. '
@@ -324,12 +342,11 @@ if __name__ == '__main__':
                     pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
                     wpastatusmsg += 'Rebooting on wpaset ap mode. '
                     print(wpastatusmsg)
-                    writenetlog(wpastatusmsg)
                     netconfig.runconfig()
         else:
             wpastatusmsg += 'mode error: ' + netconfigdata['mode']
 
-        writenetlog(pilib.gettimestring() + wpastatusmsg)
+        pilib.writedatedlogmsg(pilib.netstatuslog,wpastatusmsg)
 
         pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
 

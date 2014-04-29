@@ -16,13 +16,19 @@ top_folder = \
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
-from cupid.pilib import readonedbrow, systemdatadatabase
-
+from cupid.pilib import readonedbrow, systemdatadatabase, writedatedlogmsg, netconfiglog, netconfigloglevel
 
 def getwpaclientstatus():
     import subprocess
 
-    result = subprocess.Popen(['wpa_cli', 'status'], stdout=subprocess.PIPE)
+    try:
+        result = subprocess.Popen(['/sbin/wpa_cli', 'status'], stdout=subprocess.PIPE)
+    except:
+        if netconfigloglevel > 0:
+            writedatedlogmsg(netconfiglog, 'Error reading wpa client status. ')
+        else:
+            return
+
     # prune interface ID
     resultdict = {}
 
