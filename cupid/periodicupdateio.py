@@ -63,9 +63,9 @@ while updateioenabled:
 
         if controlinput:
             controlvalue = pilib.sqlitedatumquery(pilib.controldatabase,
-                                                  'select value from inputs where id=' + "'" + controlinput + "'")
+                                                  'select value from inputs where name=' + "'" + controlinput + "'")
             controltime = pilib.sqlitedatumquery(pilib.controldatabase,
-                                                 'select polltime from inputs where id=' + "'" + controlinput + "'")
+                                                 'select polltime from inputs where name=' + "'" + controlinput + "'")
 
             # Only update channel value if value was found
 
@@ -78,7 +78,7 @@ while updateioenabled:
                                   'update channels set controlvaluetime=\'' + controltime + '\' where controlinput = ' + "'" + controlinput + "'")
 
         else:  # input is empty
-            pilib.sqlitequery(pilib.controldatabase, "update channels set statusmessage = \'No controlinput found '")
+            pilib.sqlitequery(pilib.controldatabase, "update channels set statusmessage = 'No controlinput found ' where name='" + channelname + "'")
 
             # disable channel
             #pilib.sqlitequery(controldatabase,"update channels set enabled=0 where controlinput = \'" + controlinput + "'") 

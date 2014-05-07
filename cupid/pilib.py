@@ -33,6 +33,9 @@ daemonlog = '/var/log/cupid/daemon.log'
 daemonproclog = '/var/log/cupid/daemonproc.log'
 errorlog = '/var/log/cupid/error.log'
 
+salt = 'a bunch of random characters and symbols for security'
+
+
 maxlogsize = 1024  # kB
 numlogs = 2
 
