@@ -57,8 +57,37 @@ def writedatedlogmsg(logfile, message):
     logfile.writelines([gettimestring() + ' : ' + message + '\n'])
     logfile.close()
 
-def rotatelogs(loglist):
-    pass
+def rotatelogs(logname, numlogs, logsize):
+    import os
+
+    returnmessage = ''
+    logmessage = ''
+    try:
+        currlogsize = os.path.getsize(logname)
+    except:
+        logmessage = 'Error sizing original log'
+        returnmessage = logmessage
+        statuscode = 1
+    else:
+        statuscode = 0
+        if currlogsize > logsize:
+            for i in range(numlogs - 1):
+                oldlog = logname + '.' + str(numlogs - i - 2)
+                newlog = logname + '.' + str(numlogs - i - 1)
+                try:
+                    os.rename(oldlog, newlog)
+                except:
+                    logmessage += 'file error. log ' + oldlog + ' does not exist?\n'
+
+            try:
+                os.rename(logname, logname + '.1')
+            except:
+                logmessage += 'original doesn\'t exist\?\n'
+                returnmessage = "error in "
+        else:
+            logmessage += 'log not big enough\n'
+            returnmessage = 'logs not rotated'
+    return {'message': returnmessage, 'logmessage': logmessage, 'statuscode': 0}
 
 def parseoptions(optionstring):
     list = optionstring.split(',')
