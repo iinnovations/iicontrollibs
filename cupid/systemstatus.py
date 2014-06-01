@@ -17,16 +17,19 @@ import netconfig
 def readhardwarefileintoversions():
     from pilib import systemdatadatabase, makesqliteinsert, sqlitequery
     devicefile = '/var/wwwsafe/devicedata'
-    file = open(devicefile)
-    lines = file.readlines()
-    devicedict={}
-    for line in lines:
-        split = line.split(':')
-        try:
-            devicedict[split[0].strip()] = split[1].strip()
-        except:
-            print('parse error')
-    sqlitequery(systemdatadatabase, makesqliteinsert('versions', ['hardware',devicedict['hardware']], ['item', 'version']))
+    try:
+        file = open(devicefile)
+        lines = file.readlines()
+        devicedict={}
+        for line in lines:
+            split = line.split(':')
+            try:
+                devicedict[split[0].strip()] = split[1].strip()
+            except:
+                pilib.writedatedlogmsg(pilib.systemstatuslog, 'Device data parse error', 1, pilib.systemstatusloglevel)
+        sqlitequery(systemdatadatabase, makesqliteinsert('versions', ['hardware',devicedict['hardware']], ['item', 'version']))
+    except:
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Cannot find devicedata file to parse', 1, pilib.systemstatusloglevel)
 
 
 def runping(pingAddress,numpings=1):
@@ -67,7 +70,7 @@ def runping(pingAddress,numpings=1):
             # Ping stored in latency in milliseconds
             #print '%f ms' % (latency)
             pingtimes.append(latency)
-    # print(pingtimes)
+            pilib.writedatedlogmsg(pilib.systemstatuslog, 'ping times: ' + str(pingtimes), 3, pilib.systemstatusloglevel)
     return pingtimes
 
 
@@ -122,7 +125,7 @@ def updateifacestatus():
         if wpastatusdict['wpa_state'] == 'COMPLETED':
             wpaconnected = 1
             if netstatus['connected'] == 0 or netstatus['onlinetime'] == '':
-                print('setting online time')
+                pilib.writedatedlogmsg(pilib.systemstatuslog, 'setting online time', 2, pilib.systemstatusloglevel)
                 querylist.append(pilib.makesinglevaluequery('netstatus', 'onlinetime', gettimestring()))
                 querylist.append(pilib.makesinglevaluequery('netstatus', 'offlinetime', ''))
         else:
@@ -133,11 +136,11 @@ def updateifacestatus():
     if wpaconnected == 0:
         if netstatus['connected'] == 1 or netstatus['offlinetime'] == '':
             if netconfigdata['mode'] == "station":
-                print('setting offline time')
+                pilib.writedatedlogmsg(pilib.systemstatuslog, 'setting offline time', 2, pilib.systemstatusloglevel)
                 querylist.append(pilib.makesinglevaluequery('netstatus', 'offlinetime', gettimestring()))
                 querylist.append(pilib.makesinglevaluequery('netstatus', 'onlinetime', ''))
             else:
-                print('erasing offline time')
+                pilib.writedatedlogmsg(pilib.systemstatuslog, 'setting online time', 2, pilib.systemstatusloglevel)
                 querylist.append(pilib.makesinglevaluequery('netstatus', 'offlinetime', ''))
 
     # Check dhcp server status
@@ -145,9 +148,7 @@ def updateifacestatus():
         result = subprocess.Popen(['service', 'isc-dhcp-server', 'status'], stdout=subprocess.PIPE)
     except:
         dhcpstatus = 0
-        if pilib.systemstatusloglevel > 0:
-            pilib.writedatedlogmsg(pilib.systemstatuslog,'Error in reading dhcp server status.')
-            logging.exception(pilib.gettimestring() + ' : read dhcp status error')
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Error in reading dhcp server status.', 1, pilib.systemstatusloglevel)
     else:
         for line in result.stdout:
             if line.find('not running') > 0:
@@ -181,11 +182,11 @@ def updateifacestatus():
     querylist.append(pilib.makesinglevaluequery('netstatus', 'dhcpstatus', dhcpstatus))
     querylist.append(pilib.makesinglevaluequery('netstatus', 'connected', str(wpaconnected)))
     if netconfigdata['mode'] in ['ap','tempap']:
-        print('setting apmode netstatus')
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'setting apmode', 1, pilib.netstatusloglevel)
         querylist.append(pilib.makesinglevaluequery('netstatus', 'mode', netconfigdata['mode']))
         querylist.append(pilib.makesinglevaluequery('netstatus', 'SSID', 'cupidwifi'))
     else:
-        print('setting station mode netstatus')
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'setting station mode', 1, pilib.netstatusloglevel)
         querylist.append(pilib.makesinglevaluequery('netstatus', 'mode', str(mode)))
         querylist.append(pilib.makesinglevaluequery('netstatus', 'SSID', str(ssid)))
     querylist.append(pilib.makesinglevaluequery('netstatus', 'WANaccess', str(wanaccess)))
@@ -274,7 +275,7 @@ if __name__ == '__main__':
         # If mode is ap or tempap
         if netconfigdata['mode'] in ['ap', 'tempap']:
             if pilib.systemstatusloglevel > 0:
-                pilib.writedatedlogmsg(pilib.systemstatuslog,'Configuring ap mode. ')
+                pilib.writedatedlogmsg(pilib.systemstatuslog,'Configuring ap mode. ', 1, pilib.systemstatusloglevel)
 
             timesincelastretry = pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(netconfigdata['laststationretry'])
             # If it's time to go back to station mode, we don't care whether we are connected as ap or not
@@ -293,7 +294,6 @@ if __name__ == '__main__':
                     pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'mode', 'ap')
                     pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'SSID', 'cupidwifi')
                     pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'offlinetime', '')
-
 
                 # If we don't have dhcp up, restart ap mode
                 # this will currently cause reboot if we don't set onboot=True

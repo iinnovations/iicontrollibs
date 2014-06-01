@@ -18,6 +18,7 @@ if top_folder not in sys.path:
 
 from cupid.pilib import readonedbrow, systemdatadatabase, writedatedlogmsg, netconfiglog, netconfigloglevel
 
+
 def getwpaclientstatus():
     import subprocess
 
@@ -151,13 +152,13 @@ def setstationmode(netconfigdata=None):
     killapservices()
     if netconfigdata['addtype'] == 'static':
 
-        subprocess.call(['cp', '/etc/network/interfaces.sta.static', '/etc/network/interfaces'])
+        subprocess.call(['cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.static', '/etc/network/interfaces'])
         # update IP from netconfig
         print(netconfigdata['address'])
         replaceifaceparameters('/etc/network/interfaces', '/etc/network/interfaces', 'wlan0', ['address', 'gateway'],
                                [netconfigdata['address'], netconfigdata['gateway']])
     elif netconfigdata['addtype'] == 'dhcp':
-        subprocess.call(['cp', '/etc/network/interfaces.sta.dhcp', '/etc/network/interfaces'])
+        subprocess.call(['cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.dhcp', '/etc/network/interfaces'])
     resetwlan()
     sleep(1)
     resetwlan()
@@ -200,28 +201,33 @@ def resetwlan():
 
 def runconfig(onboot=False):
     import subprocess
-
-    netconfigdata = readonedbrow(systemdatadatabase, 'netconfig')[0]
-    if netconfigdata['enabled']:
-        # This will grab the specified SSID and the credentials and update
-        # the wpa_supplicant file
-        updatewpasupplicant()
-        # Copy the correct interfaces file
-        if netconfigdata['mode'] == 'station':
-            print('station mode')
-            setstationmode(netconfigdata)
-        elif netconfigdata['mode'] in ['ap', 'tempap']:
-            print('access point mode')
-            setapmode()
-
-            # Unfortunately, we currently need to reboot prior to setting
-            # ap mode to get it to stick unless we are doing it at bootup
-            if not onboot:
-                print('time to reboot')
-                subprocess.call(['reboot'])
-
+    try:
+        netconfigdata = readonedbrow(systemdatadatabase, 'netconfig')[0]
+    except:
+        print('oops')
     else:
-        print('automatic net configuration disabled')
+        print(netconfigdata['enabled'])
+        if netconfigdata['enabled']:
+            print('I am enabled')
+            # This will grab the specified SSID and the credentials and update
+            # the wpa_supplicant file
+            updatewpasupplicant()
+            # Copy the correct interfaces file
+            if netconfigdata['mode'] == 'station':
+                print('station mode')
+                setstationmode(netconfigdata)
+            elif netconfigdata['mode'] in ['ap', 'tempap']:
+                print('access point mode')
+                setapmode()
+
+                # Unfortunately, we currently need to reboot prior to setting
+                # ap mode to get it to stick unless we are doing it at bootup
+                if not onboot:
+                    print('time to reboot')
+                    subprocess.call(['reboot'])
+
+        else:
+            print('automatic net configuration disabled')
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ def application(environ, start_response):
     if top_folder not in sys.path:
         sys.path.insert(0,top_folder)
 
-    from cupid.pilib import sqlitedatadump, sqlitequery, sqlitemultquery, usersdatabase, datarowtodict
+    from cupid.pilib import sqlitedatadump, sqlitequery, sqlitemultquery, usersdatabase, datarowtodict, tail
 
     post_env = environ.copy()
     post_env['QUERY_STRING'] = ''
@@ -23,7 +23,7 @@ def application(environ, start_response):
 
     formname=post.getvalue('name')
     data={}
-    data['message']=''
+    data['message'] = 'Output Message: '
     d={}
     for k in post.keys():
         d[k] = post.getvalue(k)
@@ -36,10 +36,10 @@ def application(environ, start_response):
         if action == 'dump':
             if 'database' in d and 'tablelist' in d and 'outputfile' in d:
                 sqlitedatadump(d['database'],d['tablelist'],d['outputfile'])
-                data='data dumped'
+                data['message'] = 'data dumped'
             elif 'database' in d and 'tablename' in d and 'outputfile' in d:
                 sqlitedatadump(d['database'],[d['tablename']],d['outputfile'])
-                data='data dumped'
+                data['message'] = 'data dumped'
             else:
                 data = 'keys not present for dump'
         elif action in ['userdelete', 'useradd', 'usermodify']:
@@ -48,7 +48,7 @@ def application(environ, start_response):
             try:
                 userdata = datarowtodict(usersdatabase, 'users', sqlitequery(usersdatabase, "select * from users where name='" + d['sessionuser'] + "'")[0])
             except:
-                data['message'] += 'error in sqlite query. '
+                data['message'] += 'error in user sqlite query. '
             else:
                 # Verify the credentials of the user are sufficient so we don't bother checking hash if not.
 
@@ -129,15 +129,54 @@ def application(environ, start_response):
 
                 else:
                     data['message'] = 'insufficient authorization level for current user. '
-
-
+        elif action == 'getfiletext':
+            try:
+                filepath = d['filepath']
+                if 'numlines' in d:
+                    numlines = int(d['numlines'])
+                else:
+                    numlines = 9999
+                data['message'] += 'Using numlines: ' + str(numlines) + ' for read action. '
+                if 'startposition' in d:
+                    startposition = d['startposition']
+                else:
+                    startposition = 'end'
+                data['message'] += 'Reading from position ' + startposition + '. '
+            except KeyError:
+                data['message'] += 'Sufficient keys for action getfile text do not exist. '
+            except:
+                data['message'] += 'Uncaught error in getfiletext. '
+            else:
+                try:
+                    file = open(filepath)
+                    lines = file.readlines()
+                except:
+                    data['message'] += 'Error reading file in getfiletext action. '
+                else:
+                    outputdata = []
+                    if startposition == 'end':
+                        try:
+                            outputdata = tail(file, numlines)
+                        except:
+                            data['message'] += 'Error in tail read. '
+                    else:
+                        linecount = 0
+                        for line in lines:
+                            linecount += 1
+                            if linecount > numlines:
+                                break
+                            else:
+                                outputdata.append(line)
+                    data['data'] = outputdata
+        else:
+            data['message'] += 'Action keyword present(' + action + '), but not handled. '
     else:
-        data['message']+='action keyword not present. '
+        data['message'] += 'action keyword not present. '
 
-    output = json.dumps(data,indent=1)
+    output = json.dumps(data, indent=1)
 
     response_headers = [('Content-type', 'application/json')]
-    start_response(status,response_headers)
+    start_response(status, response_headers)
 
     return [output]
 

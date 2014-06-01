@@ -37,12 +37,12 @@ salt = 'a bunch of random characters and symbols for security'
 
 
 maxlogsize = 1024  # kB
-numlogs = 2
+numlogs = 5
 
 
 netconfigloglevel = 1
 netstatusloglevel = 1
-systemstatusloglevel = 1
+systemstatusloglevel = 4
 daemonloglevel = 1
 
 daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py']
@@ -52,12 +52,14 @@ daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systems
 ## Utility Functions
 #############################################
 
-def writedatedlogmsg(logfile, message):
-    logfile = open(logfile, 'a')
-    logfile.writelines([gettimestring() + ' : ' + message + '\n'])
-    logfile.close()
+def writedatedlogmsg(logfile, message, reqloglevel=1, currloglevel=1):
+    if currloglevel >= reqloglevel:
+        logfile = open(logfile, 'a')
+        logfile.writelines([gettimestring() + ' : ' + message + '\n'])
+        logfile.close()
 
-def rotatelogs(logname, numlogs, logsize):
+
+def rotatelogs(logname, numlogs=5, logsize=1024):
     import os
 
     returnmessage = ''
@@ -87,7 +89,8 @@ def rotatelogs(logname, numlogs, logsize):
         else:
             logmessage += 'log not big enough\n'
             returnmessage = 'logs not rotated'
-    return {'message': returnmessage, 'logmessage': logmessage, 'statuscode': 0}
+    return {'message': returnmessage, 'logmessage': logmessage, 'statuscode': statuscode}
+
 
 def parseoptions(optionstring):
     list = optionstring.split(',')
@@ -118,6 +121,30 @@ def timestringtoseconds(timestring):
         timeinseconds = 0
     return timeinseconds
 
+
+def tail( f, window=20 ):
+    BUFSIZ = 1024
+    f.seek(0, 2)
+    bytes = f.tell()
+    size = window
+    block = -1
+    data = []
+    while size > 0 and bytes > 0:
+        if (bytes - BUFSIZ > 0):
+            # Seek back one whole BUFSIZ
+            f.seek(block*BUFSIZ, 2)
+            # read BUFFER
+            data.append(f.read(BUFSIZ))
+        else:
+            # file too small, start from begining
+            f.seek(0,0)
+            # only read what was not read
+            data.append(f.read(bytes))
+        linesFound = data[-1].count('\n')
+        size -= linesFound
+        bytes -= BUFSIZ
+        block -= 1
+    return ''.join(data).splitlines()[-window:]
 
 # This class defines actions taken on
 class action:
@@ -463,10 +490,15 @@ def makesinglevaluequery(table, valuename, value, condition=None):
 
 def readonedbrow(database, table, rownumber=0):
     data = sqlitequery(database, 'select * from \'' + table + '\'')
-    datarow = data[rownumber]
+    try:
+        datarow = data[rownumber]
 
-    dict = datarowtodict(database, table, datarow)
-    dictarray = [dict]
+        dict = datarowtodict(database, table, datarow)
+        dictarray = [dict]
+    except:
+        print('no row here')
+        dictarray = {}
+        pass
 
     return dictarray
 

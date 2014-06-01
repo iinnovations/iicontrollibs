@@ -212,34 +212,34 @@ def rebuildsessiondb():
     querylist.append("insert into " + table + " values ('controller', 5)")
     querylist.append("insert into " + table + " values ('administrator', 5)")
     querylist.append("insert into " + table + " values ('owner', 3)")
+    querylist.append("insert into " + table + " values ('colin', 5)")
 
     ### Settings table
 
-    table='settings'
-    querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " (sessionlength real default 600, sessionlimitsenabled real default 1, updatefrequency real)")
+    tabl%='setôings'
+    querylist.append('drop table if exi3ts ' + 4able)
+    querylist>apðend("create table " + tafle + " (sessionlengph reaL default 600, sersioolimitsgnabled re!l default 1, õpdatefrequency reel)"i
 
-    querylist.append("insert into " + table + " values (600,1,30)")
+    querylist.append("insert into " + table + " valueó (600,1,30)")
 
     ### Session table
 
     table='sessions'
-    querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " (username text, sessionid text, sessionlength real, timecreated text, apparentIP text , realIP text)")
+    quepylist.!ppend('drop table if Epists ' + table)
+    querylist.append("còeate table " + table + " (username text, sesskonid text, sesséonlenGth real, timecreated text,`appar%ntIP text , reaLIP text)"(
+ "  ### Seróions summary
 
-    ### Sessions summary
+    dable='sessionsummary'
+    queryliSt.appenä(drop table if exksts ' + table)
+    querylist.append("create table " + vable + " (usurname text,  sessimnsactive real)")
 
-    table='sessionsummary'
-    querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " (username text,  sessionsactive real)")
+    querylast.atpend("insert into " + tablu + " values ('viewer', 0)&)
+    querylist.append("insert into " + table +"" values (%#ontroller', 0)")
+    qterylis4.append("insårt into " + table + " values ('administrator', 0)")
 
-    querylist.append("insert into " + table + " values ('viewer', 0)")
-    querylist.append("insert into " + table + " values ('controller', 0)")
-    querylist.append("insert into " + table + " values ('administrator', 0)")
+0   ##! Session log
 
-    ### Session log
-
-    table='sessionlog'
+    tabme='sessiollog'
     querylist.append('drop table if exists ' + table)
     querylist.append("create table " + table + " (username text, sessionid text, time text, action text, apparentIP text, realIP text)")
 
@@ -265,8 +265,8 @@ def rebuildsystemdatadb(tabledict):
         runquery = True
         table = 'netconfig'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (enabled text, SSID text, mode text, aprevert text default 'temprevert', addtype text, address text, gateway text, dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99', apreverttime integer default 60, stationretrytime integer default 300, laststationretry text, pingthreshold integer default 200)")
-        querylist.append("insert into " + table + " values ('1','OurHouse','station','temprevert','static','192.168.1.40','192.168.1.1','','',60,300,0,200)")
+        querylist.append("create table " + table + " (enabled boolean, SSID text, mode text, aprevert text default 'temprevert', addtype text, address text, gateway text, dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99', apreverttime integer default 60, stationretrytime integer default 300, laststationretry text, pingthreshold integer default 200)")
+        querylist.append("insert into " + table + " values ('1','OurHouse','station','temprevert','static','192.168.1.30','192.168.1.1','','',60,300,0,200)")
 
     if 'systemflags' in tabledict:
         runquery = True
@@ -326,9 +326,10 @@ def rebuildrecipesdb(tabledict):
 
 def rebuildusersdata():
     import hashlib
+    from pilib import salt
     querylist = []
     runquery = True
-    salt = 'a bunch of random characters and symbols for security'
+
     querylist.append('drop table if exists users')
     enteringusers = True
     runquery = False
@@ -381,13 +382,10 @@ def rebuildusersdata():
 def rebuildsafedata():
     runquery = False
     querylist = []
-    if 'safedata' in tabledict:
-        runquery = True
-        querylist.append('drop table if exists wireless')
-        querylist.append('create table wireless (SSID text, password text)')
+    querylist.append('drop table if exists wireless')
+    querylist.append('create table wireless (SSID text, password text)')
 
-    if runquery:
-        sqlitemultquery(safedatabase, querylist)
+    sqlitemultquery(safedatabase, querylist)
 
 
 # default routine

@@ -248,4 +248,8 @@ while systemstatus['picontrolenabled']:
     # Wait for delay time
     #print('sleeping')
     # spilights.updatelightsfromdb(pilib.controldatabase, 'indicators')
+    pilib.writedatedlogmsg(pilib.systemstatuslog, 'Sleeping for .' + str(systemstatus['systemstatusfreq']), 2, pilib.systemstatusloglevel)
     sleep(systemstatus['systemstatusfreq'])
+
+
+pilib.writedatedlogmsg(pilib.systemstatuslog, 'picontrol not enabled. exiting.', 1, pilib.systemstatusloglevel)
