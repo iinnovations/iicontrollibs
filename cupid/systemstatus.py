@@ -242,9 +242,6 @@ if __name__ == '__main__':
     import pilib
     import time
 
-    import logging
-    logging.basicConfig(level=logging.DEBUG,filename=pilib.errorlog)
-
     from misc.gitupdatelib import updategitversions
 
     updategitversions()
@@ -263,10 +260,9 @@ if __name__ == '__main__':
         try:
             wpastatusdict = updateifacestatus()
         except:
-            pilib.writedatedlogmsg(pilib.systemstatuslog,'Exception in updateifacestatus. ')
-            logging.exception(pilib.gettimestring() + ' : updateifacestatus exception')
+            pilib.writedatedlogmsg(pilib.systemstatuslog, 'Exception in updateifacestatus. ')
         else:
-            pilib.writedatedlogmsg(pilib.systemstatuslog,'Updateifacestatus completed. ')
+            pilib.writedatedlogmsg(pilib.systemstatuslog, 'Updateifacestatus completed. ')
 
         netconfigdata = pilib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
         netstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]

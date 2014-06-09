@@ -9,14 +9,21 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
-import os, sys, inspect, subprocess
+try:
+    import os
+    import sys
+    import inspect
+    import subprocess
+except ImportError:
+    print('Import error. Exiting.')
+    exit
 
 top_folder = \
     os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
-from cupid.pilib import readonedbrow, systemdatadatabase, writedatedlogmsg, netconfiglog, netconfigloglevel
+from cupid.pilib import readonedbrow, systemdatadatabase, writedatedlogmsg, netconfiglog, netconfigloglevel, systemstatuslog, systemstatusloglevel
 
 
 def getwpaclientstatus():
@@ -24,11 +31,10 @@ def getwpaclientstatus():
 
     try:
         result = subprocess.Popen(['/sbin/wpa_cli', 'status'], stdout=subprocess.PIPE)
+        writedatedlogmsg(netconfiglog, 'Error reading wpa client status. ')
     except:
-        if netconfigloglevel > 0:
-            writedatedlogmsg(netconfiglog, 'Error reading wpa client status. ')
-        else:
-            return
+        writedatedlogmsg(netconfiglog, 'Error reading wpa client status. ', 0, netconfigloglevel)
+
 
     # prune interface ID
     resultdict = {}
@@ -37,7 +43,6 @@ def getwpaclientstatus():
         if result.find('=') > 0:
             split = result.split('=')
             resultdict[split[0]] = split[1].strip()
-    # print(resultdict)
     return resultdict
 
 
@@ -57,7 +62,7 @@ def getwpasupplicantconfig(conffile='/etc/wpa_supplicant/wpa_supplicant.conf'):
         if readheader:
             header = header + line
         if '}' in line:
-            print('parsing ended')
+            writedatedlogmsg(netconfiglog, 'Ending supplicant parse. ', 5, netconfigloglevel)
             readbody = False
             readtail = True
         if readbody:
@@ -65,7 +70,7 @@ def getwpasupplicantconfig(conffile='/etc/wpa_supplicant/wpa_supplicant.conf'):
         if readtail:
             tail = tail + line
         if '{' in line:
-            print('starting parse')
+            writedatedlogmsg(netconfiglog, 'Beginning supplicant parse. ', 5, netconfigloglevel)
             readheader = False
             readbody = True
 
@@ -84,17 +89,30 @@ def getwpasupplicantconfig(conffile='/etc/wpa_supplicant/wpa_supplicant.conf'):
 def updatesupplicantdata(configdata):
     from pilib import readalldbrows, safedatabase, systemdatadatabase
 
-    netconfig = readalldbrows(systemdatadatabase, 'netconfig')[0]
-    wirelessauths = readalldbrows(safedatabase, 'wireless')
+    try:
+        netconfig = readalldbrows(systemdatadatabase, 'netconfig')[0]
+    except:
+         writedatedlogmsg(netconfiglog, 'Error reading netconfig data. ', 0, netconfigloglevel)
+    else:
+         writedatedlogmsg(netconfiglog, 'Read netconfig data. ', 4, netconfigloglevel)
+
+    try:
+        wirelessauths = readalldbrows(safedatabase, 'wireless')
+    except:
+         writedatedlogmsg(netconfiglog, 'Error reading wireless data. ', 0, netconfigloglevel)
+    else:
+         writedatedlogmsg(netconfiglog, 'Read wireless data. ', 4, netconfigloglevel)
+
     password = ''
-    print(netconfig)
+
+    writedatedlogmsg(netconfiglog, 'Netconfig data: ' + str(netconfig), 2, netconfigloglevel)
+
     # we only update if we find the credentials
     for auth in wirelessauths:
         if auth['SSID'] == netconfig['SSID']:
             password = '"' + auth['password'] + '"'
             ssid = '"' + auth['SSID'] + '"'
-            # print(password)
-            print('found')
+            writedatedlogmsg(netconfiglog, 'SSID ' + auth['SSID'] + 'found. ', 1, netconfigloglevel)
             configdata.data['psk'] = password
             configdata.data['ssid'] = ssid
     return configdata
@@ -106,15 +124,35 @@ def writesupplicantfile(filedata, filepath='/etc/wpa_supplicant/wpa_supplicant.c
     for key, value in filedata.data.items():
         writestring += key + '=' + value + '\n'
     writestring += filedata.tail
-    myfile = open(filepath, 'w')
-    myfile.write(writestring)
+    writedatedlogmsg(netconfiglog, 'Writing supplicant file. ', 1, netconfigloglevel)
+    try:
+        myfile = open(filepath, 'w')
+        myfile.write(writestring)
+    except:
+        writedatedlogmsg(netconfiglog, 'Error writing supplicant file. ', 1, netconfigloglevel)
+    else:
+        writedatedlogmsg(netconfiglog, 'Supplicant file written. ', 3, netconfigloglevel)
 
 
 def updatewpasupplicant():
-    suppdata = getwpasupplicantconfig()
-    updateddata = updatesupplicantdata(suppdata)
-    writesupplicantfile(updateddata)
-
+    try:
+        suppdata = getwpasupplicantconfig()
+    except:
+        writedatedlogmsg(netconfiglog, 'Error getting supplicant data. ', 0, netconfigloglevel)
+    else:
+        writedatedlogmsg(netconfiglog, 'Supplicant data retrieved successfully. ', 3, netconfigloglevel)
+    try:
+        updateddata = updatesupplicantdata(suppdata)
+    except:
+        writedatedlogmsg(netconfiglog, 'Error updating supplicant data. ', 0, netconfigloglevel)
+    else:
+        writedatedlogmsg(netconfiglog, 'Supplicant data retrieved successfully. ', 3, netconfigloglevel)
+    try:
+        writesupplicantfile(updateddata)
+    except:
+        writedatedlogmsg(netconfiglog, 'Error writing supplicant data. ', 0, netconfigloglevel)
+    else:
+        writedatedlogmsg(netconfiglog, 'Supplicant data written successfully. ', 3, netconfigloglevel)
 
 def replaceifaceparameters(iffilein, iffileout, iface, parameternames, parametervalues):
     file = open(iffilein)
@@ -140,63 +178,120 @@ def replaceifaceparameters(iffilein, iffileout, iface, parameternames, parameter
                     line = ' '.join(split[0:index + 2])
 
         writestring += line
-    myfile = open(iffileout, 'w')
-    myfile.write(writestring)
-    print(writestring)
+    try:
+        myfile = open(iffileout, 'w')
+    except:
+        writedatedlogmsg(netconfiglog, 'Error opening interface file. ', 0, netconfigloglevel)
+    else:
+        writedatedlogmsg(netconfiglog, 'Interface file read successfully. ', 3, netconfigloglevel)
+
+    try:
+        myfile.write(writestring)
+    except:
+        writedatedlogmsg(netconfiglog, 'Error writing interface file. ', 0, netconfigloglevel)
+    else:
+        writedatedlogmsg(netconfiglog, 'Interface file written successfully. ', 3, netconfigloglevel)
+        writedatedlogmsg(netconfiglog, 'Write string: ' + writestring, 3, netconfigloglevel)
 
 
 def setstationmode(netconfigdata=None):
+    writedatedlogmsg(netconfiglog, 'Setting station mode. ', 3, netconfigloglevel)
     from time import sleep
     if not netconfigdata:
-        netconfigdata = readonedbrow(systemdatadatabase, 'netconfig')[0]
+        writedatedlogmsg(netconfiglog, 'Retrieving unfound netconfig data. ', 3, netconfigloglevel)
+        try:
+            netconfigdata = readonedbrow(systemdatadatabase, 'netconfig')[0]
+        except:
+            writedatedlogmsg(netconfiglog, 'Error reading netconfig data. ', 0, netconfigloglevel)
+        else:
+            writedatedlogmsg(netconfiglog, 'Read netconfig data. ', 4, netconfigloglevel)
+
     killapservices()
     if netconfigdata['addtype'] == 'static':
+        writedatedlogmsg(netconfiglog, 'Configuring static address. ', 3, netconfigloglevel)
 
         subprocess.call(['cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.static', '/etc/network/interfaces'])
+
         # update IP from netconfig
-        print(netconfigdata['address'])
+        writedatedlogmsg(netconfiglog, 'Updating netconfig with ip ' + netconfigdata['address'], 3, netconfigloglevel)
         replaceifaceparameters('/etc/network/interfaces', '/etc/network/interfaces', 'wlan0', ['address', 'gateway'],
                                [netconfigdata['address'], netconfigdata['gateway']])
     elif netconfigdata['addtype'] == 'dhcp':
+        writedatedlogmsg(netconfiglog, 'Configuring dhcp. ', 3, netconfigloglevel)
         subprocess.call(['cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.dhcp', '/etc/network/interfaces'])
+
+    writedatedlogmsg(netconfiglog, 'Resetting wlan. ', 3, netconfigloglevel)
     resetwlan()
     sleep(1)
     resetwlan()
 
 
 def killapservices():
-    subprocess.call(['service', 'hostapd', 'stop'])
-    subprocess.call(['service', 'isc-dhcp-server', 'stop'])
+    writedatedlogmsg(netconfiglog, 'Killing AP Services. ', 1, netconfigloglevel)
+    try:
+        subprocess.call(['service', 'hostapd', 'stop'])
+    except:
+        writedatedlogmsg(netconfiglog, 'Error killing hostapd. ', 0, netconfigloglevel)
+    else:
+        writedatedlogmsg(netconfiglog, 'Killed hostapd. ', 3, netconfigloglevel)
+
+    try:
+        subprocess.call(['service', 'isc-dhcp-server', 'stop'])
+    except:
+        writedatedlogmsg(netconfiglog, 'Error killing dhcp server. ', 0, netconfigloglevel)
+    else:
+        writedatedlogmsg(netconfiglog, 'Successfully killed dhcp server. ', 3, netconfigloglevel)
 
 
 def startapservices():
     from time import sleep
+    try:
+        subprocess.call(['hostapd', '-B', '/etc/hostapd/hostapd.conf'])
+    except:
+        writedatedlogmsg(netconfiglog, 'Error starting hostapd. ', 0, netconfigloglevel)
+    else:
+        writedatedlogmsg(netconfiglog, 'Started hostapd without error. ', 3, netconfigloglevel)
 
-    subprocess.call(['hostapd', '-B', '/etc/hostapd/hostapd.conf'])
     sleep(1)
-    subprocess.call(['service', 'isc-dhcp-server', 'start'])
+
+    try:
+        subprocess.call(['service', 'isc-dhcp-server', 'start'])
+    except:
+        writedatedlogmsg(netconfiglog, 'Error starting dhcp server. ', 0, netconfigloglevel)
+    else:
+        writedatedlogmsg(netconfiglog, 'Started dhcp server without error. ', 3, netconfigloglevel)
 
 
 def setapmode(netconfig=None):
-    if not netconfig:
-        netconfig = readonedbrow(systemdatadatabase, 'netconfig')[0]
-    subprocess.call(['cp', '/etc/network/interfaces.ap', '/etc/network/interfaces'])
+    writedatedlogmsg(netconfiglog, 'Setting ap mode. ', 1, netconfigloglevel)
+    try:
+        subprocess.call(['cp', '/etc/network/interfaces.ap', '/etc/network/interfaces'])
+    except:
+        writedatedlogmsg(netconfiglog, 'Error copying network configuration file. ', 0, netconfigloglevel)
+    else:
+        writedatedlogmsg(netconfiglog, 'Copied network configuration file successfully. ', 3, netconfigloglevel)
+
     killapservices()
     resetwlan()
-    # Run hostapd
-    print('*********************************')
-    print('starting hostapd and dhcp server')
-    print('*********************************')
     startapservices()
 
 
 def resetwlan():
     from time import sleep
-
-    print('resetting wlan0')
-    subprocess.call(['ifdown', '--force', 'wlan0'])
+    writedatedlogmsg(netconfiglog, 'Resetting wlan. ', 3, netconfigloglevel)
+    try:
+        subprocess.call(['ifdown', '--force', 'wlan0'])
+    except:
+        writedatedlogmsg(netconfiglog, 'Error bringing down wlan0. ', 0, netconfigloglevel)
+    else:
+        writedatedlogmsg(netconfiglog, 'Completed bringing down wlan0 ', 3, netconfigloglevel)
     sleep(2)
-    subprocess.call(['ifup', 'wlan0'])
+    try:
+        subprocess.call(['ifup', 'wlan0'])
+    except:
+        writedatedlogmsg(netconfiglog, 'Error bringing up wlan0. ', 0, netconfigloglevel)
+    else:
+        writedatedlogmsg(netconfiglog, 'Completed bringing up wlan0 ', 3, netconfigloglevel)
 
 
 def runconfig(onboot=False):
@@ -204,30 +299,30 @@ def runconfig(onboot=False):
     try:
         netconfigdata = readonedbrow(systemdatadatabase, 'netconfig')[0]
     except:
-        print('oops')
+        writedatedlogmsg(netconfiglog, 'Error reading netconfig data. ', 0, netconfigloglevel)
     else:
-        print(netconfigdata['enabled'])
+        writedatedlogmsg(netconfiglog, 'Successfully read netconfig data', 3, netconfigloglevel)
         if netconfigdata['enabled']:
-            print('I am enabled')
+            writedatedlogmsg(netconfiglog, 'Netconfig is enabled', 3, netconfigloglevel)
+
             # This will grab the specified SSID and the credentials and update
             # the wpa_supplicant file
             updatewpasupplicant()
             # Copy the correct interfaces file
             if netconfigdata['mode'] == 'station':
-                print('station mode')
                 setstationmode(netconfigdata)
             elif netconfigdata['mode'] in ['ap', 'tempap']:
-                print('access point mode')
                 setapmode()
 
                 # Unfortunately, we currently need to reboot prior to setting
                 # ap mode to get it to stick unless we are doing it at bootup
                 if not onboot:
-                    print('time to reboot')
+                    writedatedlogmsg(netconfiglog, 'Rebooting. ', 0, netconfigloglevel)
+                    writedatedlogmsg(systemstatuslog, 'Rebooting. ', 0, systemstatusloglevel)
                     subprocess.call(['reboot'])
 
         else:
-            print('automatic net configuration disabled')
+            writedatedlogmsg(netconfiglog, 'Netconfig is disabled', 3, netconfigloglevel)
 
 
 if __name__ == "__main__":

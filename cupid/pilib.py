@@ -122,29 +122,27 @@ def timestringtoseconds(timestring):
     return timeinseconds
 
 
-def tail( f, window=20 ):
-    BUFSIZ = 1024
-    f.seek(0, 2)
-    bytes = f.tell()
-    size = window
-    block = -1
-    data = []
-    while size > 0 and bytes > 0:
-        if (bytes - BUFSIZ > 0):
-            # Seek back one whole BUFSIZ
-            f.seek(block*BUFSIZ, 2)
-            # read BUFFER
-            data.append(f.read(BUFSIZ))
-        else:
-            # file too small, start from begining
-            f.seek(0,0)
-            # only read what was not read
-            data.append(f.read(bytes))
-        linesFound = data[-1].count('\n')
-        size -= linesFound
-        bytes -= BUFSIZ
-        block -= 1
-    return ''.join(data).splitlines()[-window:]
+def tail(f, n, offset=None):
+    """Reads a n lines from f with an offset of offset lines.  The return
+    value is a tuple in the form ``(lines, has_more)`` where `has_more` is
+    an indicator that is `True` if there are more lines in the file.
+    """
+    avg_line_length = 74
+    to_read = n + (offset or 0)
+
+    while 1:
+        try:
+            f.seek(-(avg_line_length * to_read), 2)
+        except IOError:
+            # woops.  apparently file is smaller than what we want
+            # to step back, go to the beginning instead
+            f.seek(0)
+        pos = f.tell()
+        lines = f.read().splitlines()
+        if len(lines) >= to_read or pos == 0:
+            return lines[-to_read:offset and -offset or None], \
+                   len(lines) > to_read or pos > 0
+        avg_line_length *= 1.3
 
 # This class defines actions taken on
 class action:

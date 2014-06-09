@@ -29,7 +29,7 @@ def updateiodata(database):
     if 'interfaces' in tables:
         interfaces = pilib.readalldbrows(pilib.controldatabase, 'interfaces')
     else:
-        print('interfaces table not found. Exiting')
+        pilib.writedatedlogmsg(pilib.systemstatuslog,'interfaces table not found. Exiting',1,pilib.systemstatusloglevel)
         return
     if 'inputs' in tables:
         previnputs = pilib.readalldbrows(pilib.controldatabase, 'inputs')
@@ -90,25 +90,39 @@ def updateiodata(database):
     owfsupdate = False
     for interface in interfaces:
         if interface['interface'] == 'I2C':
+            pilib.writedatedlogmsg(pilib.systemstatuslog, 'Processing I2C interface', 3, pilib.systemstatusloglevel)
             if interface['enabled']:
-                # print('processing enabled I2C')
+                pilib.writedatedlogmsg(pilib.systemstatuslog, 'I2C Interface enabled', 3, pilib.systemstatusloglevel)
                 if interface['type'] == 'DS2483':
+                    pilib.writedatedlogmsg(pilib.systemstatuslog, 'Interface type is DS2483', 3,
+                                           pilib.systemstatusloglevel)
                     owfsupdate = True
         elif interface['interface'] == 'USB':
+            pilib.writedatedlogmsg(pilib.systemstatuslog, 'Processing USB interface', 3, pilib.systemstatusloglevel)
             if interface['enabled']:
-                # print('processing enabled USB')
+                pilib.writedatedlogmsg(pilib.systemstatuslog, 'USB Interface enabled', 3, pilib.systemstatusloglevel)
                 if interface['type'] == 'DS9490':
+                    pilib.writedatedlogmsg(pilib.systemstatuslog, 'Interface type is DS9490', 3,
+                                           pilib.systemstatusloglevel)
                     owfsupdate = True
 
         elif interface['interface'] == 'GPIO':
+            try:
+                address = int(interface['address'])
+            except KeyError:
+                pilib.writedatedlogmsg(pilib.systemstatuslog, 'GPIO address key not found for ' + interface['name'], 1,
+                                       pilib.systemstatusloglevel)
+                continue
 
+            pilib.writedatedlogmsg(pilib.systemstatuslog, 'Processing GPIO interface ' + str(interface['address']), 3,
+                                   pilib.systemstatusloglevel)
             options = pilib.parseoptions(interface['options'])
 
-            # TODO : respond to more option, like pullup and pulldown
-
-            address = int(interface['address'])
+            # TODO : respond to more options, like pullup and pulldown
 
             if address in allowedGPIOaddresses:
+                pilib.writedatedlogmsg(pilib.systemstatuslog, 'GPIO address' + str(address) + ' allowed', 4,
+                                       pilib.systemstatusloglevel)
 
                 # Check if interface is enabled
                 if interface['enabled']:
@@ -120,7 +134,8 @@ def updateiodata(database):
 
                     # Append to inputs and update name, even if it's an output (can read status as input)
                     if options['mode'] == 'output':
-                        print('setting output mode')
+                        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Setting output mode', 3,
+                                               pilib.systemstatusloglevel)
 
                         GPIO.setup(address, GPIO.OUT)
 
@@ -148,35 +163,51 @@ def updateiodata(database):
 
                         # Add entry to outputs tables
                         querylist.append('insert into outputs values (\'' + interface['id'] + '\',\'' +
-                            interface['interface'] + '\',\'' + interface['type'] + '\',\'' + str(address) + '\',\'' +
+                                         interface['interface'] + '\',\'' + interface['type'] + '\',\'' + str(
+                            address) + '\',\'' +
                                          gpioname + '\',\'' + str(value) + "','','" + str(polltime) + '\',\'' +
                                          str(pollfreq) + "','" + ontime + "','" + offtime + "')")
                     else:
                         GPIO.setup(address, GPIO.IN)
                         value = GPIO.input(address)
+                        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Setting input mode, value: ' + str(value), 3,
+                                               pilib.systemstatusloglevel)
 
                     # Get input settings and keep them if the GPIO previously existed
                     if interface['id'] in previnputids:
                         pollfreq = previnputs[prevoutputids.index(interface['id'])]['pollfreq']
                         ontime = previnputs[prevoutputids.index(interface['id'])]['ontime']
                         offtime = previnputs[prevoutputids.index(interface['id'])]['offtime']
+                        pilib.writedatedlogmsg(pilib.systemstatuslog,
+                                               'Restoring values from previous inputids: pollfreq = ' + str(
+                                                   pollfreq) + ' ontime = ' + str(ontime) + ' offtime = ' + str(
+                                                   offtime), 3, pilib.systemstatusloglevel)
+
                     else:
                         pollfreq = defaultinputpollfreq
                         ontime = ''
                         offtime = ''
-
+                        pilib.writedatedlogmsg(pilib.systemstatuslog,
+                                               'Setting values to defaults, defaultinputpollfreq = ' + str(
+                                                   defaultoutputpollfreq), 3, pilib.systemstatusloglevel)
 
                     querylist.append(
                         'insert into inputs values (\'' + interface['id'] + '\',\'' + interface['interface'] + '\',\'' +
-                        interface['type'] + '\',\'' + str(address) + '\',\'' + gpioname + '\',\'' + str(value) + "','','" +
+                        interface['type'] + '\',\'' + str(address) + '\',\'' + gpioname + '\',\'' + str(
+                            value) + "','','" +
                         str(polltime) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
+
+
+
                 else:
                     GPIO.setup(address, GPIO.IN)
             else:
-                print('GPIO address ' + address + 'not allowed. BAD THINGS CAN HAPPEN.')
+                pilib.writedatedlogmsg(pilib.systemstatuslog,
+                                       'GPIO address' + str(address) + ' not allowed. Bad things can happen. ', 4,
+                                       pilib.systemstatusloglevel)
 
         elif interface['interface'] == 'SPI0':
-            print('processing SPI0')
+            pilib.writedatedlogmsg(pilib.systemstatuslog,'Processing SPI0',1,pilib.systemstatusloglevel)
             if interface['type'] == 'SPITC':
                 import readspi
 
@@ -185,18 +216,19 @@ def updateiodata(database):
 
             if interface['type'] == 'CuPIDlights':
                 import spilights
+
                 spilightsentries, setlist = spilights.getCuPIDlightsentries('indicators', 0, previndicators)
                 querylist.extend(spilightsentries)
                 spilights.updatelightsfromdb(pilib.controldatabase, 'indicators', 0)
                 spilights.setspilights(setlist, 0)
 
         elif interface['interface'] == 'SPI1':
-            # print('processing SPI1')
+            pilib.writedatedlogmsg(pilib.systemstatuslog,'Processing SPI1',1,pilib.systemstatusloglevel)
 
             if interface['type'] == 'CuPIDlights':
                 import spilights
+
                 spilightsentries, setlist = spilights.getCuPIDlightsentries('indicators', 1, previndicators)
-                # print(setlist)
                 querylist.extend(spilightsentries)
                 spilights.setspilights(setlist, 1)
 
@@ -205,10 +237,11 @@ def updateiodata(database):
 
     if owfsupdate:
         from owfslib import runowfsupdate
+
         devices, owfsentries = runowfsupdate(execute=False)
         querylist.extend(owfsentries)
-    # print(querylist)
 
+    pilib.writedatedlogmsg(pilib.systemstatuslog, 'Executing query:  ' + str(querylist), 5, pilib.systemstatusloglevel)
     pilib.sqlitemultquery(pilib.controldatabase, querylist)
 
 
@@ -227,8 +260,10 @@ def updateioinfo(database, table):
 
 def testupdateio(times):
     from pilib import controldatabase
+
     for i in range(times):
         updateiodata(controldatabase)
+
 
 if __name__ == '__main__':
     from pilib import controldatabase

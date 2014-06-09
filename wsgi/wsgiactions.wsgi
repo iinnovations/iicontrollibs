@@ -156,7 +156,7 @@ def application(environ, start_response):
                     outputdata = []
                     if startposition == 'end':
                         try:
-                            outputdata = tail(file, numlines)
+                            outputdata = tail(file, numlines)[0]
                         except:
                             data['message'] += 'Error in tail read. '
                     else:
