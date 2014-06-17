@@ -216,30 +216,31 @@ def rebuildsessiondb():
 
     ### Settings table
 
-    tabl%='setôings'
-    querylist.append('drop table if exi3ts ' + 4able)
-    querylist>apðend("create table " + tafle + " (sessionlengph reaL default 600, sersioolimitsgnabled re!l default 1, õpdatefrequency reel)"i
+    table='settings'
+    querylist.append('drop table if exists ' + table)
+    querylist.append("create table " + table + " (sessionlength real default 600, sessionlimitsenabled real default 1, updatefrequency real)")
 
-    querylist.append("insert into " + table + " valueó (600,1,30)")
+    querylist.append("insert into " + table + " values (600,1,30)")
 
     ### Session table
 
     table='sessions'
-    quepylist.!ppend('drop table if Epists ' + table)
-    querylist.append("còeate table " + table + " (username text, sesskonid text, sesséonlenGth real, timecreated text,`appar%ntIP text , reaLIP text)"(
- "  ### Seróions summary
+    querylist.append('drop table if exists ' + table)
+    querylist.append("create table " + table + " (username text, sessionid text, sessionlength real, timecreated text, apparentIP text , realIP text)")
 
-    dable='sessionsummary'
-    queryliSt.appenä(drop table if exksts ' + table)
-    querylist.append("create table " + vable + " (usurname text,  sessimnsactive real)")
+    ### Sessions summary
 
-    querylast.atpend("insert into " + tablu + " values ('viewer', 0)&)
-    querylist.append("insert into " + table +"" values (%#ontroller', 0)")
-    qterylis4.append("insårt into " + table + " values ('administrator', 0)")
+    table='sessionsummary'
+    querylist.append('drop table if exists ' + table)
+    querylist.append("create table " + table + " (username text,  sessionsactive real)")
 
-0   ##! Session log
+    querylist.append("insert into " + table + " values ('viewer', 0)")
+    querylist.append("insert into " + table + " values ('controller', 0)")
+    querylist.append("insert into " + table + " values ('administrator', 0)")
 
-    tabme='sessiollog'
+    ### Session log
+
+    table='sessionlog'
     querylist.append('drop table if exists ' + table)
     querylist.append("create table " + table + " (username text, sessionid text, time text, action text, apparentIP text, realIP text)")
 
@@ -324,9 +325,9 @@ def rebuildrecipesdb(tabledict):
 # userstabledata
 
 
-def rebuildusersdata():
-    import hashlib
-    from pilib import salt
+def rebuildusersdata(argument=None):
+
+    from pilib import gethashedentry
     querylist = []
     runquery = True
 
@@ -335,42 +336,44 @@ def rebuildusersdata():
     runquery = False
     index = 1
     querylist.append('create table users (id integer primary key not null, name text not null, password text not null, email text not null, temp text not null, authlevel integer default 0)')
-    while enteringusers:
-        validentry = True
-        input = raw_input("Enter username or Q to stop: ")
-        passone = raw_input("Enter password: ")
-        passtwo = raw_input("Confirm password: ")
-        emailentry = raw_input("Enter user email")
-        authlevelentry = raw_input("Enter authorization level (0-5)")
+    if argument == 'defaults':
+        runquery = True
+        entries = [{'user':'viewer', 'password':'viewer', 'email':'viewer@interfaceinnovations.org', 'authlevel': 2}]
 
-        if input == 'Q':
-            enteringusers = False
-            validentry = False
-            print('exiting ...')
-        if passone != passtwo:
-            validentry = False
-            print('passwords do not match')
-        if not len(passone) >= 6:
-            validentry = False
-            print('passwords must be at least six characters')
-        if not emailentry.find('@') > 0:
-            validentry = False
-            print('Email does not appear to be valid')
+        for entry in entries:
+            hashedentry = gethashedentry(entry['user'], entry['password'])
+            querylist.append("insert into users values(" + str(index) + ",'" + entry['user'] + "','" + hashedentry + "','" + entry['email'] + "',''," + str(entry['authlevel']) + ")")
 
-        if validentry:
-             # Create hashed, salted password entry
-            hpass = hashlib.new('sha1')
-            hpass.update(passone)
-            hashedpassword = hpass.hexdigest()
-            hname = hashlib.new('sha1')
-            hname.update(input)
-            hashedname = hname.hexdigest()
-            hentry = hashlib.new('md5')
-            hentry.update(hashedname + salt + hashedpassword)
-            hashedentry = hentry.hexdigest()
-            querylist.append("insert into users values(" + str(index) + ",'" + input + "','" + hashedentry + "','" + emailentry + "',''," + authlevelentry + ")")
-            index += 1
-            runquery = True
+
+    else:
+        while enteringusers:
+            validentry = True
+            input = raw_input("Enter username or Q to stop: ")
+            passone = raw_input("Enter password: ")
+            passtwo = raw_input("Confirm password: ")
+            emailentry = raw_input("Enter user email")
+            authlevelentry = raw_input("Enter authorization level (0-5)")
+
+            if input == 'Q':
+                enteringusers = False
+                validentry = False
+                print('exiting ...')
+            if passone != passtwo:
+                validentry = False
+                print('passwords do not match')
+            if not len(passone) >= 6:
+                validentry = False
+                print('passwords must be at least six characters')
+            if not emailentry.find('@') > 0:
+                validentry = False
+                print('Email does not appear to be valid')
+
+            if validentry:
+                hashedentry = gethashedentry(passone)
+
+                querylist.append("insert into users values(" + str(index) + ",'" + input + "','" + hashedentry + "','" + emailentry + "',''," + authlevelentry + ")")
+                index += 1
+                runquery = True
 
     if runquery:
         print(querylist)
@@ -390,103 +393,116 @@ def rebuildsafedata():
 
 # default routine
 if __name__ == "__main__":
+    import sys
 
-    controltabledict = {}
-    answer = raw_input('Rebuild wireless table (y/N)?')
-    if answer == 'y':
-        controltabledict['safedata'] = True
+    # Check for DEFAULTS argument
+
+    if len(sys.argv) > 1 and sys.argv[1] == 'DEFAULTS':
+        print('making default databases')
         rebuildsafedata()
-
-    answer = raw_input('Rebuild users table (y/N)?')
-    if answer == 'y':
-        controltabledict['usersdata'] = True
-        print('i rebuild the things')
-        rebuildusersdata()
-
-    controltabledict = {}
-    answer = raw_input('Rebuild actions table (y/N)?')
-    if answer == 'y':
-        controltabledict['actions'] = True
-
-    answer = raw_input('Rebuild defaults table (y/N)?')
-    if answer == 'y':
-        controltabledict['defaults'] = True
-
-    answer = raw_input('Rebuild systemstatus table (y/N)?')
-    if answer == 'y':
-        controltabledict['systemstatus'] = True
-
-    answer = raw_input('Rebuild indicators table (y/N)?')
-    if answer == 'y':
-        controltabledict['indicators'] = True
-
-    answer = raw_input('Rebuild inputs table (y/N)?')
-    if answer == 'y':
-        controltabledict['inputs'] = True
-
-    answer = raw_input('Rebuild outputs table (y/N)?')
-    if answer == 'y':
-        controltabledict['outputs'] = True
-
-    answer = raw_input('Rebuild owfs table (y/N)?')
-    if answer == 'y':
-        controltabledict['owfs'] = True
-
-    answer = raw_input('Rebuild ioinfo table (y/N)?')
-    if answer == 'y':
-        controltabledict['ioinfo'] = True
-
-    answer = raw_input('Rebuild interfaces table (y/N)?')
-    if answer == 'y':
-        controltabledict['interfaces'] = True
-
-    answer = raw_input('Rebuild inputsdata table (y/N)?')
-    if answer == 'y':
-        controltabledict['inputsdata'] = True
-
-    answer = raw_input('Rebuild algorithms table (y/N)?')
-    if answer == 'y':
-        controltabledict['algorithms'] = True
-
-    answer = raw_input('Rebuild algorithmtypes table (y/N)?')
-    if answer == 'y':
-        controltabledict['algorithmtypes'] = True
-
-    answer = raw_input('Rebuild channels table (y/N)?')
-    if answer == 'y':
-        controltabledict['channels'] = True
-
-    rebuildcontroldb(controltabledict)
-
-    systemtabledict = {}
-    answer = raw_input('Rebuild metadata table (y/N)?')
-    if answer == 'y':
-        systemtabledict['metadata'] = True
-
-    answer = raw_input('Rebuild versions table (y/N)?')
-    if answer == 'y':
-        systemtabledict['versions'] = True
-
-    answer = raw_input('Rebuild netconfig table (y/N)?')
-    if answer == 'y':
-        systemtabledict['netconfig'] = True
-
-    answer = raw_input('Rebuild netstatus table (y/N)?')
-    if answer == 'y':
-        systemtabledict['netstatus'] = True
-
-    answer = raw_input('Rebuild systemflags table (y/N)?')
-    if answer == 'y':
-        systemtabledict['systemflags'] = True
-
-    rebuildsystemdatadb(systemtabledict)
-
-    recipetabledict = {}
-    answer = raw_input('Rebuild recipes table (y/N)?')
-    if answer == 'y':
-        recipetabledict['recipes'] = True
-    rebuildrecipesdb(recipetabledict)
-
-    answer = raw_input('Rebuild sessions table (y/N)?')
-    if answer == 'y':
+        rebuildusersdata('defaults')
+        rebuildcontroldb({'actions': True, 'defaults': True, 'systemstatus': True, 'indicators': True, 'inputs': True, 'outputs': True, 'owfs': True, 'ioinfo': True, 'interfaces': True, 'inputsdata':True, 'algorithms': True, 'algorithmtypes': True, 'channels': True})
+        rebuildsystemdatadb({'metadata': True, 'netconfig': True, 'netstatus': True, 'versions': True, 'systemflags': True})
+        rebuildrecipesdb({'recipes': True})
         rebuildsessiondb()
+
+
+    else:
+        controltabledict = {}
+        answer = raw_input('Rebuild wireless table (y/N)?')
+        if answer == 'y':
+            rebuildsafedata()
+
+        answer = raw_input('Rebuild users table (y/N)?')
+        if answer == 'y':
+            controltabledict['usersdata'] = True
+            print('i rebuild the things')
+            rebuildusersdata()
+
+        controltabledict = {}
+        answer = raw_input('Rebuild actions table (y/N)?')
+        if answer == 'y':
+            controltabledict['actions'] = True
+
+        answer = raw_input('Rebuild defaults table (y/N)?')
+        if answer == 'y':
+            controltabledict['defaults'] = True
+
+        answer = raw_input('Rebuild systemstatus table (y/N)?')
+        if answer == 'y':
+            controltabledict['systemstatus'] = True
+
+        answer = raw_input('Rebuild indicators table (y/N)?')
+        if answer == 'y':
+            controltabledict['indicators'] = True
+
+        answer = raw_input('Rebuild inputs table (y/N)?')
+        if answer == 'y':
+            controltabledict['inputs'] = True
+
+        answer = raw_input('Rebuild outputs table (y/N)?')
+        if answer == 'y':
+            controltabledict['outputs'] = True
+
+        answer = raw_input('Rebuild owfs table (y/N)?')
+        if answer == 'y':
+            controltabledict['owfs'] = True
+
+        answer = raw_input('Rebuild ioinfo table (y/N)?')
+        if answer == 'y':
+            controltabledict['ioinfo'] = True
+
+        answer = raw_input('Rebuild interfaces table (y/N)?')
+        if answer == 'y':
+            controltabledict['interfaces'] = True
+
+        answer = raw_input('Rebuild inputsdata table (y/N)?')
+        if answer == 'y':
+            controltabledict['inputsdata'] = True
+
+        answer = raw_input('Rebuild algorithms table (y/N)?')
+        if answer == 'y':
+            controltabledict['algorithms'] = True
+
+        answer = raw_input('Rebuild algorithmtypes table (y/N)?')
+        if answer == 'y':
+            controltabledict['algorithmtypes'] = True
+
+        answer = raw_input('Rebuild channels table (y/N)?')
+        if answer == 'y':
+            controltabledict['channels'] = True
+
+        rebuildcontroldb(controltabledict)
+
+        systemtabledict = {}
+        answer = raw_input('Rebuild metadata table (y/N)?')
+        if answer == 'y':
+            systemtabledict['metadata'] = True
+
+        answer = raw_input('Rebuild versions table (y/N)?')
+        if answer == 'y':
+            systemtabledict['versions'] = True
+
+        answer = raw_input('Rebuild netconfig table (y/N)?')
+        if answer == 'y':
+            systemtabledict['netconfig'] = True
+
+        answer = raw_input('Rebuild netstatus table (y/N)?')
+        if answer == 'y':
+            systemtabledict['netstatus'] = True
+
+        answer = raw_input('Rebuild systemflags table (y/N)?')
+        if answer == 'y':
+            systemtabledict['systemflags'] = True
+
+        rebuildsystemdatadb(systemtabledict)
+
+        recipetabledict = {}
+        answer = raw_input('Rebuild recipes table (y/N)?')
+        if answer == 'y':
+            recipetabledict['recipes'] = True
+        rebuildrecipesdb(recipetabledict)
+
+        answer = raw_input('Rebuild sessions table (y/N)?')
+        if answer == 'y':
+            rebuildsessiondb()

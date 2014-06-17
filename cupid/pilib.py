@@ -26,9 +26,9 @@ systemdatadatabase = databasedir + 'systemdata.db'
 safedatabase = '/var/wwwsafe/safedata.db'
 usersdatabase = '/var/wwwsafe/users.db'
 
-netstatuslog = '/var/log/cupid/netstatus.log'
+networklog = '/var/log/cupid/network.log'
 systemstatuslog = '/var/log/cupid/systemstatus.log'
-netconfiglog = '/var/log/cupid/netconfig.log'
+controllog = '/var/log/cupid/control.log'
 daemonlog = '/var/log/cupid/daemon.log'
 daemonproclog = '/var/log/cupid/daemonproc.log'
 errorlog = '/var/log/cupid/error.log'
@@ -40,10 +40,10 @@ maxlogsize = 1024  # kB
 numlogs = 5
 
 
-netconfigloglevel = 1
-netstatusloglevel = 1
+networkloglevel = 4
 systemstatusloglevel = 4
-daemonloglevel = 1
+controlloglevel = 4
+daemonloglevel = 4
 
 daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py']
 
@@ -57,6 +57,21 @@ def writedatedlogmsg(logfile, message, reqloglevel=1, currloglevel=1):
         logfile = open(logfile, 'a')
         logfile.writelines([gettimestring() + ' : ' + message + '\n'])
         logfile.close()
+
+
+def gethashedentry(user, password):
+    import hashlib
+     # Create hashed, salted password entry
+    hpass = hashlib.new('sha1')
+    hpass.update(password)
+    hashedpassword = hpass.hexdigest()
+    hname = hashlib.new('sha1')
+    hname.update(user)
+    hashedname = hname.hexdigest()
+    hentry = hashlib.new('md5')
+    hentry.update(hashedname + salt + hashedpassword)
+    hashedentry = hentry.hexdigest()
+    return hashedentry
 
 
 def rotatelogs(logname, numlogs=5, logsize=1024):
