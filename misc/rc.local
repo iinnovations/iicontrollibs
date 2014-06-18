@@ -13,6 +13,7 @@
 
 # Run our boot script
 python /usr/lib/iicontrollibs/cupid/boot.py
+
 # Print the IP address
 _IP=$(hostname -I) || true
 if [ "$_IP" ]; then

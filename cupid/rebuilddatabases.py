@@ -338,12 +338,14 @@ def rebuildusersdata(argument=None):
     querylist.append('create table users (id integer primary key not null, name text not null, password text not null, email text not null, temp text not null, authlevel integer default 0)')
     if argument == 'defaults':
         runquery = True
-        entries = [{'user':'viewer', 'password':'viewer', 'email':'viewer@interfaceinnovations.org', 'authlevel': 2}]
-
+        entries = [{'user': 'viewer', 'password': 'viewer', 'email': 'viewer@interfaceinnovations.org', 'authlevel': 1},
+                   {'user': 'admin', 'password': 'admin', 'email': 'viewer@interfaceinnovations.org', 'authlevel': 4},
+                   {'user': 'controller', 'password': 'controller', 'email': 'viewer@interfaceinnovations.org', 'authlevel': 3}]
+        index = 1
         for entry in entries:
             hashedentry = gethashedentry(entry['user'], entry['password'])
             querylist.append("insert into users values(" + str(index) + ",'" + entry['user'] + "','" + hashedentry + "','" + entry['email'] + "',''," + str(entry['authlevel']) + ")")
-
+            index += 1
 
     else:
         while enteringusers:

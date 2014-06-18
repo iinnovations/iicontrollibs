@@ -9,6 +9,6 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
-from gitupdatelib import updatecupidweblibs
+from gitupdatelib import updatecupidweblib
 
-updatecupidweblibs()
+updatecupidweblib()
