@@ -212,6 +212,7 @@ def rebuildsessiondb():
     querylist.append("insert into " + table + " values ('controller', 5)")
     querylist.append("insert into " + table + " values ('administrator', 5)")
     querylist.append("insert into " + table + " values ('owner', 3)")
+    querylist.append("insert into " + table + " values ('admin', 3)")
     querylist.append("insert into " + table + " values ('colin', 5)")
 
     ### Settings table
@@ -339,7 +340,7 @@ def rebuildusersdata(argument=None):
     if argument == 'defaults':
         runquery = True
         entries = [{'user': 'viewer', 'password': 'viewer', 'email': 'viewer@interfaceinnovations.org', 'authlevel': 1},
-                   {'user': 'admin', 'password': 'admin', 'email': 'viewer@interfaceinnovations.org', 'authlevel': 4},
+                   {'user': 'admin', 'password': 'adminn', 'email': 'admin@interfaceinnovations.org', 'authlevel': 4},
                    {'user': 'controller', 'password': 'controller', 'email': 'viewer@interfaceinnovations.org', 'authlevel': 3}]
         index = 1
         for entry in entries:

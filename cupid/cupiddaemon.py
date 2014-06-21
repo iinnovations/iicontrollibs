@@ -111,6 +111,7 @@ def runallprocs():
 def rundaemon(startall=False):
     from subprocess import Popen, PIPE
     from time import sleep
+    from pilib import writedatedlogmsg, daemonlog, daemonloglevel
 
     # Set up list of enabled statuses (whether to restart if
     # we find that the process is not currently running
@@ -132,7 +133,7 @@ def rundaemon(startall=False):
         if pilib.daemonloglevel > 0:
             pilib.writedatedlogmsg(pilib.daemonlog, name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. ')
 
-    pilib.setsinglevalue(pilib.controldatabase, 'systemstatus','systemmessage', systemstatusmsg)
+    pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'systemmessage', systemstatusmsg)
 
     # Set up list of itemnames in the systemstatus table that
     # we assign the values to when we detect if the process
@@ -178,5 +179,11 @@ def rundaemon(startall=False):
         systemstatusmsg += name + ' - Enabled: ' + str(bool(enabled)) + ' Status: ' + str(status) + '. '
     pilib.setsinglevalue(pilib.controldatabase, 'systemstatus','systemmessage', systemstatusmsg)
 
+    # Rotate all logs
+    pilib.rotatelogs(pilib.networklog, pilib.numlogs, pilib.maxlogsize)
+
 if __name__ == "__main__":
+    from pilib import writedatedlogmsg, daemonlog, daemonloglevel
+    writedatedlogmsg(daemonlog, 'Running daemon.',1,daemonloglevel)
     rundaemon()
+    writedatedlogmsg(daemonlog, 'Daemon complete.',1,daemonloglevel)

@@ -20,4 +20,4 @@
 # For more information see the manual pages of crontab(5) $
 #
 # m h  dom mon dow   command
-* *     *   *   *     /usr/lib/iicontrollibs/cupiddaemon.py
+* *     *   *   *     /usr/lib/iicontrollibs/cupid/cupiddaemon.py

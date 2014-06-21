@@ -18,13 +18,16 @@ systemstatus = pilib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
 
 while systemstatus['picontrolenabled']:
 
+    pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running picontrol', 3, pilib.systemstatusloglevel)
+    pilib.writedatedlogmsg(pilib.controllog, 'Running picontrol', 3, pilib.controlloglevel)
+
     # Set poll date. While intuitively we might want to set this
     # after the poll is complete, if we error below, we will know 
     # from this stamp when it barfed. This is arguably more valuable
     # then 'last time we didn't barf'
 
     pilib.sqlitequery(pilib.controldatabase,
-                      'update systemstatus set lastpicontrolpoll=\'' + pilib.gettimestring() + '\'')
+                      "update systemstatus set lastpicontrolpoll='" + pilib.gettimestring() + "'")
 
     channels = pilib.readalldbrows(pilib.controldatabase, 'channels')
     outputs = pilib.readalldbrows(pilib.controldatabase, 'outputs')

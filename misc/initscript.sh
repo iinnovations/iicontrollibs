@@ -6,19 +6,19 @@ echo $1
 if [ $1 = "update" ]
   then
     apt-get update
-    apt-get upgrade
-    apt-get install apache2 php5 sqlite3 php5-sqlite libapache2-mod-wsgi libapache2-mod-php5
+    apt-get -y upgrade
+    apt-get -y install apache2 php5 sqlite3 php5-sqlite libapache2-mod-wsgi libapache2-mod-php5
     a2enmod rewrite
-    apt-get install python-dev python3 python-setuptools
-    apt-get install swig libfuse-dev libusb-dev php5-dev
-    apt-get install i2c-tools python-smbus
-    apt-get install hostapd
-    apt-get install isc-dhcp-server
+    apt-get -y install python-dev python3 python-setuptools
+    apt-get -y install swig libfuse-dev libusb-dev php5-dev
+    apt-get -y install i2c-tools python-smbus
+    apt-get -y install hostapd
+    apt-get -y install isc-dhcp-server
     update-rc.d -f isc-dhcp-server remove
     easy_install rpi.gpio
     easy_install gitpython
-    apt-get install python-serial
-    apt-get install python-gtk2
+    apt-get -y install python-serial
+    apt-get -y install python-gtk2
 fi
 
 if [ $1 = "update" && $2 = "only" ]
@@ -34,6 +34,7 @@ else
     chown -R root:pi /var/wwwsafe
     chmod -R 775 /var/www/safe
 
+    mkdir /var/www
     chown -R root:www-data /var/www
     chmod -R 775 /var/www
 
@@ -122,7 +123,7 @@ else
         echo "installing owfs 2.9p5"
         #wget http://sourceforge.net/projects/owfs/files/owfs/2.9p5/owfs-2.9p5.tar.gz
         #tar -xvf owfs-2.9p5.tar.gz
-        cd /usr/lib/iicontrollibs/owfs-2.9p5
+        cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
         ./configure
         make install
         #cd ..
@@ -144,6 +145,18 @@ else
     fi
 
     echo "copying hostapd.conf"
-    cp /usr/lib/iicontrollibs/
+    cp /usr/lib/iicontrollibs/misc/hostapd.conf /etc/hostapd/
+
+    echo "copying blacklist file"
+    cp /usr/lib/iicontrollibs/misc/raspi-blacklist.conf /etc/modprobe.d/
+
+    echo "installing gpio-admin"
+    cd /usr/lib/iicontrollibs/resouce/quick2wire-gpio-admin-master/
+    make
+    make install
+
+    echo "installing spi-dev"
+    cd /usr/lib/iicontrollibs/resource/pi-spi-dev/
+    setup.py install
 
 fi

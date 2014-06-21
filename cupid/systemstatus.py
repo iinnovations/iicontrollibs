@@ -70,7 +70,7 @@ def runping(pingAddress,numpings=1):
             # Ping stored in latency in milliseconds
             #print '%f ms' % (latency)
             pingtimes.append(latency)
-            pilib.writedatedlogmsg(pilib.systemstatuslog, 'ping times: ' + str(pingtimes), 3, pilib.systemstatusloglevel)
+            pilib.writedatedlogmsg(pilib.networklog, 'ping times: ' + str(pingtimes), 3, pilib.networkloglevel)
     return pingtimes
 
 
@@ -90,20 +90,31 @@ def updateifacestatus():
     querylist.append(
         "create table " + table + " (name text, hwaddr text, address text, ifaceindex integer, bcast text, mask text, flags text)")
 
+    pilib.writedatedlogmsg(pilib.networklog, 'Reading ifaces with pyiface. ', 4, pilib.networkloglevel)
+
     allIfaces = pyiface.getIfaces()
+    pilib.writedatedlogmsg(pilib.networklog, 'Got ifaces data. ', 5, pilib.networkloglevel)
+    runquery=False
     for iface in allIfaces:
+        runquery=True
         querylist.append(
             "insert into " + table + " values ( \'" + iface.name + "\' , \'" + iface.hwaddr + "\' , \'" + iface._Interface__sockaddrToStr(
                 iface.addr) + "\' , \'" + str(iface.index) + "\' , \'" + iface._Interface__sockaddrToStr(
                 iface.broadaddr) + "\' , \'" + iface._Interface__sockaddrToStr(
                 iface.netmask) + "\' , \'" + pyiface.flagsToStr(iface.flags) + "\')")
-        #print(querylist)
+    if runquery:
+        pilib.writedatedlogmsg(pilib.networklog, 'Sending ifaces query. ', 5, pilib.networkloglevel)
         sqlitemultquery(systemdatadatabase, querylist)
+    else:
+        pilib.writedatedlogmsg(pilib.networklog, 'Empty ifaces query. ', 5, pilib.networkloglevel)
+
+
+    pilib.writedatedlogmsg(pilib.networklog, 'Completed pyiface ifaces. ', 4, pilib.networkloglevel)
 
 
     # Interfaces check
     # WAN check
-
+    pilib.writedatedlogmsg(pilib.networklog, 'Checking pingtimes. ', 4, pilib.networkloglevel)
     okping = float(netconfigdata['pingthreshold'])
     pingresults = runping('8.8.8.8')
     # pingresults = [20, 20, 20]
@@ -119,13 +130,16 @@ def updateifacestatus():
         latency = pingresult
     querylist.append(pilib.makesinglevaluequery('netstatus', 'latency', str(latency)))
 
+    pilib.writedatedlogmsg(pilib.networklog, 'Done checking pings. ', 4, pilib.networkloglevel)
+
+
     # Check supplicant status, set on/offtime if necessary.
     wpastatusdict = netconfig.getwpaclientstatus()
     try:
         if wpastatusdict['wpa_state'] == 'COMPLETED':
             wpaconnected = 1
             if netstatus['connected'] == 0 or netstatus['onlinetime'] == '':
-                pilib.writedatedlogmsg(pilib.systemstatuslog, 'setting online time', 2, pilib.systemstatusloglevel)
+                pilib.writedatedlogmsg(pilib.networklog, 'setting online time', 2, pilib.networkloglevel)
                 querylist.append(pilib.makesinglevaluequery('netstatus', 'onlinetime', gettimestring()))
                 querylist.append(pilib.makesinglevaluequery('netstatus', 'offlinetime', ''))
         else:
@@ -136,19 +150,20 @@ def updateifacestatus():
     if wpaconnected == 0:
         if netstatus['connected'] == 1 or netstatus['offlinetime'] == '':
             if netconfigdata['mode'] == "station":
-                pilib.writedatedlogmsg(pilib.systemstatuslog, 'setting offline time', 2, pilib.systemstatusloglevel)
+                pilib.writedatedlogmsg(pilib.networklog, 'setting offline time', 2, pilib.networkloglevel)
                 querylist.append(pilib.makesinglevaluequery('netstatus', 'offlinetime', gettimestring()))
                 querylist.append(pilib.makesinglevaluequery('netstatus', 'onlinetime', ''))
             else:
-                pilib.writedatedlogmsg(pilib.systemstatuslog, 'setting online time', 2, pilib.systemstatusloglevel)
+                pilib.writedatedlogmsg(pilib.networklog, 'setting online time', 2, pilib.networkloglevel)
                 querylist.append(pilib.makesinglevaluequery('netstatus', 'offlinetime', ''))
 
     # Check dhcp server status
+    pilib.writedatedlogmsg(pilib.networklog, 'Checking dhcp server status ', 4, pilib.networkloglevel)
     try:
         result = subprocess.Popen(['service', 'isc-dhcp-server', 'status'], stdout=subprocess.PIPE)
     except:
         dhcpstatus = 0
-        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Error in reading dhcp server status.', 1, pilib.systemstatusloglevel)
+        pilib.writedatedlogmsg(pilib.networklog, 'Error in reading dhcp server status.', 1, pilib.networkloglevel)
     else:
         for line in result.stdout:
             if line.find('not running') > 0:
@@ -157,7 +172,9 @@ def updateifacestatus():
                 dhcpstatus = 1
             else:
                 dhcpstatus = '\?'
+    pilib.writedatedlogmsg(pilib.networklog, 'Done checking dhcp server status. ', 4, pilib.networkloglevel)
 
+    pilib.writedatedlogmsg(pilib.networklog, 'Updating netstatus. ', 4, pilib.networkloglevel)
 
     wpastatusdict['connected'] = wpaconnected
     try:
@@ -182,17 +199,22 @@ def updateifacestatus():
     querylist.append(pilib.makesinglevaluequery('netstatus', 'dhcpstatus', dhcpstatus))
     querylist.append(pilib.makesinglevaluequery('netstatus', 'connected', str(wpaconnected)))
     if netconfigdata['mode'] in ['ap','tempap']:
-        pilib.writedatedlogmsg(pilib.systemstatuslog, 'setting apmode', 1, pilib.netstatusloglevel)
+        pilib.writedatedlogmsg(pilib.networklog, 'Updating netstatus to AP mode', 1, pilib.networkloglevel)
         querylist.append(pilib.makesinglevaluequery('netstatus', 'mode', netconfigdata['mode']))
         querylist.append(pilib.makesinglevaluequery('netstatus', 'SSID', 'cupidwifi'))
     else:
-        pilib.writedatedlogmsg(pilib.systemstatuslog, 'setting station mode', 1, pilib.netstatusloglevel)
+        pilib.writedatedlogmsg(pilib.networklog, 'Updating netstatus to station mode', 1, pilib.networkloglevel)
         querylist.append(pilib.makesinglevaluequery('netstatus', 'mode', str(mode)))
         querylist.append(pilib.makesinglevaluequery('netstatus', 'SSID', str(ssid)))
     querylist.append(pilib.makesinglevaluequery('netstatus', 'WANaccess', str(wanaccess)))
     querylist.append(pilib.makesinglevaluequery('netstatus', 'address', str(address)))
 
+    pilib.writedatedlogmsg(pilib.networklog, 'Running netstatus query. ', 4, pilib.networkloglevel)
     pilib.sqlitemultquery(pilib.systemdatadatabase, querylist)
+    pilib.writedatedlogmsg(pilib.networklog, 'Completed netstatus query. ', 4, pilib.networkloglevel)
+
+    pilib.writedatedlogmsg(pilib.networklog, 'Completed netstatus update. ', 4, pilib.networkloglevel)
+
     return wpastatusdict
 
 
@@ -244,34 +266,53 @@ if __name__ == '__main__':
 
     from misc.gitupdatelib import updategitversions
 
-    updategitversions()
+    # This doesn't update git libraries. It checks current versions and updates the database
+
+    try:
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Checking git versions', 3, pilib.systemstatusloglevel)
+        updategitversions()
+    except:
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Error in git version check', 0, pilib.systemstatusloglevel)
+    else:
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Git version check complete', 3, pilib.systemstatusloglevel)
+
 
     systemstatus = pilib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
 
     # Keep reading and updating system status?
     while systemstatus['systemstatusenabled']:
 
-        # print('starting')
+        starttime = time.time()
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'System status routine is starting. ', 3, pilib.systemstatusloglevel)
+
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Beginning network routines. ', 3, pilib.systemstatusloglevel)
+
         currenttime = pilib.gettimestring()
         pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'lastsystemstatuspoll', pilib.gettimestring())
+
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running updateifacestatus. ', 4, pilib.systemstatusloglevel)
 
         # Update network interfaces statuses for all interfaces, in database tables as well
         # Check on wpa supplicant status as well. Function returns wpastatusdict
         try:
+            pilib.writedatedlogmsg(pilib.networklog, 'Running updateifacestatus', 4, pilib.networkloglevel)
             wpastatusdict = updateifacestatus()
         except:
-            pilib.writedatedlogmsg(pilib.systemstatuslog, 'Exception in updateifacestatus. ')
+            pilib.writedatedlogmsg(pilib.networklog, 'Exception in updateifacestatus. ')
         else:
-            pilib.writedatedlogmsg(pilib.systemstatuslog, 'Updateifacestatus completed. ')
+            pilib.writedatedlogmsg(pilib.networklog, 'Updateifacestatus completed. ')
+
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Completed updateifacestatus. ', 4, pilib.systemstatusloglevel)
 
         netconfigdata = pilib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
         netstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
 
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running interface configuration. ', 4, pilib.systemstatusloglevel)
+
         wpastatusmsg = ''
         # If mode is ap or tempap
         if netconfigdata['mode'] in ['ap', 'tempap']:
-            if pilib.systemstatusloglevel > 0:
-                pilib.writedatedlogmsg(pilib.systemstatuslog,'Configuring ap mode. ', 1, pilib.systemstatusloglevel)
+            pilib.writedatedlogmsg(pilib.networklog, 'Configuring ap mode. ', 1, pilib.networkloglevel)
 
             timesincelastretry = pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(netconfigdata['laststationretry'])
             # If it's time to go back to station mode, we don't care whether we are connected as ap or not
@@ -285,7 +326,6 @@ if __name__ == '__main__':
             else:
                 # If we have ap up, do nothing
                 if wpastatusdict['dhcpstatus']:
-                    print(wpastatusdict['dhcpstatus'])
                     wpastatusmsg += 'AP checked and ok. '
                     pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'mode', 'ap')
                     pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'SSID', 'cupidwifi')
@@ -295,15 +335,13 @@ if __name__ == '__main__':
                 # this will currently cause reboot if we don't set onboot=True
                 # We set status message in case we change our minds and reboot here.
                 else:
-                    print('status is zero')
                     wpastatusmsg += 'Restarting AP. '
                     pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
                     netconfig.runconfig()
 
         # If mode is station
         elif netconfigdata['mode'] == 'station':
-            if pilib.systemstatusloglevel > 0:
-                pilib.writedatedlogmsg(pilib.systemstatuslog,'Configuring station mode. ')
+            pilib.writedatedlogmsg(pilib.networklog, 'Configuring station mode. ', 3, pilib.networkloglevel)
 
             # If we have wpa up, do nothing
             if netstatus['connected']:
@@ -337,23 +375,34 @@ if __name__ == '__main__':
                     # this is built into the netconfig script - any time you set ap mode except at boot, it reboots
                     pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
                     wpastatusmsg += 'Rebooting on wpaset ap mode. '
-                    print(wpastatusmsg)
                     netconfig.runconfig()
         else:
             wpastatusmsg += 'mode error: ' + netconfigdata['mode']
 
-        pilib.writedatedlogmsg(pilib.netstatuslog,wpastatusmsg)
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Finished interface configuration. ', 4, pilib.systemstatusloglevel)
+        pilib.writedatedlogmsg(pilib.networklog, wpastatusmsg)
 
         pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
 
-        print(wpastatusmsg)
-
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running updateifacestatus. ', 4, pilib.systemstatusloglevel)
         updateifacestatus()
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Completed updateifacestatus. ', 4, pilib.systemstatusloglevel)
 
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Network routines complete. ', 3, pilib.systemstatusloglevel)
+
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Checking system flags. ', 3, pilib.systemstatusloglevel)
         processsystemflags()
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'System flags complete. ', 3, pilib.systemstatusloglevel)
 
         # Get system status again
         systemstatus = pilib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
 
-        # print('Status routine took ' + str(time.time()-starttime))
+        elapsedtime = int(time.time()-starttime)
+
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Status routines complete. Elapsed time: ' + str(elapsedtime), 3, pilib.systemstatusloglevel)
+
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'System status is sleeping for ' + str(systemstatus['systemstatusfreq']) + '. ', 3, pilib.systemstatusloglevel)
+
         time.sleep(systemstatus['systemstatusfreq'])
+
+    pilib.writedatedlogmsg(pilib.systemstatuslog, 'System status is disabled. Exiting. ', 0, pilib.systemstatusloglevel)
