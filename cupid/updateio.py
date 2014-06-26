@@ -126,7 +126,8 @@ def updateiodata(database):
 
                 # Check if interface is enabled
                 if interface['enabled']:
-
+                    pilib.writedatedlogmsg(pilib.systemstatuslog, 'GPIO address' + str(address) + ' enabled', 4,
+                                       pilib.systemstatusloglevel)
                     # Get name from ioinfo table to give it a colloquial name
                     gpioname = pilib.sqlitedatumquery(database, 'select name from ioinfo where id=\'' +
                                                                 interface['id'] + '\'')
@@ -134,8 +135,8 @@ def updateiodata(database):
 
                     # Append to inputs and update name, even if it's an output (can read status as input)
                     if options['mode'] == 'output':
-                        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Setting output mode', 3,
-                                               pilib.systemstatusloglevel)
+                        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Setting output mode for GPIO address' + str(address), 3,
+                                       pilib.systemstatusloglevel)
 
                         GPIO.setup(address, GPIO.OUT)
 
@@ -148,8 +149,12 @@ def updateiodata(database):
                             value = 0
                         if value == 1:
                             GPIO.output(address, True)
+                            pilib.writedatedlogmsg(pilib.systemstatuslog, 'Setting output ON for GPIO address' + str(address), 3,
+                                       pilib.systemstatusloglevel)
                         else:
                             GPIO.output(address, False)
+                            pilib.writedatedlogmsg(pilib.systemstatuslog, 'Setting output OFF for GPIO address' + str(address), 3,
+                                       pilib.systemstatusloglevel)
 
                         # Get output settings and keep them if the GPIO previously existed
                         if interface['id'] in prevoutputids:
@@ -170,8 +175,8 @@ def updateiodata(database):
                     else:
                         GPIO.setup(address, GPIO.IN)
                         value = GPIO.input(address)
-                        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Setting input mode, value: ' + str(value), 3,
-                                               pilib.systemstatusloglevel)
+                        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Setting input mode for GPIO address' + str(address), 3,
+                                       pilib.systemstatusloglevel)
 
                     # Get input settings and keep them if the GPIO previously existed
                     if interface['id'] in previnputids:
@@ -200,6 +205,8 @@ def updateiodata(database):
 
 
                 else:
+                    pilib.writedatedlogmsg(pilib.systemstatuslog, 'GPIO address' + str(address) + ' disabled', 4,
+                                       pilib.systemstatusloglevel)
                     GPIO.setup(address, GPIO.IN)
             else:
                 pilib.writedatedlogmsg(pilib.systemstatuslog,

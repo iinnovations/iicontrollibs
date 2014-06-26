@@ -321,8 +321,8 @@ def runconfig(onboot=False):
                 # Unfortunately, we currently need to reboot prior to setting
                 # ap mode to get it to stick unless we are doing it at bootup
                 if not onboot:
-                    writedatedlogmsg(networklog, 'Rebooting. ', 0, networkloglevel)
-                    writedatedlogmsg(systemstatuslog, 'Rebooting. ', 0, systemstatusloglevel)
+                    writedatedlogmsg(networklog, 'Rebooting after set ap mode', 0, networkloglevel)
+                    writedatedlogmsg(systemstatuslog, 'Rebooting after set ap mode ', 0, systemstatusloglevel)
                     subprocess.call(['reboot'])
 
         else:

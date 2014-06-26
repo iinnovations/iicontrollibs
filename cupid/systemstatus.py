@@ -219,6 +219,8 @@ def updateifacestatus():
 
 
 def processsystemflags(systemflags=None):
+
+    from pilib import writedatedlogmsg, systemstatuslog, systemstatusloglevel
     if not systemflags:
         systemflags = pilib.readalldbrows(pilib.systemdatadatabase, 'systemflags')
 
@@ -234,28 +236,28 @@ def processsystemflags(systemflags=None):
             stop = True
             pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, "name='reboot'")
             import subprocess
-            print('i reboot here')
+            writedatedlogmsg(systemstatuslog, 'Rebooting for system flag', 0, systemstatusloglevel)
             subprocess.call(['reboot'])
     if 'netconfig' in flagnames:
         if flagvalues[flagnames.index('netconfig')]:
             stop = True
             pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, "name='netconfig'")
             from netconfig import runconfig
-            print('restarting network configuration')
+            writedatedlogmsg(systemstatuslog, 'Restarting network configuration', 0, systemstatusloglevel)
             runconfig()
     if 'updateiicontrollibs' in flagnames and not stop:
         if flagvalues[flagnames.index('updateiicontrollibs')]:
             stop = True
             pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, 'name=\'updateiicontrollibs\'')
             from misc.gitupdatelib import updateiicontrollibs
-            print('updating iicontrollibs')
+            writedatedlogmsg(systemstatuslog, 'Updating iicontrollibs', 0, systemstatusloglevel)
             updateiicontrollibs(True)
     if 'updatecupidweblib' in flagnames and not stop:
         if flagvalues[flagnames.index('updatecupidweblib')]:
             stop = True
             pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, 'name=\'updatecupidweblib\'')
             from misc.gitupdatelib import updatecupidweblib
-            print('updating cupidweblib')
+            writedatedlogmsg(systemstatuslog, 'Updating cupidweblib', 0, systemstatusloglevel)
             updatecupidweblib(True)
 
 

@@ -19,6 +19,7 @@ if [ $1 = "update" ]
     easy_install gitpython
     apt-get -y install python-serial
     apt-get -y install python-gtk2
+    apt-get -y install automake
 fi
 
 if [ $1 = "update" && $2 = "only" ]
@@ -71,7 +72,9 @@ else
     git remote add origin https://github.com/iinnovations/cupidweblib
     chown -R root:www-data .git
     chmod -R 775 .git
-    git pull origin master
+    git reset --hard master
+    chown -R root:www-data *
+    chmod -R 775 *
     echo "complete"
 
 
@@ -81,7 +84,9 @@ else
     git remote add origin https://github.com/iinnovations/iicontrollibs
     chown -R root:www-data .git
     chmod -R 775 .git
-    git pull origin master
+    git reset --hard master
+    chown -R root:www-data *
+    chmod -R 775 *
     echo "complete"
 
     git config --global user.email "info@interfaceinnovations.org"
@@ -121,13 +126,12 @@ else
         echo "owfs 2.9p5 already installed"
     else
         echo "installing owfs 2.9p5"
-        #wget http://sourceforge.net/projects/owfs/files/owfs/2.9p5/owfs-2.9p5.tar.gz
-        #tar -xvf owfs-2.9p5.tar.gz
+        tar -xvf owfs-2.9p5.tar.gz
         cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
         ./configure
         make install
-        #cd ..
-        #rm -R owfs-2.9p5
+        cd ..
+        rm -R owfs-2.9p5
     fi
     echo "complete"
 
@@ -151,12 +155,17 @@ else
     cp /usr/lib/iicontrollibs/misc/raspi-blacklist.conf /etc/modprobe.d/
 
     echo "installing gpio-admin"
-    cd /usr/lib/iicontrollibs/resouce/quick2wire-gpio-admin-master/
+    cd /usr/lib/iicontrollibs/resource/quick2wire-gpio-admin-master/
     make
     make install
 
     echo "installing spi-dev"
-    cd /usr/lib/iicontrollibs/resource/pi-spi-dev/
+    cd /usr/lib/iicontrollibs/resource/py-spidev/
     setup.py install
+
+    echo "Copying icons to desktop"
+
+    echo "Changing desktop wallpaper"
+    pcmanfm -w /var/www/images/cupid_splash_big.png
 
 fi
