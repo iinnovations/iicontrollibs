@@ -126,6 +126,7 @@ else
         echo "owfs 2.9p5 already installed"
     else
         echo "installing owfs 2.9p5"
+        cd /usr/lib/iicontrollibs/resource
         tar -xvf owfs-2.9p5.tar.gz
         cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
         ./configure
