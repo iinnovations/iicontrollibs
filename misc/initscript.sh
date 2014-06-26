@@ -69,6 +69,8 @@ else
     echo "Initializing web library repo"
     cd /var/www
     git init .
+    git config --global user.email "info@interfaceinnovations.org"
+    git config --global user.name "iinnovations"
     git remote add origin https://github.com/iinnovations/cupidweblib
     chown -R root:www-data .git
     chmod -R 775 .git
@@ -81,6 +83,8 @@ else
     echo "Initializing control libraries repo"
     cd /usr/lib/iicontrollibs
     git init .
+    git config --global user.email "info@interfaceinnovations.org"
+    git config --global user.name "iinnovations"
     git remote add origin https://github.com/iinnovations/iicontrollibs
     chown -R root:www-data .git
     chmod -R 775 .git
@@ -89,8 +93,7 @@ else
     chmod -R 775 *
     echo "complete"
 
-    git config --global user.email "info@interfaceinnovations.org"
-    git config --global user.name "iinnovations"
+
 
     echo "Creating default databases"
     /usr/lib/iicontrollibs/cupid/rebuilddatabases.py DEFAULTS
