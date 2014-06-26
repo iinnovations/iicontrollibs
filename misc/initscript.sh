@@ -119,9 +119,6 @@ else
     cp /usr/lib/iicontrollibs/misc/apachesites /etc/apache2/sites-available/default
     echo "Complete"
 
-    echo "Copying phpmyadmin configuration"
-    cp /usr/lib/iicontrollibs/misc/apachesites /etc/apache2/sites-available/default
-    echo "Complete"
 
     testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
     if [ ${testresult} -ne 0 ]
