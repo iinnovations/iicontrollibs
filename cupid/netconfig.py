@@ -323,7 +323,7 @@ def runconfig(onboot=False):
                 if not onboot:
                     writedatedlogmsg(networklog, 'Rebooting after set ap mode', 0, networkloglevel)
                     writedatedlogmsg(systemstatuslog, 'Rebooting after set ap mode ', 0, systemstatusloglevel)
-                    subprocess.call(['reboot'])
+                    # subprocess.call(['reboot'])
 
         else:
             writedatedlogmsg(networklog, 'Netconfig is disabled', 3, networkloglevel)
