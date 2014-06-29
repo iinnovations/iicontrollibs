@@ -142,7 +142,9 @@ def rebuildcontroldb(tabledict):
             querylist.append(
                 "insert into " + table + " values ('SPI1','CuPIDlights','','SPIout1','myCuPIDlightboard','',1,0)")
             querylist.append(
-                "insert into " + table + " values ('I2C','DS2483','','I2CDS2483','I2C 1Wire','tempunit:F',1,0)")
+                "insert into " + table + " values ('I2C','DS2483','192.168.1.18','I2CDS2483','I2C 1Wire','tempunit:F',1,0)")
+            querylist.append(
+                "insert into " + table + " values ('LAN','MBTCP','','MBTCP1','Modbus TCPIP','wordblocksize:24,bitblocksize:96',1,0)")
             querylist.append(
                 "insert into " + table + " values ('GPIO','GPIO','18','GPIO18','GPIO 1','mode:output,pullupdown:pulldown',1,0)")
             querylist.append(
@@ -160,6 +162,15 @@ def rebuildcontroldb(tabledict):
             querylist.append(
                 "insert into " + table + " values ('GPIO','GPIO','22','GPIO22','GPIO 8','mode:output,pullupdown:pulldown',1,0)")
 
+    ### modbustcp Table
+    if 'modbustcp' in tabledict:
+        runquery = True
+        table = 'modbustcp'
+        querylist.append('drop table if exists ' + table)
+        querylist.append("create table " + table + " (interfaceid text, register integer, length integer, mode text default 'read', bigendian boolean default 1, reversebyte default 0)")
+        if addentries:
+            querylist.append(
+                "insert into " + table + " values ('MBTCP1', '400001', 'read', 1, 0, 0)")
 
     ### Controlalgorithms table
     if 'algorithms' in tabledict:
@@ -404,7 +415,7 @@ if __name__ == "__main__":
         print('making default databases')
         rebuildsafedata()
         rebuildusersdata('defaults')
-        rebuildcontroldb({'actions': True, 'defaults': True, 'systemstatus': True, 'indicators': True, 'inputs': True, 'outputs': True, 'owfs': True, 'ioinfo': True, 'interfaces': True, 'inputsdata':True, 'algorithms': True, 'algorithmtypes': True, 'channels': True})
+        rebuildcontroldb({'actions': True, 'modbustcp': True, 'defaults': True, 'systemstatus': True, 'indicators': True, 'inputs': True, 'outputs': True, 'owfs': True, 'ioinfo': True, 'interfaces': True, 'inputsdata':True, 'algorithms': True, 'algorithmtypes': True, 'channels': True})
         rebuildsystemdatadb({'metadata': True, 'netconfig': True, 'netstatus': True, 'versions': True, 'systemflags': True})
         rebuildrecipesdb({'recipes': True})
         rebuildsessiondb()
@@ -442,6 +453,10 @@ if __name__ == "__main__":
         answer = raw_input('Rebuild inputs table (y/N)?')
         if answer == 'y':
             controltabledict['inputs'] = True
+
+        answer = raw_input('Rebuild modbus table (y/N)?')
+        if answer == 'y':
+            controltabledict['modbus'] = True
 
         answer = raw_input('Rebuild outputs table (y/N)?')
         if answer == 'y':

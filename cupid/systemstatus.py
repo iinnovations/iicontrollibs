@@ -32,48 +32,6 @@ def readhardwarefileintoversions():
         pilib.writedatedlogmsg(pilib.systemstatuslog, 'Cannot find devicedata file to parse', 1, pilib.systemstatusloglevel)
 
 
-def runping(pingAddress,numpings=1):
-    pingtimes=[]
-    for i in range(numpings):
-        # Perform the ping using the system ping command (one ping only)
-        try:
-            rawPingFile = os.popen('ping -c 1 %s' % (pingAddress))
-        except:
-            failed = True
-            latency = 0
-        else:
-            # Extract the ping time
-            rawPingData = rawPingFile.readlines()
-            rawPingFile.close()
-            if len(rawPingData) < 2:
-                # Failed to find a DNS resolution or route
-                failed = True
-                latency = 0
-            else:
-                index = rawPingData[1].find('time=')
-                if index == -1:
-                    # Ping failed or timed-out
-                    failed = True
-                    latency = 0
-                else:
-                    # We have a ping time, isolate it and convert to a number
-                    failed = False
-                    latency = rawPingData[1][index + 5:]
-                    latency = latency[:latency.find(' ')]
-                    latency = float(latency)
-
-        # Set our outputs
-        if failed:
-            # Could not ping
-            pingtimes.append(0)
-        else:
-            # Ping stored in latency in milliseconds
-            #print '%f ms' % (latency)
-            pingtimes.append(latency)
-            pilib.writedatedlogmsg(pilib.networklog, 'ping times: ' + str(pingtimes), 3, pilib.networkloglevel)
-    return pingtimes
-
-
 def updateifacestatus():
 
     import resource.pyiface.iface as pyiface
@@ -116,6 +74,8 @@ def updateifacestatus():
     # WAN check
     pilib.writedatedlogmsg(pilib.networklog, 'Checking pingtimes. ', 4, pilib.networkloglevel)
     okping = float(netconfigdata['pingthreshold'])
+
+    from netfun import runping
     pingresults = runping('8.8.8.8')
     # pingresults = [20, 20, 20]
     pingresult = sum(pingresults)/float(len(pingresults))
