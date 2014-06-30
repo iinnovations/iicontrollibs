@@ -26,12 +26,17 @@ systemdatadatabase = databasedir + 'systemdata.db'
 safedatabase = '/var/wwwsafe/safedata.db'
 usersdatabase = '/var/wwwsafe/users.db'
 
-networklog = '/var/log/cupid/network.log'
-systemstatuslog = '/var/log/cupid/systemstatus.log'
-controllog = '/var/log/cupid/control.log'
-daemonlog = '/var/log/cupid/daemon.log'
-daemonproclog = '/var/log/cupid/daemonproc.log'
-errorlog = '/var/log/cupid/error.log'
+logdir = '/var/log/cupid/'
+
+networklog = logdir + 'network.log'
+iolog = logdir + 'io.log'
+systemstatuslog = logdir + 'systemstatus.log'
+controllog = logdir + 'control.log'
+daemonlog = logdir + 'daemon.log'
+
+daemonproclog = logdir + '/daemonproc.log'
+errorlog = logdir + '/error.log'
+
 
 salt = 'a bunch of random characters and symbols for security'
 
@@ -41,6 +46,7 @@ numlogs = 5
 
 
 networkloglevel = 5
+iologlevel = 4
 systemstatusloglevel = 4
 controlloglevel = 4
 daemonloglevel = 4
@@ -51,6 +57,11 @@ daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systems
 #############################################
 ## Utility Functions
 #############################################
+
+def getlogconfig():
+    logconfigdata = readonedbrow(controldatabase,'logconfig')[0]
+    return logconfigdata
+
 
 def writedatedlogmsg(logfile, message, reqloglevel=1, currloglevel=1):
     if currloglevel >= reqloglevel:
@@ -87,7 +98,7 @@ def rotatelogs(logname, numlogs=5, logsize=1024):
         statuscode = 1
     else:
         statuscode = 0
-        if currlogsize > logsize:
+        if currlogsize > logsize * 1000:
             for i in range(numlogs - 1):
                 oldlog = logname + '.' + str(numlogs - i - 2)
                 newlog = logname + '.' + str(numlogs - i - 1)
@@ -420,17 +431,17 @@ def makesqliteinsert(table, valuelist, valuenames=None, replace=True):
     return query
 
 
-def sqliteinsertsingle(database, table, valuelist, valuenames=None):
+def sqliteinsertsingle(database, table, valuelist, valuenames=None, replace=True):
     import sqlite3 as lite
-    #from pilib import makesqliteinsert 
 
     con = lite.connect(database)
     con.text_factory = str
 
     with con:
         cur = con.cursor()
-        query = makesqliteinsert(table, valuelist, valuenames)
+        query = makesqliteinsert(table, valuelist, valuenames, replace)
         cur.execute(query)
+
 
 
 def sqlitemultquery(database, querylist):

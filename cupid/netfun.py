@@ -154,38 +154,47 @@ def readMBholdingregisters(clientIP, register, number=1):
     from resource.pymodbus.client.sync import ModbusTcpClient
 
     client = ModbusTcpClient(clientIP)
+
     try:
-        result = client.read_holding_registers(register, number)
+        rawresult = client.read_holding_registers(register, number)
     except:
-        result = {'message': 'modbus client error !', 'statuscode': 9}
+        result = {'message': 'modbus client error !', 'statuscode': 9, 'values': []}
         client.close()
         return result
 
     try:
-        resultregisters = result.registers
+        resultregisters = rawresult.registers
     except AttributeError:
-        result = {'message': 'there are no registers!', 'statuscode': 9}
+        result = {'message': 'there are no registers!', 'statuscode': 8}
         client.close()
         return result
+
+    result = {'message':'result returned', 'statuscode':0, 'values':resultregisters}
     client.close()
-    return resultregisters
+    return result
 
 
 def readMBinputregisters(clientIP, register, number=1):
     from resource.pymodbus.client.sync import ModbusTcpClient
 
     client = ModbusTcpClient(clientIP)
-    result = client.read_input_registers(register, number)
-    client.close()
     try:
-        resultregisters = result.registers
-    except AttributeError:
-        result = {'message': 'there are no registers!', 'statuscode': 9}
-        print(result)
+        rawresult = client.read_input_registers(register, number)
+    except:
+        result = {'message': 'modbus client error !', 'statuscode': 9, 'values': []}
         client.close()
         return result
+
+    try:
+        resultregisters = rawresult.registers
+    except AttributeError:
+        result = {'message': 'there are no registers!', 'statuscode': 8}
+        client.close()
+        return result
+
+    result = {'message':'result returned', 'statuscode':0, 'values':resultregisters}
     client.close()
-    return resultregisters
+    return result
 
 
 def writeMBholdingregisters(clientIP, register, valuelist):

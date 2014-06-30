@@ -45,6 +45,17 @@ def rebuildcontroldb(tabledict):
         if addentries:
             querylist.append("insert into " + table + " values (0,0,15,'',1,0,15,'',0,1,0,1,0,15,'','')")
 
+    ### logconfig Table
+    if 'logconfig' in tabledict:
+        runquery = True
+        table = 'logconfig'
+        querylist.append('drop table if exists ' + table)
+        querylist.append("create table " + table + " (networkloglevel integer, iologlevel integer, systemstatusloglevel integer, controlloglevel integer, daemonloglevel integer)")
+        if addentries:
+            querylist.append(
+                "insert into " + table + " values (4,4,4,4,4)")
+
+
     ### Indicators table
     if 'indicators' in tabledict:
         runquery = True
@@ -167,7 +178,7 @@ def rebuildcontroldb(tabledict):
         runquery = True
         table = 'modbustcp'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (interfaceid text, register integer, length integer, mode text default 'read', bigendian boolean default 1, reversebyte default 0)")
+        querylist.append("create table " + table + " (interfaceid text, register integer, mode text default 'read', length integer default 1,  bigendian boolean default 1, reversebyte default 0)")
         if addentries:
             querylist.append(
                 "insert into " + table + " values ('MBTCP1', '400001', 'read', 1, 0, 0)")
@@ -415,14 +426,13 @@ if __name__ == "__main__":
         print('making default databases')
         rebuildsafedata()
         rebuildusersdata('defaults')
-        rebuildcontroldb({'actions': True, 'modbustcp': True, 'defaults': True, 'systemstatus': True, 'indicators': True, 'inputs': True, 'outputs': True, 'owfs': True, 'ioinfo': True, 'interfaces': True, 'inputsdata':True, 'algorithms': True, 'algorithmtypes': True, 'channels': True})
+        rebuildcontroldb({'actions': True, 'modbustcp': True, 'logconfig': True, 'defaults': True, 'systemstatus': True, 'indicators': True, 'inputs': True, 'outputs': True, 'owfs': True, 'ioinfo': True, 'interfaces': True, 'inputsdata':True, 'algorithms': True, 'algorithmtypes': True, 'channels': True})
         rebuildsystemdatadb({'metadata': True, 'netconfig': True, 'netstatus': True, 'versions': True, 'systemflags': True})
         rebuildrecipesdb({'recipes': True})
         rebuildsessiondb()
 
 
     else:
-        controltabledict = {}
         answer = raw_input('Rebuild wireless table (y/N)?')
         if answer == 'y':
             rebuildsafedata()
@@ -437,6 +447,10 @@ if __name__ == "__main__":
         answer = raw_input('Rebuild actions table (y/N)?')
         if answer == 'y':
             controltabledict['actions'] = True
+
+        answer = raw_input('Rebuild logconfig table (y/N)?')
+        if answer == 'y':
+            controltabledict['logconfig'] = True
 
         answer = raw_input('Rebuild defaults table (y/N)?')
         if answer == 'y':
@@ -456,7 +470,7 @@ if __name__ == "__main__":
 
         answer = raw_input('Rebuild modbus table (y/N)?')
         if answer == 'y':
-            controltabledict['modbus'] = True
+            controltabledict['modbustcp'] = True
 
         answer = raw_input('Rebuild outputs table (y/N)?')
         if answer == 'y':
