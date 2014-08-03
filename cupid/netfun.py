@@ -20,6 +20,7 @@ if top_folder not in sys.path:
 
 def runping(pingAddress, numpings=1):
     pingtimes = []
+    from cupid import pilib
     for i in range(numpings):
         # Perform the ping using the system ping command (one ping only)
         try:
@@ -111,6 +112,31 @@ def checksharemount(sharepath):
 #
 #--------------------------------------------------#
 
+# Status codes:
+#   First are mapped to standard MB exception codes:
+#       0: Everything went fine
+#       1: Invalid Function code
+#       2: Invalid Address
+#       3: Invalid Value
+#       4, 5, 6: Invalid Execution
+#       7: Unable to connect to host
+
+def messagefrommbstatuscode(code):
+    if code == 0:
+        message = 'status ok'
+    elif code == 1:
+        message = 'Invalid Function Code'
+    elif code == 2:
+        message = 'Invalid Address'
+    elif code == 3:
+        message = 'Invalid Value'
+    elif code in [4, 5, 6]:
+        message = 'Invalid MB Execution'
+    elif code == 7:
+        message = 'Connection Exception'
+    return message
+
+
 def readMBinputs(clientIP, coil, number=1):
     from resource.pymodbus.client.sync import ModbusTcpClient
 
@@ -151,49 +177,49 @@ def writeMBcoils(clientIP, coil, valuelist):
 
 
 def readMBholdingregisters(clientIP, register, number=1):
-    from resource.pymodbus.client.sync import ModbusTcpClient
+    from resource.pymodbus.client.sync import ModbusTcpClient, ConnectionException
 
     client = ModbusTcpClient(clientIP)
-
+    values = []
     try:
         rawresult = client.read_holding_registers(register, number)
-    except:
-        result = {'message': 'modbus client error !', 'statuscode': 9, 'values': []}
-        client.close()
-        return result
-
-    try:
-        resultregisters = rawresult.registers
-    except AttributeError:
-        result = {'message': 'there are no registers!', 'statuscode': 8}
-        client.close()
-        return result
-
-    result = {'message':'result returned', 'statuscode':0, 'values':resultregisters}
+    except ConnectionException:
+        print('we were unable to connect to the host')
+        statuscode = 7
+    else:
+        print(rawresult)
+        try:
+            resultregisters = rawresult.registers
+        except AttributeError:
+            statuscode = rawresult.exception_code
+        else:
+            statuscode = 0
+            values = resultregisters
     client.close()
+    result = {'message': messagefrommbstatuscode(statuscode), 'statuscode': statuscode, 'values':values}
     return result
 
 
 def readMBinputregisters(clientIP, register, number=1):
-    from resource.pymodbus.client.sync import ModbusTcpClient
-
+    from resource.pymodbus.client.sync import ModbusTcpClient, ConnectionException
+    values = []
     client = ModbusTcpClient(clientIP)
     try:
         rawresult = client.read_input_registers(register, number)
-    except:
-        result = {'message': 'modbus client error !', 'statuscode': 9, 'values': []}
-        client.close()
-        return result
-
-    try:
-        resultregisters = rawresult.registers
-    except AttributeError:
-        result = {'message': 'there are no registers!', 'statuscode': 8}
-        client.close()
-        return result
-
-    result = {'message':'result returned', 'statuscode':0, 'values':resultregisters}
+    except ConnectionException:
+        print('we were unable to connect to the host')
+        statuscode = 7
+    else:
+        print(rawresult)
+        try:
+            resultregisters = rawresult.registers
+        except AttributeError:
+            statuscode = rawresult.exception_code
+        else:
+            statuscode = 0
+            values = resultregisters
     client.close()
+    result = {'message': messagefrommbstatuscode(statuscode), 'statuscode': statuscode, 'values':values}
     return result
 
 

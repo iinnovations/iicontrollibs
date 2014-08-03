@@ -168,6 +168,17 @@ def application(environ, start_response):
                             else:
                                 outputdata.append(line)
                     data['data'] = outputdata
+        elif action == 'getmbtcpdata':
+            try:
+                clientIP = d['clientIP']
+                register = d['register']
+                length = d['length']
+            except KeyError:
+                data['message'] += 'Sufficient keys do not exist for the command. Requires clientIP, register, and length. '
+            else:
+                from cupid.netfun import readMBcodedaddresses
+                # try:
+                data['response'] = readMBcodedaddresses(clientIP, int(register), int(length))
         else:
             data['message'] += 'Action keyword present(' + action + '), but not handled. '
     else:
