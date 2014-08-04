@@ -94,19 +94,27 @@ while updateioenabled:
 
     inputsdata = pilib.readalldbrows(pilib.controldatabase, 'inputs')
     for inputrow in inputsdata:
-        # Create table if it doesn't exist
+        if pilib.isvalidtime(inputrow['polltime']):
 
-        logtablename = 'input_' + inputrow['name'] + '_log'
-        query = 'create table if not exists \'' + logtablename + '\' ( value real, time text primary key)'
-        pilib.sqlitequery(pilib.logdatabase, query)
+            # Create table if it doesn't exist
 
-        # Enter row
-        pilib.sqliteinsertsingle(pilib.logdatabase, logtablename, valuelist=[inputrow['value'], inputrow['polltime']],
-                                 valuenames=['value', 'time'])
+            logtablename = 'input_' + inputrow['id'] + '_log'
+            query = 'create table if not exists \'' + logtablename + '\' ( value real, time text primary key)'
+            pilib.sqlitequery(pilib.logdatabase, query)
+
+            # Enter row
+            pilib.sqliteinsertsingle(pilib.logdatabase, logtablename, valuelist=[inputrow['value'], inputrow['polltime']],
+                                     valuenames=['value', 'time'])
+
+        # Clean log
+        pilib.cleanlog(pilib.logdatabase, logtablename)
 
         # Size log based on specified size
 
         pilib.sizesqlitetable(pilib.logdatabase, logtablename, logpoints)
+
+
+
 
     ####################################################
     # log metadata

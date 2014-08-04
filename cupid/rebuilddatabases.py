@@ -180,10 +180,10 @@ def rebuildcontroldb(tabledict):
         querylist.append('drop table if exists ' + table)
         querylist.append("create table " + table + " (interfaceid text, register integer, mode text default 'read', length integer default 1,  bigendian boolean default 1, reversebyte boolean default 0, format text)")
         if addentries:
-            querylist.append("insert into " + table + " values ('MBTCP1', '400001', 'read', 1, 0, 0, 'float32')")
-            querylist.append("insert into " + table + " values ('MBTCP1', '400003', 'read', 1, 0, 0, 'float32')")
-            querylist.append("insert into " + table + " values ('MBTCP1', '400005', 'read', 1, 0, 0, 'float32')")
-            querylist.append("insert into " + table + " values ('MBTCP1', '400007', 'read', 1, 0, 0, 'float32')")
+            querylist.append("insert into " + table + " values ('MBTCP1', '400001', 'read', 2, 0, 0, 'float32')")
+            querylist.append("insert into " + table + " values ('MBTCP1', '400003', 'read', 2, 0, 0, 'float32')")
+            querylist.append("insert into " + table + " values ('MBTCP1', '400005', 'read', 2, 0, 0, 'float32')")
+            querylist.append("insert into " + table + " values ('MBTCP1', '400007', 'read', 2, 0, 0, 'float32')")
 
     ### Controlalgorithms table
     if 'algorithms' in tabledict:

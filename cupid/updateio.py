@@ -246,10 +246,13 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
     for entry in modbustable:
         # Get name from ioinfo table to give it a colloquial name
         # First we have to give it a unique ID. This is a bit difficult with modbus
+
         if entry['mode'] == 'read':
             shortmode = 'R'
         elif entry['mode'] == 'write':
             shortmode = 'W'
+        elif entry['mode'] == 'readwrite':
+            shortmode = 'RW'
         else:
             pilib.writedatedlogmsg(pilib.iolog, 'modbus mode error', 1, logconfig['iologlevel'])
         try:
@@ -293,8 +296,7 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
                     prevvalue = ''
                     prevpolltime = ''
                     pilib.writedatedlogmsg(pilib.iolog,
-                                           'Setting values to defaults, defaultinputpollfreq = ' + str(
-                                               pollfreq), 3, logconfig['iologlevel'])
+                                           'Setting values to defaults, defaultinputpollfreq = ' + str(pollfreq), 3, logconfig['iologlevel'])
 
                 # Read data
                 try:
@@ -318,14 +320,28 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
                                     values.reverse()
                                 except AttributeError:
                                     pilib.writedatedlogmsg(pilib.iolog, 'Error on reverse of MB values: ' + str(values), 0, logconfig['iologlevel'])
+                            if entry['format'] == 'float32':
+                                import struct
+                                byte2 = values[0] % 256
+                                byte1 = (values[0] - byte2)/256
+                                byte4 = values[1] % 256
+                                byte3 = (values[1] - byte4)/256
 
-                            for index, val in enumerate(values):
-                                if FC in [0, 1]:
-                                    returnvalue += val * 2 ** index
-                                elif FC in [3, 4]:
-                                    returnvalue += val * 256 ** index
-                                else:
-                                     pilib.writedatedlogmsg(pilib.iolog, 'Invalid function code', 0, logconfig['iologlevel'])
+                                byte1hex = chr(byte1)
+                                byte2hex = chr(byte2)
+                                byte3hex = chr(byte3)
+                                byte4hex = chr(byte4)
+                                hexstring = byte1hex + byte2hex + byte3hex + byte4hex
+
+                                returnvalue = struct.unpack('>f',hexstring)[0]
+                            else:
+                                for index, val in enumerate(values):
+                                    if FC in [0, 1]:
+                                        returnvalue += val * 2 ** index
+                                    elif FC in [3, 4]:
+                                        returnvalue += val * 256 ** index
+                                    else:
+                                         pilib.writedatedlogmsg(pilib.iolog, 'Invalid function code', 0, logconfig['iologlevel'])
                         else:
                             returnvalue = values[0]
 

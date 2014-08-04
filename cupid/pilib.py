@@ -147,6 +147,11 @@ def timestringtoseconds(timestring):
         timeinseconds = 0
     return timeinseconds
 
+def isvalidtime(timestring):
+    if timestring == '':
+        return False
+    else:
+        return True
 
 def tail(f, n, offset=None):
     """Reads a n lines from f with an offset of offset lines.  The return
@@ -576,6 +581,10 @@ def dynamicsqliteread(database, table, start=None, length=None):
         dictarray = readsomedbrows(database, table, start, length)
 
     return dictarray
+
+
+def cleanlog(databasename, logname):
+    sqlitequery(databasename, "delete from '" + logname + "' where time =''")
 
 
 def sizesqlitetable(databasename, tablename, size):
