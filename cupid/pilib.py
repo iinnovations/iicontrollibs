@@ -147,6 +147,7 @@ def timestringtoseconds(timestring):
         timeinseconds = 0
     return timeinseconds
 
+
 def isvalidtime(timestring):
     if timestring == '':
         return False
@@ -517,7 +518,7 @@ def makesinglevaluequery(table, valuename, value, condition=None):
     return query
 
 
-def readonedbrow(database, table, rownumber=0):
+def readonedbrow(database, table, rownumber=0, condition=None):
     data = sqlitequery(database, 'select * from \'' + table + '\'')
     try:
         datarow = data[rownumber]
@@ -532,9 +533,29 @@ def readonedbrow(database, table, rownumber=0):
     return dictarray
 
 
-def readsomedbrows(database, table, start, length):
-    data = sqlitequery(database, 'select * from \'' + table + '\'')
-    datarows = data[int(start):int(start + length)]
+def readsomedbrows(database, table, start, length, condition=None):
+
+    # User specifies length of data, and where to start, in terms of row index
+    # If a negative number is the start argument, data is retrieved from the end of the data
+
+    if start >= 0:
+        query = "select * from '" + table + "' limit " + str(start) + ',' + str(length)
+    else:
+        query = "select * from '" + table + "' order by rowid desc " + " limit " + str(length)
+    print(query)
+    if condition:
+        query += ' where ' + condition
+
+    datarows = sqlitequery(database, query)
+
+    # This is the old code. Requires retrieving the entire table
+
+    # Start < 0 retrieves from end of list
+    # if start < 0:
+    #     datarows = data[len(data)-length:len(data)-1]
+    # else:
+    #     datarows = data[int(start):int(start + length)]
+
     pragmanames = getpragmanames(database, table)
 
     dictarray = []
@@ -549,8 +570,13 @@ def readsomedbrows(database, table, start, length):
     return dictarray
 
 
-def readalldbrows(database, table):
-    data = sqlitequery(database, 'select * from \'' + table + '\'')
+def readalldbrows(database, table, condition=None):
+
+    query = 'select * from \'' + table + '\''
+    if condition:
+        query += ' where ' + condition
+
+    data = sqlitequery(database, query)
 
     pragmanames = getpragmanames(database, table)
 
@@ -572,13 +598,13 @@ def readalldbrows(database, table):
 # One location argument = single row
 # Two arguments = range of rows
 
-def dynamicsqliteread(database, table, start=None, length=None):
+def dynamicsqliteread(database, table, start=None, length=None, condition=None):
     if length is None and start is None:
-        dictarray = readalldbrows(database, table)
+        dictarray = readalldbrows(database, table, condition)
     elif length is None:
-        dictarray = readonedbrow(database, table, start)
+        dictarray = readonedbrow(database, table, start, condition)
     else:
-        dictarray = readsomedbrows(database, table, start, length)
+        dictarray = readsomedbrows(database, table, start, length, condition)
 
     return dictarray
 
