@@ -123,7 +123,7 @@ def parseoptions(optionstring):
     optionsdict={}
     for item in list:
         split = item.split(':')
-        optionsdict[split[0]] = split[1]
+        optionsdict[split[0].strip()] = split[1].strip()
     return optionsdict
 
 

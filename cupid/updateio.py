@@ -263,7 +263,7 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
 
         pilib.writedatedlogmsg(pilib.iolog, 'Modbus ID: ' + mbid, 4, logconfig['iologlevel'])
 
-        mbname = pilib.sqlitedatumquery(pilib.controldatabase, 'select name from ioinfo where id=\'' + mbid + '\'')
+        mbname = pilib.sqlitedatumquery(pilib.controldatabase, "select name from ioinfo where id='" + mbid + "'")
         polltime = pilib.gettimestring()
         if entry['interfaceid'] == interface['id']:
             # For now, we're going to read them one by one. We'll assemble these into block reads
@@ -344,6 +344,19 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
                                          pilib.writedatedlogmsg(pilib.iolog, 'Invalid function code', 0, logconfig['iologlevel'])
                         else:
                             returnvalue = values[0]
+                        if entry['options'] != '':
+                            options = pilib.parseoptions(entry['options'])
+                            if 'scale' in options:
+                                # try:
+                                    returnvalue = returnvalue * float(options['scale'])
+                                # except:
+                                #     pilib.writedatedlogmsg(pilib.iolog, 'Error on scale operation', 0, logconfig['iologlevel'])
+                            if 'precision' in options:
+                                # try:
+                                    returnvalue = round(returnvalue, int(options['precision']))
+                                # except:
+                                #     pilib.writedatedlogmsg(pilib.iolog, 'Error on precision operation', 0, logconfig['iologlevel'])
+
 
                         pilib.writedatedlogmsg(pilib.iolog, 'Values read: ' + str(values), 4, logconfig['iologlevel'])
                         pilib.writedatedlogmsg(pilib.iolog, 'Value returned: ' + str(returnvalue), 4, logconfig['iologlevel'])
