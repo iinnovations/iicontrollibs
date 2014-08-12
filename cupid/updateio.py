@@ -172,7 +172,8 @@ def updateiodata(database):
                 import readspi
 
                 spidata = readspi.readspitc(0)
-                readspi.recordspidata(database, spidata)
+                spitcentries = readspi.recordspidata(database, spidata)
+                querylist.extend(spitcentries)
 
             if interface['type'] == 'CuPIDlights':
                 import spilights
@@ -379,8 +380,7 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
 
     return querylist
 
-
-def processGPIOinterface(interface, prevoutputs, prevoutputids, prevoutputvalues, previnputs, previnputids, defaults, logconfig):
+def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids, previnputs, previnputids, defaults, logconfig):
     import RPi.GPIO as GPIO
 
     GPIO.setmode(GPIO.BCM)

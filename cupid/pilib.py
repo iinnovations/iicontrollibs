@@ -449,7 +449,6 @@ def sqliteinsertsingle(database, table, valuelist, valuenames=None, replace=True
         cur.execute(query)
 
 
-
 def sqlitemultquery(database, querylist):
     import sqlite3 as lite
 

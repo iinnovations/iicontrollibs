@@ -25,6 +25,7 @@ querylist = [];
 # we need to have a selector for what to 
 # read/write on our SPI interface
 
+
 def readspitc(CS=1):
     valuedict = {}
     valuedict['SPITC1'] = getspitctemp(CS).rstrip()
@@ -37,15 +38,19 @@ def getspitctemp(CS):
     return tctemp
 
 
-def recordspidata(database, valuedict):
+def recordspidata(database, valuedict, execute=False):
     # This is incomplete and hardcoded partially
     querylist = []
     for key, value in valuedict.iteritems():
-        querylist.append(pilib.makesqliteinsert('inputsdata',
-                                                valuelist=[key, 'SPI1', 'TC', '1', value, 'F', pilib.gettimestring(), 1,
-                                                           key]))
+        querylist.append(pilib.makesqliteinsert('inputs',
+                                                valuelist=[key, 'SPI1', 'TC', '1', 'SPITC1', value, 'F', pilib.gettimestring(), 1,
+                                                           '','']))
         querylist.append(pilib.makesqliteinsert('ioinfo', valuelist=[key, key]))
-    pilib.sqlitemultquery(database, querylist)
+    if execute:
+        pilib.sqlitemultquery(database, querylist)
+
+    return querylist
+
 
 
 if __name__ == "__main__":
