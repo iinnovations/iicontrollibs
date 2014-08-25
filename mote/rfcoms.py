@@ -16,7 +16,7 @@ As a result, messages must be checked for inclusion of these sequences
 
 Typical Remote sequence:
     Send Xmit Request:
-        Message Type        1 Byte      (xmitreq type)
+        Message Type        2 Byte      (xmitreq type)
         Message Source ID   4 Bytes     (Dest ID 00 for unknown)
         Message Dest ID     4 Bytes     (Dest ID xFF for broadcast or non-specific message)
         Message CRC16       2 Bytes
@@ -36,8 +36,6 @@ Typical Remote sequence:
         Message Source ID   4 Bytes
         Message Dest ID     4 Bytes     (received address of controller)
         PAYLOAD:
-            Device Type         2 Bytes
-            Message Type        2 Bytes
             Number Data Items   1 Byte
             Total Data Size     1 Byte
             Data Items:
@@ -50,7 +48,7 @@ Typical Remote sequence:
     Retry message send *messagesendretries
 
     Controller response with Ack:
-        Message Type        1 Byte
+        Message Type        2 Byte
         Message Source ID   2 Bytes
         Action              1 Byte (typical would be Sleep, Stand by for command)
 

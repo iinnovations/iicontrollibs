@@ -25,6 +25,14 @@ def rebuildcontroldb(tabledict):
     querylist = []
     runquery = False
 
+    ### Remotes table
+    if 'remotes' in tabledict:
+        runquery = True
+        table = 'remotes'
+        querylist.append('drop table if exists ' + table)
+        querylist.append(
+            "create table " + table + " (nodeid integer primary key, data text, time text)")
+
     ### Actions table
     if 'actions' in tabledict:
         runquery = True
@@ -428,11 +436,10 @@ if __name__ == "__main__":
         print('making default databases')
         rebuildsafedata()
         rebuildusersdata('defaults')
-        rebuildcontroldb({'actions': True, 'modbustcp': True, 'logconfig': True, 'defaults': True, 'systemstatus': True, 'indicators': True, 'inputs': True, 'outputs': True, 'owfs': True, 'ioinfo': True, 'interfaces': True, 'inputsdata':True, 'algorithms': True, 'algorithmtypes': True, 'channels': True})
+        rebuildcontroldb({'actions': True, 'modbustcp': True, 'logconfig': True, 'defaults': True, 'systemstatus': True, 'indicators': True, 'inputs': True, 'outputs': True, 'owfs': True, 'ioinfo': True, 'interfaces': True, 'inputsdata':True, 'algorithms': True, 'algorithmtypes': True, 'channels': True, 'remotes': True})
         rebuildsystemdatadb({'metadata': True, 'netconfig': True, 'netstatus': True, 'versions': True, 'systemflags': True})
         rebuildrecipesdb({'recipes': True})
         rebuildsessiondb()
-
 
     else:
         answer = raw_input('Rebuild wireless table (y/N)?')
@@ -441,11 +448,13 @@ if __name__ == "__main__":
 
         answer = raw_input('Rebuild users table (y/N)?')
         if answer == 'y':
-            controltabledict['usersdata'] = True
-            print('i rebuild the things')
             rebuildusersdata()
 
         controltabledict = {}
+        answer = raw_input('Rebuild remotes table (y/N)?')
+        if answer == 'y':
+            controltabledict['remotes'] = True
+
         answer = raw_input('Rebuild actions table (y/N)?')
         if answer == 'y':
             controltabledict['actions'] = True

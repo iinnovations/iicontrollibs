@@ -186,15 +186,17 @@ void loop() {
 
   if (radio.receiveDone())
   {
-    Serial.print('[');Serial.print(radio.SENDERID, DEC);Serial.print("] ");
+    Serial.println("BEGIN RECEIVED");
+    Serial.print("nodeid:");Serial.print(radio.SENDERID, DEC);Serial.print(", ");
     if (promiscuousMode)
     {
       Serial.print("to [");Serial.print(radio.TARGETID, DEC);Serial.print("] ");
     }
     for (byte i = 0; i < radio.DATALEN; i++)
       Serial.print((char)radio.DATA[i]);
-    Serial.print(" [RX_RSSI:");Serial.print(radio.RSSI);Serial.print("]");
-    
+    Serial.print(",RX_RSSI:");Serial.print(radio.RSSI);Serial.print("");
+    Serial.println();
+    Serial.println("END RECEIVED");
     if (radio.ACK_REQUESTED)
     {
       byte theNodeID = radio.SENDERID;
@@ -215,7 +217,8 @@ void loop() {
         else Serial.print("nothing");
       }
      } // Ack requested
-     Serial.println();
+     
+
      Blink(LED,3);
   } // Receive done
 }// loop

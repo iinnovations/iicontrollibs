@@ -10,6 +10,6 @@ if not serstatus:
    ser.open()
 
 input=1
-while 1 :
+while 1:
         while ser.inWaiting() > 0:
             print(ser.readline())

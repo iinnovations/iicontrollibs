@@ -30,6 +30,7 @@ logdir = '/var/log/cupid/'
 
 networklog = logdir + 'network.log'
 iolog = logdir + 'io.log'
+remotelog = logdir + 'remotes.log'
 systemstatuslog = logdir + 'systemstatus.log'
 controllog = logdir + 'control.log'
 daemonlog = logdir + 'daemon.log'
@@ -154,6 +155,7 @@ def isvalidtime(timestring):
     else:
         return True
 
+
 def tail(f, n, offset=None):
     """Reads a n lines from f with an offset of offset lines.  The return
     value is a tuple in the form ``(lines, has_more)`` where `has_more` is
@@ -175,6 +177,7 @@ def tail(f, n, offset=None):
             return lines[-to_read:offset and -offset or None], \
                    len(lines) > to_read or pos > 0
         avg_line_length *= 1.3
+
 
 # This class defines actions taken on
 class action:
