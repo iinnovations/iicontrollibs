@@ -161,8 +161,16 @@ else
     make
     make install
 
+    echo "installing python-api-master"
+    cd /usr/lib/iicontrollibs/resource/quick2wire-python-api-master/
+    ./setup.py install
+
     echo "installing spi-dev"
     cd /usr/lib/iicontrollibs/resource/py-spidev/
+    ./setup.py install
+
+    echo "installing bitstring"
+    cd /usr/lib/iicontrollibs/resource/bitstring/
     ./setup.py install
 
     echo "Copying icons to desktop"
