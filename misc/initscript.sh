@@ -163,7 +163,7 @@ else
 
     echo "installing spi-dev"
     cd /usr/lib/iicontrollibs/resource/py-spidev/
-    setup.py install
+    ./setup.py install
 
     echo "Copying icons to desktop"
 
