@@ -3,10 +3,9 @@
 # Initialize users and priuileges
 echo $1
 
-if [ $1 = "update" ]
+if [ $1 = "install" ]
   then
     apt-get update
-    apt-get -y upgrade
     apt-get -y install apache2 php5 sqlite3 php5-sqlite libapache2-mod-wsgi libapache2-mod-php5
     a2enmod rewrite
     apt-get -y install python-dev python3 python-setuptools
@@ -22,7 +21,7 @@ if [ $1 = "update" ]
     apt-get -y install automake
 fi
 
-if [ $1 = "update" && $2 = "only" ]
+if [ $1 = "update" ]
     then
       echo "updated only, as requested"
 else
@@ -33,7 +32,7 @@ else
 
     mkdir /var/wwwsafe
     chown -R root:pi /var/wwwsafe
-    chmod -R 775 /var/www/safe
+    chmod -R 775 /var/wwwsafe
 
     mkdir /var/www
     chown -R root:www-data /var/www
@@ -72,10 +71,11 @@ else
     git config --global user.email "info@interfaceinnovations.org"
     git config --global user.name "iinnovations"
     git remote add origin https://github.com/iinnovations/cupidweblib
-    chown -R root:www-data .git
+    chown -R pi:www-data .git
     chmod -R 775 .git
     git reset --hard master
-    chown -R root:www-data *
+    git pull origin master
+    chown -R pi:www-data *
     chmod -R 775 *
     echo "complete"
 
@@ -86,10 +86,11 @@ else
     git config --global user.email "info@interfaceinnovations.org"
     git config --global user.name "iinnovations"
     git remote add origin https://github.com/iinnovations/iicontrollibs
-    chown -R root:www-data .git
+    chown -R pi:www-data .git
     chmod -R 775 .git
     git reset --hard master
-    chown -R root:www-data *
+    git pull origin master
+    chown -R pi:www-data *
     chmod -R 775 *
     echo "complete"
 
