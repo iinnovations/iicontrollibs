@@ -439,9 +439,7 @@ void loop() {
 void processcmdstring(String cmdstring){
   Serial.println(F("processing cmdstring"));
   Serial.println(cmdstring);
-  
-  void(* resetMote)(void) = 0; //declare reset function @ address 0
-  
+    
   int i;
   String str1="";
   String str2="";
