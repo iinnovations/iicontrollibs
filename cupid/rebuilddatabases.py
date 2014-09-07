@@ -31,7 +31,7 @@ def rebuildcontroldb(tabledict):
         table = 'remotes'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (nodeid integer primary key, data text, time text)")
+            "create table " + table + " (nodeid integer, msgtype text, keyvalue text, keyvaluename text, data text, time text)")
 
     ### Actions table
     if 'actions' in tabledict:
@@ -49,9 +49,9 @@ def rebuildcontroldb(tabledict):
         table = 'systemstatus'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text, updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 5, lastiopoll text, enableoutputs boolean default 0, sessioncontrolenabled boolean, sessioncontrolstatus boolean, systemstatusenabled boolean default0, systemstatusstatus boolean, systemstatusfreq real default 15, lastsystemstatuspoll text, systemmessage text)")
+            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text, updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 5, lastiopoll text, enableoutputs boolean default 0, sessioncontrolenabled boolean, sessioncontrolstatus boolean, systemstatusenabled boolean default 0, netconfigenabled boolean default 0, systemstatusstatus boolean, systemstatusfreq real default 15, lastsystemstatuspoll text, systemmessage text, serialhandlerenabled boolean default 0, serialhandlerstatus boolean default 0)")
         if addentries:
-            querylist.append("insert into " + table + " values (0,0,15,'',1,0,15,'',0,1,0,1,0,15,'','')")
+            querylist.append("insert into " + table + " values (0,0,15,'',1,0,15,'',0,1,0,1,0,0,15,'','',0,0)")
 
     ### logconfig Table
     if 'logconfig' in tabledict:
@@ -132,24 +132,24 @@ def rebuildcontroldb(tabledict):
         runquery = True
         table = 'ioinfo'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (id text primary key, name text)")
+        querylist.append("create table " + table + " (id text primary key, name text, options text)")
         if addentries:
             querylist.append(
-                "insert into " + table + " values ('GPIO18', 'GPIO1')")
+                "insert into " + table + " values ('GPIO18', 'GPIO1', '')")
             querylist.append(
-                "insert into " + table + " values ('GPIO23', 'GPIO2')")
+                "insert into " + table + " values ('GPIO23', 'GPIO2', '')")
             querylist.append(
-                "insert into " + table + " values ('GPIO24', 'GPIO3')")
+                "insert into " + table + " values ('GPIO24', 'GPIO3', '')")
             querylist.append(
-                "insert into " + table + " values ('GPIO25', 'GPIO4')")
+                "insert into " + table + " values ('GPIO25', 'GPIO4', '')")
             querylist.append(
-                "insert into " + table + " values ('GPIO4', 'GPIO5')")
+                "insert into " + table + " values ('GPIO4', 'GPIO5', '')")
             querylist.append(
-                "insert into " + table + " values ('GPIO17', 'GPIO6')")
+                "insert into " + table + " values ('GPIO17', 'GPIO6', '')")
             querylist.append(
-                "insert into " + table + " values ('GPIO21', 'GPIO7')")
+                "insert into " + table + " values ('GPIO21', 'GPIO7', '')")
             querylist.append(
-                "insert into " + table + " values ('GPIO22', 'GPIO8')")
+                "insert into " + table + " values ('GPIO22', 'GPIO8', '')")
 
     ### Interfaces Table
     if 'interfaces' in tabledict:

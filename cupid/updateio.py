@@ -87,7 +87,8 @@ def updateiodata(database):
     # where there are no database indicator entries. This is not too much of a problem with indicators, as we
     # update the hardware explicitly after we add the entries. If the interface queries the table during
     # this period, however, we could end up with an apparently empty table.
-    # The reason they are updated within the table rather than compiling
+    # TODO: FIX update on indicators in updateio
+
     pilib.sqlitequery(pilib.controldatabase, 'delete from indicators')
 
     owfsupdate = False
@@ -112,6 +113,69 @@ def updateiodata(database):
                     pilib.writedatedlogmsg(pilib.iolog, 'Interface type is DS9490', 3,
                                            logconfig['iologlevel'])
                     owfsupdate = True
+        elif interface['interface'] == 'MOTE':
+            pilib.writedatedlogmsg(pilib.iolog, 'Processing Mote interface' + interface['name'], 3,
+                                   logconfig['iologlevel'])
+            if interface['enabled']:
+                pilib.writedatedlogmsg(pilib.iolog, 'Mote Interface ' + interface['name'] + ' enabled', 3,
+                                       logconfig['iologlevel'])
+
+                # Grab mote entries from remotes table
+                nodeaddress = int(interface['address'])
+                nodeentries = pilib.dynamicsqliteread(pilib.controldatabase, 'remotes', condition="\"nodeid\"='" + str(nodeaddress) + "'")
+
+                # Create queries for table insertion
+                # TODO: process mote pollfreq, ontime, offtime
+                moteentries = []
+                for nodeentry in nodeentries:
+
+                    datadict = pilib.parseoptions(nodeentry['data'])
+                    try:
+                        entrytype = nodeentry['msgtype']
+                        entryid = 'MOTE' + str(nodeentry['nodeid']) + '_' + nodeentry['keyvaluename'] + '_' + nodeentry['keyvalue']
+
+
+                        entrymetareturn = pilib.dynamicsqliteread(pilib.controldatabase, 'ioinfo', condition="\"id\"='" + entryid + "'")
+                        try:
+                            entrymeta = entrymetareturn[0]
+                        except:
+                            entrymeta = []
+
+                        # print(entrymeta)
+
+                        entryoptions={}
+                        if entrymeta:
+                            entryname = entrymeta['name']
+                            if entrymeta['options']:
+                                entryoptions = pilib.parseoptions(entrymeta['options'])
+                        else:
+                            entryname = '[MOTE' + str(nodeentry['nodeid']) + '] ' + nodeentry['keyvaluename'] + ':' + nodeentry['keyvalue']
+                    except KeyError:
+                        print('OOPS KEY ERROR')
+                    else:
+                        if entrytype == 'iovalue':
+                            if 'scale' in entryoptions:
+                                entryvalue = str(float(entryoptions['scale']) * float(datadict['iovalue']))
+                            else:
+                                entryvalue = datadict['iovalue']
+                        elif entrytype == 'owdev':
+                            if 'owtmpasc' in datadict:
+                                if 'scale' in entryoptions:
+                                    entryvalue = str(float(entryoptions['scale']) * float(datadict['owtmpasc']))
+                                else:
+                                    entryvalue = datadict['owtmpasc']
+                            else:
+                                entryvalue = -1
+                        else:
+                            entryvalue = -1
+
+                        moteentries.append('insert into inputs values (\'' + entryid + '\',\'' + interface['interface'] + '\',\'' +
+            interface['type'] + '\',\'' + str(address) + '\',\'' + entryname + '\',\'' + str(entryvalue) + "','','" +
+            nodeentry['time'] + '\',\'' + str(15) + "','" + '' + "','" + '' + "')")
+                # print('querylist')
+                # print(moteentries)
+                querylist.extend(moteentries)
+
         elif interface['interface'] == 'LAN':
             pilib.writedatedlogmsg(pilib.iolog, 'Processing LAN interface' + interface['name'], 3,
                                    logconfig['iologlevel'])
@@ -137,6 +201,7 @@ def updateiodata(database):
                                                'Done processing MBTCP interface ' + interface['name'], 3,
                                                logconfig['iologlevel'])
                         querylist.extend(mbentries)
+
 
         elif interface['interface'] == 'GPIO':
             try:
@@ -379,6 +444,7 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
     pilib.writedatedlogmsg(pilib.iolog, 'Querylist: ' + str(querylist) , 4, logconfig['iologlevel'])
 
     return querylist
+
 
 def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids, previnputs, previnputids, defaults, logconfig):
     import RPi.GPIO as GPIO

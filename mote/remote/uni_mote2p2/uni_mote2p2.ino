@@ -39,9 +39,10 @@ byte NETWORKID = 100;
 byte GATEWAYID = 1;
 
 #define ENCRYPTKEY    "sampleEncryptKey" //exactly the same 16 characters/bytes on all nodes!
-//#define SLEEPMODE 0
 
 byte SLEEPMODE;
+unsigned int SLEEPDELAY; // ms
+unsigned int SLEEPDELAYTIMER; // ms
 
 //int TRANSMITPERIOD = 300; //transmit a packet to gateway so often (in ms)
 char buff[20];
@@ -49,7 +50,7 @@ boolean requestACK = false;
 SPIFlash flash(FLASH_SS, 0xEF30); //EF30 for 4mbit  Windbond chip (W25X40CL)
 RFM69 radio;
 
-int LOOPPERIOD = 2000; // ms
+unsigned int LOOPPERIOD = 2000; // ms
 
 // constants
 //PROGMEM char ionames[13][3] = { "D3","D4","D5","D6","D7","A0","A1","A2","A3","A4","A5","A6","A7" };
@@ -58,7 +59,7 @@ int owpin;
 
 // user-assigned variables
 byte ioenabled[13];
-int iomode[13];
+byte iomode[13];
 float iovalue[13];
 byte ioreportenabled[13];
 unsigned long ioreportfreq[13];
@@ -168,7 +169,7 @@ void loop() {
           // send/broadcast if enabled and freq is 0
           if ((ioreportenabled[i]) && (ioreportfreq[i] == 0)){
             sprintf(sendstring, "iopin:%02d,iomode:%02d,iovalue:%d", iopins[i], iomode[i], iovalue[i]);
-            sendlength = 27; 
+            sendlength = 28; 
             sendWithSerialNotify(GATEWAYID, sendstring, sendlength);
               
           } // ioreportfreq == 0
@@ -182,7 +183,7 @@ void loop() {
           // send/broadcast if enabled and freq is 0
           if ((ioreportenabled[i]) && (ioreportfreq[i] == 0)){
             sprintf(sendstring, "iopin:%02d,iomode:%02d,iovalue:%d", iopins[i], iomode[i], iovalue[i]);
-            sendlength = 27; 
+            sendlength = 28; 
             sendWithSerialNotify(GATEWAYID, sendstring, sendlength);   
           } // ioreportfreq == 0
         }
@@ -232,7 +233,7 @@ void loop() {
             int wholePart = iovalue[i];
             long fractPart = (iovalue[i] - wholePart) * 10000;
             sprintf(sendstring, "owtmpasc:%03d.%04d,owdev:ds18x,owrom:%0xx%02x%02x%02x%02x%02x%02x%02x%02x", wholePart, fractPart, dsaddr[0],dsaddr[1],dsaddr[2],dsaddr[3],dsaddr[4],dsaddr[5],dsaddr[6],dsaddr[7]);
-            sendlength = 57; 
+            sendlength = 54; 
             sendWithSerialNotify(GATEWAYID, sendstring, sendlength);
           } // reportenabled and ioreportfreq
         } // If OneWire
@@ -328,89 +329,131 @@ void loop() {
   // END PROCESS CHANNELS
   
   
-  // SERIAL RECEIVE AND PROCESSING
-  // Check for any received packets
-  if (Serial.available() > 0)
-  {
-    String cmdstring = Serial.readStringUntil('\n');
-    processcmdstring(cmdstring);
-  } // Serial available
-  // END SERIAL RECEIVE
+   // If we're in SLEEPMODE, we wait for a set period to receive packets on serial and radio
+   
+  int millistart;
+  SLEEPDELAYTIMER = 0;
+  if (SLEEPMODE) {
+    millistart = millis();
+    Serial.println(F("Entering receive sequence"));
+  }
+  // failsafe. must listen.
+  if (SLEEPDELAY < 1000){
+   SLEEPDELAY = 1000;
+  }
   
-  // RADIO RECEIVE AND PROCESSING
-  // Check for any received packets
-  if (radio.receiveDone())
-  {
-    Serial.println(F("BEGIN RECEIVED"));
-    Serial.print("nodeid:");Serial.print(radio.SENDERID, DEC);Serial.print(", ");
-    String cmdstring = "";
-    for (byte i = 0; i < radio.DATALEN; i++) {
-      Serial.print((char)radio.DATA[i]);
-      cmdstring+=(char)radio.DATA[i];
-    }
-    Serial.print(",RX_RSSI:");Serial.print(radio.RSSI);Serial.print("");
-    Serial.println();
-    Serial.println(F("END RECEIVED"));
-    processcmdstring(cmdstring);
-    if (radio.ACKRequested())
+  while (SLEEPDELAYTIMER < SLEEPDELAY){
+    
+    // SERIAL RECEIVE AND PROCESSING
+    // Check for any received packets
+    
+    if (Serial.available() > 0)
     {
-      radio.sendACK();
-      Serial.print(" - ACK sent");
-    } // ack requested
-    Blink(LED,5);
-    Serial.println();
-  } // Radio Receive
-  // END RADIO RECEIVE
+      String cmdstring = Serial.readStringUntil('\n');
+      Serial.println(cmdstring);
+      processcmdstring(cmdstring);
+      
+      // Reset sleepdelay timer
+      millistart = millis();
+      
+    } // Serial available
+    // END SERIAL RECEIVE
+    
+    // RADIO RECEIVE AND PROCESSING
+    // Check for any received packets
+    if (radio.receiveDone())
+    {
+      Serial.println(F("BEGIN RECEIVED"));
+      Serial.print(F("nodeid:"));Serial.print(radio.SENDERID, DEC);Serial.print(F(", "));
+      String cmdstring = "";
+      for (byte i = 0; i < radio.DATALEN; i++) {
+        Serial.print((char)radio.DATA[i]);
+        cmdstring+=(char)radio.DATA[i];
+      }
+      Serial.print(F(",RX_RSSI:"));Serial.print(radio.RSSI);Serial.print(F(""));
+      Serial.println();
+      Serial.println(F("END RECEIVED"));
+      processcmdstring(cmdstring);
+      if (radio.ACKRequested())
+      {
+        radio.sendACK();
+        Serial.print(F(" - ACK sent"));
+      } // ack requested
+      Blink(LED,5);
+      Serial.println();
+      
+      // Reset sleepdelay timer
+      millistart = millis();
+    } // Radio Receive
+    // END RADIO RECEIVE
+    
+    if (SLEEPMODE) {
+      if (SLEEPDELAYTIMER < 65535){
+        // if timer is at 65535, means we are intentionally exiting
+        SLEEPDELAYTIMER = millis() - millistart;
+      }
+    }
+    else { // exit loop after one iteration if not in sleep mode
+      SLEEPDELAYTIMER = 65535;
+    } 
+//    Serial.println(SLEEPDELAYTIMER);
+  } // SLEEPDELAY while
+  
+  if (SLEEPMODE){
+   Serial.println(F("Exiting receive sequence"));
+  } 
   
   Blink(LED,3);
-  
+   
   // Do our sleep or delay
   if (SLEEPMODE) {
+    Serial.println(F("Going to sleep for "));
+    Serial.println(LOOPPERIOD);
     // Set cutoffs to optimize number of times we have to wake
     // vs. accuracy of sleep time. We'll use 10x as rule of thumb
     period_t sleepperiod;
     int numloops;
-    if (LOOPPERIOD > 80000){
+    if (LOOPPERIOD > 80000 || LOOPPERIOD == 8000){
       // Use 8s interval
       numloops = LOOPPERIOD / 1000 / 8;
       sleepperiod = SLEEP_8S;
     }
-    else if (LOOPPERIOD > 40000) {
+    else if (LOOPPERIOD > 40000 || LOOPPERIOD == 4000) {
       // Use 4s interval
       numloops = LOOPPERIOD / 1000 / 4;
       sleepperiod = SLEEP_4S;
     }
-    else if (LOOPPERIOD > 20000) {
+    else if (LOOPPERIOD > 20000 || LOOPPERIOD == 2000) {
       // Use 2s interval
       numloops = LOOPPERIOD / 1000 / 2;
       sleepperiod = SLEEP_2S;
     }
-    else if (LOOPPERIOD > 10000) {
+    else if (LOOPPERIOD > 10000 || LOOPPERIOD == 1000) {
       // Use 1s interval
       numloops = LOOPPERIOD / 1000;
       sleepperiod = SLEEP_1S;
     }
-    else if (LOOPPERIOD > 5000) {
+    else if (LOOPPERIOD > 5000 || LOOPPERIOD == 500) {
       // Use 500ms interval
       numloops = LOOPPERIOD / 500;
       sleepperiod = SLEEP_500MS;
     }
-    else if (LOOPPERIOD > 2500) {
+    else if (LOOPPERIOD > 2500 || LOOPPERIOD == 250) {
       // Use 250ms interval
       numloops = LOOPPERIOD / 250;
       sleepperiod = SLEEP_250MS;
     }
-    else if (LOOPPERIOD > 1200) {
+    else if (LOOPPERIOD > 1200 || LOOPPERIOD == 120) {
       // Use 120ms interval
       numloops = LOOPPERIOD / 120;
       sleepperiod = SLEEP_120MS;
     }
-    else if (LOOPPERIOD > 600) {
+    else if (LOOPPERIOD > 600 || LOOPPERIOD == 60) {
       // Use 60ms interval
       numloops = LOOPPERIOD / 60;
       sleepperiod = SLEEP_60MS;
     }
-    else if (LOOPPERIOD > 300) {
+    else if (LOOPPERIOD > 300 || LOOPPERIOD == 30) {
       // Use 30ms interval
       numloops = LOOPPERIOD / 30;
       sleepperiod = SLEEP_30MS;
@@ -480,9 +523,13 @@ void processcmdstring(String cmdstring){
       listparams(1,str2.toInt());
     }
     else if (str1 == "reset") {
-      resetMote();
+//      resetMote();
+    }
+    else if (str1 == "gosleep") {
+      SLEEPDELAYTIMER=65535;  // send mote to sleep
     }
     else if (str1 == "modparam") {
+      Serial.println(str2);
       if (str2 == "loopperiod") {
         long newvalue = str3.toInt()*1000;
         if (newvalue >= 0 && newvalue < 600000){
@@ -496,7 +543,37 @@ void processcmdstring(String cmdstring){
           Serial.println("Value out of range");
         }
       } // loopperiod
-      if (str2 == "nodeid") {
+      if (str2 == "sleepmode") {
+        byte newvalue = str3.toInt();
+        if (newvalue == 0) {
+          Serial.println(F("Disabling sleepmode."));
+          SLEEPMODE = 0;
+          storeparams();
+        }
+        else if (newvalue == 1) {
+          Serial.println(F("Enabling sleepmode."));
+          SLEEPMODE = 1;
+          storeparams();
+        }
+        else {
+          Serial.print(F("Value out of range: "));
+          Serial.println(newvalue);
+        }
+      } // sleepmode
+      else if (str2 == "sleepdelay") {
+        long newvalue = str3.toInt()*100;
+        if (newvalue >= 300 && newvalue < 60000){
+          Serial.print(F("Modifying sleepdelay to "));
+          Serial.println(newvalue);
+          // deliver in 100s ms, translate to ms
+          SLEEPDELAY = newvalue;
+          storeparams();
+        }
+        else {
+          Serial.println("Value out of range");
+        }
+      } // sleepdelay
+      else if (str2 == "nodeid") {
         long newvalue = str3.toInt();
         if (newvalue >= 2 && newvalue < 256){
           Serial.print(F("Modifying nodeid to "));
@@ -510,7 +587,7 @@ void processcmdstring(String cmdstring){
           Serial.println("Value out of range");
         }
       } // nodeid
-      if (str2 == "networkid") {
+      else if (str2 == "networkid") {
         long newvalue = str3.toInt();
         if (newvalue >= 1 && newvalue < 256){
           Serial.print(F("Modifying networkid to "));
@@ -524,7 +601,7 @@ void processcmdstring(String cmdstring){
           Serial.println("Value out of range");
         }
       } // network
-      if (str2 == "gatewayid") {
+      else if (str2 == "gatewayid") {
         long newvalue = str3.toInt();
         if (newvalue >= 1 && newvalue < 256){
           Serial.print(F("Modifying gatewayid to "));
@@ -587,7 +664,9 @@ void processcmdstring(String cmdstring){
         }
       } // ioenabled
       else if (str2 == "ioreadfreq") {
+        Serial.print(str3);
         int ionumber = str3.toInt();
+        Serial.println(ionumber);
         if (ionumber >=0 && ionumber <14) {
           Serial.print(F("Modifying io: "));
           Serial.println(ionumber);
@@ -598,8 +677,10 @@ void processcmdstring(String cmdstring){
             ioreadfreq[ionumber]=newvalue;
             storeparams();
           }
-          Serial.print(F("Value out of range: "));
+          else{
+            Serial.print(F("Value out of range: "));
             Serial.println(newvalue);
+          }
         }
         else {
           Serial.println(F("IO number out of range"));
@@ -814,7 +895,7 @@ void processcmdstring(String cmdstring){
       Serial.println("Flash content:");
       uint16_t counter = 0;
 
-      Serial.print("0-256: ");
+      Serial.print(F("0-256: "));
       while(counter<=256){
         Serial.print(flash.readByte(counter++), HEX);
         Serial.print('.');
@@ -845,11 +926,12 @@ void sendWithSerialNotify(byte destination, char* sendstring, byte sendlength) {
   Serial.println(F("SEND COMPLETE"));  
 }
 void initparams() {
-    NODEID = 2;
+    NODEID = 5;
     NETWORKID  = 100;
     GATEWAYID = 1;
     LOOPPERIOD = 1000;
     SLEEPMODE = 0;
+    SLEEPDELAY = 1000;
     storeparams();
     int i;
     for (i=0;i<13;i++){
@@ -879,6 +961,7 @@ void storeparams() {
   }
   
   EEPROM.write(59,SLEEPMODE);
+  EEPROM.write(60,SLEEPDELAY);
   
   int i;
   for (i=0;i<16;i++) {
@@ -920,6 +1003,7 @@ void getparams() {
     
     LOOPPERIOD = EEPROM.read(58) * 1000;
     SLEEPMODE = EEPROM.read(59);
+    SLEEPDELAY = EEPROM.read(60);
  
     // io
     int i;
@@ -957,6 +1041,9 @@ void listparams(byte mode, byte dest) {
     Serial.println(F(","));
     Serial.print(F("SLEEPMODE:"));
     Serial.print(SLEEPMODE);
+    Serial.println(F(","));
+    Serial.print(F("SLEEPDELAY:"));
+    Serial.print(SLEEPDELAY);
     Serial.println(F(","));
     
     Serial.print(F("iomode:["));

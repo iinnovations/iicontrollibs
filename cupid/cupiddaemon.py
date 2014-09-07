@@ -120,9 +120,10 @@ def rundaemon(startall=False):
     updateioenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select updateioenabled from systemstatus')
     systemstatusenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select systemstatusenabled from systemstatus')
     sessioncontrolenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select sessioncontrolenabled from systemstatus')
+    serialhandlerenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select serialhandlerenabled from systemstatus')
 
 
-    enableditemlist = [(int(updateioenabled)), (int(picontrolenabled)), int(systemstatusenabled), int(sessioncontrolenabled)]
+    enableditemlist = [(int(updateioenabled)), (int(picontrolenabled)), int(systemstatusenabled), int(sessioncontrolenabled), int(serialhandlerenabled)]
 
     itemstatuses = findprocstatuses(pilib.daemonprocs)
 
@@ -139,7 +140,7 @@ def rundaemon(startall=False):
     # we assign the values to when we detect if the process
     # is running or not
 
-    statustableitemnames = ['updateiostatus', 'picontrolstatus', 'systemstatusstatus', 'sessioncontrolstatus']
+    statustableitemnames = ['updateiostatus', 'picontrolstatus', 'systemstatusstatus', 'sessioncontrolstatus', 'serialhandlerstatus']
 
     for index, item in enumerate(pilib.daemonprocs):
         # set status
@@ -188,6 +189,6 @@ def rundaemon(startall=False):
 
 if __name__ == "__main__":
     from pilib import writedatedlogmsg, daemonlog, daemonloglevel
-    writedatedlogmsg(daemonlog, 'Running daemon.',1,daemonloglevel)
+    writedatedlogmsg(daemonlog, 'Running daemon.', 1, daemonloglevel)
     rundaemon()
     writedatedlogmsg(daemonlog, 'Daemon complete.',1,daemonloglevel)

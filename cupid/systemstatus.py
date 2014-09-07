@@ -241,7 +241,7 @@ if __name__ == '__main__':
 
     systemstatus = pilib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
 
-    # Keep reading and updating system status?
+    # Keep reading system status?
     while systemstatus['systemstatusenabled']:
 
         starttime = time.time()
@@ -269,91 +269,100 @@ if __name__ == '__main__':
         netconfigdata = pilib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
         netstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
 
-        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running interface configuration. ', 4, pilib.systemstatusloglevel)
-
         wpastatusmsg = ''
-        # If mode is ap or tempap
-        if netconfigdata['mode'] in ['ap', 'tempap']:
-            pilib.writedatedlogmsg(pilib.networklog, 'Configuring ap mode. ', 1, pilib.networkloglevel)
 
-            timesincelastretry = pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(netconfigdata['laststationretry'])
-            pilib.writedatedlogmsg(pilib.networklog, 'Time since last retry:  ' + str(timesincelastretry), 1, pilib.networkloglevel)
-            # If it's time to go back to station mode, we don't care whether we are connected as ap or not
-            # We use dhcp status as indicator of ap status. Imperfect, but functional.
-            if netconfigdata['mode'] == 'tempap' and timesincelastretry > netconfigdata['stationretrytime']:
-                # We go back to station mode
-                wpastatusmsg += 'Time to go back to station mode. '
-                pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'station')
-                pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'laststationretry', '')
-                netconfig.runconfig()
-            else:
-                # If we have ap up, do nothing
-                if wpastatusdict['dhcpstatus']:
-                    wpastatusmsg += 'AP checked and ok. '
-                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'mode', 'ap')
-                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'SSID', 'cupidwifi')
-                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'offlinetime', '')
+        # Do we want to autoconfig the network?
+        # TODO: Better split netconfig up into reporting and configuration
 
-                # If we don't have dhcp up, restart ap mode
-                # this will currently cause reboot if we don't set onboot=True
-                # We set status message in case we change our minds and reboot here.
-                else:
-                    wpastatusmsg += 'Restarting AP. '
-                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
+        if systemstatus['netconfigenabled']:
+            pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running interface configuration. ', 4, pilib.systemstatusloglevel)
+
+            # If mode is ap or tempap
+            if netconfigdata['mode'] in ['ap', 'tempap']:
+                pilib.writedatedlogmsg(pilib.networklog, 'AP Mode is set. ', 1, pilib.networkloglevel)
+
+                timesincelastretry = pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(netconfigdata['laststationretry'])
+                pilib.writedatedlogmsg(pilib.networklog, 'Time since last retry:  ' + str(timesincelastretry), 1, pilib.networkloglevel)
+
+                # If it's time to go back to station mode, we don't care whether we are connected as ap or not
+                # We use dhcp status as indicator of ap status. Imperfect, but functional.
+                if netconfigdata['mode'] == 'tempap' and timesincelastretry > netconfigdata['stationretrytime']:
+                    # We go back to station mode
+                    wpastatusmsg += 'Time to go back to station mode. '
+                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'station')
+                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'laststationretry', '')
                     netconfig.runconfig()
-
-        # If mode is station
-        elif netconfigdata['mode'] == 'station':
-            pilib.writedatedlogmsg(pilib.networklog, 'Configuring station mode. ', 3, pilib.networkloglevel)
-
-            # If we have wpa up, do nothing
-            if netstatus['connected']:
-                wpastatusmsg += 'Station wpamode appears ok. '
-                pilib.writedatedlogmsg(pilib.networklog, 'wpamode appears ok. ', 3, pilib.networkloglevel)
-
-            # If wpa is not connected
-            else:
-                wpastatusmsg += 'Station wpamode appears disconnected. '
-                pilib.writedatedlogmsg(pilib.networklog, 'wpamode appears disconnected. ', 3, pilib.networkloglevel)
-
-                if netstatus['offlinetime'] == '':
-                    pilib.writedatedlogmsg(pilib.networklog, 'Setting offline time for empty value. ', 4, pilib.networkloglevel)
-                    pilib.setsinglevalue('netstatus', 'offlinetime', pilib.gettimestring())
-                    offlinetime = 0
                 else:
-                    pilib.writedatedlogmsg(pilib.networklog, 'Calculating offline time. ', 4, pilib.networkloglevel)
-                    offlinetime = pilib.timestringtoseconds(currenttime)-pilib.timestringtoseconds(netstatus['offlinetime'])
+                    # If we have ap up, do nothing
+                    if wpastatusdict['dhcpstatus']:
+                        wpastatusmsg += 'AP checked and ok. '
+                        pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'mode', 'ap')
+                        pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'SSID', 'cupidwifi')
+                        pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'offlinetime', '')
 
-                pilib.writedatedlogmsg(pilib.networklog, 'wpa has been offline for ' + str(offlinetime) + '. ', 3, pilib.networkloglevel)
-                wpastatusmsg += 'We have been offline for ' + str(offlinetime) + '. '
+                    # If we don't have dhcp up, restart ap mode
+                    # this will currently cause reboot if we don't set onboot=True
+                    # We set status message in case we change our minds and reboot here.
+                    else:
+                        wpastatusmsg += 'Restarting AP. '
+                        pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
+                        netconfig.runconfig()
 
-                # If aprevert is aprevert or temprevert and we've been offline long enough, flip over to ap
-                if netconfigdata['aprevert'] in ['temprevert', 'aprevert'] and offlinetime > netconfigdata['apreverttime']:
+            # If mode is station
+            elif netconfigdata['mode'] == 'station':
+                pilib.writedatedlogmsg(pilib.networklog, 'Station mode is set. ', 3, pilib.networkloglevel)
 
-                    # set laststationretry to currenttime. This marks when we flippsed over to ap
-                    wpastatusmsg += 'Setting last station retry time. '
-                    pilib.writedatedlogmsg(pilib.networklog, 'Reverting to AP mode', 3, pilib.networkloglevel)
-                    pilib.writedatedlogmsg(pilib.networklog, 'Setting last station retry time to ' + str(currenttime), 0, pilib.networkloglevel)
-                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'laststationretry', currenttime)
+                # If we have wpa up, do nothing
+                if netstatus['connected']:
+                    wpastatusmsg += 'Station wpamode appears ok. '
+                    pilib.writedatedlogmsg(pilib.networklog, 'wpamode appears ok. ', 3, pilib.networkloglevel)
 
-                    if netconfigdata['aprevert'] == 'aprevert':
-                        # set mode to ap
-                        wpastatusmsg += 'Setting mode to ap. '
-                        pilib.writedatedlogmsg(pilib.networklog, 'Setting mode to ap ' + str(currenttime), 3, pilib.networkloglevel)
-                        pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'ap')
-                    elif netconfigdata['aprevert'] == 'temprevert':
-                        # set mode to tempap
-                        wpastatusmsg += 'Setting mode to tempap. '
-                        pilib.writedatedlogmsg(pilib.networklog, 'Setting mode to tempap ' + str(currenttime), 3, pilib.networkloglevel)
-                        pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'tempap')
+                # If wpa is not connected
+                else:
+                    wpastatusmsg += 'Station wpamode appears disconnected. '
+                    pilib.writedatedlogmsg(pilib.networklog, 'wpamode appears disconnected. ', 3, pilib.networkloglevel)
 
-                    # Unfortunately, to revert to ap mode successfully, we currently have to reboot
-                    # this is built into the netconfig script - any time you set ap mode except at boot, it reboots
-                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
-                    pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running netconfig . ', 4, pilib.systemstatusloglevel)
-                    netconfig.runconfig()
+                    if netstatus['offlinetime'] == '':
+                        pilib.writedatedlogmsg(pilib.networklog, 'Setting offline time for empty value. ', 4, pilib.networkloglevel)
+                        pilib.setsinglevalue('netstatus', 'offlinetime', pilib.gettimestring())
+                        offlinetime = 0
+                    else:
+                        pilib.writedatedlogmsg(pilib.networklog, 'Calculating offline time. ', 4, pilib.networkloglevel)
+                        offlinetime = pilib.timestringtoseconds(currenttime)-pilib.timestringtoseconds(netstatus['offlinetime'])
+
+                    pilib.writedatedlogmsg(pilib.networklog, 'wpa has been offline for ' + str(offlinetime) + '. ', 3, pilib.networkloglevel)
+                    wpastatusmsg += 'We have been offline for ' + str(offlinetime) + '. '
+
+                    # If aprevert is aprevert or temprevert and we've been offline long enough, flip over to ap
+                    if netconfigdata['aprevert'] in ['temprevert', 'aprevert'] and offlinetime > netconfigdata['apreverttime']:
+
+                        # set laststationretry to currenttime. This marks when we flippsed over to ap
+                        wpastatusmsg += 'Setting last station retry time. '
+                        pilib.writedatedlogmsg(pilib.networklog, 'Reverting to AP mode', 3, pilib.networkloglevel)
+                        pilib.writedatedlogmsg(pilib.networklog, 'Setting last station retry time to ' + str(currenttime), 0, pilib.networkloglevel)
+                        pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'laststationretry', currenttime)
+
+                        if netconfigdata['aprevert'] == 'aprevert':
+                            # set mode to ap
+                            wpastatusmsg += 'Setting mode to ap. '
+                            pilib.writedatedlogmsg(pilib.networklog, 'Setting mode to ap ' + str(currenttime), 3, pilib.networkloglevel)
+                            pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'ap')
+                        elif netconfigdata['aprevert'] == 'temprevert':
+                            # set mode to tempap
+                            wpastatusmsg += 'Setting mode to tempap. '
+                            pilib.writedatedlogmsg(pilib.networklog, 'Setting mode to tempap ' + str(currenttime), 3, pilib.networkloglevel)
+                            pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'tempap')
+
+                        # Unfortunately, to revert to ap mode successfully, we currently have to reboot
+                        # this is built into the netconfig script - any time you set ap mode except at boot, it reboots
+                        pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
+                        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running netconfig . ', 4, pilib.systemstatusloglevel)
+                        netconfig.runconfig()
+            else:
+                wpastatusmsg += 'mode error: ' + netconfigdata['mode']
+
         else:
-            wpastatusmsg += 'mode error: ' + netconfigdata['mode']
+            pilib.writedatedlogmsg(pilib.systemstatuslog, 'Netconfig disabled. ', 1, pilib.systemstatusloglevel)
 
         pilib.writedatedlogmsg(pilib.systemstatuslog, 'Finished interface configuration. ', 4, pilib.systemstatusloglevel)
         pilib.writedatedlogmsg(pilib.networklog, wpastatusmsg)

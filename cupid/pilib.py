@@ -46,13 +46,13 @@ maxlogsize = 1024  # kB
 numlogs = 5
 
 
-networkloglevel = 5
-iologlevel = 4
-systemstatusloglevel = 4
-controlloglevel = 4
-daemonloglevel = 4
+networkloglevel = 1
+iologlevel = 1
+systemstatusloglevel = 1
+controlloglevel = 1
+daemonloglevel = 1
 
-daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py']
+daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py', 'mote/serialhandler.py']
 
 
 #############################################
@@ -334,7 +334,8 @@ def ordertableindices(databasename, tablename, indicestoorder, uniqueindex):
 # The beginning of our class development.
 class database:
     def __init__(self, path):
-        self.directory = directory
+        # NEEDS TONS OF WORK (ORM?)
+        self.directory = 'directory'
 
     def gettablenames(self):
         self.tablenames = gettablenames(self.path)
@@ -499,12 +500,51 @@ def sqlitedatumquery(database, query):
 
 
 def getsinglevalue(database, table, valuename, condition=None):
-    query = 'select \"' + valuename + '\" from \'' + table + '\''
-    if condition:
-        query += ' where ' + condition
+    query = makegetsinglevaluequery(table, valuename, condition)
     # print(query)
     response = sqlitedatumquery(database, query)
-    return (response)
+    return response
+
+
+def makegetsinglevaluequery(table, valuename, condition=None):
+    query = 'select \"' + valuename + '\" from \'' + table + '\''
+    if isinstance(condition, dict):
+        try:
+            conditionnames = condition['conditionnames']
+            conditionvalues = condition['conditionvalues']
+        except:
+            print('oops')
+        else:
+            query += ' where '
+            numconditions = len(conditionnames)
+            for index, (name, value) in enumerate(zip(conditionnames, conditionvalues)):
+                query += "\"" + name + "\"='" + value + "'"
+                if index < numconditions-1:
+                    query += ' and '
+            print(query)
+    elif isinstance(condition, basestring):
+        query += ' where ' + condition
+    return query
+
+
+def makedeletesinglevaluequery(table, condition=None):
+    query = 'delete from \'' + table + '\''
+    if isinstance(condition, dict):
+        try:
+            conditionnames = condition['conditionnames']
+            conditionvalues = condition['conditionvalues']
+        except:
+            print('oops')
+        else:
+            query += ' where '
+            numconditions = len(conditionnames)
+            for index, (name, value) in enumerate(zip(conditionnames, conditionvalues)):
+                query += "\"" + name + "\"='" + value + "'"
+                if index < numconditions-1:
+                    query += ' and '
+    elif isinstance(condition, basestring):
+        query += ' where ' + condition
+    return query
 
 
 def setsinglevalue(database, table, valuename, value, condition=None):

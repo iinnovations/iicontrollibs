@@ -230,7 +230,7 @@ void processcmdstring(String cmdstring){
       listparams(1,str2.toInt());
     }
     else if (str1 == "reset") {
-      resetMote();
+//      resetMote();
     }
     else if (str1 == "modparam") {
       if (str2 == "loopperiod") {
