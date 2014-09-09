@@ -4,7 +4,7 @@
 // Library and code by Felix Rusu - felix@lowpowerlab.com
 // Get the RFM69 and SPIFlash library at: https://github.com/LowPowerLab/
 #include <RFM69.h>
-#include <RFM69registers.h>
+//#include <RFM69registers.h>
 #include <SPI.h>
 #include <SPIFlash.h>
 //#include <Time.h>
@@ -18,6 +18,7 @@
 //#define FREQUENCY   RF69_868MHZ
 //#define FREQUENCY     RF69_915MHZ
 //#define IS_RFM69HW    //uncomment only for RFM69HW! Leave out if you have RFM69W!
+#define REG_SYNCVALUE2 0x30
 
 #ifdef __AVR_ATmega1284P__
   #define LED           15 // Moteino MEGAs have LEDs on D15
@@ -31,13 +32,13 @@
 
 #define DEBUG 1
 
-#define INIT 0
+#define INIT 1
 #define ACK_TIME      30 // max # of ms to wait for an ack
 
 byte NODEID = 2;
 byte NETWORKID = 100;
 byte GATEWAYID = 1;
-
+ 
 #define ENCRYPTKEY    "sampleEncryptKey" //exactly the same 16 characters/bytes on all nodes!
 
 byte SLEEPMODE;
@@ -45,7 +46,7 @@ unsigned int SLEEPDELAY; // ms
 unsigned int SLEEPDELAYTIMER; // ms
 
 //int TRANSMITPERIOD = 300; //transmit a packet to gateway so often (in ms)
-char buff[20];
+//char buff[20];
 boolean requestACK = false;
 SPIFlash flash(FLASH_SS, 0xEF30); //EF30 for 4mbit  Windbond chip (W25X40CL)
 RFM69 radio;
@@ -54,8 +55,8 @@ unsigned int LOOPPERIOD = 2000; // ms
 
 // constants
 //PROGMEM char ionames[13][3] = { "D3","D4","D5","D6","D7","A0","A1","A2","A3","A4","A5","A6","A7" };
-int iopins[13] = { 3,4,5,6,7,A0,A1,A2,A3,A4,A5,A6,A7 };
-int owpin;
+byte iopins[13] = { 3,4,5,6,7,A0,A1,A2,A3,A4,A5,A6,A7 };
+byte owpin;
 
 // user-assigned variables
 byte ioenabled[13];
@@ -102,7 +103,7 @@ void setup() {
     Serial.println();
   }
   else {
-    Serial.println("SPI Flash Init FAIL! (is chip present?)");
+    Serial.println(F("SPI Flash Init FAIL! (is chip present?)"));
   }
   
   // Initialize variables to/from EEPROM
@@ -123,15 +124,14 @@ void setup() {
      ioreadtimer[i] = 9999999;
   }
   radio.encrypt(ENCRYPTKEY);
-  char buff[61];
-  sprintf(buff, "\nTransmitting at %d Mhz...", FREQUENCY==RF69_433MHZ ? 433 : FREQUENCY==RF69_868MHZ ? 868 : 915);
-  Serial.println(buff);
-  sprintf(buff, "I am node id: %d",NODEID);
-  Serial.println(buff);
+  sendInitMessage();
   
 }
 void loop() {
   
+  Serial.print(F("Free memory: "));
+  Serial.println(freeRam());
+
   // READ IO
   looptime += millis() - prevtime; // includes time taken to process
   int i;
@@ -154,11 +154,7 @@ void loop() {
         Serial.println(i);
         
         ioreadtimer[i] = 0;
-        
-        // Initialize send string
-        char sendstring[61];
-        int sendlength = 61;  // default
-      
+
         // Determine mode and what to read
         if (iomode[i] == 0) { // Digital Input
           Serial.print(F("Digital input configured for pin "));
@@ -168,10 +164,7 @@ void loop() {
           
           // send/broadcast if enabled and freq is 0
           if ((ioreportenabled[i]) && (ioreportfreq[i] == 0)){
-            sprintf(sendstring, "iopin:%02d,iomode:%02d,iovalue:%d", iopins[i], iomode[i], iovalue[i]);
-            sendlength = 28; 
-            sendWithSerialNotify(GATEWAYID, sendstring, sendlength);
-              
+            sendIOMessage(iopins[i], iomode[i], iovalue[i]);             
           } // ioreportfreq == 0
         }
         else if (iomode[i] == 1) { // Digital Output
@@ -182,9 +175,7 @@ void loop() {
           
           // send/broadcast if enabled and freq is 0
           if ((ioreportenabled[i]) && (ioreportfreq[i] == 0)){
-            sprintf(sendstring, "iopin:%02d,iomode:%02d,iovalue:%d", iopins[i], iomode[i], iovalue[i]);
-            sendlength = 28; 
-            sendWithSerialNotify(GATEWAYID, sendstring, sendlength);   
+            sendIOMessage(iopins[i], iomode[i], iovalue[i]);
           } // ioreportfreq == 0
         }
         else if (iomode[i] == 2) { // Analog Input
@@ -193,49 +184,18 @@ void loop() {
           pinMode(iopins[i], INPUT);      // sets the digital pin 7 as input
           iovalue[i] = analogRead(iopins[i]);
           Serial.print(F("Value: "));
-          Serial.println(iovalue[i]);
-          int wholePart = iovalue[i];
+//          Serial.println(iovalue[i]);
+//          int wholePart = iovalue[i];
           if ((ioreportenabled[i]) && (ioreportfreq[i] == 0)){
-            sprintf(sendstring, "iopin:%02d,iomode:%02d,iovalue:%04d", iopins[i], iomode[i], wholePart);
-            sendlength = 31; 
-            sendWithSerialNotify(GATEWAYID, sendstring, sendlength);
+            sendIOMessage(iopins[i], iomode[i], iovalue[i]);
           } // ioreportfreq == 0 
         }
         else if (iomode[i] == 4) { //OneWire
           Serial.print(F("1Wire configured for pin "));
           Serial.println(iopins[i]);
           
-          owpin = iopins[i];
-          
-          // Device identifier
-          byte dsaddr[8];
-          char dscharaddr[16];
-          OneWire myds(owpin);
-          getfirstdsadd(myds,dsaddr);
-          
-          Serial.print(F("dsaddress:"));
-          int j;
-          for (j=0;j<8;j++) {
-            if (dsaddr[j] < 16) {
-              Serial.print('0');
-            }
-            Serial.print(dsaddr[j], HEX);
-          }
-          sprintf(dscharaddr,"%02x%02x%02x%02x%02x%02x%02x%02x",dsaddr[0],dsaddr[1],dsaddr[2],dsaddr[3],dsaddr[4],dsaddr[5],dsaddr[6],dsaddr[7]);
-          Serial.println(',');
-        
-          // Data
-          Serial.print(F("temperature:"));
-          iovalue[i] = getdstemp(myds, dsaddr);
-          Serial.println(iovalue[i]);
-    
-          if ((ioreportenabled[i]) && (ioreportfreq[i] == 0)){
-            int wholePart = iovalue[i];
-            long fractPart = (iovalue[i] - wholePart) * 10000;
-            sprintf(sendstring, "owtmpasc:%03d.%04d,owdev:ds18x,owrom:%0xx%02x%02x%02x%02x%02x%02x%02x%02x", wholePart, fractPart, dsaddr[0],dsaddr[1],dsaddr[2],dsaddr[3],dsaddr[4],dsaddr[5],dsaddr[6],dsaddr[7]);
-            sendlength = 54; 
-            sendWithSerialNotify(GATEWAYID, sendstring, sendlength);
-          } // reportenabled and ioreportfreq
+          handleOWIO(iopins[i]);
+
         } // If OneWire
         else if (iomode[i] == 3) { // PWM
           Serial.print(F("PWM Configured for pin"));
@@ -263,12 +223,8 @@ void loop() {
         // Initialize send string
         char sendstring[61];
         int sendlength = 61;  // default
-        
-        int wholePart = iovalue[i];
-        long fractPart = (iovalue[i] - wholePart) * 10000;
-        sprintf(sendstring, "iopin:%02d,iomode:%02d,ioval:%03d.%04d", iopins[i],iomode[i],wholePart, fractPart);
-        sendlength = 34; 
-        sendWithSerialNotify(GATEWAYID, sendstring, sendlength); 
+        sendIOMessage(iopins[i],iomode[i],iovalue[i]);
+       
     } // time to report
   }
   // END REPORTING
@@ -282,7 +238,7 @@ void loop() {
       Serial.println(F(" value: "));
       chanpv[i]=iovalue[chanpvindex[i]];
       Serial.println(chanpv[i]);
-      Serial.println("Setpoint value: ");
+      Serial.println(F("Setpoint value: "));
       Serial.println(chansv[i]);
       if ((chanpv[i] - chansv[i]) > chandeadband[i]) {
         Serial.println(F("Setting negative action"));
@@ -303,7 +259,7 @@ void loop() {
         Serial.println(channegfdbk[i]);
       }
       else if ((chansv[i] - chanpv[i]) > chandeadband[i]) {
-        Serial.println("Setting positive action");
+        Serial.println(F("Setting positive action"));
         chanstate[i]=1;
         Serial.print(F("Pos feedback: "));
         // set opposing feedback to zero first
@@ -321,7 +277,7 @@ void loop() {
         Serial.println(chanposfdbk[i]);
       }
       else {
-        Serial.println("Setting no action");
+        Serial.println(F("Setting no action"));
         chanstate[i]=0;
       }
     } // channel enabled
@@ -413,63 +369,67 @@ void loop() {
     // vs. accuracy of sleep time. We'll use 10x as rule of thumb
     period_t sleepperiod;
     int numloops;
-    if (LOOPPERIOD > 80000 || LOOPPERIOD == 8000){
-      // Use 8s interval
-      numloops = LOOPPERIOD / 1000 / 8;
-      sleepperiod = SLEEP_8S;
-    }
-    else if (LOOPPERIOD > 40000 || LOOPPERIOD == 4000) {
-      // Use 4s interval
-      numloops = LOOPPERIOD / 1000 / 4;
-      sleepperiod = SLEEP_4S;
-    }
-    else if (LOOPPERIOD > 20000 || LOOPPERIOD == 2000) {
-      // Use 2s interval
-      numloops = LOOPPERIOD / 1000 / 2;
-      sleepperiod = SLEEP_2S;
-    }
-    else if (LOOPPERIOD > 10000 || LOOPPERIOD == 1000) {
-      // Use 1s interval
-      numloops = LOOPPERIOD / 1000;
-      sleepperiod = SLEEP_1S;
-    }
-    else if (LOOPPERIOD > 5000 || LOOPPERIOD == 500) {
-      // Use 500ms interval
-      numloops = LOOPPERIOD / 500;
-      sleepperiod = SLEEP_500MS;
-    }
-    else if (LOOPPERIOD > 2500 || LOOPPERIOD == 250) {
-      // Use 250ms interval
-      numloops = LOOPPERIOD / 250;
-      sleepperiod = SLEEP_250MS;
-    }
-    else if (LOOPPERIOD > 1200 || LOOPPERIOD == 120) {
-      // Use 120ms interval
-      numloops = LOOPPERIOD / 120;
-      sleepperiod = SLEEP_120MS;
-    }
-    else if (LOOPPERIOD > 600 || LOOPPERIOD == 60) {
-      // Use 60ms interval
-      numloops = LOOPPERIOD / 60;
-      sleepperiod = SLEEP_60MS;
-    }
-    else if (LOOPPERIOD > 300 || LOOPPERIOD == 30) {
-      // Use 30ms interval
-      numloops = LOOPPERIOD / 30;
-      sleepperiod = SLEEP_30MS;
-    }
-    else {
-      // Use 15ms interval
-      numloops = LOOPPERIOD / 15;
-      sleepperiod = SLEEP_15Ms;
-    }
-    Serial.print(F("numloops"));
-    Serial.println(numloops);
-    Serial.flush();
-    radio.sleep();
-
-    for (i=0;i<numloops;i++) {
-      LowPower.powerDown(sleepperiod, ADC_OFF, BOD_OFF);
+    unsigned int sleepremaining = LOOPPERIOD;
+    
+    while (sleepremaining > 0) {
+      if (sleepremaining > 8000) {
+        // Use 8s interval
+        sleepperiod = SLEEP_8S;
+        sleepremaining -= 8000;
+      }
+      else if (sleepremaining > 4000) {
+        // Use 4s interval
+        sleepremaining-=4000;
+        sleepperiod = SLEEP_4S;
+      }
+      else if (sleepremaining > 2000) {
+        // Use 2s interval
+        sleepremaining-=2000;
+        sleepperiod = SLEEP_2S;
+      }
+      else if (sleepremaining > 1000) {
+        // Use 1s interval
+       sleepremaining-=1000;
+        sleepperiod = SLEEP_1S;
+      }
+      else if (sleepremaining > 500) {
+        // Use 500ms interval
+        sleepremaining-=500;
+        sleepperiod = SLEEP_500MS;
+      }
+      else if (sleepremaining > 250) {
+        // Use 250ms interval
+       sleepremaining-=250;
+        sleepperiod = SLEEP_250MS;
+      }
+      else if (sleepremaining > 120) {
+        // Use 120ms interval
+        sleepremaining-=120;
+        sleepperiod = SLEEP_120MS;
+      }
+      else if (sleepremaining > 60) {
+        // Use 60ms interval
+        sleepremaining-=60;
+        sleepperiod = SLEEP_60MS;
+      }
+      else if (sleepremaining > 30) {
+        // Use 30ms interval
+        sleepremaining-=30;
+        sleepperiod = SLEEP_30MS;
+      }
+      else {
+        // Use 15ms interval
+        sleepperiod = SLEEP_15Ms;
+        sleepremaining = 0;
+      }
+      Serial.flush();
+      radio.sleep();
+  
+      for (i=0;i<numloops;i++) {
+        LowPower.powerDown(sleepperiod, ADC_OFF, BOD_OFF);
+      }
+      Serial.print(F("Sleep remaining: "));
+      Serial.println(sleepremaining);
     }
     // Sleeptime eludes millis()
     looptime += LOOPPERIOD;
@@ -480,11 +440,16 @@ void loop() {
 } // end main loop
 
 void processcmdstring(String cmdstring){
+  Serial.print(F("Free memory: "));
+  Serial.println(freeRam());
+  
   Serial.println(F("processing cmdstring"));
   Serial.println(cmdstring);
-    
+  
+  char buff[61];
   int i;
   String str1="";
+  str1.reserve(10);
   String str2="";
   String str3="";
   String str4="";
@@ -540,7 +505,7 @@ void processcmdstring(String cmdstring){
           storeparams();
         }
         else {
-          Serial.println("Value out of range");
+          Serial.println(F("Value out of range"));
         }
       } // loopperiod
       if (str2 == "sleepmode") {
@@ -570,7 +535,7 @@ void processcmdstring(String cmdstring){
           storeparams();
         }
         else {
-          Serial.println("Value out of range");
+          Serial.println(F("Value out of range"));
         }
       } // sleepdelay
       else if (str2 == "nodeid") {
@@ -584,7 +549,7 @@ void processcmdstring(String cmdstring){
           storeparams();
         }
         else {
-          Serial.println("Value out of range");
+          Serial.println(F("Value out of range"));
         }
       } // nodeid
       else if (str2 == "networkid") {
@@ -598,7 +563,7 @@ void processcmdstring(String cmdstring){
           storeparams();
         }
         else {
-          Serial.println("Value out of range");
+          Serial.println(F("Value out of range"));
         }
       } // network
       else if (str2 == "gatewayid") {
@@ -611,7 +576,7 @@ void processcmdstring(String cmdstring){
           storeparams();
         }
         else {
-          Serial.println("Value out of range");
+          Serial.println(F("Value out of range"));
         }
       } // network
       else if (str2 == "iomode") {
@@ -892,7 +857,7 @@ void processcmdstring(String cmdstring){
 
     if (cmdstring[0] == 'd') //d=dump flash area
     {
-      Serial.println("Flash content:");
+      Serial.println(F("Flash content:"));
       uint16_t counter = 0;
 
       Serial.print(F("0-256: "));
@@ -917,6 +882,8 @@ void processcmdstring(String cmdstring){
       Serial.println(jedecid, HEX);
     }
   }
+   Serial.print(F("Free memory: "));
+  Serial.println(freeRam());
 }
 void sendWithSerialNotify(byte destination, char* sendstring, byte sendlength) {
   Serial.print(F("SENDING TO "));
@@ -926,7 +893,7 @@ void sendWithSerialNotify(byte destination, char* sendstring, byte sendlength) {
   Serial.println(F("SEND COMPLETE"));  
 }
 void initparams() {
-    NODEID = 5;
+    NODEID = 8;
     NETWORKID  = 100;
     GATEWAYID = 1;
     LOOPPERIOD = 1000;
@@ -949,8 +916,8 @@ void storeparams() {
   EEPROM.write(2,GATEWAYID);
   
    // update object
-    radio.writeReg(REG_SYNCVALUE2, NETWORKID);
-    radio.setAddress(NODEID);
+//    radio.writeReg(REG_SYNCVALUE2, NETWORKID);
+//    radio.setAddress(NODEID);
     
   // maximum initialized loop period is 256
   if (LOOPPERIOD/1000 > 256){
@@ -1204,19 +1171,19 @@ float getdstemp(OneWire myds, byte addr[8]) {
   
   switch (addr[0]) {
     case 0x10:
-      //Serial.println("  Chip = DS18S20");  // or old DS1820
+      //Serial.println(F("  Chip = DS18S20"));  // or old DS1820
       type_s = 1;
       break;
     case 0x28:
-      //Serial.println("  Chip = DS18B20");
+      //Serial.println(F("  Chip = DS18B20"));
       type_s = 0;
       break;
     case 0x22:
-      //Serial.println("  Chip = DS1822");
+      //Serial.println(F("  Chip = DS1822"));
       type_s = 0;
       break;
     default:
-      Serial.println("Device is not a DS18x20 family device.");
+      Serial.println(F("Device is not a DS18x20 family device."));
   } 
   
   myds.reset();
@@ -1264,7 +1231,12 @@ float getdstemp(OneWire myds, byte addr[8]) {
   //Serial.println(celsius);
   return celsius;
 }
-
+int freeRam ()
+{
+  extern int __heap_start, *__brkval;
+  int v;
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
+}
 void Blink(byte PIN, int DELAY_MS)
 {
   pinMode(PIN, OUTPUT);
@@ -1272,3 +1244,68 @@ void Blink(byte PIN, int DELAY_MS)
   delay(DELAY_MS);
   digitalWrite(PIN,LOW);
 }
+void sendInitMessage(){
+  char buff[61];
+  sprintf(buff, "\nTransmitting at %d Mhz...", FREQUENCY==RF69_433MHZ ? 433 : FREQUENCY==RF69_868MHZ ? 868 : 915);
+  Serial.println(buff);
+  sprintf(buff, "I am node id: %d",NODEID);
+  Serial.println(buff);
+}
+void sendIOMessage(byte pin, byte mode, float value) {
+  // Initialize send string
+//  char sendstring[61];
+  int sendlength = 61;  // default
+  if (mode == 0 || mode == 1 ) { // for integer values
+    sendlength = 31;
+    char sendstring[sendlength];
+    sprintf(sendstring, "iopin:%02d,iomode:%02d,iovalue:%04d", pin, mode, value);         
+    sendWithSerialNotify(GATEWAYID, sendstring, sendlength);
+  }
+  else if (mode == 2){ // for float values
+    // nothing here yet
+    int wholePart = value;
+    long fractPart = (value - wholePart) * 10000;
+    sendlength = 34; 
+    char sendstring[sendlength];
+    sprintf(sendstring, "iopin:%02d,iomode:%02d,ioval:%03d.%04d", pin,mode,wholePart, fractPart);
+
+    sendWithSerialNotify(GATEWAYID, sendstring, sendlength); 
+  }
+}
+void handleOWIO(byte ioindex) {
+  owpin = iopins[ioindex];
+  
+  // Device identifier
+  byte dsaddr[8];
+  char dscharaddr[16];
+  OneWire myds(owpin);
+  getfirstdsadd(myds,dsaddr);
+  
+  Serial.print(F("dsaddress:"));
+  int j;
+  for (j=0;j<8;j++) {
+    if (dsaddr[j] < 16) {
+      Serial.print('0');
+    }
+    Serial.print(dsaddr[j], HEX);
+  }
+  sprintf(dscharaddr,"%02x%02x%02x%02x%02x%02x%02x%02x",dsaddr[0],dsaddr[1],dsaddr[2],dsaddr[3],dsaddr[4],dsaddr[5],dsaddr[6],dsaddr[7]);
+  Serial.println(',');
+  
+  // Data
+  Serial.print(F("temperature:"));
+  iovalue[ioindex] = getdstemp(myds, dsaddr);
+  Serial.println(iovalue[ioindex]);
+  
+  if ((ioreportenabled[ioindex]) && (ioreportfreq[ioindex] == 0)){
+    byte sendlength = 54;
+    char sendstring[sendlength];
+    
+    int wholePart = iovalue[ioindex];
+    long fractPart = (iovalue[ioindex] - wholePart) * 10000;
+    sprintf(sendstring, "owtmpasc:%03d.%04d,owdev:ds18x,owrom:%0xx%02x%02x%02x%02x%02x%02x%02x%02x", wholePart, fractPart, dsaddr[0],dsaddr[1],dsaddr[2],dsaddr[3],dsaddr[4],dsaddr[5],dsaddr[6],dsaddr[7]); 
+    sendWithSerialNotify(GATEWAYID, sendstring, sendlength);
+    
+    sendIOMessage(iopins[ioindex], iomode[ioindex], iovalue[ioindex]);
+  } // reportenabled and ioreportfreq
+} // run OW sequence
