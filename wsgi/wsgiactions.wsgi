@@ -3,7 +3,7 @@ def application(environ, start_response):
     import cgi
     import json
 
-    import os,sys,inspect
+    import os, sys, inspect
 
     # Set top folder to allow import of modules
 

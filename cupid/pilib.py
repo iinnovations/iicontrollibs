@@ -59,6 +59,44 @@ daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systems
 ## Utility Functions
 #############################################
 
+
+def getgpiostatus():
+
+    from subprocess import check_output
+    #
+    # class gpioItem:
+    #     def __init__(self, propdict):
+    #         for key, value in propdict.items():
+    #             setattr(self, key, value)
+
+    gpiolist=[]
+    alloutput = check_output(['gpio','readall'])
+    lines = alloutput.split('\n')[3:18]
+    for line in lines:
+        BCM1 = line[4:6].strip()
+        wpi1 = line[10:12].strip()
+        name1 = line[15:22].strip()
+        mode1 = line[25:30].strip()
+        val1 = line[32:34].strip()
+        phys1 = line[36:39].strip()
+
+        phys2 = line[42:44].strip()
+        val2 = line[46:48].strip()
+        mode2 = line[50:55].strip()
+        name2 = line[57:65].strip()
+        wpi2 = line[68:70].strip()
+        BCM2 = line[74:76].strip()
+
+        if BCM1 and BCM1 != '--':
+            print(BCM1 + ':' + wpi1 + ':' + name1 + ':' + mode1 + ':' + val1 + ':' + phys1)
+            gpiolist.append({'BCM': BCM1, 'wpi': wpi1, 'name': name1, 'mode': mode1, 'value': val1, 'phys': phys1})
+        if BCM2 and BCM2 != '--':
+            print(BCM2 + ':' + wpi2 + ':' + name2 + ':' + mode2 + ':' + val2 + ':' + phys2)
+            gpiolist.append({'BCM': BCM2, 'wpi': wpi2, 'name': name2, 'mode': mode2, 'value': val2, 'phys': phys2})
+
+    return gpiolist
+
+
 def getlogconfig():
     logconfigdata = readonedbrow(controldatabase,'logconfig')[0]
     return logconfigdata

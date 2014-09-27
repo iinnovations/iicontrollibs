@@ -2,6 +2,7 @@
 	WSGIScriptAlias /wsgisqlitequery /usr/lib/iicontrollibs/wsgi/wsgisqlitequery.wsgi
 	WSGIScriptAlias /wsgiupdatecontrol /usr/lib/iicontrollibs/wsgi/wsgiupdatecontrol.wsgi
 	WSGIScriptAlias /wsgisessioncontrol /usr/lib/iicontrollibs/wsgi/wsgisessioncontrol.wsgi
+	WSGIScriptAlias /wsgigpioactions /usr/lib/iicontrollibs/wsgi/wsgigpioactions.wsgi
 	WSGIScriptAlias /wsgiactions /usr/lib/iicontrollibs/wsgi/wsgiactions.wsgi
     WSGIPythonPath /usr/lib/iicontrollibs/wsgi/
 
