@@ -68,9 +68,9 @@ def application(environ, start_response):
                 output = int(check_output(['gpio','-g','read','18']))
                 # call(['gpio','export','18','output'])
                 if output == 0:
-                    call(['gpio','-g','write',BCMpin,'1'])
+                    call(['gpio','-g','write',str(BCMpin),'1'])
                 else:
-                    call(['gpio','-g','write',BCMpin,'0'])
+                    call(['gpio','-g','write',str(BCMpin),'0'])
 
         elif d['action'] == 'wptoggleGPIOmode':
             try:
