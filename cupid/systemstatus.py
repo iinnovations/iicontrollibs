@@ -273,6 +273,8 @@ if __name__ == '__main__':
 
         # Do we want to autoconfig the network?
         # TODO: Better split netconfig up into reporting and configuration
+        # Also, we appear to have duplicated a parameter, putting netconfig in both the netconfig
+        # table and also the systemstatus table
 
         if systemstatus['netconfigenabled']:
             pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running interface configuration. ', 4, pilib.systemstatusloglevel)
@@ -357,6 +359,9 @@ if __name__ == '__main__':
                         # this is built into the netconfig script - any time you set ap mode except at boot, it reboots
                         pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
                         pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running netconfig . ', 4, pilib.systemstatusloglevel)
+                        netconfig.runconfig()
+                    elif offlinetime > 15:
+                        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Restarting netconfig on bad wpastatus', 1, pilib.systemstatusloglevel)
                         netconfig.runconfig()
             else:
                 wpastatusmsg += 'mode error: ' + netconfigdata['mode']
