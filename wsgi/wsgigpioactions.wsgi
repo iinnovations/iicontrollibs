@@ -65,7 +65,7 @@ def application(environ, start_response):
             else:
                 from subprocess import check_output, call
 
-                output = int(check_output(['gpio','-g','read','18']))
+                output = int(check_output(['gpio','-g','read',str(BCMpin)]))
                 # call(['gpio','export','18','output'])
                 if output == 0:
                     call(['gpio','-g','write',str(BCMpin),'1'])
