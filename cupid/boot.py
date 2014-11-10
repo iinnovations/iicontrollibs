@@ -24,12 +24,24 @@ for interface in interfaces:
 
 if runi2cowfs or runusbowfs:
     if runi2cowfs:
-        subprocess.call(['/opt/owfs/bin/owserver', '-F', '--i2c=/dev/i2c-1:ALL', '-p', '4304'])
+        try:
+            subprocess.call(['/opt/owfs/bin/owserver', '-F', '--i2c=/dev/i2c-1:ALL', '-p', '4304'])
+        except:
+            print('error running i2c owserver')
     if runusbowfs:
-        subprocess.call(['/opt/owfs/bin/owserver', '-F', '-u', '-p', '4304'])
+        try:
+            subprocess.call(['/opt/owfs/bin/owserver', '-F', '-u', '-p', '4304'])
+        except:
+            print("error running usb owserver")
+    try:
+        subprocess.call(['/opt/owfs/bin/owfs', '-F', '-s', '4304', '/var/1wire/'])
+    except:
+        print('error running owfs')
 
-    subprocess.call(['/opt/owfs/bin/owfs', '-F', '-s', '4304', '/var/1wire/'])
-    subprocess.call(['/opt/owfs/bin/owhttpd', '-F', '-s', '4304', '-p', '4305'])
+    try:
+        subprocess.call(['/opt/owfs/bin/owhttpd', '-F', '-s', '4304', '-p', '4305'])
+    except:
+        print('error runnign owhttpd')
 
 
 # Run netstart script
