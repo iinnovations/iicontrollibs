@@ -158,6 +158,7 @@ def updatewpasupplicant():
     else:
         writedatedlogmsg(networklog, 'Supplicant data written successfully. ', 3, networkloglevel)
 
+
 def replaceifaceparameters(iffilein, iffileout, iface, parameternames, parametervalues):
     file = open(iffilein)
     lines = file.readlines()
@@ -269,7 +270,7 @@ def startapservices():
 def setapmode(netconfig=None):
     writedatedlogmsg(networklog, 'Setting ap mode. ', 1, networkloglevel)
     try:
-        subprocess.call(['cp', '/etc/network/interfaces.ap', '/etc/network/interfaces'])
+        subprocess.call(['cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.ap', '/etc/network/interfaces'])
     except:
         writedatedlogmsg(networklog, 'Error copying network configuration file. ', 0, networkloglevel)
     else:
