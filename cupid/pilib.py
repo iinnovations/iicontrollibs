@@ -48,7 +48,7 @@ numlogs = 5
 
 networkloglevel = 1
 iologlevel = 1
-systemstatusloglevel = 1
+systemstatusloglevel = 4
 controlloglevel = 1
 daemonloglevel = 1
 
@@ -63,11 +63,6 @@ daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systems
 def getgpiostatus():
 
     from subprocess import check_output
-    #
-    # class gpioItem:
-    #     def __init__(self, propdict):
-    #         for key, value in propdict.items():
-    #             setattr(self, key, value)
 
     gpiolist=[]
     alloutput = check_output(['gpio','readall'])

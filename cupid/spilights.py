@@ -127,21 +127,26 @@ def updatelightsfromdb(database, table, CS):
     import pilib
 
     # get settings from database
-    query = 'select status from \'' + table + '\' where type=\'SPI' + str(CS) + '\''
-    query2 = 'select name from \'' + table + '\' where type=\'SPI' + str(CS) + '\''
+    query = 'select status from \'' + table + '\' where interface=\'SPI' + str(CS) + '\''
+    query2 = 'select name from \'' + table + '\' where interface=\'SPI' + str(CS) + '\''
 
     statuses = pilib.sqlitequery(database, query)
     names = pilib.sqlitequery(database, query2)
+    print(statuses)
+    print(names)
     d = {}
     for status, name in zip(statuses, names):
         d[name[0]] = status[0]
-    setarray = [[d['SPI' + str(CS) + '_RGB1_R'], d['SPI' + str(CS) + '_RGB1_G'], d['SPI' + str(CS) + '_RGB1_B']],
-                [d['SPI' + str(CS) + '_RGB2_R'], d['SPI' + str(CS) + '_RGB2_G'], d['SPI' + str(CS) + '_RGB2_B']],
-                [d['SPI' + str(CS) + '_RGB3_R'], d['SPI' + str(CS) + '_RGB3_G'], d['SPI' + str(CS) + '_RGB3_B']],
-                [d['SPI' + str(CS) + '_RGB4_R'], d['SPI' + str(CS) + '_RGB4_G'], d['SPI' + str(CS) + '_RGB4_B']],
-                d['SPI' + str(CS) + '_SC_R'], d['SPI' + str(CS) + '_SC_G'], d['SPI' + str(CS) + '_SC_B'],
-                d['SPI' + str(CS) + '_SC_Y']]
+
+    print(d)
+    setarray = [[d['SPI_RGB1_R'], d['SPI_RGB1_G'], d['SPI_RGB1_B']],
+                [d['SPI_RGB2_R'], d['SPI_RGB2_G'], d['SPI_RGB2_B']],
+                [d['SPI_RGB3_R'], d['SPI_RGB3_G'], d['SPI_RGB3_B']],
+                [d['SPI_RGB4_R'], d['SPI_RGB4_G'], d['SPI_RGB4_B']],
+                d['SPI_SC_R'], d['SPI_SC_G'], d['SPI_SC_B'],
+                d['SPI_SC_Y']]
     setspilights(setarray, CS)
+
 
 def getCuPIDlightsentries(table, CS, previndicators=None):
     querylist=[]
@@ -193,6 +198,6 @@ def getCuPIDlightsentries(table, CS, previndicators=None):
 
 if __name__ == '__main__':
     from pilib import controldatabase
-    updatelightsfromdb(controldatabase,'indicators',1)
+    updatelightsfromdb(controldatabase, 'indicators',1)
     #twitterspilights(1)
     #setspilightsoff()

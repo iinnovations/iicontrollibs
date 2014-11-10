@@ -45,7 +45,7 @@ while updateioenabled:
     readtime = systemsdict['updateiofreq']
 
     plotpoints = 20
-    logpoints = 100
+    logpoints = 500
 
     ################################################### 
     # Update controlvalues in channels
@@ -106,12 +106,12 @@ while updateioenabled:
             pilib.sqliteinsertsingle(pilib.logdatabase, logtablename, valuelist=[inputrow['value'], inputrow['polltime']],
                                      valuenames=['value', 'time'])
 
-        # Clean log
-        pilib.cleanlog(pilib.logdatabase, logtablename)
+            # Clean log
+            pilib.cleanlog(pilib.logdatabase, logtablename)
 
-        # Size log based on specified size
+            # Size log based on specified size
 
-        pilib.sizesqlitetable(pilib.logdatabase, logtablename, logpoints)
+            pilib.sizesqlitetable(pilib.logdatabase, logtablename, logpoints)
 
 
 
