@@ -156,12 +156,24 @@ def updateiodata(database):
                         if entrytype == 'iovalue':
                             if 'scale' in entryoptions:
                                 entryvalue = str(float(entryoptions['scale']) * float(datadict['iovalue']))
+                            elif 'formula' in entryoptions:
+                                x = float(datadict['iovalue'])
+                                try:
+                                    entryvalue = eval(entryoptions['formula'])
+                                except:
+                                    entryvalue = float(datadict['iovalue'])
                             else:
-                                entryvalue = datadict['iovalue']
+                                entryvalue = float(datadict['iovalue'])
                         elif entrytype == 'owdev':
                             if 'owtmpasc' in datadict:
                                 if 'scale' in entryoptions:
                                     entryvalue = str(float(entryoptions['scale']) * float(datadict['owtmpasc']))
+                                elif 'formula' in entryoptions:
+                                    x = float(datadict['owtmpasc'])
+                                    try:
+                                        entryvalue = eval(entryoptions['formula'])
+                                    except:
+                                        entryvalue = float(datadict['owtmpasc'])
                                 else:
                                     entryvalue = datadict['owtmpasc']
                             else:

@@ -9,20 +9,37 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 
-def write(message, port='/dev/ttyAMA0',baudrate=115200, timeout=1):
+def write(message, port='/dev/ttyAMA0', baudrate=115200, timeout=1):
     import serial
     ser = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
     ser.write(message)
 
 
-def monitor(port='/dev/ttyAMA0',baudrate=115200, timeout=1):
+def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True):
     import serial
+    import cupid.pilib as pilib
+    from time import mktime, localtime
 
-    ser = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
-
-    print "Monitoring serial port " + ser.name
     data = []
-    while True:
+
+    if checkstatus:
+        systemstatus = pilib.readonedbrow(pilib.controldatabase, 'systemstatus')[0]
+        runhandler = systemstatus['serialhandlerenabled']
+        checktime = mktime(localtime())
+        checkfrequency = 15  # seconds
+        if runhandler:
+           pilib.writedatedlogmsg(pilib.iolog, "Starting monitoring of serial port", 1, pilib.iologlevel)
+        else:
+            pilib.writedatedlogmsg(pilib.iolog, "Not starting monitoring of serial port. How did I get here?", 1, pilib.iologlevel)
+    else:
+        runhandler = True
+
+    if runhandler:
+        ser = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
+        print("Monitoring serial port " + ser.name)
+    else:
+        print('not monitoring serial port ')
+    while runhandler:
         ch = ser.read(1)
         if len(ch) == 0:
             # rec'd nothing print all
@@ -51,6 +68,18 @@ def monitor(port='/dev/ttyAMA0',baudrate=115200, timeout=1):
             data = []
         else:
             data.append(ch)
+        if checkstatus:
+            thetime = mktime(localtime())
+            if thetime-checktime > checkfrequency:
+                print('checking control status')
+                systemstatus = pilib.readonedbrow(pilib.controldatabase, 'systemstatus')[0]
+                runserialhandler = systemstatus['serialhandlerenabled']
+                if runserialhandler:
+                    checktime = thetime
+                    pilib.writedatedlogmsg(pilib.iolog, 'Continuing serialhandler based on status check',3,pilib.iologlevel)
+                else:
+                    runhandler=False
+                    pilib.writedatedlogmsg(pilib.iolog, 'Aborting serialhandler based on status check',3,pilib.iologlevel)
 
 
 def processserialdata(data):
@@ -63,19 +92,20 @@ def processserialdata(data):
     for split in split1:
         if split.find('END RECEIVED') >= 0:
             message = split.split('END RECEIVED')[0]
+            print(message)
             messages.append(message)
             try:
                 datadict = parseoptions(message)
             except:
-                print('error parsing message')
+                print('error parsing message: ' + message)
             else:
+                print(datadict)
                 datadicts.append(datadict)
     # except:
     #     print('there was an error processing the message')
     #     return
     # else:
     return datadicts, messages
-
 
 
 def processremotedata(datadict, stringmessage):
@@ -115,8 +145,13 @@ def processremotedata(datadict, stringmessage):
                 msgtype = 'owdev'
                 keyvalue = datadict['owrom'][2:]
                 keyvaluename = 'owrom'
+                if len(keyvalue) != 16:
+                    raise NameError('invalid ROM value')
+
+            except NameError:
+                print('length error in ROM value')
             except:
-                print('oops')
+                print("oops")
             else:
                 runquery = True
         if runquery:
@@ -131,4 +166,5 @@ def processremotedata(datadict, stringmessage):
             print('not running query')
 
 if __name__ == '__main__':
+    # monitor(checkstatus=False)
     monitor()

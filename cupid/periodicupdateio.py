@@ -44,8 +44,9 @@ while updateioenabled:
     #print(systemsdict)
     readtime = systemsdict['updateiofreq']
 
+    # defaults
     plotpoints = 20
-    logpoints = 500
+    logpoints = 1000
 
     ################################################### 
     # Update controlvalues in channels
