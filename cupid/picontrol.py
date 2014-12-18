@@ -66,8 +66,9 @@ while systemstatus['picontrolenabled']:
             if 'controlvalue' in channel:
                 try:
                     controlvalue = float(channel['controlvalue'])
-                except ValueError:
+                except (ValueError, TypeError) as e:
                     statusmsg += 'Invalid control value. '
+                    controllib.setcontrolvalue(pilib.controldatabase, channelname, 0)
             else:
                 statusmsg += 'No controlvalue. '
 
@@ -203,9 +204,11 @@ while systemstatus['picontrolenabled']:
 
                     else:
                         statusmsg += 'Channel outputs disabled. '
+                        action = 0
 
                 else:
                     statusmsg += 'System outputs disabled. '
+                    action = 0
 
                 # Insert entry into control log
                 pilib.makesqliteinsert(pilib.logdatabase, logtablename,  [time, controlinput, controlvalue, setpointvalue, action, channelalgorithmname, channel['enabled'], statusmsg])

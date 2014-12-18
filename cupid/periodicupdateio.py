@@ -57,24 +57,22 @@ while updateioenabled:
         # Get controlinput for each channel
         channelname = channel['name']
         controlinput = channel['controlinput']
-
         # Get the input for the name from inputs info
         # Then get the value and readtime from the input if it
         # can be found
 
         if controlinput:
-            controlvalue = pilib.sqlitedatumquery(pilib.controldatabase,
-                                                  'select value from inputs where name=' + "'" + controlinput + "'")
-            controltime = pilib.sqlitedatumquery(pilib.controldatabase,
-                                                 'select polltime from inputs where name=' + "'" + controlinput + "'")
+
+            controlvalue=pilib.getsinglevalue(pilib.controldatabase, 'inputs', 'value', "name='" + controlinput + "'")
+            controltime=pilib.getsinglevalue(pilib.controldatabase, 'inputs', 'polltime', "name='" + controlinput + "'")
 
             # Only update channel value if value was found
 
-            if controlvalue:
+            if controlvalue is not None:
+
+                # print('control value for channel ' + channelname + ' = ' + str(controlvalue))
                 pilib.sqlitequery(pilib.controldatabase, 'update channels set controlvalue=' + str(
                     controlvalue) + ' where controlinput = ' + "'" + controlinput + "'")
-                #print(controltime)
-                #print(controlinput)
                 pilib.sqlitequery(pilib.controldatabase,
                                   'update channels set controlvaluetime=\'' + controltime + '\' where controlinput = ' + "'" + controlinput + "'")
 

@@ -59,11 +59,18 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True):
                     print('error processing message')
                 else:
                     for datadict, message in zip(datadicts, messages):
-                        try:
-                            statusresult = processremotedata(datadict, message)
-                        except:
-                            print('error processing returned datadict, messge:')
-                            print(message)
+                        print("datadict: ")
+                        print(datadict)
+                        print("message: ")
+                        print(message.strip())
+                        # try:
+                        statusresult = processremotedata(datadict, message)
+                        # except:
+                        #     print('error processing returned datadict, message:')
+                            # print(message)
+                        # else:
+                        #     print("message parse was successful")
+                        #     print(message)
 
             data = []
         else:
@@ -93,7 +100,7 @@ def processserialdata(data):
         if split.find('END RECEIVED') >= 0:
             message = split.split('END RECEIVED')[0]
             print(message)
-            messages.append(message)
+            messages.append(message.strip())
             try:
                 datadict = parseoptions(message)
             except:
@@ -127,7 +134,7 @@ def processremotedata(datadict, stringmessage):
         runquery = False
         nodeid = datadict['nodeid']
         querylist = []
-        if 'iovalue' in datadict:
+        if 'ioval' in datadict:
             # check to see if entry exists with node and ionum. Need to generalize these.
             # Might make sense to put then into an ID to compare. Other database, compatible?
             # iovalue type message
@@ -146,25 +153,35 @@ def processremotedata(datadict, stringmessage):
                 keyvalue = datadict['owrom'][2:]
                 keyvaluename = 'owrom'
                 if len(keyvalue) != 16:
-                    raise NameError('invalid ROM value')
-
-            except NameError:
-                print('length error in ROM value')
+                    raise NameError('invalid ROM length')
+                else:
+                    for romcbar in keyvalue:
+                        hexchars = ['0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F','a','b','c','d','e','f']
+                        if romcbar not in hexchars:
+                            raise NameError('Invalid ROM hex character')
             except:
                 print("oops")
             else:
                 runquery = True
+        elif 'chan' in datadict:
+            # {chan:name,sp:XXX.XXX,pv:XXX.XXX,act:XXX.XXX}
+            pass
+        elif 'scalevalue' in datadict:
+            pass
         if runquery:
+            print('running query')
+            print(stringmessage.strip())
             deletequery = pilib.makedeletesinglevaluequery('remotes', {'conditionnames': ['nodeid', 'keyvalue', 'keyvaluename'], 'conditionvalues': [nodeid ,keyvalue, keyvaluename]})
-            insertquery = pilib.makesqliteinsert('remotes',  [nodeid, msgtype, keyvaluename, keyvalue, stringmessage, pilib.gettimestring()], ['nodeid', 'msgtype', 'keyvaluename', 'keyvalue', 'data', 'time'])
+            insertquery = pilib.makesqliteinsert('remotes',  [nodeid, msgtype, keyvaluename, keyvalue, stringmessage.replace('\x00', ''), pilib.gettimestring()], ['nodeid', 'msgtype', 'keyvaluename', 'keyvalue', 'data', 'time'])
             querylist.append(deletequery)
             querylist.append(insertquery)
+            print(querylist)
             pilib.sqlitemultquery(pilib.controldatabase, querylist)
 
-            return 'all done'
+            return
         else:
             print('not running query')
 
 if __name__ == '__main__':
-    # monitor(checkstatus=False)
-    monitor()
+    monitor(checkstatus=False)
+    # monitor()

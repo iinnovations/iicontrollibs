@@ -33,7 +33,7 @@ def processactions():
                 dbpath = dbdir + thisaction.database + '.db'
 
                 # variablename is columnname for dbvalue conditiontype
-                thisaction.variablevalue = pilib.getsinglevalue(dbpath, thisaction.tablename, thisaction.variablename, 'rowid=' + str(thisaction.channelindex))
+                thisaction.variablevalue = pilib.getsinglevalue(dbpath, thisaction.tablename, thisaction.variablename, 'rowid=' + str(thisaction.valuerowid))
 
                 # get variable type to handle
                 variablestypedict = pilib.getpragmanametypedict(pilib.controldatabase, thisaction.tablename)
@@ -51,19 +51,19 @@ def processactions():
                     # print(thisaction.operator)
                     thisaction.variablevalue = float(thisaction.variablevalue)
                     thisaction.criterion = float(thisaction.criterion)
-                    if thisaction.operator == '>':
+                    if thisaction.operator == 'greater':
                         if thisaction.variablevalue > thisaction.criterion:
                             curstatus = True
-                    elif thisaction.operator == '>=':
+                    elif thisaction.operator == 'greaterorequal':
                         if thisaction.variablevalue >= thisaction.criterion:
                             curstatus = True
-                    elif thisaction.operator == '<':
+                    elif thisaction.operator == 'less':
                         if thisaction.variablevalue < thisaction.criterion:
                             curstatus = True
-                    elif thisaction.operator == '<=':
+                    elif thisaction.operator == 'lessorequal':
                         if thisaction.variablevalue <= thisaction.criterion:
                             curstatus = True
-                    elif thisaction.operator == '=':
+                    elif thisaction.operator == 'equal':
                         if thisaction.variablevalue == thisaction.criterion:
                             curstatus = True
                     else:
@@ -153,7 +153,7 @@ def processactions():
         else:
             thisaction.statusmsg += 'Mode unrecognized.'
 
-        print(thisaction.statusmsg)
+        # print(thisaction.statusmsg)
         thisaction.publish()
 
 if __name__ == '__main__':

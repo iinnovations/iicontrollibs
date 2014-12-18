@@ -246,6 +246,13 @@ def setcontrolinput(controldatabase, channelname, inputid):
                 'update channels set controlinput = \'' + inputid + '\' where name = \'' + channelname + '\'')
 
 
+def setcontrolvalue(controldatabase, channelname, controlvalue):
+    from pilib import sqlitequery
+
+    sqlitequery(controldatabase,
+                'update channels set controlvalue = \'' + str(controlvalue) + '\' where name = \'' + channelname + '\'')
+
+
 def getaction(controldatabase, channelname):
     from pilib import sqlitequery
 

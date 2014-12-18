@@ -1,0 +1,31 @@
+ow_dl.o: ow_dl.c ../../../../src/include/config.h \
+ ../../../../src/include/owfs_config.h ../../../owlib/src/include/ow_dl.h \
+ /usr/include/dlfcn.h /usr/include/features.h \
+ /usr/include/arm-linux-gnueabihf/bits/predefs.h \
+ /usr/include/arm-linux-gnueabihf/sys/cdefs.h \
+ /usr/include/arm-linux-gnueabihf/bits/wordsize.h \
+ /usr/include/arm-linux-gnueabihf/gnu/stubs.h \
+ /usr/lib/gcc/arm-linux-gnueabihf/4.6/include/stddef.h \
+ /usr/include/arm-linux-gnueabihf/bits/dlfcn.h
+
+../../../../src/include/config.h:
+
+../../../../src/include/owfs_config.h:
+
+../../../owlib/src/include/ow_dl.h:
+
+/usr/include/dlfcn.h:
+
+/usr/include/features.h:
+
+/usr/include/arm-linux-gnueabihf/bits/predefs.h:
+
+/usr/include/arm-linux-gnueabihf/sys/cdefs.h:
+
+/usr/include/arm-linux-gnueabihf/bits/wordsize.h:
+
+/usr/include/arm-linux-gnueabihf/gnu/stubs.h:
+
+/usr/lib/gcc/arm-linux-gnueabihf/4.6/include/stddef.h:
+
+/usr/include/arm-linux-gnueabihf/bits/dlfcn.h:

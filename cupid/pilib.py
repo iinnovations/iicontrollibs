@@ -46,7 +46,7 @@ maxlogsize = 1024  # kB
 numlogs = 5
 
 
-networkloglevel = 3
+networkloglevel = 1
 iologlevel = 1
 systemstatusloglevel = 4
 controlloglevel = 1
@@ -153,11 +153,16 @@ def rotatelogs(logname, numlogs=5, logsize=1024):
 
 
 def parseoptions(optionstring):
-    list = optionstring.split(',')
-    optionsdict={}
-    for item in list:
-        split = item.split(':')
-        optionsdict[split[0].strip()] = split[1].strip()
+    optionsdict = {}
+    if optionstring:
+        try:
+            list = optionstring.split(',')
+            for item in list:
+                split = item.split(':')
+                optionsdict[split[0].strip()] = split[1].strip()
+        except:
+            pass
+
     return optionsdict
 
 
