@@ -1,7 +1,6 @@
 
 	WSGIScriptAlias /wsgireadonly /usr/lib/iicontrollibs/wsgi/wsgireadonly.wsgi
 	WSGIScriptAlias /wsgisessioncontrol /usr/lib/iicontrollibs/wsgi/wsgisessioncontrol.wsgi
-	WSGIScriptAlias /wsgigpioactions /usr/lib/iicontrollibs/wsgi/wsgigpioactions.wsgi
 	WSGIScriptAlias /wsgiactions /usr/lib/iicontrollibs/wsgi/wsgiactions.wsgi
     WSGIPythonPath /usr/lib/iicontrollibs/wsgi/
     WSGIDaemonProcess cupidcontrols processes=2 threads=15
