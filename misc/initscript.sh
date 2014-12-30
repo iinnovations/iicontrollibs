@@ -67,6 +67,7 @@ else
 
     echo "Initializing web library repo"
     cd /var/www
+    rm -R *
     git init .
     git config --global user.email "info@interfaceinnovations.org"
     git config --global user.name "iinnovations"
@@ -82,6 +83,7 @@ else
 
     echo "Initializing control libraries repo"
     cd /usr/lib/iicontrollibs
+    rm -R *
     git init .
     git config --global user.email "info@interfaceinnovations.org"
     git config --global user.name "iinnovations"
@@ -120,6 +122,10 @@ else
     cp /usr/lib/iicontrollibs/misc/apachesites /etc/apache2/sites-available/default
     echo "Complete"
 
+    echo "Copying dhcpd.conf"
+    cp /usr/lib/iicontrollibs/misc/dhcpd.conf /etc/dhcp/
+    echo "Complete"
+
 
     testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
     if [ ${testresult} -ne 0 ]
@@ -143,7 +149,7 @@ else
     else
         echo "copying hostapd"
         mv /usr/sbin/hostapd /usr/sbin/hostapd.bak
-        cp /usr/lib/iicontrollibs/resource/hostapd /usr/sbin/hostapd.edimax
+        cp /usr/lib/iicontrollibs/resource/hostapd.edimax /usr/sbin/hostapd.edimax
         ln -sf /usr/sbin/hostapd.edimax /usr/sbin/hostapd
         chown root:root /usr/sbin/hostapd
         chmod 755 /usr/sbin/hostapd
@@ -176,6 +182,9 @@ else
     echo "Copying icons to desktop"
 
     echo "Changing desktop wallpaper"
-    pcmanfm -w /var/www/images/cupid_splash_big.png
+    sudo -u pi pcmanfm -w /var/www/images/splash/cupid_splash_big.png
+
+    echo "Copying icons"
+    cp /usr/lib/iicontrollibs/misc/updatecupidweblibs.desktop /
 
 fi

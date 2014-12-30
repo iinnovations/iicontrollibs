@@ -120,10 +120,10 @@ def updateifacestatus():
     # Check dhcp server status
     pilib.writedatedlogmsg(pilib.networklog, 'Checking dhcp server status ', 4, pilib.networkloglevel)
     try:
-        result = subprocess.Popen(['service', 'isc-dhcp-server', 'status'], stdout=subprocess.PIPE)
-    except:
+        result = subprocess.call(['/usr/sbin/service', 'isc-dhcp-server', 'status'], stdout=subprocess.PIPE)
+    except Exception, e:
         dhcpstatus = 0
-        pilib.writedatedlogmsg(pilib.networklog, 'Error in reading dhcp server status.', 1, pilib.networkloglevel)
+        pilib.writedatedlogmsg(pilib.networklog, 'Error in reading dhcp server status:' + str(e), 1, pilib.networkloglevel)
     else:
         for line in result.stdout:
             if line.find('not running') > 0:
@@ -197,7 +197,7 @@ def processsystemflags(systemflags=None):
             pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, "name='reboot'")
             import subprocess
             writedatedlogmsg(systemstatuslog, 'Rebooting for system flag', 0, systemstatusloglevel)
-            subprocess.call(['reboot'])
+            subprocess.call(['/sbin/reboot'])
     if 'netconfig' in flagnames:
         if flagvalues[flagnames.index('netconfig')]:
             stop = True

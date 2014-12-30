@@ -11,7 +11,7 @@ def application(environ, start_response):
     if top_folder not in sys.path:
         sys.path.insert(0,top_folder)
 
-    from cupid.pilib import sqlitedatadump, sqlitequery, sqlitemultquery, usersdatabase, datarowtodict, tail
+    import cupid.pilib as pilib
 
     post_env = environ.copy()
     post_env['QUERY_STRING'] = ''
@@ -22,167 +22,285 @@ def application(environ, start_response):
     )
 
     formname=post.getvalue('name')
-    data={}
+    data = {}
     data['message'] = 'Output Message: '
-    d={}
+    d = {}
     for k in post.keys():
         d[k] = post.getvalue(k)
 
     status = '200 OK'
+    output = ''
+    wsgiauth = False
 
-    # Run stuff as requested
-    if 'action' in d:
-        action = d['action']
-        if action == 'dump':
-            if 'database' in d and 'tablelist' in d and 'outputfile' in d:
-                sqlitedatadump(d['database'],d['tablelist'],d['outputfile'])
-                data['message'] = 'data dumped'
-            elif 'database' in d and 'tablename' in d and 'outputfile' in d:
-                sqlitedatadump(d['database'],[d['tablename']],d['outputfile'])
-                data['message'] = 'data dumped'
-            else:
-                data = 'keys not present for dump'
-        elif action in ['userdelete', 'useradd', 'usermodify']:
-            data['message'] += 'Found action. '
-            # Ensure that we are authorized for this action
-            try:
-                userdata = datarowtodict(usersdatabase, 'users', sqlitequery(usersdatabase, "select * from users where name='" + d['sessionuser'] + "'")[0])
-            except:
-                data['message'] += 'error in user sqlite query. '
-            else:
-                # Verify the credentials of the user are sufficient so we don't bother checking hash if not.
+    if wsgiauth:
+        # Verfiy that session login information is legit: hashed password, with salt and username, match
+        # hash stored in database.
+        import hashlib
+        from pilib import salt
+        authverified = False
+        try:
+            userdata = pilib.datarowtodict(pilib.usersdatabase, 'users', pilib.sqlitequery(pilib.usersdatabase, "select * from users where name='" + d['sessionuser'] + "'")[0])
+        except:
+            data['message'] += 'error in user sqlite query. '
+            # unsuccessful authentication
 
+        # Get session hpass to verify credentials
+        hashedpassword = d['sessionhpass']
+        hname = hashlib.new('sha1')
+        hname.update(d['sessionuser'])
+        hashedname = hname.hexdigest()
+        hentry = hashlib.new('md5')
+        hentry.update(hashedname + salt + hashedpassword)
+        hashedentry = hentry.hexdigest()
+        if hashedentry == userdata['password']:
+            # successful auth
+            data['message'] += 'Password verified. '
+            authverified = True
+    else:
+        data += 'WSGI authorization not enabled. '
+
+    if authverified or not wsgiauth:
+        # Perform requested actions
+        if 'action' in d:
+            action = d['action']
+            if 'query' in d:  # Take plain single query
+                result = pilib.sqlitequery(d['database'], d['query'])
+                data['response'] = result
+                data['message'] += 'Query executed. '
+            elif 'queryarray[]' in d:  # Take query array, won't find
+                result = []
+                queryarray = d['queryarray[]']
+                for query in queryarray:
+                    result.append(pilib.sqlitequery(d['database'], query))
+                data['response'] = result
+                data['message'] += 'Query array executed. '
+            elif action == 'dump':
+                if 'database' in d and 'tablelist' in d and 'outputfile' in d:
+                    pilib.sqlitedatadump(d['database'],d['tablelist'],d['outputfile'])
+                    data['message'] = 'data dumped'
+                elif 'database' in d and 'tablename' in d and 'outputfile' in d:
+                    pilib.sqlitedatadump(d['database'],[d['tablename']],d['outputfile'])
+                    data['message'] = 'data dumped'
+                else:
+                    data = 'keys not present for dump'
+            elif action in ['userdelete', 'useradd', 'usermodify']:
+                data['message'] += 'Found action. '
+                # Ensure that we are authorized for this action
                 if userdata['authlevel'] >= 4:
                     data['message'] += 'User selected has sufficient authorizations. '
+                    if action == 'userdelete':
+                        try:
+                            pilib.sqlitequery(pilib.usersdatabase, "delete from users where name='" + d['usertodelete'] + "'")
+                        except:
+                            data['message'] += 'Error in delete query. '
+                        else:
+                            data['message'] += 'Successful delete query. '
+                    elif action == 'usermodify':
+                        if 'usertomodify' in d:
+                            querylist=[]
+                            if 'newpass' in d:
+                                # Get session hpass to verify credentials
+                                hashedpassword = d['newpass']
+                                hname = hashlib.new('sha1')
+                                hname.update(d['usertomodify'])
+                                hashedname = hname.hexdigest()
+                                hentry = hashlib.new('md5')
+                                hentry.update(hashedname + salt + hashedpassword)
+                                hashedentry = hentry.hexdigest()
+                                querylist.append('update users set password=' + hashedentry + " where name='" + d['usertomodify'] + "'")
+                            if 'newemail' in d:
+                                querylist.append("update users set email='" + d['newemail'] + "' where name='" + d['usertomodify'] + "'")
+                            if 'newauthlevel' in d:
+                                querylist.append("update users set authlevel='" + d['newauthlevel'] + "' where name='" + d['usertomodify'] + "'")
 
-                    # Verfiy that session login information is legit: hashed password, with salt and username, match
-                    # hash stored in database.
-                    import hashlib
-                    from cupid.pilib import salt
-
-                    # Get session hpass to verify credentials
-                    hashedpassword = d['sessionhpass']
-                    hname = hashlib.new('sha1')
-                    hname.update(d['sessionuser'])
-                    hashedname = hname.hexdigest()
-                    hentry = hashlib.new('md5')
-                    hentry.update(hashedname + salt + hashedpassword)
-                    hashedentry = hentry.hexdigest()
-
-                    if hashedentry == userdata['password']:
-                        data['message'] += 'Password verified. '
-                        if action == 'userdelete':
                             try:
-                                sqlitequery(usersdatabase, "delete from users where name='" + d['usertodelete'] + "'")
+                                pilib.sqlitemultquery(pilib.usersdatabase, querylist)
                             except:
-                                data['message'] += 'Error in delete query. '
+                                data['message'] += 'Error in modify/add query: ' + ",".join(querylist)
                             else:
-                                data['message'] += 'Successful delete query. '
-                        elif action == 'usermodify':
-                            if 'usertomodify' in d:
-                                querylist=[]
-                                if 'newpass' in d:
-                                    # Get session hpass to verify credentials
-                                    hashedpassword = d['newpass']
-                                    hname = hashlib.new('sha1')
-                                    hname.update(d['usertomodify'])
-                                    hashedname = hname.hexdigest()
-                                    hentry = hashlib.new('md5')
-                                    hentry.update(hashedname + salt + hashedpassword)
-                                    hashedentry = hentry.hexdigest()
-                                    querylist.append('update users set password=' + hashedentry + " where name='" + d['usertomodify'] + "'")
-                                if 'newemail' in d:
-                                    querylist.append("update users set email='" + d['newemail'] + "' where name='" + d['usertomodify'] + "'")
-                                if 'newauthlevel' in d:
-                                    querylist.append("update users set authlevel='" + d['newauthlevel'] + "' where name='" + d['usertomodify'] + "'")
-
-                                try:
-                                    sqlitemultquery(usersdatabase, querylist)
-                                except:
-                                    data['message'] += 'Error in modify/add query: ' + ",".join(querylist)
-                                else:
-                                    data['message'] += 'Successful modify/add query. ' + ",".join(querylist)
-                            else:
-                                data['message'] += 'Need usertomodify in query. '
-                        elif action == 'useradd':
-                            try:
-                                username = d['newusername']
-                            except:
-                                username = 'newuser'
-                            try:
-                                newemail = d['newemail']
-                            except:
-                                newemail = 'fakeemail@domain.com'
-                            try:
-                                newauthlevel = d['newauthlevel']
-                            except:
-                                newauthlevel = 0
-                                query = "insert into users values(NULL,'" + username + "','','" + newemail + "',''," + str(newauthlevel) + ")"
-                            try:
-                                sqlitequery(usersdatabase, query)
-                            except:
-                                data['message'] += "Error in useradd sqlite query: " + query + ' . '
-                            else:
-                                data['message'] += "Successful query: " + query + ' . '
+                                data['message'] += 'Successful modify/add query. ' + ",".join(querylist)
+                        else:
+                            data['message'] += 'Need usertomodify in query. '
+                    elif action == 'useradd':
+                        try:
+                            username = d['newusername']
+                        except:
+                            username = 'newuser'
+                        try:
+                            newemail = d['newemail']
+                        except:
+                            newemail = 'fakeemail@domain.com'
+                        try:
+                            newauthlevel = d['newauthlevel']
+                        except:
+                            newauthlevel = 0
+                            query = "insert into users values(NULL,'" + username + "','','" + newemail + "',''," + str(newauthlevel) + ")"
+                        try:
+                            pilib.sqlitequery(pilib.usersdatabase, query)
+                        except:
+                            data['message'] += "Error in useradd sqlite query: " + query + ' . '
+                        else:
+                            data['message'] += "Successful query: " + query + ' . '
                     else:
                         data['message'] += 'Unable to verify password. '
-
                 else:
                     data['message'] = 'insufficient authorization level for current user. '
-        elif action == 'getfiletext':
-            try:
-                filepath = d['filepath']
-                if 'numlines' in d:
-                    numlines = int(d['numlines'])
-                else:
-                    numlines = 9999
-                data['message'] += 'Using numlines: ' + str(numlines) + ' for read action. '
-                if 'startposition' in d:
-                    startposition = d['startposition']
-                else:
-                    startposition = 'end'
-                data['message'] += 'Reading from position ' + startposition + '. '
-            except KeyError:
-                data['message'] += 'Sufficient keys for action getfile text do not exist. '
-            except:
-                data['message'] += 'Uncaught error in getfiletext. '
-            else:
+            elif action == 'getfiletext':
                 try:
-                    file = open(filepath)
-                    lines = file.readlines()
-                except:
-                    data['message'] += 'Error reading file in getfiletext action. '
-                else:
-                    outputdata = []
-                    if startposition == 'end':
-                        try:
-                            outputdata = tail(file, numlines)[0]
-                        except:
-                            data['message'] += 'Error in tail read. '
+                    filepath = d['filepath']
+                    if 'numlines' in d:
+                        numlines = int(d['numlines'])
                     else:
-                        linecount = 0
-                        for line in lines:
-                            linecount += 1
-                            if linecount > numlines:
-                                break
-                            else:
-                                outputdata.append(line)
-                    data['data'] = outputdata
-        elif action == 'getmbtcpdata':
-            try:
-                clientIP = d['clientIP']
-                register = d['register']
-                length = d['length']
-            except KeyError:
-                data['message'] += 'Sufficient keys do not exist for the command. Requires clientIP, register, and length. '
+                        numlines = 9999
+                    data['message'] += 'Using numlines: ' + str(numlines) + ' for read action. '
+                    if 'startposition' in d:
+                        startposition = d['startposition']
+                    else:
+                        startposition = 'end'
+                    data['message'] += 'Reading from position ' + startposition + '. '
+                except KeyError:
+                    data['message'] += 'Sufficient keys for action getfile text do not exist. '
+                except:
+                    data['message'] += 'Uncaught error in getfiletext. '
+                else:
+                    try:
+                        file = open(filepath)
+                        lines = file.readlines()
+                    except:
+                        data['message'] += 'Error reading file in getfiletext action. '
+                    else:
+                        outputdata = []
+                        if startposition == 'end':
+                            try:
+                                outputdata = pilib.tail(file, numlines)[0]
+                            except:
+                                data['message'] += 'Error in tail read. '
+                        else:
+                            linecount = 0
+                            for line in lines:
+                                linecount += 1
+                                if linecount > numlines:
+                                    break
+                                else:
+                                    outputdata.append(line)
+                        data['data'] = outputdata
+            elif action == 'getmbtcpdata':
+                try:
+                    clientIP = d['clientIP']
+                    register = d['register']
+                    length = d['length']
+                except KeyError:
+                    data['message'] += 'Sufficient keys do not exist for the command. Requires clientIP, register, and length. '
+                else:
+                    from cupid.netfun import readMBcodedaddresses
+                    # try:
+                    data['response'] = readMBcodedaddresses(clientIP, int(register), int(length))
+
+            elif action == 'setsystemflag' and 'systemflag' in d:
+                database = pilib.systemdatadatabase
+                pilib.setsinglevalue(database, 'systemflags', 'value', 1, "name=\'" + d['systemflag'] + "'")
+            elif action == 'rundaemon':
+                from cupiddaemon import rundaemon
+                rundaemon()
+
+            elif action == 'setvalue':
+                if all(k in d for k in ('database', 'table', 'valuename', 'value')):
+                    output += 'Carrying out setvalue. '
+                    if 'condition' in d:
+                        pilib.setsinglevalue(d['database'], d['table'], d['valuename'], d['value'], d['condition'])
+                    elif 'index' in d:
+                        condition = 'rowid= ' + d['index']
+                        pilib.setsinglevalue(d['database'], d['table'], d['valuename'], d['value'], d['condition'])
+                    else:
+                        pilib.setsinglevalue(d['database'], d['table'], d['valuename'], d['value'])
+                else:
+                    output += 'Insufficient data for setvalue '
+            elif action == 'updateioinfo':
+                if all(k in d for k in ('database' 'ioid', 'value')):
+                    query = pilib.makesqliteinsert('ioinfo', [d['ioid'], d['value']], ['id', 'name'])
+                    try:
+                        pilib.sqliteinsertsingle(pilib.controldatabase, 'ioinfo', [d['ioid'], d['value']], ['id', 'name'])
+                    except:
+                        output += 'Error in updateioinfo query execution: ' + query +'. '
+                        output += 'ioid: ' + d['ioid'] + ' . '
+                    else:
+                        output += 'Executed updateioinfo query. '
+                else:
+                    output += 'Insufficient data for updateioinfo query. '
+
+            # These are all very specific actions that could be rolled up or built into classes
+            elif action == 'spchange' and 'database' in d:
+                output += 'Spchanged. '
+                if d['subaction'] == 'incup':
+                    pilib.controllib.incsetpoint(d['database'], d['channelname'])
+                    output += 'incup. '
+                if d['subaction'] == 'incdown':
+                    pilib.controllib.decsetpoint(d['database'], d['channelname'])
+                    output += 'incdown. '
+                if d['subaction'] == 'setvalue':
+                    pilib.controllib.setsetpoint(d['database'], d['channelname'], d['value'])
+                    output += 'Setvalue: ' + d['database'] + ' ' + d['channelname'] + ' ' + d['value']
+            elif action == 'togglemode' and 'database' in d:
+                pilib.controllib.togglemode(d['database'], d['channelname'])
+            elif action == 'setmode' and 'database' in d:
+                pilib.controllib.setmode(d['database'], d['channelname'], d['mode'])
+            elif action == 'setrecipe':
+                pilib.controllib.setrecipe(d['database'], d['channelname'], d['recipe'])
+            elif action == 'setcontrolinput':
+                pilib.controllib.setcontrolinput(d['database'], d['channelname'], d['controlinput'])
+            elif action == 'setchannelenabled':
+                pilib.controllib.setchannelenabled(d['database'], d['channelname'], d['newstatus'])
+            elif action == 'setchanneloutputsenabled':
+                pilib.controllib.setchanneloutputsenabled(d['database'], d['channelname'], d['newstatus'])
+            elif action == 'manualactionchange' and 'database' in d and 'channelname' in d and 'subaction' in d:
+                curchanmode = pilib.controllib.getmode(d['database'], d['channelname'])
+                if curchanmode == 'manual':
+                    if d['subaction'] == 'poson':
+                        pilib.controllib.setaction(d['database'], d['channelname'], '100.0')
+                    elif d['subaction'] == 'negon':
+                        pilib.controllib.setaction(d['database'], d['channelname'], '-100.0')
+                    else:
+                        pilib.controllib.setaction(d['database'], d['channelname'], '0.0')
+            elif action == 'setposoutput' and 'database' in d and 'channelname' in d and 'outputname' in d:
+                pilib.controllib.setposout(d['database'], d['channelname'], d['outputname'])
+            elif action == 'setnegoutput' and 'database' in d and 'channelname' in d:
+                pilib.controllib.setnegout(d['database'], d['channelname'], d['outputname'])
+            elif action == 'actiondown' and 'database' in d and 'channelname' in d:
+                curchanmode = pilib.controllib.getmode(d['database'], d['channelname'])
+                if curchanmode == "manual":
+                    curaction = int(pilib.controllib.getaction(d['database'], d['channelname']))
+                    if curaction == 100:
+                        nextvalue = 0
+                    elif curaction == 0:
+                        nextvalue = -100
+                    elif curaction == -100:
+                        nextvalue = -100
+                    else:
+                        nextvalue = 0
+                    pilib.controllib.setaction(d['database'], d['channelname'], d['nextvalue'])
+            elif action == 'actionup' and 'database' in d and 'channelname' in d:
+                curchanmode = pilib.controllib.getmode(d['database'], d['channelname'])
+                if curchanmode == "manual":
+                    curaction = int(pilib.controllib.getaction(d['database'], d['channelname']))
+                    if curaction == 100:
+                        nextvalue = 100
+                    elif curaction == 0:
+                        nextvalue = 100
+                    elif curaction == -100:
+                        nextvalue = 0
+                    else:
+                        nextvalue = 0
+                    pilib.controllib.setaction(d['database'], d['channelname'], nextvalue)
+            elif action == 'deletechannelbyname' and 'database' in d and 'channelname' in d:
+                pilib.sqlitequery(d['database'], 'delete channelname from channels where name=\"' + d['channelname'] + '\"')
+
             else:
-                from cupid.netfun import readMBcodedaddresses
-                # try:
-                data['response'] = readMBcodedaddresses(clientIP, int(register), int(length))
+                data['message'] += 'Action keyword present(' + action + '), but not handled. '
+
         else:
-            data['message'] += 'Action keyword present(' + action + '), but not handled. '
+            data['message'] += 'action keyword not present. '
     else:
-        data['message'] += 'action keyword not present. '
+        data['message'] += 'Authentication unsuccessful'
 
     output = json.dumps(data, indent=1)
 

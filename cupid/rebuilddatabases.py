@@ -383,16 +383,15 @@ def rebuildusersdata(argument=None):
     else:
         while enteringusers:
             validentry = True
-            input = raw_input("Enter username or Q to stop: ")
+            userinput = raw_input("Enter username or Q to stop: ")
+            if userinput == 'Q':
+                print('exiting ...')
+                break
             passone = raw_input("Enter password: ")
             passtwo = raw_input("Confirm password: ")
             emailentry = raw_input("Enter user email")
             authlevelentry = raw_input("Enter authorization level (0-5)")
 
-            if input == 'Q':
-                enteringusers = False
-                validentry = False
-                print('exiting ...')
             if passone != passtwo:
                 validentry = False
                 print('passwords do not match')
@@ -404,9 +403,9 @@ def rebuildusersdata(argument=None):
                 print('Email does not appear to be valid')
 
             if validentry:
-                hashedentry = gethashedentry(passone)
+                hashedentry = gethashedentry(userinput,passone)
 
-                querylist.append("insert into users values(" + str(index) + ",'" + input + "','" + hashedentry + "','" + emailentry + "',''," + authlevelentry + ")")
+                querylist.append("insert into users values(" + str(index) + ",'" + userinput + "','" + hashedentry + "','" + emailentry + "',''," + authlevelentry + ")")
                 index += 1
                 runquery = True
 

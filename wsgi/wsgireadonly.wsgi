@@ -81,15 +81,7 @@ def application(environ, start_response):
                 data = dynamicsqliteread(d['database'], d['table'])
         else:
             data = dynamicsqliteread(d['database'], d['table'])
-    elif 'query' in d:  # Take plain single query
-        result = sqlitequery(d['database'], d['query'])
-        data = result
-    elif 'queryarray[]' in d:  # Take query array, won't find
-        result = []
-        queryarray = d['queryarray[]']
-        for query in queryarray:
-            result.append(sqlitequery(d['database'], query))
-        data = result
+
     else:
         data = ['empty. blurg']
 

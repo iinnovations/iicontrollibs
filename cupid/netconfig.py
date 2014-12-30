@@ -215,7 +215,7 @@ def setstationmode(netconfigdata=None):
     if netconfigdata['addtype'] == 'static':
         writedatedlogmsg(networklog, 'Configuring static address. ', 3, networkloglevel)
 
-        subprocess.call(['cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.static', '/etc/network/interfaces'])
+        subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.static', '/etc/network/interfaces'])
 
         # update IP from netconfig
         writedatedlogmsg(networklog, 'Updating netconfig with ip ' + netconfigdata['address'], 3, networkloglevel)
@@ -223,7 +223,7 @@ def setstationmode(netconfigdata=None):
                                [netconfigdata['address'], netconfigdata['gateway']])
     elif netconfigdata['addtype'] == 'dhcp':
         writedatedlogmsg(networklog, 'Configuring dhcp. ', 3, networkloglevel)
-        subprocess.call(['cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.dhcp', '/etc/network/interfaces'])
+        subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.dhcp', '/etc/network/interfaces'])
 
     writedatedlogmsg(networklog, 'Resetting wlan. ', 3, networkloglevel)
     resetwlan()
@@ -234,14 +234,14 @@ def setstationmode(netconfigdata=None):
 def killapservices():
     writedatedlogmsg(networklog, 'Killing AP Services. ', 1, networkloglevel)
     try:
-        subprocess.call(['service', 'hostapd', 'stop'])
+        subprocess.call(['/usr/sbin/service', 'hostapd', 'stop'])
     except:
         writedatedlogmsg(networklog, 'Error killing hostapd. ', 0, networkloglevel)
     else:
         writedatedlogmsg(networklog, 'Killed hostapd. ', 3, networkloglevel)
 
     try:
-        subprocess.call(['service', 'isc-dhcp-server', 'stop'])
+        subprocess.call(['/usr/sbin/service', 'isc-dhcp-server', 'stop'])
     except:
         writedatedlogmsg(networklog, 'Error killing dhcp server. ', 0, networkloglevel)
     else:
@@ -251,7 +251,7 @@ def killapservices():
 def startapservices():
     from time import sleep
     try:
-        subprocess.call(['hostapd', '-B', '/etc/hostapd/hostapd.conf'])
+        subprocess.call(['/usr/sbin/hostapd', '-B', '/etc/hostapd/hostapd.conf'])
     except:
         writedatedlogmsg(networklog, 'Error starting hostapd. ', 0, networkloglevel)
     else:
@@ -260,7 +260,7 @@ def startapservices():
     sleep(1)
 
     try:
-        subprocess.call(['service', 'isc-dhcp-server', 'start'])
+        subprocess.call(['/usr/sbin/service', 'isc-dhcp-server', 'start'])
     except:
         writedatedlogmsg(networklog, 'Error starting dhcp server. ', 0, networkloglevel)
     else:
@@ -270,7 +270,7 @@ def startapservices():
 def setapmode(netconfig=None):
     writedatedlogmsg(networklog, 'Setting ap mode. ', 1, networkloglevel)
     try:
-        subprocess.call(['cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.ap', '/etc/network/interfaces'])
+        subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.ap', '/etc/network/interfaces'])
     except:
         writedatedlogmsg(networklog, 'Error copying network configuration file. ', 0, networkloglevel)
     else:
@@ -285,16 +285,16 @@ def resetwlan():
     from time import sleep
     writedatedlogmsg(networklog, 'Resetting wlan. ', 3, networkloglevel)
     try:
-        subprocess.call(['ifdown', '--force', 'wlan0'])
-    except:
-        writedatedlogmsg(networklog, 'Error bringing down wlan0. ', 0, networkloglevel)
+        subprocess.call(['/sbin/ifdown', '--force', 'wlan0'])
+    except Exception, e:
+        writedatedlogmsg(networklog, 'Error bringing down wlan0: ' + str(e), 0, networkloglevel)
     else:
         writedatedlogmsg(networklog, 'Completed bringing down wlan0 ', 3, networkloglevel)
     sleep(2)
     try:
-        subprocess.call(['ifup', 'wlan0'])
-    except:
-        writedatedlogmsg(networklog, 'Error bringing up wlan0. ', 0, networkloglevel)
+        subprocess.call(['/sbin/ifup', 'wlan0'])
+    except Exception, e:
+        writedatedlogmsg(networklog, 'Error bringing up wlan0: '+ str(e), 0, networkloglevel)
     else:
         writedatedlogmsg(networklog, 'Completed bringing up wlan0 ', 3, networkloglevel)
 
