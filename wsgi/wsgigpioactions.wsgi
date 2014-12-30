@@ -81,6 +81,7 @@ def application(environ, start_response):
                 from subprocess import check_output, call
                 from cupid.pilib import getgpiostatus
 
+                pinmode = ''
                 allstatus = getgpiostatus()
                 for status in allstatus:
                     if status['BCM'] == BCMpin:
