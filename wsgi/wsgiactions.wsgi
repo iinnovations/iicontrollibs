@@ -31,13 +31,14 @@ def application(environ, start_response):
     status = '200 OK'
     output = ''
     wsgiauth = False
+    authverified = False
 
     if wsgiauth:
         # Verfiy that session login information is legit: hashed password, with salt and username, match
         # hash stored in database.
         import hashlib
         from pilib import salt
-        authverified = False
+
         try:
             userdata = pilib.datarowtodict(pilib.usersdatabase, 'users', pilib.sqlitequery(pilib.usersdatabase, "select * from users where name='" + d['sessionuser'] + "'")[0])
         except:
@@ -57,7 +58,7 @@ def application(environ, start_response):
             data['message'] += 'Password verified. '
             authverified = True
     else:
-        data += 'WSGI authorization not enabled. '
+        data['message'] += 'WSGI authorization not enabled. '
 
     if authverified or not wsgiauth:
         # Perform requested actions

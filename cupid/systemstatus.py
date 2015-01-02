@@ -15,7 +15,7 @@ import netconfig
 
 
 def readhardwarefileintoversions():
-    from pilib import systemdatadatabase, makesqliteinsert, sqlitequery
+    import pilib
     devicefile = '/var/wwwsafe/devicedata'
     try:
         file = open(devicefile)
@@ -27,7 +27,7 @@ def readhardwarefileintoversions():
                 devicedict[split[0].strip()] = split[1].strip()
             except:
                 pilib.writedatedlogmsg(pilib.systemstatuslog, 'Device data parse error', 1, pilib.systemstatusloglevel)
-        sqlitequery(systemdatadatabase, makesqliteinsert('versions', ['hardware',devicedict['hardware']], ['item', 'version']))
+        pilib.sqlitequery(pilib.systemdatadatabase, pilib.makesqliteinsert('versions', ['hardware',devicedict['hardware']], ['item', 'version']))
     except:
         pilib.writedatedlogmsg(pilib.systemstatuslog, 'Cannot find devicedata file to parse', 1, pilib.systemstatusloglevel)
 
@@ -120,7 +120,7 @@ def updateifacestatus():
     # Check dhcp server status
     pilib.writedatedlogmsg(pilib.networklog, 'Checking dhcp server status ', 4, pilib.networkloglevel)
     try:
-        result = subprocess.call(['/usr/sbin/service', 'isc-dhcp-server', 'status'], stdout=subprocess.PIPE)
+        result = subprocess.check_output(['/usr/sbin/service', 'isc-dhcp-server', 'status'], stderr=subprocess.PIPE)
     except Exception, e:
         dhcpstatus = 0
         pilib.writedatedlogmsg(pilib.networklog, 'Error in reading dhcp server status:' + str(e), 1, pilib.networkloglevel)
