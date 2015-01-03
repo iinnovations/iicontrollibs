@@ -12,6 +12,7 @@ def application(environ, start_response):
         sys.path.insert(0, top_folder)
 
     from cupid.pilib import dynamicsqliteread, gettablenames, sqlitequery, switchtablerows
+    from time import time
 
     post_env = environ.copy()
     post_env['QUERY_STRING'] = ''
@@ -22,7 +23,7 @@ def application(environ, start_response):
     )
 
     formname = post.getvalue('name')
-    data = {}
+    output = {}
     d = {}
     for k in post.keys():
         d[k] = post.getvalue(k)
@@ -36,6 +37,11 @@ def application(environ, start_response):
             data = gettablenames(d['database'])
         elif d['specialaction'] == 'switchtablerows':
             switchtablerows(d['database'], d['table'], d['row1'], d['row2'], d['uniqueindex'])
+        elif d['specialaction'] == 'modwsgistatus':
+            output['processgroup'] = repr(environ['mod_wsgi.process_group'])
+            output['multithread'] = repr(environ['wsgi.multithread'])
+
+    # TODO: Add an action type here, like 'gettable'
     elif 'tables[]' in d:  # Get multiple tables
         data = []
         if 'start' in d:
@@ -66,29 +72,35 @@ def application(environ, start_response):
                 start = fixedstart
 
             data.append(dynamicsqliteread(d['database'], table, start, length))
-
+            output['data']=data
     elif 'length' in d:  # Handle table row subset
         if not 'start' in d:
             d['start'] = 0
-        data = dynamicsqliteread(d['database'], d['table'], d['start'], d['length'])
+        thetime = time();
+        output['data'] = dynamicsqliteread(d['database'], d['table'], d['start'], d['length'])
+        output['querytime'] = time() - thetime
     elif 'row' in d:  # Handle table row
-        data = dynamicsqliteread(d['database'], d['table'], d['row'])
+        thetime = time();
+        output['data'] = dynamicsqliteread(d['database'], d['table'], d['row'])
+        output['querytime'] = time() - thetime
     elif 'table' in d:  # Handle entire table
+        thetime = time();
         if 'condition' in d:
             if not d['condition'] == '':
-                data = dynamicsqliteread(d['database'], d['table'], condition=d['condition'])
+                output['data'] = dynamicsqliteread(d['database'], d['table'], condition=d['condition'])
             else:
-                data = dynamicsqliteread(d['database'], d['table'])
+                output['data'] = dynamicsqliteread(d['database'], d['table'])
         else:
-            data = dynamicsqliteread(d['database'], d['table'])
-
+            output['data'] = dynamicsqliteread(d['database'], d['table'])
+        output['querytime'] = time() - thetime
     else:
-        data = ['empty. blurg']
+        output['data'] = 'no data'
+        output['message'] = 'no command matched'
 
-    output = json.dumps(data, indent=1)
+    foutput = json.dumps(output, indent=1)
 
     response_headers = [('Content-type', 'application/json')]
     start_response(status, response_headers)
 
-    return [output]
+    return [foutput]
 

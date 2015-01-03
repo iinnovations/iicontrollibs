@@ -46,11 +46,11 @@ maxlogsize = 1024  # kB
 numlogs = 5
 
 
-networkloglevel = 1
-iologlevel = 1
+networkloglevel = 3
+iologlevel = 3
 systemstatusloglevel = 4
-controlloglevel = 1
-daemonloglevel = 1
+controlloglevel = 3
+daemonloglevel = 3
 
 daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py', 'mote/serialhandler.py']
 
