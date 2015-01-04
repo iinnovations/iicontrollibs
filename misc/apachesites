@@ -1,7 +1,7 @@
 
-	WSGIScriptAlias /wsgireadonly /usr/lib/iicontrollibs/wsgi/wsgireadonly.wsgi
-	WSGIScriptAlias /wsgisessioncontrol /usr/lib/iicontrollibs/wsgi/wsgisessioncontrol.wsgi
-	WSGIScriptAlias /wsgiactions /usr/lib/iicontrollibs/wsgi/wsgiactions.wsgi
+	WSGIScriptAlias /wsgireadonly /usr/lib/iicontrollibs/wsgi/wsgireadonly.py
+	WSGIScriptAlias /wsgisessioncontrol /usr/lib/iicontrollibs/wsgi/wsgisessioncontrol.py
+	WSGIScriptAlias /wsgiactions /usr/lib/iicontrollibs/wsgi/wsgiactions.py
     WSGIPythonPath /usr/lib/iicontrollibs/wsgi/
 
 <VirtualHost *:80>
