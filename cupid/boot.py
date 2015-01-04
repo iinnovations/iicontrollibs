@@ -7,6 +7,7 @@ import pilib
 import spilights
 
 interfaces = pilib.readalldbrows(pilib.controldatabase,'interfaces')
+systemstatus = pilib.readonedbrow(pilib.controldatabase,'systemstatus')[0]
 
 runi2cowfs = False
 runusbowfs = False
@@ -44,9 +45,10 @@ if runi2cowfs or runusbowfs:
         print('error runnign owhttpd')
 
 
-# Run netstart script
-from netconfig import runconfig
-runconfig(onboot=True)
+# Run netstart script if enabled
+if systemstatus['netconfigenabled']:
+    from netconfig import runconfig
+    runconfig(onboot=True)
 
 # Run daemon
 from cupiddaemon import rundaemon

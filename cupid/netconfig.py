@@ -303,6 +303,7 @@ def runconfig(onboot=False):
     import subprocess
     try:
         netconfigdata = readonedbrow(systemdatadatabase, 'netconfig')[0]
+        print(netconfigdata)
     except:
         writedatedlogmsg(networklog, 'Error reading netconfig data. ', 0, networkloglevel)
     else:
