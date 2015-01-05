@@ -22,14 +22,13 @@ def application(environ, start_response):
     )
 
     formname=post.getvalue('name')
-    data = {}
-    data['message'] = 'Output Message: '
+    output = {}
+    output['message'] = 'Output Message: '
     d = {}
     for k in post.keys():
         d[k] = post.getvalue(k)
 
     status = '200 OK'
-    output = ''
     wsgiauth = False
     authverified = False
 
@@ -42,7 +41,7 @@ def application(environ, start_response):
         try:
             userdata = pilib.datarowtodict(pilib.usersdatabase, 'users', pilib.sqlitequery(pilib.usersdatabase, "select * from users where name='" + d['sessionuser'] + "'")[0])
         except:
-            data['message'] += 'error in user sqlite query. '
+            output['message'] += 'error in user sqlite query. '
             # unsuccessful authentication
 
         # Get session hpass to verify credentials
@@ -55,10 +54,10 @@ def application(environ, start_response):
         hashedentry = hentry.hexdigest()
         if hashedentry == userdata['password']:
             # successful auth
-            data['message'] += 'Password verified. '
+            output['message'] += 'Password verified. '
             authverified = True
     else:
-        data['message'] += 'WSGI authorization not enabled. '
+        output['message'] += 'WSGI authorization not enabled. '
 
     if authverified or not wsgiauth:
         # Perform requested actions
@@ -66,36 +65,36 @@ def application(environ, start_response):
             action = d['action']
             if 'query' in d:  # Take plain single query
                 result = pilib.sqlitequery(d['database'], d['query'])
-                data['response'] = result
-                data['message'] += 'Query executed. '
+                output['response'] = result
+                output['message'] += 'Query executed. '
             elif 'queryarray[]' in d:  # Take query array, won't find
                 result = []
                 queryarray = d['queryarray[]']
                 for query in queryarray:
                     result.append(pilib.sqlitequery(d['database'], query))
-                data['response'] = result
-                data['message'] += 'Query array executed. '
+                output['response'] = result
+                output['message'] += 'Query array executed. '
             elif action == 'dump':
                 if 'database' in d and 'tablelist' in d and 'outputfile' in d:
                     pilib.sqlitedatadump(d['database'],d['tablelist'],d['outputfile'])
-                    data['message'] = 'data dumped'
+                    output['message'] = 'data dumped'
                 elif 'database' in d and 'tablename' in d and 'outputfile' in d:
                     pilib.sqlitedatadump(d['database'],[d['tablename']],d['outputfile'])
-                    data['message'] = 'data dumped'
+                    output['message'] = 'data dumped'
                 else:
                     data = 'keys not present for dump'
             elif action in ['userdelete', 'useradd', 'usermodify']:
-                data['message'] += 'Found action. '
+                output['message'] += 'Found action. '
                 # Ensure that we are authorized for this action
                 if userdata['authlevel'] >= 4:
-                    data['message'] += 'User selected has sufficient authorizations. '
+                    output['message'] += 'User selected has sufficient authorizations. '
                     if action == 'userdelete':
                         try:
                             pilib.sqlitequery(pilib.usersdatabase, "delete from users where name='" + d['usertodelete'] + "'")
                         except:
-                            data['message'] += 'Error in delete query. '
+                            output['message'] += 'Error in delete query. '
                         else:
-                            data['message'] += 'Successful delete query. '
+                            output['message'] += 'Successful delete query. '
                     elif action == 'usermodify':
                         if 'usertomodify' in d:
                             querylist=[]
@@ -117,11 +116,11 @@ def application(environ, start_response):
                             try:
                                 pilib.sqlitemultquery(pilib.usersdatabase, querylist)
                             except:
-                                data['message'] += 'Error in modify/add query: ' + ",".join(querylist)
+                                output['message'] += 'Error in modify/add query: ' + ",".join(querylist)
                             else:
-                                data['message'] += 'Successful modify/add query. ' + ",".join(querylist)
+                                output['message'] += 'Successful modify/add query. ' + ",".join(querylist)
                         else:
-                            data['message'] += 'Need usertomodify in query. '
+                            output['message'] += 'Need usertomodify in query. '
                     elif action == 'useradd':
                         try:
                             username = d['newusername']
@@ -139,13 +138,13 @@ def application(environ, start_response):
                         try:
                             pilib.sqlitequery(pilib.usersdatabase, query)
                         except:
-                            data['message'] += "Error in useradd sqlite query: " + query + ' . '
+                            output['message'] += "Error in useradd sqlite query: " + query + ' . '
                         else:
-                            data['message'] += "Successful query: " + query + ' . '
+                            output['message'] += "Successful query: " + query + ' . '
                     else:
-                        data['message'] += 'Unable to verify password. '
+                        output['message'] += 'Unable to verify password. '
                 else:
-                    data['message'] = 'insufficient authorization level for current user. '
+                    output['message'] = 'insufficient authorization level for current user. '
             elif action == 'getfiletext':
                 try:
                     filepath = d['filepath']
@@ -153,29 +152,29 @@ def application(environ, start_response):
                         numlines = int(d['numlines'])
                     else:
                         numlines = 9999
-                    data['message'] += 'Using numlines: ' + str(numlines) + ' for read action. '
+                    output['message'] += 'Using numlines: ' + str(numlines) + ' for read action. '
                     if 'startposition' in d:
                         startposition = d['startposition']
                     else:
                         startposition = 'end'
-                    data['message'] += 'Reading from position ' + startposition + '. '
+                    output['message'] += 'Reading from position ' + startposition + '. '
                 except KeyError:
-                    data['message'] += 'Sufficient keys for action getfile text do not exist. '
+                    output['message'] += 'Sufficient keys for action getfile text do not exist. '
                 except:
-                    data['message'] += 'Uncaught error in getfiletext. '
+                    output['message'] += 'Uncaught error in getfiletext. '
                 else:
                     try:
                         file = open(filepath)
                         lines = file.readlines()
                     except:
-                        data['message'] += 'Error reading file in getfiletext action. '
+                        output['message'] += 'Error reading file in getfiletext action. '
                     else:
                         outputdata = []
                         if startposition == 'end':
                             try:
                                 outputdata = pilib.tail(file, numlines)[0]
                             except:
-                                data['message'] += 'Error in tail read. '
+                                output['message'] += 'Error in tail read. '
                         else:
                             linecount = 0
                             for line in lines:
@@ -184,18 +183,18 @@ def application(environ, start_response):
                                     break
                                 else:
                                     outputdata.append(line)
-                        data['data'] = outputdata
+                        output['data'] = outputdata
             elif action == 'getmbtcpdata':
                 try:
                     clientIP = d['clientIP']
                     register = d['register']
                     length = d['length']
                 except KeyError:
-                    data['message'] += 'Sufficient keys do not exist for the command. Requires clientIP, register, and length. '
+                    output['message'] += 'Sufficient keys do not exist for the command. Requires clientIP, register, and length. '
                 else:
                     from cupid.netfun import readMBcodedaddresses
                     # try:
-                    data['response'] = readMBcodedaddresses(clientIP, int(register), int(length))
+                    output['response'] = readMBcodedaddresses(clientIP, int(register), int(length))
 
             elif action == 'setsystemflag' and 'systemflag' in d:
                 database = pilib.systemdatadatabase
@@ -296,17 +295,17 @@ def application(environ, start_response):
                 pilib.sqlitequery(d['database'], 'delete channelname from channels where name=\"' + d['channelname'] + '\"')
 
             else:
-                data['message'] += 'Action keyword present(' + action + '), but not handled. '
+                output['message'] += 'Action keyword present(' + action + '), but not handled. '
 
         else:
-            data['message'] += 'action keyword not present. '
+            output['message'] += 'action keyword not present. '
     else:
-        data['message'] += 'Authentication unsuccessful'
+        output['message'] += 'Authentication unsuccessful'
 
-    output = json.dumps(data, indent=1)
+    foutput = json.dumps(output, indent=1)
 
     response_headers = [('Content-type', 'application/json')]
     start_response(status, response_headers)
 
-    return [output]
+    return [foutput]
 
