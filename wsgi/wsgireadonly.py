@@ -1,6 +1,7 @@
 def application(environ, start_response):
     import cgi
     import json
+    import hashlib
 
     # Set top folder to allow import of modules
 
@@ -32,74 +33,96 @@ def application(environ, start_response):
     # Run stuff as requested
     # We use the dynamic function to allow various  
     # types of queries
-    if 'specialaction' in d:
-        if d['specialaction'] == 'gettablenames':
+    output['data'] = []
+    output['message'] = ''
+
+    try:
+        action = d['action']
+    except KeyError:
+        output['message'] = 'no action in request'
+    else:
+        if action == 'gettablenames':
             output['data'] = gettablenames(d['database'])
-        elif d['specialaction'] == 'switchtablerows':
-            switchtablerows(d['database'], d['table'], d['row1'], d['row2'], d['uniqueindex'])
-        elif d['specialaction'] == 'modwsgistatus':
+        elif action == 'switchtablerows':
+            switchtablerows(d['database'], d['tablename'], d['row1'], d['row2'], d['uniqueindex'])
+        elif action == 'modwsgistatus':
             output['processgroup'] = repr(environ['mod_wsgi.process_group'])
             output['multithread'] = repr(environ['wsgi.multithread'])
+        elif action == 'gettabledata':
+            output['message']+='Gettabledata. '
+            if 'tablenames[]' in d:  # Get multiple tables
+                output['message']+='Multiple tables. '
+                data = []
+                if 'start' in d:
+                    fixedstart = int(d['start'])
+                else:
+                    fixedstart = 0
+                if 'length' in d:
+                    fixedlength = int(d['length'])
+                else:
+                    fixedlength = 1
+                if 'lengths[]' in d:
+                    lengths = map(int, d['lengths[]'])
+                else:
+                    lengths = []
+                if 'starts[]' in d:
+                    starts = map(int, d['starts'])
+                else:
+                    starts = []
 
-    # TODO: Add an action type here, like 'gettable'
-    elif 'tables[]' in d:  # Get multiple tables
-        data = []
-        if 'start' in d:
-            fixedstart = int(d['start'])
-        else:
-            fixedstart = 0
-        if 'length' in d:
-            fixedlength = int(d['length'])
-        else:
-            fixedlength = 1
-        if 'lengths[]' in d:
-            lengths = map(int, d['lengths[]'])
-        else:
-            lengths = []
-        if 'starts[]' in d:
-            starts = map(int, d['starts'])
-        else:
-            starts = []
+                for index, table in enumerate(d['tables[]']):
+                    try:
+                        length = lengths[index]
+                    except IndexError:
+                        length = fixedlength
+                    try:
+                        start = starts[index]
+                    except IndexError:
+                        start = fixedstart
 
-        for index, table in enumerate(d['tables[]']):
-            try:
-                length = lengths[index]
-            except IndexError:
-                length = fixedlength
-            try:
-                start = starts[index]
-            except IndexError:
-                start = fixedstart
-
-            data.append(dynamicsqliteread(d['database'], table, start, length))
-            output['data']=data
-    elif 'length' in d:  # Handle table row subset
-        if not 'start' in d:
-            d['start'] = 0
-        thetime = time();
-        output['data'] = dynamicsqliteread(d['database'], d['table'], d['start'], d['length'])
-        output['querytime'] = time() - thetime
-    elif 'row' in d:  # Handle table row
-        thetime = time();
-        output['data'] = dynamicsqliteread(d['database'], d['table'], d['row'])
-        output['querytime'] = time() - thetime
-    elif 'table' in d:  # Handle entire table
-        thetime = time();
-        if 'condition' in d:
-            if not d['condition'] == '':
-                output['data'] = dynamicsqliteread(d['database'], d['table'], condition=d['condition'])
-            else:
-                output['data'] = dynamicsqliteread(d['database'], d['table'])
+                    data.append(dynamicsqliteread(d['database'], table, start, length))
+                    output['data']=data
+            elif 'length' in d:  # Handle table row subset
+                output['message']+='Length keyword. '
+                if not 'start' in d:
+                    d['start'] = 0
+                thetime = time();
+                output['data'] = dynamicsqliteread(d['database'], d['tablename'], d['start'], d['length'])
+                output['querytime'] = time() - thetime
+            elif 'row' in d:  # Handle table row
+                output['message']+='Row keyword. '
+                thetime = time();
+                output['data'] = dynamicsqliteread(d['database'], d['tablename'], d['row'])
+                output['querytime'] = time() - thetime
+            elif 'tablename' in d:  # Handle entire table
+                output['message']+='Tablename keyword. '
+                thetime = time();
+                if 'condition' in d:
+                    if not d['condition'] == '':
+                        output['data'] = dynamicsqliteread(d['database'], d['tablename'], condition=d['condition'])
+                    else:
+                        output['data'] = dynamicsqliteread(d['database'], d['tablename'])
+                else:
+                    output['data'] = dynamicsqliteread(d['database'], d['tablename'])
+                output['querytime'] = time() - thetime
         else:
-            output['data'] = dynamicsqliteread(d['database'], d['table'])
-        output['querytime'] = time() - thetime
+            output['message'] = 'no command matched for action ' + action
+
+    if output['data']:
+        newetag = hashlib.md5(str(output['data'])).hexdigest()
+        if 'etag' in d:
+            if newetag == d['etag']:
+                status = '304 Not Modified'
+                output['data'] = ''
     else:
-        output['data'] = 'no data'
-        output['message'] = 'no command matched'
+        newetag=''
+
+    output['etag'] = newetag
 
     foutput = json.dumps(output, indent=1)
 
     response_headers = [('Content-type', 'application/json')]
+    response_headers.append(('Etag',newetag))
     start_response(status, response_headers)
 
     return [foutput]
