@@ -34,7 +34,6 @@ while enabled:
 
     # Go through sessions and delete expired ones
     sessions = pilib.readalldbrows(pilib.sessiondatabase, 'sessions')
-    sessions = pilib.readalldbrows(pilib.sessiondatabase, 'sessions')
     arrayquery = []
     for session in sessions:
         sessionstart = pilib.timestringtoseconds(session['timecreated'])
@@ -71,5 +70,5 @@ while enabled:
     polltime = pilib.sqlitedatumquery(pilib.sessiondatabase, 'select updatefrequency from \'settings\'')
 
     time.sleep(polltime)
-    enabled = pilib.sqlitedatumquery(pilib.sessiondatabase, 'select sessioncontrolenabled from \'systemstatus\'')
+    enabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select sessioncontrolenabled from \'systemstatus\'')
 
