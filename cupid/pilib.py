@@ -166,6 +166,10 @@ def parseoptions(optionstring):
     return optionsdict
 
 
+#####################################
+# Time functions
+#####################################
+
 def gettimestring(timeinseconds=None):
     import time
     if timeinseconds:
@@ -187,7 +191,7 @@ def timestringtoseconds(timestring):
     return timeinseconds
 
 
-def isvalidtime(timestring):
+def isvalidtimestring(timestring):
     if timestring == '':
         return False
     else:
@@ -365,6 +369,44 @@ def ordertableindices(databasename, tablename, indicestoorder, uniqueindex):
     sqlitemultquery(databasename, queryarray)
 
 
+def logtimevaluedata(database, tablename, timeinseconds, value, logsize=5000, logfrequency=0):
+    timestring=gettimestring(timeinseconds)
+    print(database)
+    print(tablename)
+    print(timeinseconds)
+    print(value)
+    if isvalidtimestring(timestring):
+
+        # Get last polltime to determine if we should log again yet.
+        # lastpolltimestring = getlasttimerow(database, tablename)['time']
+        try:
+            lastpolltimestring = getlasttimevalue(database, tablename)
+        except:
+            lastpolltimestring = ''
+        else:
+            print lastpolltimestring
+
+        if timeinseconds-timestringtoseconds(lastpolltimestring) > logfrequency:
+
+            # Create table if it doesn't exist
+
+            query = 'create table if not exists \'' + tablename + '\' ( value real, time text primary key)'
+            sqlitequery(database, query)
+
+            # Enter row
+            sqliteinsertsingle(logdatabase, tablename, valuelist=[value, timestring],
+                                     valuenames=['value', 'time'])
+
+            # Clean log
+            cleanlog(logdatabase, tablename)
+
+            # Size log based on specified size
+
+            sizesqlitetable(logdatabase, tablename, logsize)
+        else:
+            print('not time yet')
+    else:
+        print('not enabled')
 #############################################
 ## Sqlite Functions
 #############################################
@@ -599,7 +641,10 @@ def makesinglevaluequery(table, valuename, value, condition=None):
 
 
 def readonedbrow(database, table, rownumber=0, condition=None):
-    data = sqlitequery(database, 'select * from \'' + table + '\'')
+    query = 'select * from \'' + table + '\''
+    if condition:
+        query += ' where ' + condition
+    data = sqlitequery(database, query)
     try:
         datarow = data[rownumber]
 
@@ -703,6 +748,39 @@ def sizesqlitetable(databasename, tablename, size):
         logexcess = -1
 
     return (logexcess)
+
+
+def getfirsttimerow(database, tablename):
+    query = 'select * from \'' + tablename + '\' order by time limit 1'
+    data = sqlitequery(database, query)[0]
+    try:
+        dict = datarowtodict(database, tablename, data)
+        dictarray = [dict]
+    except:
+        print('no row here')
+        dictarray = {}
+        pass
+
+    return dictarray
+
+
+def getlasttimerow(database, tablename):
+    query = 'select * from \'' + tablename + '\' order by time desc limit 1'
+    data = sqlitequery(database, query)[0]
+    try:
+        dict = datarowtodict(database, tablename, data)
+        dictarray = [dict]
+    except:
+        print('no row here')
+        dictarray = {}
+        pass
+    return dictarray
+
+
+def getlasttimevalue(database, tablename):
+    query = 'select time from \'' + tablename + '\' order by time desc limit 1'
+    data = sqlitequery(database, query)[0][0]
+    return data
 
 
 def sqlitedatadump(databasename, tablelist, outputfilename, limit=None):

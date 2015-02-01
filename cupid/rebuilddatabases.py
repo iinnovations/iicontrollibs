@@ -49,9 +49,9 @@ def rebuildcontroldb(tabledict):
         table = 'systemstatus'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text, updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 5, lastiopoll text, enableoutputs boolean default 0, sessioncontrolenabled boolean, sessioncontrolstatus boolean, systemstatusenabled boolean default 0, netconfigenabled boolean default 0, systemstatusstatus boolean, systemstatusfreq real default 15, lastsystemstatuspoll text, systemmessage text, serialhandlerenabled boolean default 0, serialhandlerstatus boolean default 0)")
+            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text default '', updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 15, lastiopoll text default '', enableoutputs boolean default 0, sessioncontrolenabled boolean default 0, sessioncontrolstatus boolean default 0, systemstatusenabled boolean default 0, netconfigenabled boolean default 0, systemstatusstatus boolean default 0, systemstatusfreq real default 15, lastsystemstatuspoll text default '', systemmessage text default '', serialhandlerenabled boolean default 0, serialhandlerstatus boolean default 0)")
         if addentries:
-            querylist.append("insert into " + table + " values (0,0,15,'',1,0,15,'',0,1,0,1,0,0,15,'','',0,0)")
+            querylist.append("insert into " + table + " default values")
 
     ### logconfig Table
     if 'logconfig' in tabledict:
@@ -299,8 +299,8 @@ def rebuildsystemdatadb(tabledict):
         runquery = True
         table = 'netconfig'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (enabled boolean, SSID text, mode text, aprevert text default 'temprevert', addtype text, address text, gateway text, dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99', apreverttime integer default 60, stationretrytime integer default 300, laststationretry text, pingthreshold integer default 200)")
-        querylist.append("insert into " + table + " values ('1','OurHouse','station','temprevert','static','192.168.1.30','192.168.1.1','','',60,300,0,200)")
+        querylist.append("create table " + table + " (enabled boolean, SSID text, mode text, aprevert text default '', addtype text default 'dhcp', address text, gateway text, dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99', apreverttime integer default 60, stationretrytime integer default 300, laststationretry text, pingthreshold integer default 200, netstatslogenabled boolean default 0, netstatslogfreq integer default 60)")
+        querylist.append("insert into " + table + " values ('1','OurHouse','station','','static','192.168.1.30','192.168.1.1','','',60,300,0,200, 1, 60)")
 
     if 'systemflags' in tabledict:
         runquery = True
