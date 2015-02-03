@@ -1,23 +1,24 @@
-// Sample RFM69 sender/node sketch, with ACK and optional encryption
-// Sends periodic messages of increasing length to gateway (id=1)
-// It also looks for an onboard FLASH chip, if present
+// UniMote sketch, based on the great example 
+
+// Colin Reese, CuPID Controls, Interface Innovations
+
 // Library and code by Felix Rusu - felix@lowpowerlab.com
 // Get the RFM69 and SPIFlash library at: https://github.com/LowPowerLab/
 #include <RFM69.h>
 //#include <RFM69registers.h>
 #include <SPI.h>
 #include <SPIFlash.h>
-//#include <Time.h>
 #include <OneWire.h>
 #include <LowPower.h>
 #include <EEPROM.h>
-//#include <pgmspace.h>
+
+//#include <LedControl.h>
 
 //Match frequency to the hardware version of the radio on your Moteino (uncomment one):
 #define FREQUENCY   RF69_433MHZ
 //#define FREQUENCY   RF69_868MHZ
 //#define FREQUENCY     RF69_915MHZ
-//#define IS_RFM69HW    //uncomment only for RFM69HW! Leave out if you have RFM69W!
+#define IS_RFM69HW    //uncomment only for RFM69HW! Leave out if you have RFM69W!
 #define REG_SYNCVALUE2 0x30
 
 #ifdef __AVR_ATmega1284P__
@@ -32,12 +33,13 @@
 
 #define DEBUG 1
 
-#define INIT 1
+#define INIT 0
 #define ACK_TIME      30 // max # of ms to wait for an ack
 
-byte NODEID = 2;
-byte NETWORKID = 100;
-byte GATEWAYID = 1;
+// These values are either initialized or retrieved from Flash
+byte NODEID;
+byte NETWORKID;
+byte GATEWAYID;
  
 #define ENCRYPTKEY    "sampleEncryptKey" //exactly the same 16 characters/bytes on all nodes!
 
@@ -76,15 +78,47 @@ byte chanpvindex[8] = {5,0,0,0,0,0,0,0};
 float chanpv[8];
 float chansv[8] = {15,0,0,0,0,0,0,0};
 
+//LedControl lc=LedControl(17,18,19,1);
+
 unsigned long ioreporttimer[13];
 unsigned long ioreadtimer[13];
 unsigned long chanreporttimer[8];
 
 unsigned long prevtime = 0;
 unsigned long looptime = 0;
+
+typedef struct {	
+  float val1;
+  float val2;
+  float val3;
+  float val4;
+  float val5;
+  float val6;
+  float val7;
+  float val8;
+  float val9;
+  float val10;
+  float val11;
+  float val12;
+  float val13;
+} ioPayload;
+
   
 void setup() {
+  
   Serial.begin(SERIAL_BAUD);
+  
+  // Initialize variables to/from EEPROM
+  if (INIT) {
+    Serial.println(F("Running init, default parameters"));
+    initparams();
+    storeparams();
+  } // INIT
+  else { // not init
+    Serial.println(F("Not running init, restoring parameters"));
+  } // not INIT
+  getparams();
+  
   radio.initialize(FREQUENCY,NODEID,NETWORKID);
 #ifdef IS_RFM69HW
   radio.setHighPower(); //uncomment only for RFM69HW!
@@ -106,15 +140,6 @@ void setup() {
     Serial.println(F("SPI Flash Init FAIL! (is chip present?)"));
   }
   
-  // Initialize variables to/from EEPROM
-  if (INIT) {
-    initparams();
-    storeparams();
-  } // INIT
-  else { // not init
-    getparams();
-  } // not INIT
-  
   // These are values that are not ever stored permanently
   int i;
   for (i=0;i<13;i++) {
@@ -126,12 +151,27 @@ void setup() {
   radio.encrypt(ENCRYPTKEY);
   sendInitMessage();
   
+//  lc.shutdown(0,false);
+  /* Set the brightness to a medium values */
+//  lc.setIntensity(0,8);
+  /* and clear the display */
+//  lc.clearDisplay(0);
+  
 }
 void loop() {
+//  Serial.println("tick");
+  // display value
+//  lc.clearDisplay(0);
+//  lc.setDigit(0,0,2,false);  
+//  lc.setDigit(0,1,8,true);
+//  lc.setDigit(0,2,0,false);
+//  lc.setDigit(0,3,0,false);
   
-  Serial.print(F("Free memory: "));
-  Serial.println(freeRam());
+//  Serial.print(F("Free memory: "));
+//  Serial.println(freeRam());
+  
 
+  
   // READ IO
   looptime += millis() - prevtime; // includes time taken to process
   int i;
@@ -184,7 +224,7 @@ void loop() {
           pinMode(iopins[i], INPUT);      // sets the digital pin 7 as input
           iovalue[i] = analogRead(iopins[i]);
           Serial.print(F("Value: "));
-//          Serial.println(iovalue[i]);
+          Serial.println(iovalue[i]);
 //          int wholePart = iovalue[i];
           if ((ioreportenabled[i]) && (ioreportfreq[i] == 0)){
             sendIOMessage(iopins[i], iomode[i], iovalue[i]);
@@ -194,7 +234,8 @@ void loop() {
           Serial.print(F("1Wire configured for pin "));
           Serial.println(iopins[i]);
           
-          handleOWIO(iopins[i]);
+          // pass ioindex to have the routine handle it
+          handleOWIO(i);
 
         } // If OneWire
         else if (iomode[i] == 3) { // PWM
@@ -368,7 +409,6 @@ void loop() {
     // Set cutoffs to optimize number of times we have to wake
     // vs. accuracy of sleep time. We'll use 10x as rule of thumb
     period_t sleepperiod;
-    int numloops;
     unsigned int sleepremaining = LOOPPERIOD;
     
     while (sleepremaining > 0) {
@@ -377,42 +417,42 @@ void loop() {
         sleepperiod = SLEEP_8S;
         sleepremaining -= 8000;
       }
-      else if (sleepremaining > 4000) {
+      else if (sleepremaining >= 4000) {
         // Use 4s interval
         sleepremaining-=4000;
         sleepperiod = SLEEP_4S;
       }
-      else if (sleepremaining > 2000) {
+      else if (sleepremaining >= 2000) {
         // Use 2s interval
         sleepremaining-=2000;
         sleepperiod = SLEEP_2S;
       }
-      else if (sleepremaining > 1000) {
+      else if (sleepremaining >= 1000) {
         // Use 1s interval
        sleepremaining-=1000;
         sleepperiod = SLEEP_1S;
       }
-      else if (sleepremaining > 500) {
+      else if (sleepremaining >= 500) {
         // Use 500ms interval
         sleepremaining-=500;
         sleepperiod = SLEEP_500MS;
       }
-      else if (sleepremaining > 250) {
+      else if (sleepremaining >= 250) {
         // Use 250ms interval
        sleepremaining-=250;
         sleepperiod = SLEEP_250MS;
       }
-      else if (sleepremaining > 120) {
+      else if (sleepremaining >= 120) {
         // Use 120ms interval
         sleepremaining-=120;
         sleepperiod = SLEEP_120MS;
       }
-      else if (sleepremaining > 60) {
+      else if (sleepremaining >= 60) {
         // Use 60ms interval
         sleepremaining-=60;
         sleepperiod = SLEEP_60MS;
       }
-      else if (sleepremaining > 30) {
+      else if (sleepremaining >= 30) {
         // Use 30ms interval
         sleepremaining-=30;
         sleepperiod = SLEEP_30MS;
@@ -424,10 +464,8 @@ void loop() {
       }
       Serial.flush();
       radio.sleep();
-  
-      for (i=0;i<numloops;i++) {
-        LowPower.powerDown(sleepperiod, ADC_OFF, BOD_OFF);
-      }
+      LowPower.powerDown(sleepperiod, ADC_OFF, BOD_OFF);
+
       Serial.print(F("Sleep remaining: "));
       Serial.println(sleepremaining);
     }
@@ -449,10 +487,14 @@ void processcmdstring(String cmdstring){
   char buff[61];
   int i;
   String str1="";
-  str1.reserve(10);
+//  str1.reserve(10);
   String str2="";
+//  str2.reserve(10);
   String str3="";
+//  str3.reserve(10);
   String str4="";
+//  str4.reserve(10);
+  
   if (cmdstring[0] == '~'){
     Serial.println(F("Command character received"));
     int strord=1;
@@ -657,12 +699,12 @@ void processcmdstring(String cmdstring){
           Serial.print(F("Modifying io: "));
           Serial.println(ionumber);
           int newvalue = str4.toInt();
-          if (newvalue = 0) {
+          if (newvalue == 0) {
             Serial.print(F("Disabling ioreporting."));
             ioreportenabled[ionumber] = 0;
             storeparams();
           }
-          else if (newvalue == 0) {
+          else if (newvalue == 1) {
             Serial.print(F("Enabling ioreporting."));
             ioreportenabled[ionumber] = 1;
             storeparams();
@@ -831,6 +873,10 @@ void processcmdstring(String cmdstring){
       str4.toCharArray(buff,str4.length()+1);
       radio.sendWithRetry(str2.toInt(), buff, str4.length()+1);
     }
+    else if (str1 == "sendiovals"){
+      Serial.println("Sending iovals");
+      sendiovals();
+    }
     else if (str1 == "flashid"){
       Serial.println(F("Flash ID: "));
       for (i=0;i<8;i++){
@@ -893,8 +939,8 @@ void sendWithSerialNotify(byte destination, char* sendstring, byte sendlength) {
   Serial.println(F("SEND COMPLETE"));  
 }
 void initparams() {
-    NODEID = 8;
-    NETWORKID  = 100;
+    NODEID = 10;
+    NETWORKID  = 101;
     GATEWAYID = 1;
     LOOPPERIOD = 1000;
     SLEEPMODE = 0;
@@ -959,14 +1005,17 @@ void storeparams() {
   } // for channels
 }
 void getparams() {
-
+    Serial.println(F("Getting parameters"));
     NODEID = EEPROM.read(0);
     NETWORKID = EEPROM.read(1);
     GATEWAYID = EEPROM.read(2);    
     
     // update object
-    radio.writeReg(REG_SYNCVALUE2, NETWORKID);
-    radio.setAddress(NODEID);
+    // We DON'T do this because it may not be instantiated yet.
+    
+//    Serial.println(REG_SYNCVALUE2);
+//    radio.writeReg(REG_SYNCVALUE2, NETWORKID);
+//    radio.setAddress(NODEID);
     
     LOOPPERIOD = EEPROM.read(58) * 1000;
     SLEEPMODE = EEPROM.read(59);
@@ -1256,13 +1305,12 @@ void sendIOMessage(byte pin, byte mode, float value) {
 //  char sendstring[61];
   int sendlength = 61;  // default
   if (mode == 0 || mode == 1 ) { // for integer values
-    sendlength = 31;
+    sendlength = 32;
     char sendstring[sendlength];
     sprintf(sendstring, "iopin:%02d,iomode:%02d,iovalue:%04d", pin, mode, value);         
     sendWithSerialNotify(GATEWAYID, sendstring, sendlength);
   }
   else if (mode == 2){ // for float values
-    // nothing here yet
     int wholePart = value;
     long fractPart = (value - wholePart) * 10000;
     sendlength = 34; 
@@ -1309,3 +1357,39 @@ void handleOWIO(byte ioindex) {
     sendIOMessage(iopins[ioindex], iomode[ioindex], iovalue[ioindex]);
   } // reportenabled and ioreportfreq
 } // run OW sequence
+
+void sendiovals() {
+  
+  ioPayload iodata;
+  iodata.val1 = iovalue[0];
+  iodata.val2 = iovalue[1];
+  iodata.val3 = iovalue[2];
+  iodata.val4 = iovalue[3];
+  iodata.val5 = iovalue[4];
+  iodata.val6 = iovalue[5];
+  iodata.val7 = iovalue[6];
+  iodata.val8 = iovalue[7];
+  iodata.val9 = iovalue[8];
+  iodata.val10 = iovalue[9];
+  iodata.val11 = iovalue[10];
+  iodata.val12 = iovalue[11];
+  iodata.val13 = iovalue[12];
+  
+  Serial.print(F("Data is size: " ));
+  Serial.println(sizeof(iodata));
+  Serial.println(iodata.val1);
+  Serial.println(iodata.val2);
+  Serial.println(iodata.val3);
+  Serial.println(iodata.val4);
+  Serial.println(iodata.val5);
+  Serial.println(iodata.val6);
+  Serial.println(iodata.val7);
+  Serial.println(iodata.val8);
+  Serial.println(iodata.val9);
+  Serial.println(iodata.val10);
+  Serial.println(iodata.val11);
+  Serial.println(iodata.val12);
+  Serial.println(iodata.val13);
+
+  radio.sendWithRetry(GATEWAYID, (const void*)(&iodata), sizeof(iodata));
+}
