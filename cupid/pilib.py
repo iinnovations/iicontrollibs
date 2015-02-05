@@ -46,7 +46,7 @@ maxlogsize = 1024  # kB
 numlogs = 5
 
 
-networkloglevel = 3
+networkloglevel = 5
 iologlevel = 3
 systemstatusloglevel = 4
 controlloglevel = 3

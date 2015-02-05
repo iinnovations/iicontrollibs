@@ -42,6 +42,10 @@ else
     chown -R root:www-data /usr/lib/cgi-bin
 
     mkdir /var/log/cupid
+    chgrp -R pi /var/log/cupid
+    chmod ug+s /var/log/cupid
+    chmod -R 775 /var/log/cupid
+
     mkdir /var/1wire
 
     addgroup sshers

@@ -24,8 +24,17 @@ def updateiodata(database):
 
     logconfig = pilib.getlogconfig()
 
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setwarnings(False)
+    try:
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
+    except:
+        pilib.writedatedlogmsg(pilib.iolog,
+                       'Error setting up GPIO modes. ', 1,
+                       logconfig['iologlevel'])
+    else:
+        pilib.writedatedlogmsg(pilib.iolog,
+                       'Done setting up GPIO modes ', 5,
+                       logconfig['iologlevel'])
 
     tables = pilib.gettablenames(pilib.controldatabase)
     if 'interfaces' in tables:
@@ -234,11 +243,21 @@ def updateiodata(database):
                 if interface['enabled']:
                     GPIOentries = processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids,
                                                        previnputs, previnputids, defaults, logconfig)
-                    querylist.extend(GPIOentries)
+                    if GPIOentries:
+                        querylist.extend(GPIOentries)
                 else:
                     pilib.writedatedlogmsg(pilib.iolog, 'GPIO address' + str(address) + ' disabled', 4,
                                            logconfig['iologlevel'])
-                    GPIO.setup(address, GPIO.IN)
+                    try:
+                        GPIO.setup(address, GPIO.IN)
+                    except:
+                        pilib.writedatedlogmsg(pilib.iolog,
+                                       'Error setting up GPIO ' + address + 'as input. ', 1,
+                                       logconfig['iologlevel'])
+                    else:
+                        pilib.writedatedlogmsg(pilib.iolog,
+                                       'Done setting up GPIO ' + address + 'as input. ', 3,
+                                       logconfig['iologlevel'])
             else:
                 pilib.writedatedlogmsg(pilib.iolog,
                                        'GPIO address' + str(address) + ' not allowed. Bad things can happen. ', 4,
@@ -459,12 +478,21 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
 
 
 def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids, previnputs, previnputids, defaults, logconfig):
+
     import RPi.GPIO as GPIO
-
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setwarnings(False)
-
     import pilib
+
+    try:
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
+    except:
+        pilib.writedatedlogmsg(pilib.iolog,
+                       'Error setting up GPIO modes. ', 1,
+                       logconfig['iologlevel'])
+    else:
+        pilib.writedatedlogmsg(pilib.iolog,
+                       'Done setting up GPIO modes ', 5,
+                       logconfig['iologlevel'])
 
     options = pilib.parseoptions(interface['options'])
     address = int(interface['address'])
@@ -488,6 +516,11 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
         except TypeError:
             pilib.writedatedlogmsg(pilib.iolog, 'You are trying to set a GPIO with the wrong variable type : ' +
                                                 str(type(address)), 0, logconfig['iologlevel'])
+            pilib.writedatedlogmsg(pilib.iolog, 'Exiting interface routine for  ' + interface['id'], 0, logconfig['iologlevel'])
+            return
+        except:
+            pilib.writedatedlogmsg(pilib.iolog, 'Error setting GPIO : ' +
+                                                str(address), 1, logconfig['iologlevel'])
             pilib.writedatedlogmsg(pilib.iolog, 'Exiting interface routine for  ' + interface['id'], 0, logconfig['iologlevel'])
             return
 

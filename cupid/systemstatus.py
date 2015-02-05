@@ -33,7 +33,8 @@ def readhardwarefileintoversions():
 
 
 def updateifacestatus():
-
+    import pilib
+    import time
     import resource.pyiface.iface as pyiface
     from cupid.pilib import sqlitemultquery, setsinglevalue, systemdatadatabase, readonedbrow, gettimestring
     import subprocess
@@ -182,7 +183,7 @@ def updateifacestatus():
 
 
 def processsystemflags(systemflags=None):
-
+    import pilib
     from pilib import writedatedlogmsg, systemstatuslog, systemstatusloglevel
     if not systemflags:
         systemflags = pilib.readalldbrows(pilib.systemdatadatabase, 'systemflags')
@@ -224,8 +225,7 @@ def processsystemflags(systemflags=None):
             updatecupidweblib(True)
 
 
-if __name__ == '__main__':
-
+def runsystemstatus(runonce=False):
     import pilib
     import time
 
@@ -320,12 +320,12 @@ if __name__ == '__main__':
                 # If we have wpa up, do nothing
                 if netstatus['connected']:
                     wpastatusmsg += 'Station wpamode appears ok. '
-                    pilib.writedatedlogmsg(pilib.networklog, 'wpamode appears ok. ', 3, pilib.networkloglevel)
+                    pilib.writedatedlogmsg(pilib.networklog, 'wpamode appears ok. ', 1, pilib.networkloglevel)
 
                 # If wpa is not connected
                 else:
                     wpastatusmsg += 'Station wpamode appears disconnected. '
-                    pilib.writedatedlogmsg(pilib.networklog, 'wpamode appears disconnected. ', 3, pilib.networkloglevel)
+                    pilib.writedatedlogmsg(pilib.networklog, 'wpamode appears disconnected. ', 1, pilib.networkloglevel)
 
                     if netstatus['offlinetime'] == '':
                         pilib.writedatedlogmsg(pilib.networklog, 'Setting offline time for empty value. ', 4, pilib.networkloglevel)
@@ -396,6 +396,14 @@ if __name__ == '__main__':
 
         pilib.writedatedlogmsg(pilib.systemstatuslog, 'System status is sleeping for ' + str(systemstatus['systemstatusfreq']) + '. ', 3, pilib.systemstatusloglevel)
 
+        if runonce:
+            break
         time.sleep(systemstatus['systemstatusfreq'])
 
-    pilib.writedatedlogmsg(pilib.systemstatuslog, 'System status is disabled. Exiting. ', 0, pilib.systemstatusloglevel)
+
+    else:
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'System status is disabled. Exiting. ', 0, pilib.systemstatusloglevel)
+
+
+if __name__ == '__main__':
+    runsystemstatus()

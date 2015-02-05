@@ -155,7 +155,7 @@ def rundaemon(startall=False):
 
             # run if set to enable
             if enableditemlist[index]:
-                print(pilib.baselibdir + pilib.daemonprocs[index])
+                # print(pilib.baselibdir + pilib.daemonprocs[index])
                 if pilib.daemonloglevel > 0:
                     pilib.writedatedlogmsg(pilib.daemonlog, 'Starting ' + pilib.baselibdir + pilib.daemonprocs[index])
                 procresult = Popen([pilib.baselibdir + pilib.daemonprocs[index]], stdout=PIPE)

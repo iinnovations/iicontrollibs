@@ -20,6 +20,7 @@ readtime = 10  # default, seconds
 
 # Read from systemstatus to make sure we should be running
 updateioenabled = pilib.getsinglevalue(pilib.controldatabase, 'systemstatus', 'updateioenabled')
+
 while updateioenabled:
 
     #print("runtime")
@@ -93,11 +94,13 @@ while updateioenabled:
 
     inputsdata = pilib.readalldbrows(pilib.controldatabase, 'inputs')
     for inputrow in inputsdata:
-        if pilib.isvalidtime(inputrow['polltime']):
+        logtablename = 'input_' + inputrow['id'] + '_log'
+
+        if pilib.isvalidtimestring(inputrow['polltime']):
 
             # Create table if it doesn't exist
 
-            logtablename = 'input_' + inputrow['id'] + '_log'
+
             query = 'create table if not exists \'' + logtablename + '\' ( value real, time text primary key)'
             pilib.sqlitequery(pilib.logdatabase, query)
 

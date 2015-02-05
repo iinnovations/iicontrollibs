@@ -80,9 +80,18 @@ def application(environ, start_response):
                 if 'modulename' in d:
                     import cupid.tests
                     output['message'] += d['modulename']
-                    output['data'] = cupid.tests.testModule(d['modulename'])
+                    output['data'] = cupid.tests.testmodule(d['modulename'])
                 else:
                     output['message'] += 'Modulename not found. '
+            elif action == 'testfunction':
+                output['message'] += 'Testing function: '
+                if 'testname' in d:
+                    import cupid.tests
+                    output['message'] += d['testname']
+                    # output['data'] = cupid.tests.testfunction(d['testname'])
+                    output['data'] = cupid.tests.testfunction('systemstatus')
+                else:
+                    output['message'] += 'Testname not found. '
             elif action == 'dump':
                 if 'database' in d and 'tablelist' in d and 'outputfile' in d:
                     pilib.sqlitedatadump(d['database'],d['tablelist'],d['outputfile'])

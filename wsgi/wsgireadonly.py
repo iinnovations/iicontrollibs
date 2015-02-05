@@ -120,6 +120,10 @@ def application(environ, start_response):
     else:
         newetag=''
 
+    if 'datasize' in d:
+        import sys
+        output['datasize'] = sys.getsizeof(output['data'])
+
     output['etag'] = newetag
 
     foutput = json.dumps(output, indent=1)
