@@ -66,7 +66,14 @@ def testfunction(functionname):
     stringfailures=[]
     for failure in result.failures:
         stringfailures.append(str(failure))
-    resultdict = {'module':functionname, 'testsrun':result.testsRun, 'errors':result.errors, 'failuremessages': stringfailures, 'failurecount': len(result.failures)}
+    # resultdict = {'module':functionname, 'testsrun':result.testsRun, 'errors':str(result.errors[0]), 'failuremessages': stringfailures, 'failurecount': len(result.failures)}
+    # resultdict = {'module':functionname, 'testsrun':result.testsRun, 'errors':str('blurg'), 'failuremessages': stringfailures, 'failurecount': len(result.failures)}
+    resultdict={'blurg':'blurg'}
+    # print(type(result.errors))
+    # print(result.errors[0])
+    # print(result.errors[0][0])
+    import json
+    print(json.dumps(resultdict))
     return resultdict
 
 
