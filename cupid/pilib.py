@@ -143,6 +143,10 @@ def rotatelogs(logname, numlogs=5, logsize=1024):
 
             try:
                 os.rename(logname, logname + '.1')
+                os.chmod(logname + '.1', 744)
+                open(logname, 'a').close()
+                os.chmod(logname, 764)
+
             except:
                 logmessage += 'original doesn\'t exist\?\n'
                 returnmessage = "error in "
@@ -404,9 +408,11 @@ def logtimevaluedata(database, tablename, timeinseconds, value, logsize=5000, lo
 
             sizesqlitetable(logdatabase, tablename, logsize)
         else:
-            print('not time yet')
+            # print('not time yet')
+            pass
     else:
         print('not enabled')
+
 #############################################
 ## Sqlite Functions
 #############################################

@@ -78,18 +78,19 @@ def application(environ, start_response):
             elif action == 'testmodule':
                 output['message'] += 'Testing module: '
                 if 'modulename' in d:
-                    import cupid.tests
+                    import cupid.cupidunittests
                     output['message'] += d['modulename']
-                    output['data'] = cupid.tests.testmodule(d['modulename'])
+                    output['data'] = cupid.cupidunittests.testmodule(d['modulename'])
                 else:
                     output['message'] += 'Modulename not found. '
             elif action == 'testfunction':
                 output['message'] += 'Testing function: '
                 if 'testname' in d:
-                    import cupid.tests
+                    import cupid.cupidunittests
                     output['message'] += d['testname']
                     # output['data'] = cupid.tests.testfunction(d['testname'])
-                    output['data'] = cupid.tests.testfunction('systemstatus')
+                    output['data'] = cupid.cupidunittests.testfunction(d['testname'])
+                    # output['data'] = str(cupid.tests.testfunction('systemstatus'))
                 else:
                     output['message'] += 'Testname not found. '
             elif action == 'dump':
