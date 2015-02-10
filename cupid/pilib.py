@@ -83,10 +83,10 @@ def getgpiostatus():
         BCM2 = line[74:76].strip()
 
         if BCM1 and BCM1 != '--':
-            print(BCM1 + ':' + wpi1 + ':' + name1 + ':' + mode1 + ':' + val1 + ':' + phys1)
+            # print(BCM1 + ':' + wpi1 + ':' + name1 + ':' + mode1 + ':' + val1 + ':' + phys1)
             gpiolist.append({'BCM': BCM1, 'wpi': wpi1, 'name': name1, 'mode': mode1, 'value': val1, 'phys': phys1})
         if BCM2 and BCM2 != '--':
-            print(BCM2 + ':' + wpi2 + ':' + name2 + ':' + mode2 + ':' + val2 + ':' + phys2)
+            # print(BCM2 + ':' + wpi2 + ':' + name2 + ':' + mode2 + ':' + val2 + ':' + phys2)
             gpiolist.append({'BCM': BCM2, 'wpi': wpi2, 'name': name2, 'mode': mode2, 'value': val2, 'phys': phys2})
 
     return gpiolist
@@ -369,16 +369,12 @@ def ordertableindices(databasename, tablename, indicestoorder, uniqueindex):
             queryarray.append('update \'' + tablename + '\' set \'' + indextoorder + '\'=' + str(
                 i + 1) + '  where \'' + uniqueindex + '\'=\'' + uniquevalue + '\'')
 
-    print(queryarray)
+    # print(queryarray)
     sqlitemultquery(databasename, queryarray)
 
 
 def logtimevaluedata(database, tablename, timeinseconds, value, logsize=5000, logfrequency=0):
     timestring=gettimestring(timeinseconds)
-    print(database)
-    print(tablename)
-    print(timeinseconds)
-    print(value)
     if isvalidtimestring(timestring):
 
         # Get last polltime to determine if we should log again yet.
@@ -388,8 +384,8 @@ def logtimevaluedata(database, tablename, timeinseconds, value, logsize=5000, lo
         except:
             lastpolltimestring = ''
         else:
-            print lastpolltimestring
-
+            # print lastpolltimestring
+            pass
         if timeinseconds-timestringtoseconds(lastpolltimestring) > logfrequency:
 
             # Create table if it doesn't exist
@@ -411,14 +407,16 @@ def logtimevaluedata(database, tablename, timeinseconds, value, logsize=5000, lo
             # print('not time yet')
             pass
     else:
-        print('not enabled')
+        # print('not enabled')
+        pass
+
 
 #############################################
 ## Sqlite Functions
 #############################################
 
 # The beginning of our class development.
-class database:
+class myDatabase:
     def __init__(self, path):
         # NEEDS TONS OF WORK (ORM?)
         self.directory = 'directory'
@@ -565,10 +563,8 @@ def sqlitequery(database, query):
 
     try:
         with con:
-
             cur = con.cursor()
             cur.execute(query)
-
             data = cur.fetchall()
     except:
         data = ''
@@ -599,7 +595,8 @@ def makegetsinglevaluequery(table, valuename, condition=None):
             conditionnames = condition['conditionnames']
             conditionvalues = condition['conditionvalues']
         except:
-            print('oops')
+            # print('oops')
+            pass
         else:
             query += ' where '
             numconditions = len(conditionnames)
@@ -607,7 +604,7 @@ def makegetsinglevaluequery(table, valuename, condition=None):
                 query += "\"" + name + "\"='" + value + "'"
                 if index < numconditions-1:
                     query += ' and '
-            print(query)
+            # print(query)
     elif isinstance(condition, basestring):
         query += ' where ' + condition
     return query
@@ -657,7 +654,7 @@ def readonedbrow(database, table, rownumber=0, condition=None):
         dict = datarowtodict(database, table, datarow)
         dictarray = [dict]
     except:
-        print('no row here')
+        # print('no row here')
         dictarray = {}
         pass
 
@@ -673,7 +670,7 @@ def readsomedbrows(database, table, start, length, condition=None):
         query = "select * from '" + table + "' limit " + str(start) + ',' + str(length)
     else:
         query = "select * from '" + table + "' order by rowid desc " + " limit " + str(length)
-    print(query)
+    # print(query)
     if condition:
         query += ' where ' + condition
 
@@ -763,7 +760,7 @@ def getfirsttimerow(database, tablename):
         dict = datarowtodict(database, tablename, data)
         dictarray = [dict]
     except:
-        print('no row here')
+        # print('no row here')
         dictarray = {}
         pass
 
@@ -777,7 +774,7 @@ def getlasttimerow(database, tablename):
         dict = datarowtodict(database, tablename, data)
         dictarray = [dict]
     except:
-        print('no row here')
+        # print('no row here')
         dictarray = {}
         pass
     return dictarray

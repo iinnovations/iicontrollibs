@@ -8,6 +8,8 @@ iface eth0 inet dhcp
 #wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
 #iface default inet static
 
+auto wlan0
+wireless-power off
 iface wlan0 inet static
     address 192.168.0.1
 #    netmask 255.255.255.0

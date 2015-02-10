@@ -3,6 +3,8 @@ auto lo
 iface lo inet loopback
 iface eth0 inet dhcp
 
+auto wlan0
+wireless-power off
 allow-hotplug wlan0
 iface wlan0 inet manual
 wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf

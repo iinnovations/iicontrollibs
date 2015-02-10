@@ -94,7 +94,7 @@ def updateifacestatus():
     pilib.writedatedlogmsg(pilib.networklog, 'Done checking pings. ', 4, pilib.networkloglevel)
 
     if netconfigdata['netstatslogenabled']:
-        print('going to log stuff')
+        # print('going to log stuff')
         pilib.logtimevaluedata(pilib.logdatabase, 'WANping', time.time(), pingresult, 1000, netconfigdata['netstatslogfreq'])
 
     # Check supplicant status, set on/offtime if necessary.

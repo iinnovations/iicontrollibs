@@ -303,7 +303,7 @@ def runconfig(onboot=False):
     import subprocess
     try:
         netconfigdata = readonedbrow(systemdatadatabase, 'netconfig')[0]
-        print(netconfigdata)
+        # print(netconfigdata)
     except:
         writedatedlogmsg(networklog, 'Error reading netconfig data. ', 0, networkloglevel)
     else:
@@ -314,6 +314,7 @@ def runconfig(onboot=False):
             # This will grab the specified SSID and the credentials and update
             # the wpa_supplicant file
             updatewpasupplicant()
+
             # Copy the correct interfaces file
             if netconfigdata['mode'] == 'station':
                 setstationmode(netconfigdata)
