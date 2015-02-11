@@ -415,19 +415,6 @@ def logtimevaluedata(database, tablename, timeinseconds, value, logsize=5000, lo
 ## Sqlite Functions
 #############################################
 
-# The beginning of our class development.
-class myDatabase:
-    def __init__(self, path):
-        # NEEDS TONS OF WORK (ORM?)
-        self.directory = 'directory'
-
-    def gettablenames(self):
-        self.tablenames = gettablenames(self.path)
-
-    def getdatameta(self):
-        self.meta = gettablenames(self.path)
-
-
 def gettablenames(database):
     result = sqlitequery(database, 'select name from sqlite_master where type=\'table\'')
     tables = []
@@ -491,7 +478,6 @@ def getpragmanametypedict(database, table):
 def datarowtodict(database, table, datarow):
     pragma = getpragma(database, table)
     #print(pragma)
-
     pragmanames = []
     for item in pragma:
         pragmanames.append(item[1])
@@ -502,6 +488,28 @@ def datarowtodict(database, table, datarow):
         dict[pragmanames[index]] = datum
         index += 1
     return dict
+
+
+def insertstringdicttablelist(database, tablename, datadictarray):
+    querylist = []
+    querylist.append('drop table if exists ' + tablename)
+
+
+    addquery = 'create table ' + tablename + ' ('
+    for key in datadictarray[0]:
+        addquery += '\'' + key + '\' text,'
+
+    addquery = addquery[:-1]
+    addquery += ')'
+    querylist.append(addquery)
+
+    for datadict in datadictarray:
+        valuelist=[]
+        for key in datadict:
+            valuelist.append(datadict[key])
+        insertquery = makesqliteinsert(tablename, valuelist)
+        querylist.append(insertquery)
+    sqlitemultquery(database, querylist)
 
 
 def makesqliteinsert(table, valuelist, valuenames=None, replace=True):
@@ -550,7 +558,6 @@ def sqlitemultquery(database, querylist):
             cur.execute(query)
             dataitem = cur.fetchall()
             data.append(dataitem)
-
         con.commit()
     return data
 
@@ -568,7 +575,6 @@ def sqlitequery(database, query):
             data = cur.fetchall()
     except:
         data = ''
-
     return data
 
 

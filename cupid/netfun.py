@@ -17,7 +17,6 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 
-
 def runping(pingAddress, numpings=1):
     pingtimes = []
     from cupid import pilib
@@ -59,6 +58,44 @@ def runping(pingAddress, numpings=1):
             pingtimes.append(latency)
             pilib.writedatedlogmsg(pilib.networklog, 'ping times: ' + str(pingtimes), 3, pilib.networkloglevel)
     return pingtimes
+
+
+def getiwstatus():
+    import subprocess
+    iwresult = subprocess.check_output('iwconfig')
+    resultdict = {}
+    for iwresult in iwresult.split('  '):
+        if iwresult:
+            if iwresult.find(':') > 0:
+                datumname = iwresult.strip().split(':')[0]
+                datum = iwresult.strip().split(':')[1].split(' ')[0].split('/')[0].replace('"','')
+                resultdict[datumname] = datum
+            elif iwresult.find('=') > 0:
+                datumname = iwresult.strip().split('=')[0]
+                datum = iwresult.strip().split('=')[1].split(' ')[0].split('/')[0].replace('"','')
+                resultdict[datumname] = datum
+    return resultdict
+
+
+def getifacestatus():
+    import pilib
+    import resource.pyiface.iface as pyiface
+
+    allIfaces = pyiface.getIfaces()
+    pilib.writedatedlogmsg(pilib.networklog, 'Got ifaces data. ', 5, pilib.networkloglevel)
+    ifacesdictarray=[]
+    for iface in allIfaces:
+        ifacedict = {}
+        ifacedict['name'] = iface.name.strip()
+        ifacedict['hwaddress'] = iface.hwaddr.strip()
+        ifacedict['address'] = iface._Interface__sockaddrToStr(iface.addr).strip()
+        ifacedict['ifaceindex'] = str(iface.index).strip()
+        ifacedict['bcast'] = iface._Interface__sockaddrToStr(iface.broadaddr).strip()
+        ifacedict['mask'] = iface._Interface__sockaddrToStr(iface.netmask).strip()
+        ifacedict['flags'] = pyiface.flagsToStr(iface.flags).strip()
+        ifacesdictarray.append(ifacedict)
+
+    return ifacesdictarray
 
 
 def gethamachidata():
