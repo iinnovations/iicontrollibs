@@ -78,11 +78,11 @@ def getiwstatus():
 
 
 def getifacestatus():
-    import pilib
+    from pilib import writedatedlogmsg, networklog, networkloglevel
     import resource.pyiface.iface as pyiface
 
     allIfaces = pyiface.getIfaces()
-    pilib.writedatedlogmsg(pilib.networklog, 'Got ifaces data. ', 5, pilib.networkloglevel)
+    writedatedlogmsg(networklog, 'Got ifaces data. ', 5, networkloglevel)
     ifacesdictarray=[]
     for iface in allIfaces:
         ifacedict = {}
@@ -96,6 +96,28 @@ def getifacestatus():
         ifacesdictarray.append(ifacedict)
 
     return ifacesdictarray
+
+
+def getwpaclientstatus():
+    import subprocess
+    from pilib import writedatedlogmsg, networklog, networkloglevel
+    try:
+        writedatedlogmsg(networklog, 'Attempting WPA client status read. ', 4, networkloglevel)
+        result = subprocess.Popen(['/sbin/wpa_cli', 'status'], stdout=subprocess.PIPE)
+    except:
+        writedatedlogmsg(networklog, 'Error reading wpa client status. ', 0, networkloglevel)
+    else:
+        writedatedlogmsg(networklog, 'Completed WPA client status read. ', 4, networkloglevel)
+
+
+    # prune interface ID
+    resultdict = {}
+
+    for result in result.stdout:
+        if result.find('=') > 0:
+            split = result.split('=')
+            resultdict[split[0]] = split[1].strip()
+    return resultdict
 
 
 def gethamachidata():

@@ -26,28 +26,6 @@ if top_folder not in sys.path:
 from cupid.pilib import readonedbrow, systemdatadatabase, writedatedlogmsg, networklog, networkloglevel, systemstatuslog, systemstatusloglevel
 
 
-def getwpaclientstatus():
-    import subprocess
-
-    try:
-        writedatedlogmsg(networklog, 'Attempting WPA client status read. ', 4, networkloglevel)
-        result = subprocess.Popen(['/sbin/wpa_cli', 'status'], stdout=subprocess.PIPE)
-    except:
-        writedatedlogmsg(networklog, 'Error reading wpa client status. ', 0, networkloglevel)
-    else:
-        writedatedlogmsg(networklog, 'Completed WPA client status read. ', 4, networkloglevel)
-
-
-    # prune interface ID
-    resultdict = {}
-
-    for result in result.stdout:
-        if result.find('=') > 0:
-            split = result.split('=')
-            resultdict[split[0]] = split[1].strip()
-    return resultdict
-
-
 def getwpasupplicantconfig(conffile='/etc/wpa_supplicant/wpa_supplicant.conf'):
     class data():
         pass

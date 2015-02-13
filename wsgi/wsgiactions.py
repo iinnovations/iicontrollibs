@@ -64,17 +64,19 @@ def application(environ, start_response):
         if 'action' in d:
             action = d['action']
             output['message'] += 'Found action. '
-            if 'query' in d:  # Take plain single query
-                result = pilib.sqlitequery(d['database'], d['query'])
-                output['response'] = result
-                output['message'] += 'Query executed. '
-            elif 'queryarray[]' in d:  # Take query array, won't find
-                result = []
-                queryarray = d['queryarray[]']
-                for query in queryarray:
-                    result.append(pilib.sqlitequery(d['database'], query))
-                output['response'] = result
-                output['message'] += 'Query array executed. '
+            if action == 'runquery':
+                output['message'] += 'Query keyword found. '
+                if 'query' in d:  # Take plain single query
+                    result = pilib.sqlitequery(d['database'], d['query'])
+                    output['response'] = result
+                    output['message'] += 'Query executed. '
+                elif 'queryarray[]' in d:  # Take query array, won't find
+                    result = []
+                    queryarray = d['queryarray[]']
+                    for query in queryarray:
+                        result.append(pilib.sqlitequery(d['database'], query))
+                    output['response'] = result
+                    output['message'] += 'Query array executed. '
             elif action == 'testmodule':
                 output['message'] += 'Testing module: '
                 if 'modulename' in d:

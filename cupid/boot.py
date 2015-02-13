@@ -57,3 +57,10 @@ rundaemon()
 # Update hardware version in table
 from systemstatus import readhardwarefileintoversions
 readhardwarefileintoversions()
+
+# Run uwsgi daemon if nginx is running
+result=''
+result=subprocess.check_output(['service','nginx','status'])
+if result:
+    pilib.writedatedlogmsg(pilib.systemstatuslog,'Starting uwsgi based on nginx call', 0)
+    subprocess.call(['uwsgi', '--emperor','/usr/lib/iicontrollibs/wsgi/', '--daemonize', '/var/log/cupid/uwsgi.log'])

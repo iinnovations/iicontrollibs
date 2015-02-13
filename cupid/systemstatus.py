@@ -36,15 +36,31 @@ def readhardwarefileintoversions():
 
 
 def updateiwstatus():
-    from pilib import insertstringdicttablelist, systemdatadatabase
+    from pilib import insertstringdicttablelist, systemdatadatabase,gettimestring
     import netfun
     iwdict = netfun.getiwstatus()
+    iwdict['updatetime'] = gettimestring()
 
     # put into database
-    insertstringdicttablelist(systemdatadatabase, 'iwconfig', [iwdict])
+    insertstringdicttablelist(systemdatadatabase, 'iwstatus', [iwdict])
 
 
-def updateifacestatus():
+def updatehamachistatus():
+    from pilib import insertstringdicttablelist, systemdatadatabase, gettimestring
+    import netfun
+    try:
+        hamdicts = netfun.gethamachidata()
+    except:
+        pass
+    else:
+        for index, dict in enumerate(hamdicts):
+            hamdicts[index]['updatetime'] = gettimestring()
+
+        # put into database
+        insertstringdicttablelist(systemdatadatabase, 'hamachistatus', hamdicts)
+
+
+def updatenetstatus(lastnetstatus=None):
     import pilib
     import time
 
@@ -54,11 +70,9 @@ def updateifacestatus():
 
     netconfigdata = readonedbrow(systemdatadatabase, 'netconfig')[0]
 
-    try:
-        netstatus = readonedbrow(systemdatadatabase, 'netstatus')[0]
-    except:
-        pilib.writedatedlogmsg(pilib.networklog, 'Error reading network status. ', 1, pilib.networkloglevel)
-        netstatus={}
+    if not lastnetstatus:
+        lastnetstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
+
 
     ## Pyiface is one way to read some iface data
 
@@ -67,7 +81,7 @@ def updateifacestatus():
 
     if ifacesdictarray:
         pilib.writedatedlogmsg(pilib.networklog, 'Sending ifaces query. ', 5, pilib.networkloglevel)
-        insertstringdicttablelist(pilib.systemdatadatabase, 'netstatus', ifacesdictarray)
+        insertstringdicttablelist(pilib.systemdatadatabase, 'netifaces', ifacesdictarray)
     else:
         pilib.writedatedlogmsg(pilib.networklog, 'Empty ifaces query. ', 5, pilib.networkloglevel)
 
@@ -79,7 +93,7 @@ def updateifacestatus():
     pilib.writedatedlogmsg(pilib.networklog, 'Checking pingtimes. ', 4, pilib.networkloglevel)
     okping = float(netconfigdata['pingthreshold'])
 
-    from netfun import runping
+    from netfun import runping, getwpaclientstatus
 
     netstatusdict = {}
 
@@ -107,35 +121,60 @@ def updateifacestatus():
                                netconfigdata['netstatslogfreq'])
 
     # Check supplicant status, set on/offtime if necessary.
-    wpastatusdict = netconfig.getwpaclientstatus()
-    try:
-        if wpastatusdict['wpa_state'] == 'COMPLETED':
-            wpaconnected = 1
-            if netstatus['connected'] == 0 or netstatus['onlinetime'] == '':
+    wpastatusdict = getwpaclientstatus()
+    print(wpastatusdict)
+    # try:
+
+    # COMPLETED is onlinetime
+    if wpastatusdict['wpa_state'] == 'COMPLETED':
+        print('blurg')
+        wpaconnected = 1
+
+        # if we have an online time, leave it alone, or set it to now if it is empty
+        if 'onlinetime' in lastnetstatus:
+            # if we are newly connected or empty online time, set online time
+            if lastnetstatus['connected'] == 0 or lastnetstatus['onlinetime'] == '':
                 pilib.writedatedlogmsg(pilib.networklog, 'setting online time', 2, pilib.networkloglevel)
                 netstatusdict['onlinetime'] = gettimestring()
-                netstatusdict['offlinetime'] = ''
-        else:
-            wpaconnected = 0
-            netstatusdict['onlinetime'] = ''
-            netstatusdict['offlinetime'] = ''
-    except KeyError:
-        wpaconnected = 0
-        netstatusdict['onlinetime'] = ''
-        netstatusdict['offlinetime'] = ''
 
-    if 'connected' in netstatus:
-        if wpaconnected == 0 and netstatus['connected']:
-            pilib.writedatedlogmsg(pilib.networklog, 'setting online time', 2, pilib.networkloglevel)
+            # else retain onlinetime
+            else:
+                netstatusdict['onlinetime'] = lastnetstatus['onlinetime']
+        # if no onlinetime, set ot current time
+        else:
             netstatusdict['onlinetime'] = gettimestring()
+
+        # if we have an offlinetime, keep it. otherwise set to empty
+        if 'offlinetime' in lastnetstatus:
+            netstatusdict['offlinetime'] = lastnetstatus['offlinetime']
+        else:
             netstatusdict['offlinetime'] = ''
-        elif wpaconnected == 1 and not netstatus['connected']:
-            pilib.writedatedlogmsg(pilib.networklog, 'setting offline time', 2, pilib.networkloglevel)
-            netstatusdict['onlinetime'] = ''
-            netstatusdict['offlinetime'] = gettimestring()
+
+    # Else we are unconnected. do opposite of above
     else:
-        netstatusdict['onlinetime'] = ''
-        netstatusdict['offlinetime'] = ''
+        print('NOOOOOO blurg')
+        wpaconnected = 0
+
+        # if we have an offline time, leave it alone, or set it to now if it is empty
+        if 'offlinetime' in lastnetstatus:
+            # if we are newly connected or empty online time, set online time
+            if lastnetstatus['connected'] == 1 or lastnetstatus['offlinetime'] == '':
+                pilib.writedatedlogmsg(pilib.networklog, 'setting offline time', 2, pilib.networkloglevel)
+                netstatusdict['offlinetime'] = gettimestring()
+
+            # else retain offlinetime
+            else:
+                netstatusdict['offlinetime'] = lastnetstatus['offlinetime']
+        # if no offlinetime, set ot current time
+        else:
+            netstatusdict['offlinetime'] = gettimestring()
+
+        # if we have an onlinetime, keep it. otherwise set to empty
+        if 'onlinetime' in lastnetstatus:
+            netstatusdict['onlinetime'] = lastnetstatus['onlineime']
+        else:
+            netstatusdict['onlinetime'] = ''
+
 
 
     # Check dhcp server status
@@ -154,11 +193,13 @@ def updateifacestatus():
                 dhcpstatus = 1
             else:
                 dhcpstatus = '\?'
+
     pilib.writedatedlogmsg(pilib.networklog, 'Done checking dhcp server status. ', 4, pilib.networkloglevel)
 
     pilib.writedatedlogmsg(pilib.networklog, 'Updating netstatus. ', 4, pilib.networkloglevel)
 
     wpastatusdict['connected'] = wpaconnected
+    print('wpaconnected: ' + str(wpaconnected))
     try:
         wpastatusdict['dhcpstatus'] = dhcpstatus
     except:
@@ -179,7 +220,8 @@ def updateifacestatus():
 
     # print('myaddress is ' + address)
     netstatusdict['dhcpstatus'] = dhcpstatus
-    netstatusdict['connected'] = str(wpaconnected)
+    print(wpaconnected)
+    netstatusdict['connected'] = wpaconnected
 
     if netconfigdata['mode'] in ['ap', 'tempap']:
         pilib.writedatedlogmsg(pilib.networklog, 'Updating netstatus to AP mode', 1, pilib.networkloglevel)
@@ -198,6 +240,7 @@ def updateifacestatus():
     # Flexible, but be careful on what you rely on being in here
 
     netstatusdict['updatetime'] = pilib.gettimestring()
+    print(netstatusdict)
     pilib.insertstringdicttablelist(pilib.systemdatadatabase, 'netstatus', [netstatusdict])
 
     pilib.writedatedlogmsg(pilib.networklog, 'Completed netstatus query. ', 4, pilib.networkloglevel)
@@ -273,6 +316,19 @@ def runsystemstatus(runonce=False):
 
     systemstatus = pilib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
 
+    ## Read wireless config via iwconfig
+    updateiwstatus()
+
+    ## Read current etstatus
+    lastnetstatus={}
+    try:
+        lastnetstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
+    except:
+        pilib.writedatedlogmsg(pilib.networklog, 'Error reading network status. ', 1, pilib.networkloglevel)
+
+    # Poll netstatus and return data
+    updatenetstatus(lastnetstatus)
+
     # Keep reading system status?
     while systemstatus['systemstatusenabled']:
 
@@ -301,6 +357,8 @@ def runsystemstatus(runonce=False):
 
         netconfigdata = pilib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
         netstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
+        print('INITIAL NET STATUS')
+        print(netstatus)
 
         wpastatusmsg = ''
 
@@ -352,6 +410,7 @@ def runsystemstatus(runonce=False):
 
                 # If we have wpa up, do nothing
                 if netstatus['connected']:
+                    print('connected:' + str(netstatus['connected']))
                     wpastatusmsg += 'Station wpamode appears ok. '
                     pilib.writedatedlogmsg(pilib.networklog, 'wpamode appears ok. ', 1, pilib.networkloglevel)
 
@@ -422,7 +481,7 @@ def runsystemstatus(runonce=False):
         pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
 
         pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running updateifacestatus. ', 4, pilib.systemstatusloglevel)
-        updateifacestatus()
+        updatenetstatus()
         pilib.writedatedlogmsg(pilib.systemstatuslog, 'Completed updateifacestatus. ', 4, pilib.systemstatusloglevel)
 
         pilib.writedatedlogmsg(pilib.systemstatuslog, 'Network routines complete. ', 3, pilib.systemstatusloglevel)
