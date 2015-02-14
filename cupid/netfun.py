@@ -148,6 +148,11 @@ def gethamachidata():
     return dictarray
 
 
+def restarthamachi():
+    import subprocess
+    subprocess.call(['/etc/init.d/logmein-hamachi','restart'])
+
+
 def checksharemount(sharepath):
     from subprocess import Popen, PIPE
 
