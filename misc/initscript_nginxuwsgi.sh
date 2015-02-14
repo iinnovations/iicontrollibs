@@ -6,26 +6,26 @@ echo $1
 if [ $1 = "install" ]
   then
     apt-get update
-    apt-get -y install sqlite3 php5-sqlite
+    apt-get -y install nginx php5 sqlite3 php5-sqlite
+    a2enmod rewrite
     apt-get -y install python-dev python3 python-setuptools
     apt-get -y install swig libfuse-dev libusb-dev php5-dev
     apt-get -y install i2c-tools python-smbus
     apt-get -y install hostapd
-    apt-get -y install python-serial
-    apt-get -y install python-gtk2
-    apt-get -y install automake
     apt-get -y install isc-dhcp-server
     update-rc.d -f isc-dhcp-server remove
     update-rc.d -f apache2 remove
 
-    easy_install rpi.gpio
-    easy_install gitpython
+    easy_install pip
+
+    pip install rpi.gpio
+    apt-get -y install python-serial
+    apt-get -y install python-gtk2
+    apt-get -y install automake
     apt-get install nginx
     apt-get install uwsgi
     apt-get install python-pip
     apt-get install php5-fpm
-
-
 fi
 
 if [ $1 = "update" ]
@@ -49,6 +49,10 @@ else
     chown -R root:www-data /usr/lib/cgi-bin
 
     mkdir /var/log/cupid
+    chgrp -R pi /var/log/cupid
+    chmod ug+s /var/log/cupid
+    chmod -R 775 /var/log/cupid
+
     mkdir /var/1wire
 
     addgroup sshers
@@ -103,8 +107,6 @@ else
     chmod -R 775 *
     echo "complete"
 
-
-
     echo "Creating default databases"
     /usr/lib/iicontrollibs/cupid/rebuilddatabases.py DEFAULTS
     echo "Complete"
@@ -125,8 +127,12 @@ else
     cp /usr/lib/iicontrollibs/misc/cmdline.txt /boot/
     echo "Complete"
 
-    echo "Copying apache sites"
-    cp /usr/lib/iicontrollibs/misc/apachesites /etc/apache2/sites-available/default
+    echo "Copying nginx site"
+    cp /usr/lib/iicontrollibs/misc/nginx/nginxsite /etc/apache2/sites-available/default
+    echo "Complete"
+
+    echo "Creating self-signed ssl cert"
+    opensslreq -new -x509 -days 365 -nodes -out /etc/ssl/localcerts/mycert.pem -keyout /etc/ssl/localcerts/mycert.key
     echo "Complete"
 
     echo "Copying dhcpd.conf"
@@ -168,6 +174,12 @@ else
 
     echo "copying blacklist file"
     cp /usr/lib/iicontrollibs/misc/raspi-blacklist.conf /etc/modprobe.d/
+
+    echo "setting modprobe"
+    modprobe i2c-bcm2708
+
+    echo "coping boot config to enable serial interfaces"
+    cp /usr/lib/iicontrollibs/misc/config.txt /boot/
 
     echo "installing gpio-admin"
     cd /usr/lib/iicontrollibs/resource/quick2wire-gpio-admin-master/

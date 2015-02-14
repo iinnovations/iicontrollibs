@@ -101,7 +101,6 @@ else
     echo "complete"
 
 
-
     echo "Creating default databases"
     /usr/lib/iicontrollibs/cupid/rebuilddatabases.py DEFAULTS
     echo "Complete"
@@ -124,6 +123,10 @@ else
 
     echo "Copying apache sites"
     cp /usr/lib/iicontrollibs/misc/apachesites /etc/apache2/sites-available/default
+    echo "Complete"
+
+    echo "Creating self-signed ssl cert"
+    opensslreq -new -x509 -days 365 -nodes -out /etc/ssl/localcerts/mycert.pem -keyout /etc/ssl/localcerts/mycert.key
     echo "Complete"
 
     echo "Copying dhcpd.conf"
@@ -165,6 +168,12 @@ else
 
     echo "copying blacklist file"
     cp /usr/lib/iicontrollibs/misc/raspi-blacklist.conf /etc/modprobe.d/
+
+    echo "setting modprobe"
+    modprobe i2c-bcm2708
+
+    echo "coping boot config to enable serial interfaces"
+    cp /usr/lib/iicontrollibs/misc/config.txt /boot/
 
     echo "installing gpio-admin"
     cd /usr/lib/iicontrollibs/resource/quick2wire-gpio-admin-master/
