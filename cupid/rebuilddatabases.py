@@ -159,11 +159,11 @@ def rebuildcontroldb(tabledict):
         querylist.append("create table " + table + " (interface text, type text, address text, id text primary key, name text unique, options text, enabled integer default 0, status integer default 0)")
         if addentries:
             querylist.append(
-                "insert into " + table + " values ('SPI1','CuPIDlights','','SPIout1','myCuPIDlightboard','',1,0)")
+                "insert into " + table + " values ('SPI1','CuPIDlights','','SPIout1','myCuPIDlightboard','',0,0)")
             querylist.append(
-                "insert into " + table + " values ('I2C','DS2483','192.168.1.18','I2CDS2483','I2C 1Wire','tempunit:F',1,0)")
+                "insert into " + table + " values ('I2C','DS2483','','I2CDS2483','I2C 1Wire','tempunit:F',1,0)")
             querylist.append(
-                "insert into " + table + " values ('LAN','MBTCP','','MBTCP1','Modbus TCPIP','wordblocksize:24,bitblocksize:96',1,0)")
+                "insert into " + table + " values ('LAN','MBTCP','192.168.1.18','MBTCP1','Modbus TCPIP','wordblocksize:24,bitblocksize:96',0,0)")
             querylist.append(
                 "insert into " + table + " values ('GPIO','GPIO','18','GPIO18','GPIO 1','mode:output,pullupdown:pulldown',1,0)")
             querylist.append(

@@ -41,8 +41,11 @@ def setrawspilights(enabledlists, CS=1):
             spiassign = 255 - bytesum
             spiassignments.append(spiassign)
 
-        # Transfer bytes 
+        # Transfer bytes
+        # print('spi assignments')
+        # print(spiassignments)
         resp = spi.xfer2(spiassignments)
+        # resp = spi.xfer2(spiassignments)
         return resp
 
 
@@ -132,13 +135,13 @@ def updatelightsfromdb(database, table, CS):
 
     statuses = pilib.sqlitequery(database, query)
     names = pilib.sqlitequery(database, query2)
-    print(statuses)
-    print(names)
+    # print(statuses)
+    # print(names)
     d = {}
     for status, name in zip(statuses, names):
         d[name[0]] = status[0]
 
-    print(d)
+    # print(d)
     setarray = [[d['SPI_RGB1_R'], d['SPI_RGB1_G'], d['SPI_RGB1_B']],
                 [d['SPI_RGB2_R'], d['SPI_RGB2_G'], d['SPI_RGB2_B']],
                 [d['SPI_RGB3_R'], d['SPI_RGB3_G'], d['SPI_RGB3_B']],
@@ -155,38 +158,30 @@ def getCuPIDlightsentries(table, CS, previndicators=None):
         from pilib import readalldbrows, controldatabase
         previndicators = readalldbrows(controldatabase, 'indicators')
 
-    previndicatorsnames = []
+    previndicatornames = []
+    previndicatorvalues = []
+    d={}
     for previndicator in previndicators:
-        previndicatorsnames.append(previndicator['name'])
+        previndicatornames.append(previndicator['name'])
+        previndicatorvalues.append(previndicator['status'])
+        d[previndicator['name']]=previndicator['status']
 
     interface = 'SPI' + str(CS)
-    names = ['SPI' + str(CS) + '_RGB1_R',
-             'SPI' + str(CS) + '_RGB1_G',
-             'SPI' + str(CS) + '_RGB1_B',
-             'SPI' + str(CS) + '_RGB2_R',
-             'SPI' + str(CS) + '_RGB2_G',
-             'SPI' + str(CS) + '_RGB2_B',
-             'SPI' + str(CS) + '_RGB3_R',
-             'SPI' + str(CS) + '_RGB3_G',
-             'SPI' + str(CS) + '_RGB3_B',
-             'SPI' + str(CS) + '_RGB4_R',
-             'SPI' + str(CS) + '_RGB4_G',
-             'SPI' + str(CS) + '_RGB4_B',
-             'SPI' + str(CS) + '_SC_R',
-             'SPI' + str(CS) + '_SC_G',
-             'SPI' + str(CS) + '_SC_B',
-             'SPI' + str(CS) + '_SC_Y']
+    names = ['SPI_RGB1_R','SPI_RGB1_G', 'SPI_RGB1_B','SPI_RGB2_R', 'SPI_RGB2_G', 'SPI_RGB2_B',
+                'SPI_RGB3_R', 'SPI_RGB3_G', 'SPI_RGB3_B',
+                'SPI_RGB4_R', 'SPI_RGB4_G', 'SPI_RGB4_B',
+                'SPI_SC_R', 'SPI_SC_G', 'SPI_SC_B', 'SPI_SC_Y']
     details = ['red', 'green', 'blue', 'red', 'green', 'blue', 'red',
                'green', 'blue', 'red', 'green', 'blue', 'red', 'green', 'blue', 'yellow']
     setlist = []
     valuelist = []
     for name, detail in zip(names, details):
-        if name in previndicatorsnames:
-            value = previndicators[previndicatorsnames.index(name)]['status']
+        if name in previndicatornames:
+            value = previndicators[previndicatornames.index(name)]['status']
         else:
             value = 0
         valuelist.append(value)
-        querylist.append("insert into " + table + " values ('" + name + "','" + interface + "', 'CuPIDlights', " + str(value) + ",'" + detail + "')")
+        querylist.append("insert or replace into " + table + " values ('" + name + "','" + interface + "', 'CuPIDlights', " + str(value) + ",'" + detail + "')")
 
     setlist = [[valuelist[0], valuelist[1], valuelist[2]],
                [valuelist[3], valuelist[4], valuelist[5]],

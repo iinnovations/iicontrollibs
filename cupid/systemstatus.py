@@ -122,12 +122,10 @@ def updatenetstatus(lastnetstatus=None):
 
     # Check supplicant status, set on/offtime if necessary.
     wpastatusdict = getwpaclientstatus()
-    print(wpastatusdict)
     # try:
 
     # COMPLETED is onlinetime
     if wpastatusdict['wpa_state'] == 'COMPLETED':
-        print('blurg')
         wpaconnected = 1
 
         # if we have an online time, leave it alone, or set it to now if it is empty
@@ -152,7 +150,7 @@ def updatenetstatus(lastnetstatus=None):
 
     # Else we are unconnected. do opposite of above
     else:
-        print('NOOOOOO blurg')
+        print('i know we are not connected')
         wpaconnected = 0
 
         # if we have an offline time, leave it alone, or set it to now if it is empty
@@ -171,11 +169,9 @@ def updatenetstatus(lastnetstatus=None):
 
         # if we have an onlinetime, keep it. otherwise set to empty
         if 'onlinetime' in lastnetstatus:
-            netstatusdict['onlinetime'] = lastnetstatus['onlineime']
+            netstatusdict['onlinetime'] = lastnetstatus['onlinetime']
         else:
             netstatusdict['onlinetime'] = ''
-
-
 
     # Check dhcp server status
     pilib.writedatedlogmsg(pilib.networklog, 'Checking dhcp server status ', 4, pilib.networkloglevel)
@@ -199,7 +195,6 @@ def updatenetstatus(lastnetstatus=None):
     pilib.writedatedlogmsg(pilib.networklog, 'Updating netstatus. ', 4, pilib.networkloglevel)
 
     wpastatusdict['connected'] = wpaconnected
-    print('wpaconnected: ' + str(wpaconnected))
     try:
         wpastatusdict['dhcpstatus'] = dhcpstatus
     except:
@@ -220,8 +215,8 @@ def updatenetstatus(lastnetstatus=None):
 
     # print('myaddress is ' + address)
     netstatusdict['dhcpstatus'] = dhcpstatus
-    print(wpaconnected)
     netstatusdict['connected'] = wpaconnected
+    netstatusdict['statusmsg'] = 'wpaconnected: ' + str(wpaconnected)
 
     if netconfigdata['mode'] in ['ap', 'tempap']:
         pilib.writedatedlogmsg(pilib.networklog, 'Updating netstatus to AP mode', 1, pilib.networkloglevel)
@@ -240,7 +235,7 @@ def updatenetstatus(lastnetstatus=None):
     # Flexible, but be careful on what you rely on being in here
 
     netstatusdict['updatetime'] = pilib.gettimestring()
-    print(netstatusdict)
+
     pilib.insertstringdicttablelist(pilib.systemdatadatabase, 'netstatus', [netstatusdict])
 
     pilib.writedatedlogmsg(pilib.networklog, 'Completed netstatus query. ', 4, pilib.networkloglevel)
@@ -347,7 +342,7 @@ def runsystemstatus(runonce=False):
         # Check on wpa supplicant status as well. Function returns wpastatusdict
         try:
             pilib.writedatedlogmsg(pilib.networklog, 'Running updateifacestatus', 4, pilib.networkloglevel)
-            wpastatusdict = updateifacestatus()
+            wpastatusdict = updatenetstatus(lastnetstatus)
         except:
             pilib.writedatedlogmsg(pilib.networklog, 'Exception in updateifacestatus. ')
         else:
@@ -357,8 +352,6 @@ def runsystemstatus(runonce=False):
 
         netconfigdata = pilib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
         netstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
-        print('INITIAL NET STATUS')
-        print(netstatus)
 
         wpastatusmsg = ''
 
@@ -370,7 +363,8 @@ def runsystemstatus(runonce=False):
         if systemstatus['netconfigenabled']:
             pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running interface configuration. ', 4,
                                    pilib.systemstatusloglevel)
-
+            pilib.writedatedlogmsg(pilib.networklog, 'Running interface configuration. ', 4,
+                                   pilib.networkloglevel)
             # If mode is ap or tempap
             if netconfigdata['mode'] in ['ap', 'tempap']:
                 pilib.writedatedlogmsg(pilib.networklog, 'AP Mode is set. ', 1, pilib.networkloglevel)
@@ -407,16 +401,15 @@ def runsystemstatus(runonce=False):
             # If mode is station
             elif netconfigdata['mode'] == 'station':
                 pilib.writedatedlogmsg(pilib.networklog, 'Station mode is set. ', 3, pilib.networkloglevel)
-
                 # If we have wpa up, do nothing
-                if netstatus['connected']:
-                    print('connected:' + str(netstatus['connected']))
+                if int(netstatus['connected']):
                     wpastatusmsg += 'Station wpamode appears ok. '
                     pilib.writedatedlogmsg(pilib.networklog, 'wpamode appears ok. ', 1, pilib.networkloglevel)
 
                 # If wpa is not connected
                 else:
                     wpastatusmsg += 'Station wpamode appears disconnected. '
+                    print('HSIT IS NOT OK')
                     pilib.writedatedlogmsg(pilib.networklog, 'wpamode appears disconnected. ', 1, pilib.networkloglevel)
 
                     if netstatus['offlinetime'] == '':
@@ -467,6 +460,7 @@ def runsystemstatus(runonce=False):
                     elif offlinetime > 15:
                         pilib.writedatedlogmsg(pilib.systemstatuslog, 'Restarting netconfig on bad wpastatus', 1,
                                                pilib.systemstatusloglevel)
+                        print('RUNNING CONFIG')
                         netconfig.runconfig()
             else:
                 wpastatusmsg += 'mode error: ' + netconfigdata['mode']
@@ -477,8 +471,6 @@ def runsystemstatus(runonce=False):
         pilib.writedatedlogmsg(pilib.systemstatuslog, 'Finished interface configuration. ', 4,
                                pilib.systemstatusloglevel)
         pilib.writedatedlogmsg(pilib.networklog, wpastatusmsg)
-
-        pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', wpastatusmsg)
 
         pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running updateifacestatus. ', 4, pilib.systemstatusloglevel)
         updatenetstatus()

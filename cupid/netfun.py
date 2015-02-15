@@ -101,22 +101,23 @@ def getifacestatus():
 def getwpaclientstatus():
     import subprocess
     from pilib import writedatedlogmsg, networklog, networkloglevel
+
+    resultdict = {}
     try:
         writedatedlogmsg(networklog, 'Attempting WPA client status read. ', 4, networkloglevel)
         result = subprocess.Popen(['/sbin/wpa_cli', 'status'], stdout=subprocess.PIPE)
     except:
-        writedatedlogmsg(networklog, 'Error reading wpa client status. ', 0, networkloglevel)
+        writedatedlogmsg(networklog, 'Error reading wpa client status. Setting error status for systemstatus to catch.', 0, networkloglevel)
+        resultdict['wpa_state'] = 'ERROR'
     else:
         writedatedlogmsg(networklog, 'Completed WPA client status read. ', 4, networkloglevel)
-
-
-    # prune interface ID
-    resultdict = {}
-
-    for result in result.stdout:
-        if result.find('=') > 0:
-            split = result.split('=')
-            resultdict[split[0]] = split[1].strip()
+        # prune interface ID
+        for resultitem in result.stdout:
+            if resultitem.find('=') > 0:
+                split = resultitem.split('=')
+                resultdict[split[0]] = split[1].strip()
+    if 'wpa_state' not in resultdict:
+        resultdict['wpa_state'] = 'UNCAUGHT ERROR'
     return resultdict
 
 

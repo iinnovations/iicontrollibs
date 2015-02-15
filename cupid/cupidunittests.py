@@ -16,8 +16,8 @@ def runalltests():
 
 class TestFunction(unittest.TestCase):
     def systemstatus(self):
-        import systemstatus
-        systemstatus.runsystemstatus(True)
+        from systemstatus import runsystemstatus
+        runsystemstatus(True)
         self.assertTrue(True)
 
     def updateio(self):
@@ -26,8 +26,12 @@ class TestFunction(unittest.TestCase):
         updateiodata(controldatabase)
 
     def netconfig(self):
-        import netconfig
-        netconfig.runconfig(True)
+        from netconfig import runconfig
+        runconfig(True)
+
+    def picontrol(self):
+        from picontrol import runpicontrol
+        runpicontrol(True)
 
 
 class TestImport(unittest.TestCase):

@@ -28,6 +28,13 @@
 
 #define SPIDEV_MAXPATH 4096
 
+
+#if PY_MAJOR_VERSION < 3
+#define PyLong_AS_LONG(val) PyInt_AS_LONG(val)
+#define PyLong_AsLong(val) PyInt_AsLong(val)
+#define PyLong_Check(val) PyInt_Check(val)
+#endif
+
 PyDoc_STRVAR(SpiDev_module_doc,
 	"This module defines an object type that allows SPI transactions\n"
 	"on hosts running the Linux kernel. The host kernel must have SPI\n"
@@ -90,7 +97,7 @@ SpiDev_dealloc(SpiDevObject *self)
 	PyObject *ref = SpiDev_close(self);
 	Py_XDECREF(ref);
 
-	self->ob_type->tp_free((PyObject *)self);
+	Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
 static char *wrmsg = "Argument must be a list of at least one, "
@@ -123,11 +130,11 @@ SpiDev_writebytes(SpiDevObject *self, PyObject *args)
 
 	for (ii = 0; ii < len; ii++) {
 		PyObject *val = PyList_GET_ITEM(list, ii);
-		if (!PyInt_Check(val)) {
+		if (!PyLong_Check(val)) {
 			PyErr_SetString(PyExc_TypeError, wrmsg);
 			return NULL;
 		}
-		buf[ii] = (__u8)PyInt_AS_LONG(val);
+		buf[ii] = (__u8)PyLong_AS_LONG(val);
 	}
 
 	status = write(self->fd, &buf[0], len);
@@ -207,8 +214,10 @@ SpiDev_xfer(SpiDevObject *self, PyObject *args)
 	PyObject *list;
 #ifdef SPIDEV_SINGLE
 	struct spi_ioc_transfer *xferptr;
+	memset(&xferptr, 0, sizeof(xferptr));
 #else
 	struct spi_ioc_transfer xfer;
+	memset(&xfer, 0, sizeof(xfer));
 #endif
 	uint8_t *txbuf, *rxbuf;
 
@@ -233,32 +242,46 @@ SpiDev_xfer(SpiDevObject *self, PyObject *args)
 
 	for (ii = 0; ii < len; ii++) {
 		PyObject *val = PyList_GET_ITEM(list, ii);
-		if (!PyInt_Check(val)) {
+		if (!PyLong_Check(val)) {
 			PyErr_SetString(PyExc_TypeError, wrmsg);
+			free(xferptr);
+			free(txbuf);
+			free(rxbuf);
 			return NULL;
 		}
-		txbuf[ii] = (__u8)PyInt_AS_LONG(val);
+		txbuf[ii] = (__u8)PyLong_AS_LONG(val);
 		xferptr[ii].tx_buf = (unsigned long)&txbuf[ii];
 		xferptr[ii].rx_buf = (unsigned long)&rxbuf[ii];
 		xferptr[ii].len = 1;
 		xferptr[ii].delay_usecs = delay;
 		xferptr[ii].speed_hz = speed_hz ? speed_hz : self->max_speed_hz;
 		xferptr[ii].bits_per_word = bits_per_word ? bits_per_word : self->bits_per_word;
+#ifdef SPI_IOC_WR_MODE32
+		xferptr[ii].tx_nbits = 0;
+#endif
+#ifdef SPI_IOC_RD_MODE32
+		xferptr[ii].rx_nbits = 0;
+#endif
 	}
 
 	status = ioctl(self->fd, SPI_IOC_MESSAGE(len), xferptr);
 	if (status < 0) {
 		PyErr_SetFromErrno(PyExc_IOError);
+		free(xferptr);
+		free(txbuf);
+		free(rxbuf);
 		return NULL;
 	}
 #else
 	for (ii = 0; ii < len; ii++) {
 		PyObject *val = PyList_GET_ITEM(list, ii);
-		if (!PyInt_Check(val)) {
+		if (!PyLong_Check(val)) {
 			PyErr_SetString(PyExc_TypeError, wrmsg);
+			free(txbuf);
+			free(rxbuf);
 			return NULL;
 		}
-		txbuf[ii] = (__u8)PyInt_AS_LONG(val);
+		txbuf[ii] = (__u8)PyLong_AS_LONG(val);
 	}
 
 	xfer.tx_buf = (unsigned long)txbuf;
@@ -267,14 +290,23 @@ SpiDev_xfer(SpiDevObject *self, PyObject *args)
 	xfer.delay_usecs = delay_usecs;
 	xfer.speed_hz = speed_hz ? speed_hz : self->max_speed_hz;
 	xfer.bits_per_word = bits_per_word ? bits_per_word : self->bits_per_word;
+#ifdef SPI_IOC_WR_MODE32
+        xfer.tx_nbits = 0;
+#endif
+#ifdef SPI_IOC_RD_MODE32
+        xfer.rx_nbits = 0;
+#endif
 
 	status = ioctl(self->fd, SPI_IOC_MESSAGE(1), &xfer);
 	if (status < 0) {
 		PyErr_SetFromErrno(PyExc_IOError);
+		free(txbuf);
+		free(rxbuf);
 		return NULL;
 	}
 #endif
 
+	list = PyList_New(len);
 	for (ii = 0; ii < len; ii++) {
 		PyObject *val = Py_BuildValue("l", (long)rxbuf[ii]);
 		PyList_SET_ITEM(list, ii, val);
@@ -283,12 +315,13 @@ SpiDev_xfer(SpiDevObject *self, PyObject *args)
 	// WA:
 	// in CS_HIGH mode CS isn't pulled to low after transfer, but after read
 	// reading 0 bytes doesnt matter but brings cs down
-	status = read(self->fd, &rxbuf[0], 0);
+	// tomdean:
+	// Stop generating an extra CS except in mode CS_HOGH
+	if (self->mode & SPI_CS_HIGH) status = read(self->fd, &rxbuf[0], 0);
 
 	free(txbuf);
 	free(rxbuf);
 
-	Py_INCREF(list);
 	return list;
 }
 
@@ -310,6 +343,7 @@ SpiDev_xfer2(SpiDevObject *self, PyObject *args)
 	uint16_t ii, len;
 	PyObject *list;
 	struct spi_ioc_transfer xfer;
+	memset(&xfer, 0, sizeof(xfer));
 	uint8_t *txbuf, *rxbuf;
 
 	if (!PyArg_ParseTuple(args, "O|IHB:xfer2", &list, &speed_hz, &delay_usecs, &bits_per_word))
@@ -330,11 +364,13 @@ SpiDev_xfer2(SpiDevObject *self, PyObject *args)
 
 	for (ii = 0; ii < len; ii++) {
 		PyObject *val = PyList_GET_ITEM(list, ii);
-		if (!PyInt_Check(val)) {
+		if (!PyLong_Check(val)) {
 			PyErr_SetString(PyExc_TypeError, msg);
+			free(txbuf);
+			free(rxbuf);
 			return NULL;
 		}
-		txbuf[ii] = (__u8)PyInt_AS_LONG(val);
+		txbuf[ii] = (__u8)PyLong_AS_LONG(val);
 	}
 
 	xfer.tx_buf = (unsigned long)txbuf;
@@ -347,9 +383,12 @@ SpiDev_xfer2(SpiDevObject *self, PyObject *args)
 	status = ioctl(self->fd, SPI_IOC_MESSAGE(1), &xfer);
 	if (status < 0) {
 		PyErr_SetFromErrno(PyExc_IOError);
+		free(txbuf);
+		free(rxbuf);
 		return NULL;
 	}
 
+	list = PyList_New(len);
 	for (ii = 0; ii < len; ii++) {
 		PyObject *val = Py_BuildValue("l", (long)rxbuf[ii]);
 		PyList_SET_ITEM(list, ii, val);
@@ -357,12 +396,13 @@ SpiDev_xfer2(SpiDevObject *self, PyObject *args)
 	// WA:
 	// in CS_HIGH mode CS isnt pulled to low after transfer
 	// reading 0 bytes doesn't really matter but brings CS down
-	status = read(self->fd, &rxbuf[0], 0);
+	// tomdean:
+	// Stop generating an extra CS except in mode CS_HOGH
+	if (self->mode & SPI_CS_HIGH) status = read(self->fd, &rxbuf[0], 0);
 
 	free(txbuf);
 	free(rxbuf);
 
-	Py_INCREF(list);
 	return list;
 }
 
@@ -457,13 +497,13 @@ SpiDev_set_mode(SpiDevObject *self, PyObject *val, void *closure)
 			"Cannot delete attribute");
 		return -1;
 	}
-	else if (!PyInt_Check(val)) {
+	else if (!PyLong_Check(val)) {
 		PyErr_SetString(PyExc_TypeError,
 			"The mode attribute must be an integer");
 		return -1;
 	}
 
-	mode = PyInt_AsLong(val);
+	mode = PyLong_AsLong(val);
 
 	if ( mode > 3 ) {
 		PyErr_SetString(PyExc_TypeError,
@@ -607,13 +647,13 @@ SpiDev_set_bits_per_word(SpiDevObject *self, PyObject *val, void *closure)
 			"Cannot delete attribute");
 		return -1;
 	}
-	else if (!PyInt_Check(val)) {
+	else if (!PyLong_Check(val)) {
 		PyErr_SetString(PyExc_TypeError,
 			"The bits_per_word attribute must be an integer");
 		return -1;
 	}
 
-	bits = PyInt_AsLong(val);
+	bits = PyLong_AsLong(val);
 
         if (bits < 8 || bits > 16) {
 		PyErr_SetString(PyExc_TypeError,
@@ -649,13 +689,13 @@ SpiDev_set_max_speed_hz(SpiDevObject *self, PyObject *val, void *closure)
 			"Cannot delete attribute");
 		return -1;
 	}
-	else if (!PyInt_Check(val)) {
+	else if (!PyLong_Check(val)) {
 		PyErr_SetString(PyExc_TypeError,
 			"The max_speed_hz attribute must be an integer");
 		return -1;
 	}
 
-	max_speed_hz = PyInt_AsLong(val);
+	max_speed_hz = PyLong_AsLong(val);
 
 	if (self->max_speed_hz != max_speed_hz) {
 		if (ioctl(self->fd, SPI_IOC_WR_MAX_SPEED_HZ, &max_speed_hz) == -1) {
@@ -774,8 +814,12 @@ static PyMethodDef SpiDev_methods[] = {
 };
 
 static PyTypeObject SpiDevObjectType = {
+#if PY_MAJOR_VERSION >= 3
+	PyVarObject_HEAD_INIT(NULL, 0)
+#else
 	PyObject_HEAD_INIT(NULL)
 	0,				/* ob_size */
+#endif
 	"SpiDev",			/* tp_name */
 	sizeof(SpiDevObject),		/* tp_basicsize */
 	0,				/* tp_itemsize */
@@ -794,7 +838,7 @@ static PyTypeObject SpiDevObjectType = {
 	0,				/* tp_getattro */
 	0,				/* tp_setattro */
 	0,				/* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,		/* tp_flags */
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags */
 	SpiDevObjectType_doc,		/* tp_doc */
 	0,				/* tp_traverse */
 	0,				/* tp_clear */
@@ -819,19 +863,50 @@ static PyMethodDef SpiDev_module_methods[] = {
 	{NULL}
 };
 
+#if PY_MAJOR_VERSION >= 3
+static struct PyModuleDef moduledef = {
+	PyModuleDef_HEAD_INIT,
+	"spidev",
+	SpiDev_module_doc,
+	-1,
+	SpiDev_module_methods,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+};
+#else
 #ifndef PyMODINIT_FUNC	/* declarations for DLL import/export */
 #define PyMODINIT_FUNC void
 #endif
+#endif
+
+#if PY_MAJOR_VERSION >= 3
 PyMODINIT_FUNC
+PyInit_spidev(void)
+#else
 initspidev(void)
+#endif
 {
 	PyObject* m;
 
 	if (PyType_Ready(&SpiDevObjectType) < 0)
+#if PY_MAJOR_VERSION >= 3
+		return NULL;
+#else
 		return;
+#endif
 
+#if PY_MAJOR_VERSION >= 3
+	m = PyModule_Create(&moduledef);
+#else
 	m = Py_InitModule3("spidev", SpiDev_module_methods, SpiDev_module_doc);
+#endif
 	Py_INCREF(&SpiDevObjectType);
 	PyModule_AddObject(m, "SpiDev", (PyObject *)&SpiDevObjectType);
+
+#if PY_MAJOR_VERSION >= 3
+	return m;
+#endif
 }
 

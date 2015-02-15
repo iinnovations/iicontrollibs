@@ -14,7 +14,8 @@ from time import sleep
 # Read inputs (done by updateio, through periodicreadio)
 # Set physical outputs (this is done by updateio)
 
-def runsystemstatus():
+
+def runpicontrol(runonce=False):
     systemstatus = pilib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
 
     while systemstatus['picontrolenabled']:
@@ -255,11 +256,13 @@ def runsystemstatus():
         # Wait for delay time
         #print('sleeping')
         # spilights.updatelightsfromdb(pilib.controldatabase, 'indicators')
+        if runonce:
+            break
+
         pilib.writedatedlogmsg(pilib.systemstatuslog, 'Sleeping for .' + str(systemstatus['systemstatusfreq']), 2, pilib.systemstatusloglevel)
         sleep(systemstatus['systemstatusfreq'])
-
 
     pilib.writedatedlogmsg(pilib.systemstatuslog, 'picontrol not enabled. exiting.', 1, pilib.systemstatusloglevel)
 
 if __name__ == "__main__":
-    runsystemstatus()
+    runpicontrol()

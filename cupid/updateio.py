@@ -98,6 +98,7 @@ def updateiodata(database):
     # this period, however, we could end up with an apparently empty table.
     # TODO: FIX update on indicators in updateio
 
+    # We drop this table, so that if SP1 has been disabled, the entries do not appear as valid indicators
     pilib.sqlitequery(pilib.controldatabase, 'delete from indicators')
 
     owfsupdate = False
@@ -264,42 +265,54 @@ def updateiodata(database):
                                        logconfig['iologlevel'])
         elif interface['interface'] == 'SPI0':
             pilib.writedatedlogmsg(pilib.iolog, 'Processing SPI0', 1, logconfig['iologlevel'])
-            if interface['type'] == 'SPITC':
-                import readspi
+            if interface['enabled']:
+                pilib.writedatedlogmsg(pilib.iolog, 'SPI0 enabled', 1, logconfig['iologlevel'])
+                if interface['type'] == 'SPITC':
+                    pilib.writedatedlogmsg(pilib.iolog, 'Processing SPITC on SPI0', 3, logconfig['iologlevel'])
+                    import readspi
 
-                spidata = readspi.readspitc(0)
-                spitcentries = readspi.recordspidata(database, spidata)
-                querylist.extend(spitcentries)
+                    spidata = readspi.readspitc(0)
+                    spitcentries = readspi.recordspidata(database, spidata)
+                    querylist.extend(spitcentries)
 
-            if interface['type'] == 'CuPIDlights':
-                import spilights
+                if interface['type'] == 'CuPIDlights':
+                    import spilights
 
-                spilightsentries, setlist = spilights.getCuPIDlightsentries('indicators', 0, previndicators)
-                querylist.extend(spilightsentries)
-                spilights.updatelightsfromdb(pilib.controldatabase, 'indicators', 0)
-                spilights.setspilights(setlist, 0)
+                    spilightsentries, setlist = spilights.getCuPIDlightsentries('indicators', 0, previndicators)
+                    querylist.extend(spilightsentries)
+                    spilights.updatelightsfromdb(pilib.controldatabase, 'indicators', 0)
+                    spilights.setspilights(setlist, 0)
+            else:
+                pilib.writedatedlogmsg(pilib.iolog, 'SPI0 not enabled', 1, logconfig['iologlevel'])
 
         elif interface['interface'] == 'SPI1':
             pilib.writedatedlogmsg(pilib.iolog, 'Processing SPI1', 1, logconfig['iologlevel'])
+            if interface['enabled']:
+                pilib.writedatedlogmsg(pilib.iolog, 'SPI1 enabled', 1, logconfig['iologlevel'])
+                if interface['type'] == 'CuPIDlights':
+                    pilib.writedatedlogmsg(pilib.iolog, 'Processing CuPID Lights on SPI1', 1, logconfig['iologlevel'])
+                    import spilights
 
-            if interface['type'] == 'CuPIDlights':
-                import spilights
-
-                spilightsentries, setlist = spilights.getCuPIDlightsentries('indicators', 1, previndicators)
-                querylist.extend(spilightsentries)
-                spilights.setspilights(setlist, 1)
+                    spilightsentries, setlist = spilights.getCuPIDlightsentries('indicators', 1, previndicators)
+                    querylist.extend(spilightsentries)
+                    spilights.setspilights(setlist, 1)
+            else:
+                pilib.writedatedlogmsg(pilib.iolog, 'SPI1 disaabled', 1, logconfig['iologlevel'])
 
     # Set tables
     querylist.append(pilib.makesinglevaluequery('systemstatus', 'lastiopoll', pilib.gettimestring()))
 
     if owfsupdate:
         from owfslib import runowfsupdate
-
+        pilib.writedatedlogmsg(pilib.iolog, 'Running owfsupdate', 1, logconfig['iologlevel'])
         devices, owfsentries = runowfsupdate(execute=False)
         querylist.extend(owfsentries)
+    else:
+        pilib.writedatedlogmsg(pilib.iolog, 'owfsupdate disabled', 3, logconfig['iologlevel'])
 
     pilib.writedatedlogmsg(pilib.iolog, 'Executing query:  ' + str(querylist), 5, logconfig['iologlevel'])
     try:
+        # print(querylist)
         pilib.sqlitemultquery(pilib.controldatabase, querylist)
     except:
         errorstring = traceback.format_exc()

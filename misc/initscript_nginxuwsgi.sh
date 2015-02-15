@@ -16,16 +16,16 @@ if [ $1 = "install" ]
     update-rc.d -f isc-dhcp-server remove
     update-rc.d -f apache2 remove
 
-    easy_install pip
-
+    apt-get -y install python-pip
     pip install rpi.gpio
+    pip install gitpython
     apt-get -y install python-serial
     apt-get -y install python-gtk2
     apt-get -y install automake
-    apt-get install nginx
-    apt-get install uwsgi
-    apt-get install python-pip
-    apt-get install php5-fpm
+    apt-get -y install nginx
+    apt-get -y install uwsgi
+    apt-get -y install uwsgi-python-plugin
+    apt-get -y install php5-fpm
 fi
 
 if [ $1 = "update" ]
@@ -36,17 +36,21 @@ else
     mkdir /usr/lib/iicontrollibs
     chown -R root:pi /usr/lib/iicontrollibs
     chmod -R 775 /usr/lib/iicontrollibs
+    chmod ug+x /usr/lib/iicontrollibs
 
     mkdir /var/wwwsafe
     chown -R root:pi /var/wwwsafe
     chmod -R 775 /var/wwwsafe
+    chmod ug+x /var/wwwsafe
 
     mkdir /var/www
     chown -R root:www-data /var/www
     chmod -R 775 /var/www
+    chmod ug+x /var/www
 
     mkdir /usr/lib/cgi-bin
     chown -R root:www-data /usr/lib/cgi-bin
+    chmod ug+x /usr/lib/cgi-bin
 
     mkdir /var/log/cupid
     chgrp -R pi /var/log/cupid
@@ -128,17 +132,27 @@ else
     echo "Complete"
 
     echo "Copying nginx site"
-    cp /usr/lib/iicontrollibs/misc/nginx/nginxsite /etc/apache2/sites-available/default
+    cp /usr/lib/iicontrollibs/misc/nginx/nginxsite /etc/nginx/sites-available/default
     echo "Complete"
 
     echo "Creating self-signed ssl cert"
-    opensslreq -new -x509 -days 365 -nodes -out /etc/ssl/localcerts/mycert.pem -keyout /etc/ssl/localcerts/mycert.key
+    mkdir /etc/ssl/localcerts
+    openssl req -new -x509 -days 365 -nodes -out /etc/ssl/localcerts/mycert.pem -keyout /etc/ssl/localcerts/mycert.key
     echo "Complete"
+
+    echo "setting fpm extensions to allow html files"
+    # cp pool.d/www.conf file over ...
 
     echo "Copying dhcpd.conf"
     cp /usr/lib/iicontrollibs/misc/dhcpd.conf /etc/dhcp/
     echo "Complete"
 
+    # echo "configuring hamachi"
+    # apt-get install lsb-core
+    # wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.136-1_armhf.deb
+    # dpkg -i logmein-hamachi_2.1.0.136-1_armhf.deb
+    # hamachi login
+    # hamachi do-join XXX-XX-XXXX
 
     testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
     if [ ${testresult} -ne 0 ]
