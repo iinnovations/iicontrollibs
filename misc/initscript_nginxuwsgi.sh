@@ -123,13 +123,14 @@ else
     crontab /usr/lib/iicontrollibs/misc/crontab
     echo "complete"
 
-    echo "Copying inittab"
-    cp /usr/lib/iicontrollibs/misc/inittab /etc/
-    echo "Complete"
+    # handled in raspi-config
+#    echo "Copying inittab"
+#    cp /usr/lib/iicontrollibs/misc/inittab /etc/
+#    echo "Complete"
 
-    echo "Copying cmdline.txt"
-    cp /usr/lib/iicontrollibs/misc/cmdline.txt /boot/
-    echo "Complete"
+#    echo "Copying cmdline.txt"
+#    cp /usr/lib/iicontrollibs/misc/cmdline.txt /boot/
+#    echo "Complete"
 
     echo "Copying nginx site"
     cp /usr/lib/iicontrollibs/misc/nginx/nginxsite /etc/nginx/sites-available/default
