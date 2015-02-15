@@ -26,6 +26,13 @@ if [ $1 = "install" ]
     apt-get -y install uwsgi
     apt-get -y install uwsgi-python-plugin
     apt-get -y install php5-fpm
+
+    # echo "configuring hamachi"
+    apt-get install lsb-core
+    wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.136-1_armhf.deb
+    dpkg -i logmein-hamachi_2.1.0.136-1_armhf.deb
+    hamachi login
+    # hamachi do-join XXX-XX-XXXX
 fi
 
 if [ $1 = "update" ]
@@ -148,12 +155,7 @@ else
     cp /usr/lib/iicontrollibs/misc/dhcpd.conf /etc/dhcp/
     echo "Complete"
 
-    # echo "configuring hamachi"
-    # apt-get install lsb-core
-    # wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.136-1_armhf.deb
-    # dpkg -i logmein-hamachi_2.1.0.136-1_armhf.deb
-    # hamachi login
-    # hamachi do-join XXX-XX-XXXX
+
 
     testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
     if [ ${testresult} -ne 0 ]
