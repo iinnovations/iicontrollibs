@@ -186,14 +186,15 @@ else
     echo "copying hostapd.conf"
     cp /usr/lib/iicontrollibs/misc/hostapd.conf /etc/hostapd/
 
-    echo "copying blacklist file"
-    cp /usr/lib/iicontrollibs/misc/raspi-blacklist.conf /etc/modprobe.d/
+    # These are now handled via raspi-config (I think. In testing)
+#    echo "copying blacklist file"
+#    cp /usr/lib/iicontrollibs/misc/raspi-blacklist.conf /etc/modprobe.d/
 
-    echo "setting modprobe"
-    modprobe i2c-bcm2708
+#    echo "setting modprobe"
+#    modprobe i2c-bcm2708
 
-    echo "coping boot config to enable serial interfaces"
-    cp /usr/lib/iicontrollibs/misc/config.txt /boot/
+#    echo "coping boot config to disable console serial interface"
+#    cp /usr/lib/iicontrollibs/misc/config.txt /boot/
 
     echo "installing gpio-admin"
     cd /usr/lib/iicontrollibs/resource/quick2wire-gpio-admin-master/
