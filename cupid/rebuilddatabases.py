@@ -12,7 +12,8 @@ __status__ = "Development"
 
 # This script resets the control databases
 
-from pilib import sqlitemultquery, controldatabase, systemdatadatabase, recipedatabase, sessiondatabase, safedatabase, usersdatabase
+from pilib import sqlitemultquery, controldatabase, systemdatadatabase, recipedatabase, sessiondatabase, safedatabase, \
+    usersdatabase
 
 ################################################
 # Main control database
@@ -49,7 +50,7 @@ def rebuildcontroldb(tabledict):
         table = 'systemstatus'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text default '', updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 15, lastiopoll text default '', enableoutputs boolean default 0, sessioncontrolenabled boolean default 0, sessioncontrolstatus boolean default 0, systemstatusenabled boolean default 0, netconfigenabled boolean default 0, systemstatusstatus boolean default 0, systemstatusfreq real default 15, lastsystemstatuspoll text default '', systemmessage text default '', serialhandlerenabled boolean default 0, serialhandlerstatus boolean default 0)")
+            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text default '', updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 15, lastiopoll text default '', enableoutputs boolean default 0, sessioncontrolenabled boolean default 0, sessioncontrolstatus boolean default 0, systemstatusenabled boolean default 0, netconfigenabled boolean default 0, systemstatusstatus boolean default 0, systemstatusfreq real default 15, lastsystemstatuspoll text default '', systemmessage text default '', serialhandlerenabled boolean default 0, serialhandlerstatus boolean default 0, webserver text default 'nginx')")
         if addentries:
             querylist.append("insert into " + table + " default values")
 
@@ -58,7 +59,8 @@ def rebuildcontroldb(tabledict):
         runquery = True
         table = 'logconfig'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (networkloglevel integer, iologlevel integer, systemstatusloglevel integer, controlloglevel integer, daemonloglevel integer)")
+        querylist.append(
+            "create table " + table + " (networkloglevel integer, iologlevel integer, systemstatusloglevel integer, controlloglevel integer, daemonloglevel integer)")
         if addentries:
             querylist.append(
                 "insert into " + table + " values (4,4,4,4,4)")
@@ -107,16 +109,16 @@ def rebuildcontroldb(tabledict):
         table = 'outputs'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-             'create table ' + table + ' (id text primary key, interface text, type text, address text, name text, ' +
-             'value real, unit text, polltime text, pollfreq real, ontime text, offtime text)')
+            'create table ' + table + ' (id text primary key, interface text, type text, address text, name text, ' +
+            'value real, unit text, polltime text, pollfreq real, ontime text, offtime text)')
     ### Inputs table
     if 'inputs' in tabledict:
         runquery = True
         table = 'inputs'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-             'create table ' + table + ' (id text primary key, interface text, type text, address text, name text, ' +
-             'value real, unit text, polltime text, pollfreq real, ontime text, offtime text)')
+            'create table ' + table + ' (id text primary key, interface text, type text, address text, name text, ' +
+            'value real, unit text, polltime text, pollfreq real, ontime text, offtime text)')
 
 
     ### OWFS Table
@@ -156,7 +158,8 @@ def rebuildcontroldb(tabledict):
         runquery = True
         table = 'interfaces'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (interface text, type text, address text, id text primary key, name text unique, options text, enabled integer default 0, status integer default 0)")
+        querylist.append(
+            "create table " + table + " (interface text, type text, address text, id text primary key, name text unique, options text, enabled integer default 0, status integer default 0)")
         if addentries:
             querylist.append(
                 "insert into " + table + " values ('SPI1','CuPIDlights','','SPIout1','myCuPIDlightboard','',0,0)")
@@ -186,7 +189,8 @@ def rebuildcontroldb(tabledict):
         runquery = True
         table = 'modbustcp'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (interfaceid text, register integer, mode text default 'read', length integer default 1,  bigendian boolean default 1, reversebyte boolean default 0, format text, options text)")
+        querylist.append(
+            "create table " + table + " (interfaceid text, register integer, mode text default 'read', length integer default 1,  bigendian boolean default 1, reversebyte boolean default 0, format text, options text)")
         if addentries:
             querylist.append("insert into " + table + " values ('MBTCP1', '400001', 'read', 2, 1, 0, 'float32','')")
             querylist.append("insert into " + table + " values ('MBTCP1', '400003', 'read', 2, 1, 0, 'float32','')")
@@ -228,15 +232,16 @@ def rebuildcontroldb(tabledict):
         print(querylist)
         sqlitemultquery(controldatabase, querylist)
 
+
 ############################################
 # authlog
 
 def rebuildsessiondb():
-    querylist=[]
+    querylist = []
 
     ### Session limits
 
-    table='sessionlimits'
+    table = 'sessionlimits'
     querylist.append('drop table if exists ' + table)
     querylist.append("create table " + table + " (username text primary key, sessionsallowed real default 5 )")
 
@@ -249,21 +254,23 @@ def rebuildsessiondb():
 
     ### Settings table
 
-    table='settings'
+    table = 'settings'
     querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " (sessionlength real default 600, sessionlimitsenabled real default 1, updatefrequency real)")
+    querylist.append(
+        "create table " + table + " (sessionlength real default 600, sessionlimitsenabled real default 1, updatefrequency real)")
 
     querylist.append("insert into " + table + " values (600,1,30)")
 
     ### Session table
 
-    table='sessions'
+    table = 'sessions'
     querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " (username text, sessionid text, sessionlength real, timecreated text, apparentIP text , realIP text)")
+    querylist.append(
+        "create table " + table + " (username text, sessionid text, sessionlength real, timecreated text, apparentIP text , realIP text)")
 
     ### Sessions summary
 
-    table='sessionsummary'
+    table = 'sessionsummary'
     querylist.append('drop table if exists ' + table)
     querylist.append("create table " + table + " (username text,  sessionsactive real)")
 
@@ -273,12 +280,13 @@ def rebuildsessiondb():
 
     ### Session log
 
-    table='sessionlog'
+    table = 'sessionlog'
     querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " (username text, sessionid text, time text, action text, apparentIP text, realIP text)")
+    querylist.append(
+        "create table " + table + " (username text, sessionid text, time text, action text, apparentIP text, realIP text)")
 
 
-    #print(querylist)
+    # print(querylist)
     sqlitemultquery(sessiondatabase, querylist)
 
 
@@ -292,15 +300,18 @@ def rebuildsystemdatadb(tabledict):
         runquery = True
         table = 'netstatus'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " ( address text default '', connected boolean default 0, WANaccess boolean default 0, latency real default 0, SSID text default '', dhcpstatus boolean default 0, mode text default station, onlinetime text, offlinetime text default '', statusmsg text default '')")
+        querylist.append(
+            "create table " + table + " ( address text default '', connected boolean default 0, WANaccess boolean default 0, latency real default 0, SSID text default '', dhcpstatus boolean default 0, mode text default station, onlinetime text, offlinetime text default '', statusmsg text default '')")
         querylist.append("insert into " + table + "  default values")
 
     if 'netconfig' in tabledict:
         runquery = True
         table = 'netconfig'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (enabled boolean, SSID text, mode text, aprevert text default '', addtype text default 'dhcp', address text, gateway text, dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99', apreverttime integer default 60, stationretrytime integer default 300, laststationretry text, pingthreshold integer default 200, netstatslogenabled boolean default 0, netstatslogfreq integer default 60)")
-        querylist.append("insert into " + table + " values ('1','OurHouse','station','','static','192.168.1.30','192.168.1.1','','',60,300,0,200, 1, 60)")
+        querylist.append(
+            "create table " + table + " (enabled boolean, SSID text, mode text, aprevert text default '', addtype text default 'dhcp', address text, gateway text, dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99', apreverttime integer default 60, stationretrytime integer default 300, laststationretry text, pingthreshold integer default 200, netstatslogenabled boolean default 0, netstatslogfreq integer default 60)")
+        querylist.append(
+            "insert into " + table + " values ('1','OurHouse','station','','static','192.168.1.30','192.168.1.1','','',60,300,0,200, 1, 60)")
 
     if 'systemflags' in tabledict:
         runquery = True
@@ -329,6 +340,7 @@ def rebuildsystemdatadb(tabledict):
         print(querylist)
         sqlitemultquery(systemdatadatabase, querylist)
 
+
 ############################################
 # recipesdata
 
@@ -354,13 +366,14 @@ def rebuildrecipesdb(tabledict):
 
         sqlitemultquery(recipedatabase, querylist)
 
+
 ############################################
 # userstabledata
 
 
 def rebuildusersdata(argument=None):
-
     from pilib import gethashedentry
+
     querylist = []
     runquery = True
 
@@ -368,16 +381,20 @@ def rebuildusersdata(argument=None):
     enteringusers = True
     runquery = False
     index = 1
-    querylist.append('create table users (id integer primary key not null, name text not null, password text not null, email text not null, temp text not null, authlevel integer default 0)')
+    querylist.append(
+        'create table users (id integer primary key not null, name text not null, password text not null, email text not null, temp text not null, authlevel integer default 0)')
     if argument == 'defaults':
         runquery = True
         entries = [{'user': 'viewer', 'password': 'viewer', 'email': 'viewer@interfaceinnovations.org', 'authlevel': 1},
                    {'user': 'admin', 'password': 'adminn', 'email': 'admin@interfaceinnovations.org', 'authlevel': 4},
-                   {'user': 'controller', 'password': 'controller', 'email': 'viewer@interfaceinnovations.org', 'authlevel': 3}]
+                   {'user': 'controller', 'password': 'controller', 'email': 'viewer@interfaceinnovations.org',
+                    'authlevel': 3}]
         index = 1
         for entry in entries:
             hashedentry = gethashedentry(entry['user'], entry['password'])
-            querylist.append("insert into users values(" + str(index) + ",'" + entry['user'] + "','" + hashedentry + "','" + entry['email'] + "',''," + str(entry['authlevel']) + ")")
+            querylist.append(
+                "insert into users values(" + str(index) + ",'" + entry['user'] + "','" + hashedentry + "','" + entry[
+                    'email'] + "',''," + str(entry['authlevel']) + ")")
             index += 1
 
     else:
@@ -403,15 +420,17 @@ def rebuildusersdata(argument=None):
                 print('Email does not appear to be valid')
 
             if validentry:
-                hashedentry = gethashedentry(userinput,passone)
+                hashedentry = gethashedentry(userinput, passone)
 
-                querylist.append("insert into users values(" + str(index) + ",'" + userinput + "','" + hashedentry + "','" + emailentry + "',''," + authlevelentry + ")")
+                querylist.append("insert into users values(" + str(
+                    index) + ",'" + userinput + "','" + hashedentry + "','" + emailentry + "',''," + authlevelentry + ")")
                 index += 1
                 runquery = True
 
     if runquery:
         print(querylist)
         sqlitemultquery(usersdatabase, querylist)
+
 
 ############################################
 # safedata
@@ -435,8 +454,12 @@ if __name__ == "__main__":
         print('making default databases')
         rebuildsafedata()
         rebuildusersdata('defaults')
-        rebuildcontroldb({'actions': True, 'modbustcp': True, 'logconfig': True, 'defaults': True, 'systemstatus': True, 'indicators': True, 'inputs': True, 'outputs': True, 'owfs': True, 'ioinfo': True, 'interfaces': True, 'inputsdata':True, 'algorithms': True, 'algorithmtypes': True, 'channels': True, 'remotes': True})
-        rebuildsystemdatadb({'metadata': True, 'netconfig': True, 'netstatus': True, 'versions': True, 'systemflags': True})
+        rebuildcontroldb({'actions': True, 'modbustcp': True, 'logconfig': True, 'defaults': True, 'systemstatus': True,
+                          'indicators': True, 'inputs': True, 'outputs': True, 'owfs': True, 'ioinfo': True,
+                          'interfaces': True, 'inputsdata': True, 'algorithms': True, 'algorithmtypes': True,
+                          'channels': True, 'remotes': True})
+        rebuildsystemdatadb(
+            {'metadata': True, 'netconfig': True, 'netstatus': True, 'versions': True, 'systemflags': True})
         rebuildrecipesdb({'recipes': True})
         rebuildsessiondb()
 
