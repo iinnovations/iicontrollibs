@@ -292,8 +292,8 @@ def rebuildsystemdatadb(tabledict):
         runquery = True
         table = 'netstatus'
         querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " ( address text, connected boolean, WANaccess text, latency real, SSID text, dhcpstatus boolean default 0, mode text , onlinetime text, offlinetime text, statusmsg text)")
-        querylist.append("insert into " + table + " values ('',0,'','','','','','','','')")
+        querylist.append("create table " + table + " ( address text default '', connected boolean default 0, WANaccess boolean default 0, latency real default 0, SSID text default '', dhcpstatus boolean default 0, mode text default station, onlinetime text, offlinetime text default '', statusmsg text default '')")
+        querylist.append("insert into " + table + "  default values")
 
     if 'netconfig' in tabledict:
         runquery = True
@@ -344,10 +344,10 @@ def rebuildrecipesdb(tabledict):
         querylist.append(
             "create table " + table + " ( stagenumber integer default 1, stagelength real default 0, setpointvalue real default 0, lengthmode text default 'setpoint', controlalgorithm text default 'on/off 1')")
         if addentries:
-            querylist.append("insert into " + table + " values ( 1, 300, 40, 'setpoint','on/off 1')")
-            querylist.append("insert into " + table + " values ( 2, 600, 60, 'setpoint','on/off 1')")
-            querylist.append("insert into " + table + " values ( 3, 600, 100, 'setpoint','on/off 1')")
-            querylist.append("insert into " + table + " values ( 4, 300, 40, 'setpoint','on/off 1')")
+            querylist.append("insert into " + table + " values ( 1, 180, 300, 'setpoint','on/off 1')")
+            querylist.append("insert into " + table + " values ( 2, 90, 360, 'setpoint','on/off 1')")
+            querylist.append("insert into " + table + " values ( 3, 60, 420, 'setpoint','on/off 1')")
+            querylist.append("insert into " + table + " values ( 4, 60, 60, 'setpoint','on/off 1')")
 
     if runquery:
         print(querylist)

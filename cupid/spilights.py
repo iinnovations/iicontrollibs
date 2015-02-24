@@ -22,8 +22,9 @@ def setrawspilights(enabledlists, CS=1):
 
     try:
         spi.open(0, CS)  # Port 0, CS1
+        spi.max_speed_hz = 50000
     except:
-        writedatedlogmsg(systemstatuslog, 'Rrror raised on spi open. exiting.', 0, systemstatusloglevel)
+        writedatedlogmsg(systemstatuslog, 'Error raised on spi open. exiting.', 0, systemstatusloglevel)
         exit
     else:
 
@@ -50,7 +51,8 @@ def setrawspilights(enabledlists, CS=1):
 
 
 def setspilights(lightsettingsarray, CS=1):
-    # Color LED assignments:
+
+    # Color LED assignments (to SPI):
     # list 1:
     # 1 : RGB 2 Green 
     # 2 : RGB 1 Blue 
@@ -72,6 +74,7 @@ def setspilights(lightsettingsarray, CS=1):
     # 7 : RGB 2 Blue 
     # 8 : RGB 2 Red 
 
+    # Light settings array argument input
     # RGB1, RGB2, RGB3, RGB4, singlered, singlegreen, singleblue, singleyellow
     RGB1 = lightsettingsarray[0]
     RGB2 = lightsettingsarray[1]
@@ -117,7 +120,7 @@ def twitterspilights(delay):
     run = True
     index = 0
     while run == True:
-        setspilights(settingsarray[index],CS)
+        setspilights(settingsarray[index])
         # print('sending')
         # print(settingsarray[index])
         time.sleep(delay)
@@ -142,13 +145,17 @@ def updatelightsfromdb(database, table, CS):
         d[name[0]] = status[0]
 
     # print(d)
-    setarray = [[d['SPI_RGB1_R'], d['SPI_RGB1_G'], d['SPI_RGB1_B']],
-                [d['SPI_RGB2_R'], d['SPI_RGB2_G'], d['SPI_RGB2_B']],
-                [d['SPI_RGB3_R'], d['SPI_RGB3_G'], d['SPI_RGB3_B']],
-                [d['SPI_RGB4_R'], d['SPI_RGB4_G'], d['SPI_RGB4_B']],
-                d['SPI_SC_R'], d['SPI_SC_G'], d['SPI_SC_B'],
-                d['SPI_SC_Y']]
-    setspilights(setarray, CS)
+    try:
+        setarray = [[d['SPI_RGB1_R'], d['SPI_RGB1_G'], d['SPI_RGB1_B']],
+                    [d['SPI_RGB2_R'], d['SPI_RGB2_G'], d['SPI_RGB2_B']],
+                    [d['SPI_RGB3_R'], d['SPI_RGB3_G'], d['SPI_RGB3_B']],
+                    [d['SPI_RGB4_R'], d['SPI_RGB4_G'], d['SPI_RGB4_B']],
+                    d['SPI_SC_R'], d['SPI_SC_G'], d['SPI_SC_B'],
+                    d['SPI_SC_Y']]
+    except KeyError:
+        print('key error on indicator keys')
+    else:
+        setspilights(setarray, CS)
 
 
 def getCuPIDlightsentries(table, CS, previndicators=None):
@@ -193,6 +200,6 @@ def getCuPIDlightsentries(table, CS, previndicators=None):
 
 if __name__ == '__main__':
     from pilib import controldatabase
-    updatelightsfromdb(controldatabase, 'indicators',1)
+    # updatelightsfromdb(controldatabase, 'indicators',1)
     #twitterspilights(1)
-    #setspilightsoff()
+    setspilightsoff()

@@ -12,6 +12,7 @@ def application(environ, start_response):
         sys.path.insert(0,top_folder)
 
     import cupid.pilib as pilib
+    import cupid.controllib as controllib
 
     post_env = environ.copy()
     post_env['QUERY_STRING'] = ''
@@ -190,10 +191,10 @@ def application(environ, start_response):
                     except:
                         output['message'] += 'Error reading file in getfiletext action. '
                     else:
-                        outputdata = []
+                        output['data'] = []
                         if startposition == 'end':
                             try:
-                                outputdata = pilib.tail(file, numlines)[0]
+                                output['data'] = pilib.tail(file, numlines)[0]
                             except:
                                 output['message'] += 'Error in tail read. '
                         else:
@@ -203,8 +204,7 @@ def application(environ, start_response):
                                 if linecount > numlines:
                                     break
                                 else:
-                                    outputdata.append(line)
-                        output['data'] = outputdata
+                                    output['data'].append(line)
             elif action == 'getmbtcpdata':
                 try:
                     clientIP = d['clientIP']
@@ -235,61 +235,64 @@ def application(environ, start_response):
                     else:
                         pilib.setsinglevalue(d['database'], d['table'], d['valuename'], d['value'])
                 else:
-                    output += 'Insufficient data for setvalue '
+                    output['message'] += 'Insufficient data for setvalue '
             elif action == 'updateioinfo':
                 if all(k in d for k in ('database' 'ioid', 'value')):
                     query = pilib.makesqliteinsert('ioinfo', [d['ioid'], d['value']], ['id', 'name'])
                     try:
                         pilib.sqliteinsertsingle(pilib.controldatabase, 'ioinfo', [d['ioid'], d['value']], ['id', 'name'])
                     except:
-                        output += 'Error in updateioinfo query execution: ' + query +'. '
-                        output += 'ioid: ' + d['ioid'] + ' . '
+                        output['message'] += 'Error in updateioinfo query execution: ' + query +'. '
+                        output['message'] += 'ioid: ' + d['ioid'] + ' . '
                     else:
-                        output += 'Executed updateioinfo query. '
+                        output['message'] += 'Executed updateioinfo query. '
                 else:
-                    output += 'Insufficient data for updateioinfo query. '
+                    output['message'] += 'Insufficient data for updateioinfo query. '
 
             # These are all very specific actions that could be rolled up or built into classes
             elif action == 'spchange' and 'database' in d:
-                output += 'Spchanged. '
-                if d['subaction'] == 'incup':
-                    pilib.controllib.incsetpoint(d['database'], d['channelname'])
-                    output += 'incup. '
-                if d['subaction'] == 'incdown':
-                    pilib.controllib.decsetpoint(d['database'], d['channelname'])
-                    output += 'incdown. '
-                if d['subaction'] == 'setvalue':
-                    pilib.controllib.setsetpoint(d['database'], d['channelname'], d['value'])
-                    output += 'Setvalue: ' + d['database'] + ' ' + d['channelname'] + ' ' + d['value']
+                output['message'] += 'Spchanged. '
+                if 'subaction' in d:
+                    if d['subaction'] == 'incup':
+                        controllib.incsetpoint(d['database'], d['channelname'])
+                        output['message'] += 'incup. '
+                    if d['subaction'] == 'incdown':
+                        controllib.decsetpoint(d['database'], d['channelname'])
+                        output['message'] += 'incdown. '
+                    if d['subaction'] == 'setvalue':
+                        controllib.setsetpoint(d['database'], d['channelname'], d['value'])
+                        output['message'] += 'Setvalue: ' + d['database'] + ' ' + d['channelname'] + ' ' + d['value']
+                else:
+                    output['message'] += 'subaction not found. '
             elif action == 'togglemode' and 'database' in d:
-                pilib.controllib.togglemode(d['database'], d['channelname'])
+                controllib.togglemode(d['database'], d['channelname'])
             elif action == 'setmode' and 'database' in d:
-                pilib.controllib.setmode(d['database'], d['channelname'], d['mode'])
+                controllib.setmode(d['database'], d['channelname'], d['mode'])
             elif action == 'setrecipe':
-                pilib.controllib.setrecipe(d['database'], d['channelname'], d['recipe'])
+                controllib.setrecipe(d['database'], d['channelname'], d['recipe'])
             elif action == 'setcontrolinput':
-                pilib.controllib.setcontrolinput(d['database'], d['channelname'], d['controlinput'])
+                controllib.setcontrolinput(d['database'], d['channelname'], d['controlinput'])
             elif action == 'setchannelenabled':
-                pilib.controllib.setchannelenabled(d['database'], d['channelname'], d['newstatus'])
+                controllib.setchannelenabled(d['database'], d['channelname'], d['newstatus'])
             elif action == 'setchanneloutputsenabled':
-                pilib.controllib.setchanneloutputsenabled(d['database'], d['channelname'], d['newstatus'])
+                controllib.setchanneloutputsenabled(d['database'], d['channelname'], d['newstatus'])
             elif action == 'manualactionchange' and 'database' in d and 'channelname' in d and 'subaction' in d:
                 curchanmode = pilib.controllib.getmode(d['database'], d['channelname'])
                 if curchanmode == 'manual':
                     if d['subaction'] == 'poson':
-                        pilib.controllib.setaction(d['database'], d['channelname'], '100.0')
+                        controllib.setaction(d['database'], d['channelname'], '100.0')
                     elif d['subaction'] == 'negon':
-                        pilib.controllib.setaction(d['database'], d['channelname'], '-100.0')
+                        controllib.setaction(d['database'], d['channelname'], '-100.0')
                     else:
-                        pilib.controllib.setaction(d['database'], d['channelname'], '0.0')
+                        controllib.setaction(d['database'], d['channelname'], '0.0')
             elif action == 'setposoutput' and 'database' in d and 'channelname' in d and 'outputname' in d:
-                pilib.controllib.setposout(d['database'], d['channelname'], d['outputname'])
+                controllib.setposout(d['database'], d['channelname'], d['outputname'])
             elif action == 'setnegoutput' and 'database' in d and 'channelname' in d:
-                pilib.controllib.setnegout(d['database'], d['channelname'], d['outputname'])
+                controllib.setnegout(d['database'], d['channelname'], d['outputname'])
             elif action == 'actiondown' and 'database' in d and 'channelname' in d:
-                curchanmode = pilib.controllib.getmode(d['database'], d['channelname'])
+                curchanmode = controllib.getmode(d['database'], d['channelname'])
                 if curchanmode == "manual":
-                    curaction = int(pilib.controllib.getaction(d['database'], d['channelname']))
+                    curaction = int(controllib.getaction(d['database'], d['channelname']))
                     if curaction == 100:
                         nextvalue = 0
                     elif curaction == 0:
@@ -298,11 +301,11 @@ def application(environ, start_response):
                         nextvalue = -100
                     else:
                         nextvalue = 0
-                    pilib.controllib.setaction(d['database'], d['channelname'], d['nextvalue'])
+                    controllib.setaction(d['database'], d['channelname'], d['nextvalue'])
             elif action == 'actionup' and 'database' in d and 'channelname' in d:
-                curchanmode = pilib.controllib.getmode(d['database'], d['channelname'])
+                curchanmode = controllib.getmode(d['database'], d['channelname'])
                 if curchanmode == "manual":
-                    curaction = int(pilib.controllib.getaction(d['database'], d['channelname']))
+                    curaction = int(controllib.getaction(d['database'], d['channelname']))
                     if curaction == 100:
                         nextvalue = 100
                     elif curaction == 0:
@@ -311,7 +314,7 @@ def application(environ, start_response):
                         nextvalue = 0
                     else:
                         nextvalue = 0
-                    pilib.controllib.setaction(d['database'], d['channelname'], nextvalue)
+                    controllib.setaction(d['database'], d['channelname'], nextvalue)
             elif action == 'deletechannelbyname' and 'database' in d and 'channelname' in d:
                 pilib.sqlitequery(d['database'], 'delete channelname from channels where name=\"' + d['channelname'] + '\"')
 

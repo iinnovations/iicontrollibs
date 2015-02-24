@@ -46,7 +46,7 @@ def runpicontrol(runonce=False):
             querylist = []
             channelindex = str(int(channel['channelindex']))
             channelname = channel['name']
-            logtablename = channel['name'] + '_log'
+            logtablename = 'channel' + '_' + channel['name'] + '_log'
             time = pilib.gettimestring()
             disableoutputs = True
 
@@ -259,8 +259,9 @@ def runpicontrol(runonce=False):
         if runonce:
             break
 
-        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Sleeping for .' + str(systemstatus['systemstatusfreq']), 2, pilib.systemstatusloglevel)
-        sleep(systemstatus['systemstatusfreq'])
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Picontrol leeping for ' + str(systemstatus['picontrolfreq']), 2, pilib.systemstatusloglevel)
+        pilib.writedatedlogmsg(pilib.controllog, 'Picontrol Sleeping for ' + str(systemstatus['picontrolfreq']), 2, pilib.systemstatusloglevel)
+        sleep(systemstatus['picontrolfreq'])
 
     pilib.writedatedlogmsg(pilib.systemstatuslog, 'picontrol not enabled. exiting.', 1, pilib.systemstatusloglevel)
 

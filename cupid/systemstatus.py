@@ -71,7 +71,17 @@ def updatenetstatus(lastnetstatus=None):
     netconfigdata = readonedbrow(systemdatadatabase, 'netconfig')[0]
 
     if not lastnetstatus:
-        lastnetstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
+        try:
+            lastnetstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
+        except:
+            pilib.writedatedlogmsg(pilib.systemstatuslog, 'Error reading netstatus. Attempting to recreate netstatus table with default values. ', 1, pilib.networkloglevel)
+            try:
+                pilib.emptyandsetdefaults(pilib.systemdatadatabase, 'netstatus')
+                lastnetstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
+            except:
+                pilib.writedatedlogmsg(pilib.systemstatuslog, 'Error recreating netstatus. ', 1, pilib.networkloglevel)
+
+
 
 
     ## Pyiface is one way to read some iface data
@@ -117,7 +127,7 @@ def updatenetstatus(lastnetstatus=None):
 
     if netconfigdata['netstatslogenabled']:
         # print('going to log stuff')
-        pilib.logtimevaluedata(pilib.logdatabase, 'WANping', time.time(), pingresult, 1000,
+        pilib.logtimevaluedata(pilib.logdatabase, 'system_WANping', time.time(), pingresult, 1000,
                                netconfigdata['netstatslogfreq'])
 
     # Check supplicant status, set on/offtime if necessary.

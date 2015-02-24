@@ -9,36 +9,40 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
-import quick2wire.spi as Spibus
-from bitstring import Bits
-import time
+try:
+    import quick2wire.spi as Spibus
+    from bitstring import Bits
+    import time
+except ImportError:
+    print("Quick2Wire and bistring not installed!")
 
 class MAX31855(object):
-    '''Python driver for [MAX38155 Cold-Junction Compensated Thermocouple-to-Digital Converter](http://www.maximintegrated.com/datasheet/index.mvp/id/7273)
-   
+    """Python driver for [MAX38155 Cold-Junction Compensated Thermocouple-to-Digital Converter](http://www.maximintegrated.com/datasheet/index.mvp/id/7273)
+
      Requires:
      - [quick2wire.spi, quick2wire.asm_generic_ioctl.py, quick2wire.spi_ctypes](https://github.com/quick2wire/quick2wire-python-api)
      - [bitstring](http://code.google.com/p/python-bitstring/)
      - [Raspberry Pi](http://www.raspberrypi.org/)
 
-    '''
+    """
 
     # TODO : include pin select for SPI TC read
-    def __init__(self, pin, units = "c"):
-        '''Initialize SPI bus
+    def __init__(self, pin, units="c", speed=50000):
+        """Initialize SPI bus
         
         Parameters:
         - pin:   CS pin used on Raspberry Pi (0 or 1) 
         - units: (optional) unit of measurement to return. ("c" (default) | "k" | "f")
         
-        '''
+        """
         self.pin = pin
         self.units = units
         self.data = None
         self.spi = Spibus.SPIDevice(self.pin, 0)
+        self.spi.max_speed_hz = speed
 
     def get(self):
-        '''Reads SPI bus and returns current value of thermocouple.'''
+        """Reads SPI bus and returns current value of thermocouple."""
         self.read()
         return getattr(self, "to_" + self.units)(self.bin_to_tc_temperature())
 
@@ -135,14 +139,19 @@ class MAX31855(object):
             result = (value == test[1])
             print('"{}" should equal {}: {} ({})'.format(test[0], test[1], result, value))
 
+
 class MAX31855Error(Exception):
-     def __init__(self, value):
+
+    def __init__(self, value):
          self.value = value
-     def __str__(self):
+
+    def __str__(self):
          return repr(self.value)
 
 if __name__ == "__main__":
     thermocouple = MAX31855(0, "f")
+    thermocouple.read()
+    # print(thermocouple.data)
     try:
         print(format(thermocouple.get()))
     except:

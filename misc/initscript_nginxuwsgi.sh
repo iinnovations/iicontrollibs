@@ -28,7 +28,7 @@ if [ $1 = "install" ]
     apt-get -y install php5-fpm
 
     # echo "configuring hamachi"
-    apt-get install lsb-core
+    apt-get -y install lsb-core
     wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.136-1_armhf.deb
     dpkg -i logmein-hamachi_2.1.0.136-1_armhf.deb
     hamachi login
@@ -141,6 +141,10 @@ else
 
     echo "Copying nginx site"
     cp /usr/lib/iicontrollibs/misc/nginx/nginxsite /etc/nginx/sites-available/default
+    echo "Complete"
+
+    echo "Copying nginx config"
+    cp /usr/lib/iicontrollibs/misc/nginx/ngin.conf /etc/nginx/nginx.conf
     echo "Complete"
 
     echo "Creating self-signed ssl cert"

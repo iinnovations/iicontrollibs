@@ -726,6 +726,13 @@ def readalldbrows(database, table, condition=None):
     return dictarray
 
 
+def emptyandsetdefaults(database, tablename):
+    querylist = []
+    querylist.append('delete from \'' + tablename + '\'')
+    querylist.append('insert into \'' + tablename + '\' default values')
+    sqlitemultquery(database,querylist)
+
+
 # Now we put them together into a dynamically typed function
 # that we specify operation based on what arguments we send
 # No location argument = entire database

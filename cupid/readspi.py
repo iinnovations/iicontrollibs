@@ -45,7 +45,7 @@ def recordspidata(database, valuedict, execute=False):
         querylist.append(pilib.makesqliteinsert('inputs',
                                                 valuelist=[key, 'SPI1', 'TC', '1', 'SPITC1', value, 'F', pilib.gettimestring(), 1,
                                                            '','']))
-        querylist.append(pilib.makesqliteinsert('ioinfo', valuelist=[key, key]))
+        querylist.append(pilib.makesqliteinsert('ioinfo', valuelist=[key, key, '']))
     if execute:
         pilib.sqlitemultquery(database, querylist)
 

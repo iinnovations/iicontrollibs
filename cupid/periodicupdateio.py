@@ -10,7 +10,9 @@ __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
 # This script runs the input reading scripts 
-# specified interval, sends to log, channels and plot dbs 
+# specified interval, sends to log, channels and plot dbs
+
+# TODO: Update to include better logging
 
 import pilib
 import updateio
@@ -23,7 +25,7 @@ updateioenabled = pilib.getsinglevalue(pilib.controldatabase, 'systemstatus', 'u
 
 while updateioenabled:
 
-    #print("runtime")
+    # print("runtime")
     #print("reading input")
     # Read again, once inside each loop so we terminate if the 
     # variable name is changed
@@ -64,13 +66,13 @@ while updateioenabled:
 
         if controlinput:
 
-            controlvalue=pilib.getsinglevalue(pilib.controldatabase, 'inputs', 'value', "name='" + controlinput + "'")
-            controltime=pilib.getsinglevalue(pilib.controldatabase, 'inputs', 'polltime', "name='" + controlinput + "'")
+            controlvalue = pilib.getsinglevalue(pilib.controldatabase, 'inputs', 'value', "name='" + controlinput + "'")
+            controltime = pilib.getsinglevalue(pilib.controldatabase, 'inputs', 'polltime',
+                                               "name='" + controlinput + "'")
 
             # Only update channel value if value was found
 
             if controlvalue is not None:
-
                 # print('control value for channel ' + channelname + ' = ' + str(controlvalue))
                 pilib.sqlitequery(pilib.controldatabase, 'update channels set controlvalue=' + str(
                     controlvalue) + ' where controlinput = ' + "'" + controlinput + "'")
@@ -78,7 +80,8 @@ while updateioenabled:
                                   'update channels set controlvaluetime=\'' + controltime + '\' where controlinput = ' + "'" + controlinput + "'")
 
         else:  # input is empty
-            pilib.sqlitequery(pilib.controldatabase, "update channels set statusmessage = 'No controlinput found ' where name='" + channelname + "'")
+            pilib.sqlitequery(pilib.controldatabase,
+                              "update channels set statusmessage = 'No controlinput found ' where name='" + channelname + "'")
 
             # disable channel
             #pilib.sqlitequery(controldatabase,"update channels set enabled=0 where controlinput = \'" + controlinput + "'") 
@@ -97,7 +100,6 @@ while updateioenabled:
         logtablename = 'input_' + inputrow['id'] + '_log'
 
         if pilib.isvalidtimestring(inputrow['polltime']):
-
             # Create table if it doesn't exist
 
 
@@ -105,7 +107,8 @@ while updateioenabled:
             pilib.sqlitequery(pilib.logdatabase, query)
 
             # Enter row
-            pilib.sqliteinsertsingle(pilib.logdatabase, logtablename, valuelist=[inputrow['value'], inputrow['polltime']],
+            pilib.sqliteinsertsingle(pilib.logdatabase, logtablename,
+                                     valuelist=[inputrow['value'], inputrow['polltime']],
                                      valuenames=['value', 'time'])
 
             # Clean log
@@ -121,7 +124,8 @@ while updateioenabled:
     ####################################################
     # log metadata
     pilib.getandsetmetadata(pilib.logdatabase)
-    #print("sleeping")
+
+    pilib.writedatedlogmsg(pilib.iolog,'Sleeping for ' + str(readtime), 1, pilib.iologlevel)
     sleep(readtime)
 
 pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set updateiostatus=\'0\'')
