@@ -212,6 +212,7 @@ def killapservices():
     writedatedlogmsg(networklog, 'Killing AP Services. ', 1, networkloglevel)
     try:
         subprocess.call(['/usr/sbin/service', 'hostapd', 'stop'])
+        subprocess.call(['/usr/bin/killall', 'hostapd'])
     except:
         writedatedlogmsg(networklog, 'Error killing hostapd. ', 0, networkloglevel)
     else:

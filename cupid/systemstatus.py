@@ -160,7 +160,6 @@ def updatenetstatus(lastnetstatus=None):
 
     # Else we are unconnected. do opposite of above
     else:
-        print('i know we are not connected')
         wpaconnected = 0
 
         # if we have an offline time, leave it alone, or set it to now if it is empty
@@ -192,7 +191,7 @@ def updatenetstatus(lastnetstatus=None):
         pilib.writedatedlogmsg(pilib.networklog, 'Error in reading dhcp server status:' + str(e), 1,
                                pilib.networkloglevel)
     else:
-        for line in result.stdout:
+        for line in result:
             if line.find('not running') > 0:
                 dhcpstatus = 0
             elif line.find('is running') > 0:
@@ -419,7 +418,6 @@ def runsystemstatus(runonce=False):
                 # If wpa is not connected
                 else:
                     wpastatusmsg += 'Station wpamode appears disconnected. '
-                    print('HSIT IS NOT OK')
                     pilib.writedatedlogmsg(pilib.networklog, 'wpamode appears disconnected. ', 1, pilib.networkloglevel)
 
                     if netstatus['offlinetime'] == '':

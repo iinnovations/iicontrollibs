@@ -1,0 +1,20 @@
+Metadata-Version: 1.1
+Name: quick2wire-api
+Version: 0.0.0.2
+Summary: Quick2Wire API for Physical Computing
+Home-page: http://quick2wire.com
+Author: Quick2Wire Ltd.
+Author-email: info@quick2wire.com
+License: LGPL or MIT
+Description: Quick2Wire API
+Platform: Linux
+Classifier: Development Status :: 4 - Beta
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: GNU Lesser General Public License (LGPL)
+Classifier: License :: OSI Approved :: MIT
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Natural Language :: English
+Classifier: Topic :: Software Development
+Provides: quick2wire

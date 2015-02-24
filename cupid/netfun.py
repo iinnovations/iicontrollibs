@@ -62,7 +62,7 @@ def runping(pingAddress, numpings=1):
 
 def getiwstatus():
     import subprocess
-    iwresult = subprocess.check_output('iwconfig')
+    iwresult = subprocess.check_output(['iwconfig','wlan0'])
     resultdict = {}
     for iwresult in iwresult.split('  '):
         if iwresult:
