@@ -259,7 +259,7 @@ def runpicontrol(runonce=False):
         if runonce:
             break
 
-        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Picontrol leeping for ' + str(systemstatus['picontrolfreq']), 2, pilib.systemstatusloglevel)
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Picontrol Sleeping for ' + str(systemstatus['picontrolfreq']), 2, pilib.systemstatusloglevel)
         pilib.writedatedlogmsg(pilib.controllog, 'Picontrol Sleeping for ' + str(systemstatus['picontrolfreq']), 2, pilib.systemstatusloglevel)
         sleep(systemstatus['picontrolfreq'])
 

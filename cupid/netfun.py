@@ -20,23 +20,23 @@ if top_folder not in sys.path:
 def runping(pingAddress, numpings=1):
     pingtimes = []
     from cupid import pilib
+    from subprocess import check_output, PIPE
     for i in range(numpings):
         # Perform the ping using the system ping command (one ping only)
         try:
-            rawPingFile = os.popen('ping -c 1 %s' % (pingAddress))
+            result = check_output(['ping','-c','1',pingAddress], stderr=PIPE)
         except:
             failed = True
             latency = 0
         else:
+            print(result)
             # Extract the ping time
-            rawPingData = rawPingFile.readlines()
-            rawPingFile.close()
-            if len(rawPingData) < 2:
+            if len(result) < 2:
                 # Failed to find a DNS resolution or route
                 failed = True
                 latency = 0
             else:
-                index = rawPingData[1].find('time=')
+                index = result.find('time=')
                 if index == -1:
                     # Ping failed or timed-out
                     failed = True
@@ -44,7 +44,7 @@ def runping(pingAddress, numpings=1):
                 else:
                     # We have a ping time, isolate it and convert to a number
                     failed = False
-                    latency = rawPingData[1][index + 5:]
+                    latency = result[index + 5:]
                     latency = latency[:latency.find(' ')]
                     latency = float(latency)
 
@@ -61,8 +61,8 @@ def runping(pingAddress, numpings=1):
 
 
 def getiwstatus():
-    import subprocess
-    iwresult = subprocess.check_output(['iwconfig','wlan0'])
+    from subprocess import check_output, PIPE
+    iwresult = check_output(['iwconfig', 'wlan0'], stderr=PIPE)
     resultdict = {}
     for iwresult in iwresult.split('  '):
         if iwresult:
@@ -105,14 +105,16 @@ def getwpaclientstatus():
     resultdict = {}
     try:
         writedatedlogmsg(networklog, 'Attempting WPA client status read. ', 4, networkloglevel)
-        result = subprocess.Popen(['/sbin/wpa_cli', 'status'], stdout=subprocess.PIPE)
+        result = subprocess.check_output(['/sbin/wpa_cli', 'status'], stderr=subprocess.PIPE)
     except:
         writedatedlogmsg(networklog, 'Error reading wpa client status. Setting error status for systemstatus to catch.', 0, networkloglevel)
         resultdict['wpa_state'] = 'ERROR'
     else:
         writedatedlogmsg(networklog, 'Completed WPA client status read. ', 4, networkloglevel)
+
         # prune interface ID
-        for resultitem in result.stdout:
+        resultitems = result.split('\n')
+        for resultitem in resultitems:
             if resultitem.find('=') > 0:
                 split = resultitem.split('=')
                 resultdict[split[0]] = split[1].strip()

@@ -6,17 +6,10 @@ echo $1
 if [ $1 = "install" ]
   then
 
-
     apt-get update
-    apt-get -y install nginx php5 sqlite3 php5-sqlite
-    a2enmod rewrite
+    apt-get -y php5 sqlite3 php5-sqlite
     apt-get -y install python-dev python3 python-setuptools
     apt-get -y install swig libfuse-dev libusb-dev php5-dev
-    apt-get -y install i2c-tools python-smbus
-    apt-get -y install hostapd
-    apt-get -y install isc-dhcp-server
-    update-rc.d -f isc-dhcp-server remove
-    update-rc.d -f apache2 remove
 
     apt-get -y install python-pip
     pip install rpi.gpio
@@ -24,10 +17,22 @@ if [ $1 = "install" ]
     apt-get -y install python-serial
     apt-get -y install python-gtk2
     apt-get -y install automake
+
+    apt-get -y install apache2 php5 sqlite3 php5-sqlite libapache2-mod-wsgi libapache2-mod-php5
+    a2enmod rewrite
+    update-rc.d -f apache2 remove
+
     apt-get -y install nginx
+    update-rc.d -f nginx remove
+
     apt-get -y install uwsgi
     apt-get -y install uwsgi-python-plugin
     apt-get -y install php5-fpm
+
+    apt-get -y install i2c-tools python-smbus
+    apt-get -y install hostapd
+    apt-get -y install isc-dhcp-server
+    update-rc.d -f isc-dhcp-server remove
 
     # echo "configuring hamachi"
     apt-get -y install lsb-core
@@ -216,7 +221,7 @@ else
     apt-get install quick2wire-python-api-master/
 
     echo "installing spi-dev"
-    ./setup.py install
+    pip install spidev
 
     echo "installing bitstring"
     apt-get install python3-pip

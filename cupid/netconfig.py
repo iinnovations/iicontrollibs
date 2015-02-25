@@ -206,6 +206,7 @@ def setstationmode(netconfigdata=None):
     writedatedlogmsg(networklog, 'Resetting wlan. ', 3, networkloglevel)
     resetwlan()
     sleep(1)
+    resetwlan()
 
 
 def killapservices():
@@ -262,8 +263,8 @@ def setapmode(netconfig=None):
 def resetwlan():
     writedatedlogmsg(networklog, 'Resetting wlan. ', 3, networkloglevel)
     try:
-        subprocess.call(['/sbin/ifdown', '--force', 'wlan0'])
-        subprocess.call(['/sbin/ifup', 'wlan0'])
+        subprocess.check_output(['/sbin/ifdown', '--force', 'wlan0'], stderr=subprocess.PIPE)
+        subprocess.call(['/sbin/ifup', 'wlan0'], stderr=subprocess.PIPE)
     except Exception, e:
         writedatedlogmsg(networklog, 'Error resetting wlan0: ' + str(e), 0, networkloglevel)
     else:
@@ -280,7 +281,6 @@ def runconfig(onboot=False):
     else:
         writedatedlogmsg(networklog, 'Successfully read netconfig data', 3, networkloglevel)
         if netconfigdata['enabled']:
-            print('I AM ENABLED')
             writedatedlogmsg(networklog, 'Netconfig is enabled', 3, networkloglevel)
 
             # This will grab the specified SSID and the credentials and update
@@ -289,7 +289,6 @@ def runconfig(onboot=False):
 
             # Copy the correct interfaces file
             if netconfigdata['mode'] == 'station':
-                print('I AM STATION MODE')
                 setstationmode(netconfigdata)
             elif netconfigdata['mode'] in ['ap', 'tempap']:
                 setapmode()
