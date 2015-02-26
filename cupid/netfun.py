@@ -20,11 +20,11 @@ if top_folder not in sys.path:
 def runping(pingAddress, numpings=1):
     pingtimes = []
     from cupid import pilib
-    from subprocess import check_output, PIPE
+    from subprocess import Popen, PIPE
     for i in range(numpings):
         # Perform the ping using the system ping command (one ping only)
         try:
-            result = check_output(['ping','-c','1',pingAddress], stderr=PIPE)
+            result, err = Popen(['ping','-c','1','8.8.8.8'], stdout=PIPE, stderr=PIPE).communicate()
         except:
             failed = True
             latency = 0

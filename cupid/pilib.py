@@ -38,9 +38,7 @@ daemonlog = logdir + 'daemon.log'
 daemonproclog = logdir + '/daemonproc.log'
 errorlog = logdir + '/error.log'
 
-
 salt = 'a bunch of random characters and symbols for security'
-
 
 maxlogsize = 1024  # kB
 numlogs = 5
@@ -92,9 +90,7 @@ def getgpiostatus():
     return gpiolist
 
 
-def getlogconfig():
-    logconfigdata = readonedbrow(controldatabase,'logconfig')[0]
-    return logconfigdata
+
 
 
 def writedatedlogmsg(logfile, message, reqloglevel=1, currloglevel=1):
@@ -832,4 +828,21 @@ def sqlitedatadump(databasename, tablelist, outputfilename, limit=None):
     with open(outputfilename, 'wb') as f:
         writer = csv.writer(f)
         writer.writerows(newdata)
+
+
+def getlogconfig():
+    logconfigdata = readonedbrow(controldatabase,'logconfig')[0]
+    return logconfigdata
+import logging
+
+levels = getlogconfig()
+
+networklogger = logging.getLogger('networklogger')
+networklogger.propagate = False
+formatter = logging.Formatter('%(asctime)s - %(message)s')
+
+fh = logging.FileHandler('/var/log/cupid/samplelogger.log')
+fh.setLevel(10)
+fh.setFormatter(formatter)
+networklogger.addHandler(fh)
 

@@ -381,6 +381,31 @@ def runsystemstatus(runonce=False):
         # table and also the systemstatus table
 
         if systemstatus['netconfigenabled']:
+
+            # We are going to hack in a jumper that sets AP configuration. This isn't the worst thing ever.
+            pilib.writedatedlogmsg(pilib.networklog, "Reading GPIO override", 3, pilib.networkloglevel)
+            pilib.writedatedlogmsg(pilib.systemstatuslog, "Reading GPIO override", 2, pilib.systemstatusloglevel)
+
+            import RPi.GPIO as GPIO
+            import pilib
+
+            pinaddress=21
+            try:
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setwarnings(False)
+                GPIO.setup(pinaddress, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            except:
+                pilib.writedatedlogmsg(pilib.networklog, "Error reading GPIO", 3, pilib.networkloglevel)
+            else:
+                # jumper in place = input off, --> AP mode
+                if not GPIO.input(pinaddress):
+                    pilib.writedatedlogmsg(pilib.networklog, "GPIO On. Setting AP Mode.", 3, pilib.networkloglevel)
+                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'ap')
+                else:
+                    pilib.writedatedlogmsg(pilib.networklog, "GPIO Off. Setting Station Mode.", 3, pilib.networkloglevel)
+                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'station')
+
+
             pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running interface configuration. ', 4,
                                    pilib.systemstatusloglevel)
             pilib.writedatedlogmsg(pilib.networklog, 'Running interface configuration. Mode: ' + netconfigdata['mode'], 4,
