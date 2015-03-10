@@ -18,11 +18,14 @@ baselibdir = '/usr/lib/iicontrollibs/'
 databasedir = '/var/www/data/'
 onewiredir = '/var/1wire/'
 outputdir = '/var/www/data/'
+
 controldatabase = databasedir + 'controldata.db'
 logdatabase = databasedir + 'logdata.db'
 sessiondatabase = databasedir + 'authlog.db'
 recipedatabase = databasedir + 'recipedata.db'
 systemdatadatabase = databasedir + 'systemdata.db'
+motesdatabase = databasedir + 'motes.db'
+
 safedatabase = '/var/wwwsafe/safedata.db'
 usersdatabase = '/var/wwwsafe/users.db'
 
@@ -367,7 +370,6 @@ def ordertableindices(databasename, tablename, indicestoorder, uniqueindex):
 
     # print(queryarray)
     sqlitemultquery(databasename, queryarray)
-
 
 def logtimevaluedata(database, tablename, timeinseconds, value, logsize=5000, logfrequency=0):
     timestring=gettimestring(timeinseconds)
@@ -762,8 +764,8 @@ def sizesqlitetable(databasename, tablename, size):
     return (logexcess)
 
 
-def getfirsttimerow(database, tablename):
-    query = 'select * from \'' + tablename + '\' order by time limit 1'
+def getfirsttimerow(database, tablename, timecolname='time'):
+    query = 'select * from \'' + tablename + '\' order by \'' + timecolname + '\' limit 1'
     data = sqlitequery(database, query)[0]
     try:
         dict = datarowtodict(database, tablename, data)
@@ -835,14 +837,17 @@ def getlogconfig():
     return logconfigdata
 import logging
 
-levels = getlogconfig()
 
-networklogger = logging.getLogger('networklogger')
-networklogger.propagate = False
-formatter = logging.Formatter('%(asctime)s - %(message)s')
+## Not used yet. Eventually convert to python logging module
 
-fh = logging.FileHandler('/var/log/cupid/samplelogger.log')
-fh.setLevel(10)
-fh.setFormatter(formatter)
-networklogger.addHandler(fh)
+# levels = getlogconfig()
+#
+# networklogger = logging.getLogger('networklogger')
+# networklogger.propagate = False
+# formatter = logging.Formatter('%(asctime)s - %(message)s')
+#
+# fh = logging.FileHandler('/var/log/cupid/samplelogger.log')
+# fh.setLevel(10)
+# fh.setFormatter(formatter)
+# networklogger.addHandler(fh)
 

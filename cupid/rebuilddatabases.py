@@ -13,7 +13,7 @@ __status__ = "Development"
 # This script resets the control databases
 
 from pilib import sqlitemultquery, controldatabase, systemdatadatabase, recipedatabase, sessiondatabase, safedatabase, \
-    usersdatabase
+    usersdatabase, motesdatabase
 
 ################################################
 # Main control database
@@ -368,6 +368,43 @@ def rebuildrecipesdb(tabledict):
 
 
 ############################################
+# motes raw data
+
+
+def rebuildmotesdb(tabledict):
+    runquery = False
+    querylist = []
+    addentries = True
+    if 'readmessages' in tabledict:
+        runquery = True
+
+        table = 'readmessages'
+        querylist.append('drop table if exists ' + table)
+        querylist.append(
+            "create table " + table + " ( time text default '', message text default '' )")
+
+    if 'queuedmessages' in tabledict:
+        runquery = True
+
+        table = 'queuedmessages'
+        querylist.append('drop table if exists ' + table)
+        querylist.append(
+            "create table " + table + " ( queuedtime text default '', message text default '' )")
+
+    if 'sentmessages' in tabledict:
+        runquery = True
+
+        table = 'sentmessages'
+        querylist.append('drop table if exists ' + table)
+        querylist.append(
+            "create table " + table + " ( queuedtime text default '', senttime text default '', message text default '' )")
+
+    if runquery:
+        print(querylist)
+
+        sqlitemultquery(motesdatabase, querylist)
+
+############################################
 # userstabledata
 
 
@@ -457,7 +494,7 @@ if __name__ == "__main__":
         rebuildcontroldb({'actions': True, 'modbustcp': True, 'logconfig': True, 'defaults': True, 'systemstatus': True,
                           'indicators': True, 'inputs': True, 'outputs': True, 'owfs': True, 'ioinfo': True,
                           'interfaces': True, 'inputsdata': True, 'algorithms': True, 'algorithmtypes': True,
-                          'channels': True, 'remotes': True})
+                          'channels': True, 'remotes': True, 'mote':True})
         rebuildsystemdatadb(
             {'metadata': True, 'netconfig': True, 'netstatus': True, 'versions': True, 'systemflags': True})
         rebuildrecipesdb({'recipes': True})
@@ -467,6 +504,18 @@ if __name__ == "__main__":
         answer = raw_input('Rebuild wireless table (y/N)?')
         if answer == 'y':
             rebuildsafedata()
+
+        answer = raw_input('Rebuild motes received messages table (y/N)?')
+        if answer == 'y':
+            rebuildmotesdb('readmessages')
+
+        answer = raw_input('Rebuild motes queued messages table (y/N)?')
+        if answer == 'y':
+            rebuildmotesdb('queuedmessages')
+
+        answer = raw_input('Rebuild motes sent messages table (y/N)?')
+        if answer == 'y':
+            rebuildmotesdb('sentmessages')
 
         answer = raw_input('Rebuild users table (y/N)?')
         if answer == 'y':

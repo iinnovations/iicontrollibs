@@ -59,11 +59,20 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True):
                     print('error processing message')
                 else:
                     for datadict, message in zip(datadicts, messages):
-                        print("datadict: ")
-                        print(datadict)
+                        # print("datadict: ")
+                        # print(datadict)
                         print("message: ")
                         print(message.strip())
-                        # try:
+
+                        publish=False
+                        for k in datadict:
+                            if k not in ['nodeid','RX_RSSI']:
+                                # print('publishing')
+                                print('LOGGING SHIT')
+                                statusresult = lograwmessages(message)
+
+                        pilib.sizesqlitetable(pilib.motesdatabase, 'readmessages', 1000)
+
                         statusresult = processremotedata(datadict, message)
                         # except:
                         #     print('error processing returned datadict, message:')
@@ -71,10 +80,37 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True):
                         # else:
                         #     print("message parse was successful")
                         #     print(message)
-
+            else:
+                # no data, let's see if we should send message
+                try:
+                    lastqueuedmessage = pilib.getfirsttimerow(pilib.motesdatabase, 'queuedmessages', 'queuedtime')[0]
+                except IndexError:
+                    # no rows
+                    # print('we have an error getting a queued message. Could be just no message.')
+                    pass
+                else:
+                    # send queued message
+                    print(lastqueuedmessage)
+                    try:
+                        print('going to send message:')
+                        print(lastqueuedmessage['message'])
+                        ser.write(lastqueuedmessage['message'].encode())
+                        # sendserialmessage(ser, lastqueuedmessage['message'])
+                    except:
+                        print('oops')
+                    else:
+                        print('that worked out. remove message from queue')
+                        conditionnames = ['queuedtime', 'message']
+                        conditionvalues = [lastqueuedmessage['queuedtime'], lastqueuedmessage['message']]
+                        delquery = pilib.makedeletesinglevaluequery('queuedmessages', {'conditionnames':conditionnames, 'conditionvalues':conditionvalues})
+                        pilib.sqlitequery(pilib.motesdatabase, delquery)
+                        print('move to sent messages')
+                        pilib.sqliteinsertsingle(pilib.motesdatabase, 'sentmessages', [lastqueuedmessage['queuedtime'], pilib.gettimestring(), lastqueuedmessage['message']])
             data = []
+
         else:
             data.append(ch)
+
         if checkstatus:
             thetime = mktime(localtime())
             if thetime-checktime > checkfrequency:
@@ -89,6 +125,10 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True):
                     pilib.writedatedlogmsg(pilib.iolog, 'Aborting serialhandler based on status check',3,pilib.iologlevel)
 
 
+def sendserialmessage(serobject, message):
+    serobject.write(message.encode())
+
+
 def processserialdata(data):
     from cupid.pilib import parseoptions
     datadicts = []
@@ -98,21 +138,31 @@ def processserialdata(data):
     split1 = data.strip().split('BEGIN RECEIVED')
     for split in split1:
         if split.find('END RECEIVED') >= 0:
-            message = split.split('END RECEIVED')[0]
-            print(message)
+            message = split.split('END RECEIVED')[0].replace('\x00', '')
+            # print(message)
             messages.append(message.strip())
             try:
                 datadict = parseoptions(message)
             except:
                 print('error parsing message: ' + message)
             else:
-                print(datadict)
+                # print(datadict)
                 datadicts.append(datadict)
     # except:
     #     print('there was an error processing the message')
     #     return
     # else:
     return datadicts, messages
+
+
+def lograwmessages(message):
+    from cupid.pilib import sqliteinsertsingle, motesdatabase, gettimestring
+    try:
+        sqliteinsertsingle(motesdatabase, 'readmessages', [gettimestring(), str(message)])
+    except:
+        return {'status':1, 'message':'query error'}
+    else:
+        return{'status':0, 'message':'ok' }
 
 
 def processremotedata(datadict, stringmessage):
@@ -167,7 +217,10 @@ def processremotedata(datadict, stringmessage):
             # {chan:name,sp:XXX.XXX,pv:XXX.XXX,act:XXX.XXX}
             pass
         elif 'scalevalue' in datadict:
-            pass
+            querylist.append('create table if not exists scalevalues (value float, time string)')
+            querylist.append(pilib.makesqliteinsert('scalevalues',[datadict['scalevalue'], pilib.gettimestring()],['value','time']))
+            pilib.sqlitemultquery(pilib.logdatabase, querylist)
+
         if runquery:
             print('running query')
             print(stringmessage.strip())
@@ -180,7 +233,8 @@ def processremotedata(datadict, stringmessage):
 
             return
         else:
-            print('not running query')
+            # print('not running query')
+            pass
 
 if __name__ == '__main__':
     monitor(checkstatus=False)

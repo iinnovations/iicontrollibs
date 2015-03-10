@@ -216,7 +216,17 @@ def application(environ, start_response):
                     from cupid.netfun import readMBcodedaddresses
                     # try:
                     output['response'] = readMBcodedaddresses(clientIP, int(register), int(length))
-
+            elif action == 'queuemessage':
+                output['message'] += 'Queue message. '
+                if 'message' in d:
+                    try:
+                        pilib.sqliteinsertsingle(pilib.motesdatabase, 'queuedmessages', [pilib.gettimestring(), d['message']])
+                    except Exception, e:
+                        output['message'] += 'Error in queue insert query: ' + str(e)
+                    else:
+                        output['message'] += 'Message insert successful'
+                else:
+                    output['message'] += 'No message present. '
             elif action == 'setsystemflag' and 'systemflag' in d:
                 database = pilib.systemdatadatabase
                 pilib.setsinglevalue(database, 'systemflags', 'value', 1, "name=\'" + d['systemflag'] + "'")
