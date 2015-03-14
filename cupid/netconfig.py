@@ -128,7 +128,6 @@ def updatewpasupplicant():
         writedatedlogmsg(networklog, 'Error updating supplicant data. ', 0, networkloglevel)
     else:
         writedatedlogmsg(networklog, 'Supplicant data retrieved successfully. ', 3, networkloglevel)
-
     try:
         writesupplicantfile(updateddata)
     except:
