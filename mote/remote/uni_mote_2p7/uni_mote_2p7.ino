@@ -1,9 +1,10 @@
-// UniMote sketch, based on the great example 
 
 // Colin Reese, CuPID Controls, Interface Innovations
+// UniMote sketch, based on the great example by lowpowerlab
 
-// Library and code by Felix Rusu - felix@lowpowerlab.com
+// RFM69 and SPIFlash Library by Felix Rusu - felix@lowpowerlab.com
 // Get the RFM69 and SPIFlash library at: https://github.com/LowPowerLab/
+
 #include <RFM69.h>
 //#include <RFM69registers.h>
 #include <SPI.h>
@@ -33,8 +34,9 @@
 
 #define DEBUG 1
 
-#define INIT 1
-#define ACK_TIME      30 // max # of ms to wait for an ack
+#define INIT 0
+#define ACK_TIME      500 // max # of ms to wait for an ack
+#define RETRIES 1
 
 // These values are either initialized or retrieved from Flash
 byte NODEID;
@@ -53,28 +55,30 @@ boolean requestACK = false;
 SPIFlash flash(FLASH_SS, 0xEF30); //EF30 for 4mbit  Windbond chip (W25X40CL)
 RFM69 radio;
 
-unsigned int LOOPPERIOD = 1000; // ms
+unsigned int LOOPPERIOD = 100; // ms
 
 // constants
 //PROGMEM char ionames[13][3] = { "D3","D4","D5","D6","D7","A0","A1","A2","A3","A4","A5","A6","A7" };
 byte iopins[13] = { 3,4,5,6,7,A0,A1,A2,A3,A4,A5,A6,A7 };
 byte owpin;
 
+byte serialrfecho;
+
 // user-assigned variables
-byte ioenabled[13];
-byte iomode[13];
+int8_t ioenabled[13];
+int8_t iomode[13];
 float iovalue[13];
-byte ioreportenabled[13];
+int8_t ioreportenabled[13];
 unsigned long ioreportfreq[13];
 unsigned long ioreadfreq[13];
 
-byte chanenabled[8] = {1,0,0,0,0,0,0,0};
+int8_t chanenabled[8] = {1,0,0,0,0,0,0,0};
 int8_t chanposfdbk[8] = {0,0,0,0,0,0,0,0};   // -1 is no pos fdbk
 int8_t channegfdbk[8] = {-1,0,0,0,0,0,0,0};  // -1 is no neg fdbk
-byte chanmode[8]; // reserved
-byte chandeadband[8];
+int8_t chanmode[8]; // reserved
+int8_t chandeadband[8];
 int8_t chanstate[8];
-byte chanpvindex[8] = {5,0,0,0,0,0,0,0};
+int8_t chanpvindex[8] = {5,0,0,0,0,0,0,0};
 float chanpv[8];
 float chansv[8] = {15,0,0,0,0,0,0,0};
 
@@ -90,7 +94,7 @@ unsigned long looptime = 0;
 char buff[61];
 
 // make these global to allow subroutines without crazy pointers
-char charstr1[12];
+char charstr1[57];
 char charstr2[12];
 char charstr3[25];
 char charstr4[40];
@@ -142,7 +146,6 @@ void setup() {
   // These are values that are not ever stored permanently
   int i;
   for (i=0;i<13;i++) {
-     ioreportenabled[i] = ioenabled[i];
      ioreportfreq[i] = 0; // 0 means report when read
      ioreporttimer[i] = 9999999;
      ioreadtimer[i] = 9999999;
@@ -164,6 +167,7 @@ void loop() {
   
   // READ IO
   looptime += millis() - prevtime; // includes time taken to process
+//  Serial.println(looptime);
   int i;
   for (i=0;i<13;i++) {
     ioreporttimer[i] += looptime;
@@ -194,7 +198,7 @@ void loop() {
           
           // send/broadcast if enabled and freq is 0
           if ((ioreportenabled[i]) && (ioreportfreq[i] == 0)){
-            sendIOMessage(iopins[i], iomode[i], iovalue[i]);             
+            sendIOMessage(i, iomode[i], iovalue[i]);             
           } // ioreportfreq == 0
         }
         else if (iomode[i] == 1) { // Digital Output
@@ -205,7 +209,7 @@ void loop() {
           
           // send/broadcast if enabled and freq is 0
           if ((ioreportenabled[i]) && (ioreportfreq[i] == 0)){
-            sendIOMessage(iopins[i], iomode[i], iovalue[i]);
+            sendIOMessage(i, iomode[i], iovalue[i]);
           } // ioreportfreq == 0
         }
         else if (iomode[i] == 2) { // Analog Input
@@ -217,9 +221,18 @@ void loop() {
 //          Serial.println(iovalue[i]);
 //          int wholePart = iovalue[i];
           if ((ioreportenabled[i]) && (ioreportfreq[i] == 0)){
-            sendIOMessage(iopins[i], iomode[i], iovalue[i]);
+            sendIOMessage(i, iomode[i], iovalue[i]);
           } // ioreportfreq == 0 
         }
+        else if (iomode[i] == 3) { // PWM
+//          Serial.print(F("PWM Configured for pin"));
+//          Serial.print(iopins[i]);
+          
+          // pwm code goes here
+          
+        } // If PWM
+        // This 1Wire code is not optimized and reads synchronously
+        // asynchronous has been written but needs to be squeezed in here
         else if (iomode[i] == 4) { //OneWire
 //          Serial.print(F("1Wire configured for pin "));
 //          Serial.println(iopins[i]);
@@ -228,13 +241,7 @@ void loop() {
           handleOWIO(i);
 
         } // If OneWire
-        else if (iomode[i] == 3) { // PWM
-//          Serial.print(F("PWM Configured for pin"));
-//          Serial.print(iopins[i]);
-          
-          // pwm code goes here
-          
-        } // If PWM
+
       } // If timer   
     } // If enabled
     else { // not enabled
@@ -252,7 +259,7 @@ void loop() {
         // most notably, no onewire address or type
         
         // Initialize send stringsend
-        sendIOMessage(iopins[i],iomode[i],iovalue[i]);
+        sendIOMessage(i,iomode[i],iovalue[i]);
        
     } // time to report
   }
@@ -331,14 +338,18 @@ void loop() {
     
     // SERIAL RECEIVE AND PROCESSING
     // Check for any received packets
-    int cmdlength;
+    int cmdlength =0;
+    
     if (Serial.available() > 0)
     {
+      Blink(LED,5);
       cmdlength = Serial.readBytes(buff, 60);
       for (i=0; i<cmdlength;i++){
-        Serial.print(buff[i]);
+//        Serial.print(buff[i]);
       }
-      Serial.println();
+//      Serial.println();
+      // Send to gateway
+      buff[cmdlength]=0;
       processcmdstring(buff, cmdlength, 0);
       
       // Reset sleepdelay timer
@@ -351,6 +362,7 @@ void loop() {
     // Check for any received packets
     if (radio.receiveDone())
     {
+      Blink(LED,5);
       Serial.println(F("BEGIN RECEIVED"));
       Serial.print(F("nodeid:"));Serial.print(radio.SENDERID, DEC);Serial.print(F(","));
       cmdlength=0;
@@ -362,16 +374,18 @@ void loop() {
       Serial.print(F(",RX_RSSI:"));
       Serial.println(radio.RSSI);
       Serial.println(F("END RECEIVED"));
-      
-      if (cmdlength > 0){
-        processcmdstring(buff, cmdlength, radio.SENDERID);
-      }
+      byte replynode = radio.SENDERID;
       if (radio.ACKRequested())
       {
         radio.sendACK();
+        Blink(LED,5);
         Serial.println(F(" - ACK sent"));
       } // ack requested
-      Blink(LED,5);
+      if (cmdlength > 0){
+        processcmdstring(buff, cmdlength, replynode);
+      }
+
+      
       
       // Reset sleepdelay timer
       millistart = millis();
@@ -394,7 +408,7 @@ void loop() {
    Serial.println(F("Exit Sleep"));
   } 
   
-  Blink(LED,3);
+//  Blink(LED,3);
    
   // Do our sleep or delay
   if (SLEEPMODE) {
@@ -491,55 +505,62 @@ void processcmdstring(String cmdstring, int cmdlength, byte replynode){
   replylength=0;
   replystring[0]=0;
   
-  if (cmdstring[0] == '~'){
+
 //    Serial.println(F("Command character received"));
-    int strord=1;
-    for (i=1;i<cmdlength;i++){
-      if (cmdstring[i] != ';' || strord == 4){
-        if (cmdstring[i] != '\n' && cmdstring[i] != '\0' && cmdstring[i] != '\r'){
-          if (strord == 1){
+
+// we need to prune ~ from first string only
+  int strord=1;
+  for (i=0;i<cmdlength;i++){
+    if ((cmdstring[i] != ';' && cmdstring[i] != '\n' )|| strord == 4){
+      if (cmdstring[i] != '\n' && cmdstring[i] != '\0' && cmdstring[i] != '\r' && ! (i==0 && cmdstring[i] == '~')){
+        if (strord == 1){
+          if (str1len < 56) {
             charstr1[str1len]=cmdstring[i];
-            str1len++;
-          }
-          else if (strord == 2){
-            charstr2[str2len]=cmdstring[i];
-            str2len++;
-          }
-          else if (strord == 3){
-            charstr3[str3len]=cmdstring[i];
-            str3len++;
-          }
-          else if (strord == 4){
-            charstr4[str4len]=cmdstring[i];
-            str4len++;
           }
           else {
-            Serial.println(F("Error in parse"));
+            charstr1[str1len]='#';
+            strord++;
           }
+          str1len++;
         }
-      } // cmdstring is not ;
-      
-      else { // cmdstring is ;
-        strord ++;
-      }  //cmdstring is ;
-    } // for each character 
-    // Terminate strings
+        else if (strord == 2){
+          charstr2[str2len]=cmdstring[i];
+          str2len++;
+        }
+        else if (strord == 3){
+          charstr3[str3len]=cmdstring[i];
+          str3len++;
+        }
+        else if (strord == 4){
+          charstr4[str4len]=cmdstring[i];
+          str4len++;
+        }
+        else {
+          Serial.println(F("Error in parse"));
+        }
+      } // if not special character
+    } // if not ;
+    else { // cmdstring is ; or \n
+      strord ++;
+    }  //cmdstring is ;
+  } // for each character 
+  // Terminate strings
     
     charstr1[str1len]=0;
     charstr2[str2len]=0;
     charstr3[str3len]=0;
     charstr4[str4len]=0;
     
-    Serial.println(charstr1);
-    Serial.println(charstr2);
-    Serial.println(charstr3);
-    Serial.println(charstr4);
-
-      
+//    Serial.println(charstr1);
+//    Serial.println(charstr2);
+//    Serial.println(charstr3);
+//    Serial.println(charstr4);
+    
+  if (cmdstring[0] == '~'){    
     if (strcmp(charstr1,"lp")==0) {
         listparams(charstr2,atoi(charstr3));
-        Serial.println(F("THE REPLYLENGTH"));
-        Serial.println(replylength);
+//        Serial.println(F("THE REPLYLENGTH"));
+//        Serial.println(replylength);
     }
     else if (strcmp(charstr1,"reset")==0) {
         FLASH_STRING(msgbuffer, "cmd:reset");
@@ -550,83 +571,87 @@ void processcmdstring(String cmdstring, int cmdlength, byte replynode){
     else if (strcmp(charstr1,"gosleep")==0) {
       SLEEPDELAYTIMER=65535;  // send mote to sleep
     }
-    else if (strcmp(charstr1,"modparam")==0) {
+    else if (strcmp(charstr1,"mp")==0) {
+      
+      // modparams sequence
       FLASH_STRING(msgbuffer, "cmd:mp,");
       msgbuffer.copy(&replystring[replylength], 7);
       replylength+=7;
       
-      Serial.println(charstr2);
-      if (strcmp(charstr2,"loopperiod")==0) {
-        FLASH_STRING(msgbuffer2, "param:loopperiod,setvalue:");
-        msgbuffer2.copy(&replystring[replylength], 26);
-        replylength+=26;
+//      Serial.println(charstr2);
+      if (strcmp(charstr2,"loop")==0) {
+        FLASH_STRING(msgbuffer2, "param:loop,sv:");
+        msgbuffer2.copy(&replystring[replylength], 14);
+        replylength+=14;
         
         memcpy(&replystring[replylength], charstr3, str3len );
         replylength+=str3len;
-        
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 1);
-        replylength+=1;
-        
-        long newvalue = atoi(charstr3)*100;
-        if (newvalue >= 0 && newvalue < 600000){
-          FLASH_STRING(msgbuffer4, "status:0");
-          msgbuffer4.copy(&replystring[replylength], 8);
-          replylength+=8;
-          // deliver in seconds, translate to ms
+        addcomma(replystring,replylength);
+ 
+        long newvalue = atoi(charstr3)*10;
+        if (newvalue > 0 && newvalue < 600000){
+          addstatusok(replystring, replylength);
+            
+          // deliver in seconds, translate to msio
           LOOPPERIOD = newvalue;
           storeparams();
         }
         else {
-          FLASH_STRING(msgbuffer4, "status:1,error:out of range");
-          msgbuffer4.copy(&replystring[replylength], 27);
-          replylength+=27;
+          addsverror(replystring,replylength);
         }
       } // loopperiod
-      if (strcmp(charstr2,"sleepmode")==0) {
-        FLASH_STRING(msgbuffer2, "param:sleepmode,setvalue:");
-        msgbuffer2.copy(&replystring[replylength], 26);
-        replylength+=26;
+      else if (strcmp(charstr2,"rfech")==0) {
+        FLASH_STRING(msgbuffer2, "param:rfech,sv:");
+        msgbuffer2.copy(&replystring[replylength], 17);
+        replylength+=17;
         
         memcpy(&replystring[replylength], charstr3, str3len );
         replylength+=str3len;
+        addcomma(replystring,replylength);
         
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 26);
-        replylength+=1;
+        long newvalue = atoi(charstr3);
+        if (newvalue >= 0 && newvalue <= 1){
+          addstatusok(replystring, replylength);
+          // deliver in seconds, translate to msio
+          serialrfecho = newvalue;
+          storeparams();
+        }
+        else {
+          addsverror(replystring,replylength);
+        }
+      } // loopperiod
+      else if (strcmp(charstr2,"slpmd")==0) {
+        FLASH_STRING(msgbuffer2, "param:slpmd,sv:");
+        msgbuffer2.copy(&replystring[replylength], 15);
+        replylength+=15;
+        
+        memcpy(&replystring[replylength], charstr3, str3len );
+        replylength+=str3len;
+        addcomma(replystring,replylength);
         
         byte newvalue = atoi(charstr3);
         if (newvalue == 0) {
           SLEEPMODE = 0;
           storeparams();
-          FLASH_STRING(msgbuffer4, "status:0");
-          msgbuffer4.copy(&replystring[replylength], 8);
-          replylength+=8;
+          addstatusok(replystring, replylength);
         }
         else if (newvalue == 1) {
           SLEEPMODE = 1;
           storeparams();
-          FLASH_STRING(msgbuffer4, "status:0");
-          msgbuffer4.copy(&replystring[replylength], 8);
-          replylength+=8;
+          addstatusok(replystring, replylength);
         }
         else {
-          FLASH_STRING(msgbuffer4, "status:1,error:out of range");
-          msgbuffer4.copy(&replystring[replylength], 27);
-          replylength+=27;
+          addsverror(replystring,replylength);
         }
       } // sleepmode
-      else if (strcmp(charstr2,"sleepdelay")==0) {
-        FLASH_STRING(msgbuffer2, "param:sleepdelay,setvalue:");
-        msgbuffer2.copy(&replystring[replylength], 26);
-        replylength+=26;
+      else if (strcmp(charstr2,"slpdly")==0) {
+        FLASH_STRING(msgbuffer2, "param:slpdly,sv:");
+        msgbuffer2.copy(&replystring[replylength], 16);
+        replylength+=16;
         
         memcpy(&replystring[replylength], charstr3, str3len );
         replylength+=str3len;
-        
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 1);
-        replylength+=1;
+        addcomma(replystring,replylength);
         
         long newvalue = atoi(charstr3)*100;
         if (newvalue >= 300 && newvalue < 60000){
@@ -639,23 +664,18 @@ void processcmdstring(String cmdstring, int cmdlength, byte replynode){
           //replystring+="Sleepdelay value out of range";
         }
       } // sleepdelay
-      else if (strcmp(charstr2,"nodeid")==0) {
-        FLASH_STRING(msgbuffer2, "param:nodeid,setvalue:");
-        msgbuffer2.copy(&replystring[replylength], 22);
-        replylength+=22;
+      else if (strcmp(charstr2,"node")==0) {
+        FLASH_STRING(msgbuffer2, "param:node,sv:");
+        msgbuffer2.copy(&replystring[replylength], 14);
+        replylength+=14;
         
         memcpy(&replystring[replylength], charstr3, str3len );
         replylength+=str3len;
-        
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 1);
-        replylength+=1;
+        addcomma(replystring,replylength);
         
         long newvalue = atoi(charstr3);
-        if (newvalue >= 2 && newvalue < 256){
-          FLASH_STRING(msgbuffer4, "status:0");
-          msgbuffer4.copy(&replystring[replylength], 8);
-          replylength+=8;
+        if (newvalue >= 2 && newvalue < 256  && str3len>0){
+          addstatusok(replystring, replylength);
           
           // deliver in seconds, translate to ms
           NODEID = newvalue;
@@ -663,505 +683,398 @@ void processcmdstring(String cmdstring, int cmdlength, byte replynode){
           storeparams();
         }
         else {
-          FLASH_STRING(msgbuffer4, "status:1,error:out of range");
-          msgbuffer4.copy(&replystring[replylength], 27);
-          replylength+=27;
+          addsverror(replystring,replylength);
         }
       } // nodeid
-      else if (strcmp(charstr2,"networkid")==0) {
-        FLASH_STRING(msgbuffer2, "param:networkid,setvalue:");
-        msgbuffer2.copy(&replystring[replylength], 25);
-        replylength+=25;
+      else if (strcmp(charstr2,"nw")==0) {
+        FLASH_STRING(msgbuffer2, "param:nw,sv:");
+        msgbuffer2.copy(&replystring[replylength], 12);
+        replylength+=12;
         
         memcpy(&replystring[replylength], charstr3, str3len );
-        replylength+=str3len;
-        
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 1);
-        replylength+=1;
+        replylength+=str3len;  
+        addcomma(replystring,replylength);
         
         long newvalue = atoi(charstr3);
-        if (newvalue >= 1 && newvalue < 256){
-          FLASH_STRING(msgbuffer4, "status:0");
-          msgbuffer4.copy(&replystring[replylength], 8);
-          replylength+=8;
+        if (newvalue >= 1 && newvalue < 256  && str3len>0){
+          addstatusok(replystring, replylength);
           NETWORKID = newvalue;
           radio.writeReg(REG_SYNCVALUE2, NETWORKID);
           storeparams();
         }
         else {
-          FLASH_STRING(msgbuffer4, "status:1,error:out of range");
-          msgbuffer4.copy(&replystring[replylength], 27);
-          replylength+=27;
+          addsverror(replystring,replylength);
         }
       } // network
-      else if (strcmp(charstr2,"gatewayid")==0) {
-        FLASH_STRING(msgbuffer2, "param:gatewayid,setvalue:");
-        msgbuffer2.copy(&replystring[replylength], 25);
-        replylength+=25;
-        
+      else if (strcmp(charstr2,"gw")==0) {
+        FLASH_STRING(msgbuffer2, "param:gw,sv:");
+        msgbuffer2.copy(&replystring[replylength], 12);
+        replylength+=12;   
         memcpy(&replystring[replylength], charstr3, str3len);
         replylength+=str3len;
-        
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 1);
-        replylength+=1;
+        addcomma(replystring,replylength);
         
         long newvalue = atoi(charstr3);
-        if (newvalue >= 1 && newvalue < 256){
-          FLASH_STRING(msgbuffer4, "status:0");
-          msgbuffer4.copy(&replystring[replylength], 8);
-          replylength+=8;
+        if (newvalue >= 1 && newvalue < 256  && str3len>0){
+          addstatusok(replystring, replylength);
           GATEWAYID = newvalue;
           storeparams();
         }
         else {
-          FLASH_STRING(msgbuffer4, "status:1,error:out of range");
-          msgbuffer4.copy(&replystring[replylength], 27);
-          replylength+=27;
+          addsverror(replystring,replylength);
         }
       } // network
-      else if (strcmp(charstr2,"iomode")==0) {
-        FLASH_STRING(msgbuffer2, "param:iomode,ionum:");
-        msgbuffer2.copy(&replystring[replylength], 19);
-        replylength+=19;
-
+      else if (strcmp(charstr2,"iomd")==0) {
+        FLASH_STRING(msgbuffer2, "param:iomd,ionum:");
+        msgbuffer2.copy(&replystring[replylength], 17);
+        replylength+=17;
         memcpy(&replystring[replylength], charstr3, str3len );
         replylength+=str3len;
-        
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 1);
-        replylength+=1;
+        addcomma(replystring,replylength);
         
         int ionumber = atoi(charstr3);
         if (ionumber >=0 && ionumber <14) {
-          FLASH_STRING(msgbuffer4, "iomode:");
-          msgbuffer4.copy(&replystring[replylength], 6);
-          replylength+=6;
+          addsv(replystring,replylength);
           memcpy(&replystring[replylength], charstr4, str4len );
           replylength+=str4len;
+          addcomma(replystring,replylength); 
           
           int newvalue = atoi(charstr4);
-          if (newvalue >= 0 && newvalue <5) {
-            FLASH_STRING(msgbuffer5, "status:0");
-            msgbuffer5.copy(&replystring[replylength], 6);
-            replylength+=6;
+          if (newvalue >= 0 && newvalue <5  && str4len>0) {
+            addstatusok(replystring, replylength);
             
             iomode[ionumber]=newvalue;
             ioreadtimer[ionumber] = 9999999; // read now
             storeparams();
           }
           else {
-            FLASH_STRING(msgbuffer5, "status:1,error:iomode out of range");
-            msgbuffer5.copy(&replystring[replylength], 34);
-            replylength+=34;
+            addsverror(replystring,replylength);
           }
         }
         else {
-          FLASH_STRING(msgbuffer4, "status:1,error:ionum out of range");
-          msgbuffer4.copy(&replystring[replylength], 33);
-          replylength+=33;
+          addindexerror(replystring,replylength);
         }
       } // iomode
-      else if (strcmp(charstr2,"ioenabled")==0) {
-        FLASH_STRING(msgbuffer2, "param:ioenabled,ionum:");
-        msgbuffer2.copy(&replystring[replylength], 25);
-        replylength+=25;
+      else if (strcmp(charstr2,"ioen")==0) {
+        FLASH_STRING(msgbuffer2, "param:ioen,ionum:");
+        msgbuffer2.copy(&replystring[replylength], 17);
+        replylength+=17;
 
         memcpy(&replystring[replylength], charstr3, str3len );
         replylength+=str3len;
         
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 1);
-        replylength+=1;
+        addcomma(replystring,replylength);
         
         int ionumber = atoi(charstr3);
-        if (ionumber >=0 && ionumber <14) {
-          FLASH_STRING(msgbuffer4, "iomode:");
-          msgbuffer4.copy(&replystring[replylength], 6);
-          replylength+=6;
+        if (ionumber >=0 && ionumber <14 && str3len>0) {
+          addsv(replystring,replylength);
           memcpy(&replystring[replylength], charstr4, str4len );
           replylength+=str4len;
+          addcomma(replystring,replylength);
+          
           int newvalue = atoi(charstr4);
           if (newvalue == 0) {
-            FLASH_STRING(msgbuffer5, "status:0");
-            msgbuffer5.copy(&replystring[replylength], 6);
-            replylength+=6;
+            addstatusok(replystring, replylength);
             
             ioenabled[ionumber] = 0;
             ioreadtimer[ionumber] = 9999999; // read now
             storeparams();
           }
           else if (newvalue == 1) {
-            FLASH_STRING(msgbuffer5, "status:0");
-            msgbuffer5.copy(&replystring[replylength], 6);
-            replylength+=6;
+            addstatusok(replystring, replylength);
             
             ioenabled[ionumber] = 1;
             ioreadtimer[ionumber] = 9999999; // read now
             storeparams();
           }
           else {
-            FLASH_STRING(msgbuffer5, "status:1,error:iomode out of range");
-            msgbuffer5.copy(&replystring[replylength], 34);
-            replylength+=34;
+            addsverror(replystring,replylength);
           }
         }
         else {
-         FLASH_STRING(msgbuffer5, "status:1,error:ionumber out of range");
-         msgbuffer5.copy(&replystring[replylength], 34);
-         replylength+=34;
+         addindexerror(replystring,replylength);
         }
       } // ioenabled
-      else if (strcmp(charstr2,"ioreadfreq")==0) {
-        FLASH_STRING(msgbuffer2, "param:ioreadfreq,ionumber:");
-        msgbuffer2.copy(&replystring[replylength], 26);
-        replylength+=26;
+      else if (strcmp(charstr2,"iordf")==0) {
+        FLASH_STRING(msgbuffer2, "param:iordf,ionum:");
+        msgbuffer2.copy(&replystring[replylength], 18);
+        replylength+=18;
         memcpy(&replystring[replylength], charstr3, str3len );
         replylength+=str3len;
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 1);
-        replylength+=1;    
+        addcomma(replystring,replylength);   
         
         int ionumber = atoi(charstr3);
-        if (ionumber >=0 && ionumber <14) {
-          FLASH_STRING(msgbuffer4, "setvalue:");
-          msgbuffer4.copy(&replystring[replylength], 9);
-          replylength+=9;
+        if (ionumber >=0 && ionumber <14  && str3len>0) {
+          addsv(replystring,replylength);
           memcpy(&replystring[replylength], charstr4, str4len );
           replylength+=str4len;
+          addcomma(replystring,replylength); 
           long newvalue = atoi(charstr4)*100;
           if (newvalue >= 0 && newvalue <600000) {
-            FLASH_STRING(msgbuffer5, "status:0");
-            msgbuffer5.copy(&replystring[replylength], 6);
-            replylength+=6;
+            addstatusok(replystring, replylength);
             ioreadfreq[ionumber]=newvalue;
             storeparams();
           }
           else{
-            FLASH_STRING(msgbuffer5, "status:1,error:iovalue out of range");
-            msgbuffer5.copy(&replystring[replylength], 8);
-            replylength+=8;
+            addsverror(replystring,replylength);;
           }
         }
         else {
-          Serial.println(F("ionumber out of range"));
+         addindexerror(replystring,replylength);
         }
       } // ioreadfreq
-      else if (strcmp(charstr2,"ioreportenabled")==0) {
-        FLASH_STRING(msgbuffer2, "param:ioreportenabled,ionumber:");
-        msgbuffer2.copy(&replystring[replylength], 31);
-        replylength+=31;
+      else if (strcmp(charstr2,"iorpe")==0) {
+        FLASH_STRING(msgbuffer2, "param:iorpe,ionumber:");
+        msgbuffer2.copy(&replystring[replylength], 21);
+        replylength+=21;
         memcpy(&replystring[replylength], charstr3, str3len );
         replylength+=str3len;
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 1);
-        replylength+=1;
+        addcomma(replystring,replylength);
         
         int ionumber = atoi(charstr3);
-        if (ionumber >=0 && ionumber <14) {
-          FLASH_STRING(msgbuffer4, "setvalue:");
-          msgbuffer4.copy(&replystring[replylength], 9);
-          replylength+=9;
+        if (ionumber >=0 && ionumber <14  && str3len>0) {
+          addsv(replystring,replylength);
           memcpy(&replystring[replylength], charstr4, str4len );
           replylength+=str4len;
+          addcomma(replystring,replylength); 
           int newvalue = atoi(charstr4);
           if (newvalue == 0) {
-            FLASH_STRING(msgbuffer5, "status:0");
-            msgbuffer5.copy(&replystring[replylength], 6);
+            addstatusok(replystring, replylength);
             ioreportenabled[ionumber] = 0;
             storeparams();
           }
           else if (newvalue == 1) {
-            FLASH_STRING(msgbuffer5, "status:0");
-            msgbuffer5.copy(&replystring[replylength], 6);
-            replylength+=8;
+            addstatusok(replystring, replylength);
             ioreportenabled[ionumber] = 1;
             storeparams();
           }
           else {
-            FLASH_STRING(msgbuffer5, "status:1,error:value out of range");
-            msgbuffer5.copy(&replystring[replylength], 33);
-            replylength+=33;
+            addsverror(replystring,replylength);
           }
         }
         else {
-            FLASH_STRING(msgbuffer5, "status:1,error:ionumber out of range");
-            msgbuffer5.copy(&replystring[replylength], 36);
-            replylength+=36;
-          }
+            addindexerror(replystring,replylength);
+        }
       } // ioreport enabled
-      else if (strcmp(charstr2,"ioreportfreq")==0) {
-        FLASH_STRING(msgbuffer2, "param:ioreportfreq,ionumber:");
-        msgbuffer2.copy(&replystring[replylength], 31);
-        replylength+=31;
+      else if (strcmp(charstr2,"iorpf")==0) {
+        FLASH_STRING(msgbuffer2, "param:iorpf,ionum:");
+        msgbuffer2.copy(&replystring[replylength], 18);
+        replylength+=18;
         memcpy(&replystring[replylength], charstr3, str3len );
         replylength+=str3len;
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 1);
-        replylength+=1;
+        
+        addcomma(replystring,replylength);
         
         int ionumber = atoi(charstr3);
-        if (ionumber >=0 && ionumber <14) {
-          FLASH_STRING(msgbuffer4, "setvalue:");
-          msgbuffer4.copy(&replystring[replylength], 9);
-          replylength+=9;
+        if (ionumber >=0 && ionumber <14  && str3len>0) {
+          addsv(replystring,replylength);
           memcpy(&replystring[replylength], charstr4, str4len );
           replylength+=str4len;
           long newvalue = atoi(charstr4)*1000;
           if (newvalue >= 0 && newvalue <600000) {
-            FLASH_STRING(msgbuffer5, "status:0");
-            msgbuffer5.copy(&replystring[replylength], 6);
+            addstatusok(replystring, replylength);
             ioreportfreq[ionumber]=newvalue;
             storeparams();
           }
           else {
-            FLASH_STRING(msgbuffer5, "status:1,error:value out of range");
-            msgbuffer5.copy(&replystring[replylength], 6);
+            addsverror(replystring,replylength);
           }
         }
         else {
-          FLASH_STRING(msgbuffer5, "status:1,error:ionumber out of range");
-            msgbuffer5.copy(&replystring[replylength], 33);
-            replylength+=33;
+          addindexerror(replystring,replylength);
         }
       } // ioreportfreq
-      else if (strcmp(charstr2,"iovalue")==0) {
-        FLASH_STRING(msgbuffer2, "param:iovalue,ionumber:");
-        msgbuffer2.copy(&replystring[replylength], 23);
-        replylength+=23;
+      else if (strcmp(charstr2,"iov")==0) {
+        FLASH_STRING(msgbuffer2, "param:iov,ionum:");
+        msgbuffer2.copy(&replystring[replylength], 16);
+        replylength+=16;
         memcpy(&replystring[replylength], charstr3, str3len );
         replylength+=str3len;
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 1);
-        replylength+=1;
+        addcomma(replystring,replylength);
         
         int ionumber = atoi(charstr3);
-        if (ionumber >=0 && ionumber <14) {
-          FLASH_STRING(msgbuffer4, "setvalue:");
-          msgbuffer4.copy(&replystring[replylength], 9);
-          replylength+=9;
-          
+        if (ionumber >=0 && ionumber <14  && str3len>0) {
+          addsv(replystring,replylength);
+          memcpy(&replystring[replylength], charstr4, str4len );
+          replylength+=str4len;
+          addcomma(replystring,replylength);
           int newvalue = atoi(charstr4);
           if (newvalue >= 0) {
-            FLASH_STRING(msgbuffer5, "status:0");
-            msgbuffer5.copy(&replystring[replylength], 8);
-            replylength+=8;
+            addstatusok(replystring, replylength);
             iovalue[ionumber]=newvalue;
             storeparams();
           }
           else {
-            FLASH_STRING(msgbuffer5, "status:1,error:iovalue out of range");
-            msgbuffer5.copy(&replystring[replylength], 6);
+            addsverror(replystring,replylength);
           }
         }
         else {
-          FLASH_STRING(msgbuffer5, "status:1,error:ionumber out of range");
-            msgbuffer5.copy(&replystring[replylength], 33);
-            replylength+=33;
+          addindexerror(replystring,replylength);
         }
       } // iovalues
       else if (strcmp(charstr2,"chansv")==0) {
-        FLASH_STRING(msgbuffer2, "param:chansv,channumber:");
+        FLASH_STRING(msgbuffer2, "param:chansv,chnum:");
         msgbuffer2.copy(&replystring[replylength], 24);
         replylength+=24;
         memcpy(&replystring[replylength], charstr3, str3len );
         replylength+=str3len;
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 1);
-        replylength+=1;
+        
+        addcomma(replystring,replylength);
         
         int channumber = atoi(charstr3);
-        if (channumber >=0 && channumber <=8) {
-          FLASH_STRING(msgbuffer4, "setvalue:");
-          msgbuffer4.copy(&replystring[replylength], 9);
-          replylength+=9;
+        if (channumber >=0 && channumber <=8  && str3len>0) {
+
           memcpy(&replystring[replylength], charstr3, str3len );
           replylength+=str3len;
-          FLASH_STRING(msgbuffer3, ",");
-          msgbuffer3.copy(&replystring[replylength], 1);
-          replylength+=1;
+          
+          addcomma(replystring,replylength);
         
           // need to allow for floats
           int newvalue = atoi(charstr4);      
-          FLASH_STRING(msgbuffer5, "status:0");
-          msgbuffer5.copy(&replystring[replylength], 8);
-          replylength+=8;
+          addstatusok(replystring, replylength);
           chansv[channumber]=newvalue;
           storeparams();
         }
         else {
-          FLASH_STRING(msgbuffer5, "status:1,error:channumber out of range");
-            msgbuffer5.copy(&replystring[replylength], 35);
-            replylength+=35;
+          addindexerror(replystring,replylength);
         }
       }// chansv
-      else if (strcmp(charstr2,"chanpvindex")==0) {
-        FLASH_STRING(msgbuffer2, "param:chanpvindex,ionumber:");
-        msgbuffer2.copy(&replystring[replylength], 27);
-        replylength+=27;
+      else if (strcmp(charstr2,"chpvind")==0) {
+        FLASH_STRING(msgbuffer2, "param:chanpvind,ionum:");
+        msgbuffer2.copy(&replystring[replylength], 22);
+        replylength+=22;
         memcpy(&replystring[replylength], charstr3, str3len );
         replylength+=str3len;
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 1);
-        replylength+=1;
+        
+        addcomma(replystring,replylength);
         
         int channumber = atoi(charstr3);
-        if (channumber >=0 && channumber <=8) {
-          FLASH_STRING(msgbuffer4, "setvalue:");
-          msgbuffer4.copy(&replystring[replylength], 9);
-          replylength+=9;
+        if (channumber >=0 && channumber <=8  && str3len>0) {
+          addsv(replystring,replylength);
           memcpy(&replystring[replylength], charstr3, str3len );
           replylength+=str3len;
-          FLASH_STRING(msgbuffer3, ",");
-          msgbuffer3.copy(&replystring[replylength], 1);
-          replylength+=1;
+          
+          addcomma(replystring,replylength);
+          
           int newvalue = atoi(charstr4);
           if (newvalue >=0 and newvalue <13){     
-            FLASH_STRING(msgbuffer5, "status:0");
-            msgbuffer5.copy(&replystring[replylength], 8);
-            replylength+=8;
+            addstatusok(replystring, replylength);
             chanpvindex[channumber]=newvalue;
             storeparams();
           }
           else {
-            FLASH_STRING(msgbuffer5, "status:1,error:setvalue out of range");
-            msgbuffer5.copy(&replystring[replylength], 36);
+            addsverror(replystring,replylength);
           }
         }
         else {
-          FLASH_STRING(msgbuffer5, "status:1,error:channumber out of range");
-          msgbuffer5.copy(&replystring[replylength], 35);
-          replylength+=35;
+          addindexerror(replystring,replylength);
         }
       }// chanpvindex
-      else if (strcmp(charstr2,"chanposfdbk")==0) {
-        FLASH_STRING(msgbuffer2, "param:chanposfdbk,ionumber:");
-        msgbuffer2.copy(&replystring[replylength], 27);
-        replylength+=27;
+      else if (strcmp(charstr2,"chpf")==0) {
+        FLASH_STRING(msgbuffer2, "param:chpf,ionum:");
+        msgbuffer2.copy(&replystring[replylength], 17);
+        replylength+=17;
         memcpy(&replystring[replylength], charstr3, str3len );
         replylength+=str3len;
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 1);
-        replylength+=1;
+        
+        addcomma(replystring,replylength);
         
         int channumber = atoi(charstr3);
-        if (channumber >=0 && channumber <=8) {
-          FLASH_STRING(msgbuffer4, "setvalue:");
-          msgbuffer4.copy(&replystring[replylength], 9);
-          replylength+=9;
+        if (channumber >=0 && channumber <=8  && str3len>0) {
+          addsv(replystring,replylength);
+          
           memcpy(&replystring[replylength], charstr3, str3len );
           replylength+=str3len;
-          FLASH_STRING(msgbuffer3, ",");
-          msgbuffer3.copy(&replystring[replylength], 1);
-          replylength+=1;
+          
+          addcomma(replystring,replylength);
+          
           int newvalue = atoi(charstr4);
-          if (newvalue >=0 and newvalue <13){     
-            FLASH_STRING(msgbuffer5, "status:0");
-            msgbuffer5.copy(&replystring[replylength], 8);
-            replylength+=8;
+          if (newvalue >=0 and newvalue <13  && str3len>0){     
+            addstatusok(replystring, replylength);
             chanposfdbk[channumber]=newvalue;
             storeparams();
           }
           else {
-            FLASH_STRING(msgbuffer5, "status:1,error:setvalue out of range");
-            msgbuffer5.copy(&replystring[replylength], 36);
+            addsverror(replystring,replylength);
           }
         }
         else {
-          FLASH_STRING(msgbuffer5, "status:1,error:channumber out of range");
-          msgbuffer5.copy(&replystring[replylength], 35);
-          replylength+=35;
+          addindexerror(replystring,replylength);
         }
       }// chanposfdbk
-      else if (strcmp(charstr2,"channegfdbk")==0) {
-        FLASH_STRING(msgbuffer2, "param:channegfdbk,ionumber:");
-        msgbuffer2.copy(&replystring[replylength], 27);
-        replylength+=27;
+      else if (strcmp(charstr2,"chnf")==0) {
+        FLASH_STRING(msgbuffer2, "param:chnf,ionum:");
+        msgbuffer2.copy(&replystring[replylength], 17);
+        replylength+=17;
         memcpy(&replystring[replylength], charstr3, str3len );
         replylength+=str3len;
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 1);
-        replylength+=1;
+        
+        addcomma(replystring,replylength);
         
         int channumber = atoi(charstr3);
-        if (channumber >=0 && channumber <=8) {
-          FLASH_STRING(msgbuffer4, "setvalue:");
-          msgbuffer4.copy(&replystring[replylength], 9);
-          replylength+=9;
+        if (channumber >=0 && channumber <=8  && str3len>0) {
+          addsv(replystring,replylength);
           memcpy(&replystring[replylength], charstr3, str3len );
           replylength+=str3len;
-          FLASH_STRING(msgbuffer3, ",");
-          msgbuffer3.copy(&replystring[replylength], 1);
-          replylength+=1;
+          
+          addcomma(replystring,replylength);
+          
           int newvalue = atoi(charstr4);
-          if (newvalue >=0 and newvalue <13){     
-            FLASH_STRING(msgbuffer5, "status:0");
-            msgbuffer5.copy(&replystring[replylength], 8);
-            replylength+=8;
+          if (newvalue >=0 and newvalue <13  && str4len>0){     
+            addstatusok(replystring, replylength);
             channegfdbk[channumber]=newvalue;
             storeparams();
           }
           else {
-            FLASH_STRING(msgbuffer5, "status:1,error:setvalue out of range");
-            msgbuffer5.copy(&replystring[replylength], 36);
+            addsverror(replystring,replylength);
           }
         }
         else {
-          FLASH_STRING(msgbuffer5, "status:1,error:channumber out of range");
-            msgbuffer5.copy(&replystring[replylength], 35);
-            replylength+=35;
+          addindexerror(replystring,replylength);
         }
       }// channegfdbk
-      else if (strcmp(charstr2,"chanenabled")==0) {
-        FLASH_STRING(msgbuffer2, "param:chanenabled,ionumber:");
-        msgbuffer2.copy(&replystring[replylength], 27);
-        replylength+=27;
+      else if (strcmp(charstr2,"chen")==0) {
+        FLASH_STRING(msgbuffer2, "param:chen,ionum:");
+        msgbuffer2.copy(&replystring[replylength], 17);
+        replylength+=17;
         
         memcpy(&replystring[replylength], charstr3, str3len );
         replylength+=str3len;
         
-        FLASH_STRING(msgbuffer3, ",");
-        msgbuffer3.copy(&replystring[replylength], 1);
-        replylength+=1;
+        addcomma(replystring,replylength);
         
         int channumber = atoi(charstr3);
-        if (channumber >=0 && channumber <=8) {
-          FLASH_STRING(msgbuffer4, "setvalue:");
-          msgbuffer4.copy(&replystring[replylength], 9);
-          replylength+=9;
+        if (channumber >=0 && channumber <=8  && str3len>0) {
+          addsv(replystring,replylength);
           memcpy(&replystring[replylength], charstr3, str3len );
           replylength+=str3len;
-          FLASH_STRING(msgbuffer3, ",");
-          msgbuffer3.copy(&replystring[replylength], 1);
-          replylength+=1;
+          
+          addcomma(replystring,replylength);
+          
           int newvalue = atoi(charstr4);
           if (newvalue == 0) {
-            FLASH_STRING(msgbuffer5, "status:0");
-            msgbuffer5.copy(&replystring[replylength], 8);
-            replylength+=8;
+            addstatusok(replystring, replylength);
             chanenabled[channumber] = 0;
             storeparams();
           }
           else if (newvalue == 1) {
-            FLASH_STRING(msgbuffer5, "status:0");
-            msgbuffer5.copy(&replystring[replylength], 8);
-            replylength+=8;
+            addstatusok(replystring, replylength);
             chanenabled[channumber] = 1;
             storeparams();
           }
           else {
-            FLASH_STRING(msgbuffer5, "status:1,error:setvalue out of range");
-            msgbuffer5.copy(&replystring[replylength], 36);
-            replylength+=36;
+            addsverror(replystring,replylength);
           }
         }
         else {
-          FLASH_STRING(msgbuffer5, "status:1,error:channumber out of range");
-            msgbuffer5.copy(&replystring[replylength], 35);
-            replylength+=35;
+          addindexerror(replystring,replylength);
         }
       } // chanenabled
+      else {
+        FLASH_STRING(msgbuffer, "unknown");
+        msgbuffer.copy(&replystring[replylength], 7);
+        replylength+=7;
+      } // unknown
     } // modparams
     else if (strcmp(charstr1,"sendmsg")==0){
       FLASH_STRING(msgbuffer, "cmd:sendmsg,destid:");
@@ -1171,12 +1084,12 @@ void processcmdstring(String cmdstring, int cmdlength, byte replynode){
       memcpy(&replystring[replylength], charstr2, 7);
       replylength+=str2len;  
       
-      FLASH_STRING(msgbuffer2, ",rp:");
-      msgbuffer2.copy(&replystring[replylength], 4);
-      replylength+=4;
+      FLASH_STRING(msgbuffer2, ",rfech:");
+      msgbuffer2.copy(&replystring[replylength], 7);
+      replylength+=7;
       
-      memcpy(&replystring[replylength], charstr3, str3len);
-      replylength+=str3len;
+      itoa(serialrfecho,&replystring[replylength],10);
+      replylength+=1;
       
       FLASH_STRING(msgbuffer3, ",msg:");
       msgbuffer3.copy(&replystring[replylength], 5);
@@ -1207,8 +1120,15 @@ void processcmdstring(String cmdstring, int cmdlength, byte replynode){
         replylength+=1;
       }
 //      Serial.println(replylength);
-
-      sendWithSerialNotify(atoi(charstr2), charstr4, str4len);
+      Serial.println(charstr2);
+      if (atoi(charstr2) > 0) {
+        sendWithSerialNotify(atoi(charstr2), charstr4, str4len, atoi(charstr3));
+      }
+      // THis is the easiest way to send a message to serial:
+      // specify a destination of zero
+      else if (atoi(charstr2) == 0) {
+        Serial.println(charstr4);
+      }
     }
     else if (strcmp(charstr1,"flashid")==0){
 //      memcpy(&replystring[replylength], "cmd:flashid,flashid:", 19);
@@ -1226,6 +1146,27 @@ void processcmdstring(String cmdstring, int cmdlength, byte replynode){
       replylength+=str1len;
     }
   } // first character indicates command sequence 
+  else {
+    // This just echoes everything received on serial over rf
+    if (serialrfecho) {
+      Serial.println(F("we are in serialrf echo"));
+      Serial.println(charstr1);
+      Serial.println(str1len);
+      
+      FLASH_STRING(msgbuffer, "ser:");
+      msgbuffer.copy(&replystring[replylength], 4);
+      memcpy(&replystring[4], charstr1, str1len);
+      replylength = 4 + str1len;
+      
+      // we actually don't want serial notify here, since a device on serial
+      // might respond strangely. 
+      sendWithSerialNotify(GATEWAYID,replystring,replylength, 0);
+
+    }
+    FLASH_STRING(msgbuffer, "cmd:unknown");
+    msgbuffer.copy(&replystring[replylength], 31);
+    replylength+=31;
+  }
   // This is actually pretty unused and deprecated
   
 //  else { // first character is not command
@@ -1264,40 +1205,48 @@ void processcmdstring(String cmdstring, int cmdlength, byte replynode){
 //    }
 //  }
     // Here is where we send a mesage
-  Serial.print(F("REPLYSTRING - "));
-  Serial.println(replylength);  
+//  Serial.print(F("REPLYSTRING - "));
+//  Serial.println(replylength);  
   replystring[replylength]=0;
   Serial.println(replystring);
-  if (replynode > 0 && replylength>0) {
-    Serial.print(F("Sending message to replynode: "));
+//  Serial.println(replynode);
+  if (replynode > 0 && replylength > 0) {
+    Serial.print(F("Sending message to replynode -  "));
     Serial.println(replynode);
-    //replystring.toCharArray(buff,replystring.length()+1);
-    radio.sendWithRetry(int(replynode),replystring , replylength);
+
+    sendWithSerialNotify(int(replynode),replystring , replylength, ~serialrfecho);
   }
-  Serial.print(F("Free memory: "));
-  Serial.println(freeRam());
+//  Serial.print(F("Free memory: "));
+//  Serial.println(freeRam());
 }
-void sendWithSerialNotify(byte destination, char* sendstring, byte sendlength) {
-  Serial.print(F("SENDING TO "));
-  Serial.println(destination);
-  Serial.println(sendstring);
-  Serial.println(sendlength);
-  radio.sendWithRetry(destination, sendstring, sendlength, 3, 300);
-  Serial.println(F("SEND COMPLETE"));  
+void sendWithSerialNotify(byte destination, char* sendstring, byte sendlength, byte notify) {
+  if (notify==1) {
+    Serial.print(F("SENDING TO "));
+    Serial.println(destination);
+    sendstring[sendlength]=0;
+    Serial.println(sendstring);
+//    Serial.println(sendlength);
+  }
+  radio.sendWithRetry(destination, sendstring, sendlength, RETRIES, ACK_TIME);
+  if (notify==1) {
+    Serial.println(F("SEND COMPLETE"));  
+  }
 }
 void initparams() {
     NODEID = 10;
     NETWORKID  = 105;
     GATEWAYID = 1;
-    LOOPPERIOD = 1000;
+    LOOPPERIOD = 10;
     SLEEPMODE = 0;
     SLEEPDELAY = 1000;
+    serialrfecho = 0;
     storeparams();
     int i;
     for (i=0;i<13;i++){
       iomode[i] = 0;
       ioenabled[i] = 0;
       ioreadfreq[i] = 1000;
+      ioreportenabled[i]=0;
     }
     for (i=0;i<7;i++) {
       chanenabled[i]=0;
@@ -1313,42 +1262,45 @@ void storeparams() {
 //    radio.setAddress(NODEID);
     
   // maximum initialized loop period is 256
-  if (LOOPPERIOD/1000 > 256){
-    EEPROM.write(58,256);
+  // in 10ms increments, this is 2.5s
+  if (LOOPPERIOD/10 > 256){
+    EEPROM.write(3,256);
   }
   else {
-    EEPROM.write(58,LOOPPERIOD/1000);
+    EEPROM.write(3,LOOPPERIOD/10);
   }
   
-  EEPROM.write(59,SLEEPMODE);
-  EEPROM.write(60,SLEEPDELAY);
+  EEPROM.write(4,SLEEPMODE);
+  EEPROM.write(5,SLEEPDELAY);
+  EEPROM.write(6,serialrfecho);
   
   int i;
   for (i=0;i<16;i++) {
-//      EEPROM.write(i+3,ENCRYPTKEY[i]);
+//      EEPROM.write(i+10,ENCRYPTKEY[i]);
   }
   byte mybyte;
   for (i=0;i<13;i++){    
-    EEPROM.write(i+19,iomode[i]);
-    EEPROM.write(i+32,ioenabled[i]);
+    EEPROM.write(i+30,iomode[i]);
+    EEPROM.write(i+43,ioenabled[i]);
+    EEPROM.write(i+69,ioreportenabled[i]);
     if (ioreadfreq[i]/1000 > 256){
-      EEPROM.write(i+45,256);
+      EEPROM.write(i+56,256);
     }
     else {
       mybyte = ioreadfreq[i] / 1000;
-      EEPROM.write(i+45,mybyte);
+      EEPROM.write(i+56,mybyte);
     }
   } // for num io
   
   // channels data
   for (i=0;i<8;i++) {
-    EEPROM.write(i+70,chanenabled[i]);
-    EEPROM.write(i+78,chanmode[i]);
-    EEPROM.write(i+86,chanposfdbk[i]);
-    EEPROM.write(i+94,channegfdbk[i]);
-    EEPROM.write(i+102,chandeadband[i]);
-    EEPROM.write(i+110,chanpvindex[i]);
-    EEPROM.write(i+118,chansv[i]);
+    EEPROM.write(i+82,chanenabled[i]);
+    EEPROM.write(i+90,chanmode[i]);
+    EEPROM.write(i+98,chanposfdbk[i]);
+    EEPROM.write(i+106,channegfdbk[i]);
+    EEPROM.write(i+114,chandeadband[i]);
+    EEPROM.write(i+122,chanpvindex[i]);
+    EEPROM.write(i+130,chansv[i]);
   } // for channels
 }
 void getparams() {
@@ -1364,27 +1316,29 @@ void getparams() {
 //    radio.writeReg(REG_SYNCVALUE2, NETWORKID);
 //    radio.setAddress(NODEID);
     
-    LOOPPERIOD = EEPROM.read(58) * 1000;
-    SLEEPMODE = EEPROM.read(59);
-    SLEEPDELAY = EEPROM.read(60);
+    LOOPPERIOD = EEPROM.read(3) * 10;
+    SLEEPMODE = EEPROM.read(4);
+    SLEEPDELAY = EEPROM.read(5);
+    serialrfecho = EEPROM.read(6);
  
     // io
     int i;
     for (i=0;i<13;i++){
-      iomode[i] = EEPROM.read(i+19);
-      ioenabled[i] = EEPROM.read(i+32);
-      ioreadfreq[i] = EEPROM.read(i+45)*1000;      
+      iomode[i] = EEPROM.read(i+30);
+      ioenabled[i] = EEPROM.read(i+43);
+      ioreadfreq[i] = EEPROM.read(i+56)*1000;  
+      ioreportenabled[i] = EEPROM.read(i+69);    
     } // for io 
     
     //channels
     for (i=0;i<8;i++) {
-      chanenabled[i] = EEPROM.read(i+70);
-      chanmode[i] = EEPROM.read(i+78);
-      chanposfdbk[i] = EEPROM.read(i+86);
-      channegfdbk[i] = EEPROM.read(i+94);
-      chandeadband[i] = EEPROM.read(i+102);
-      chanpvindex[i] = EEPROM.read(i+110);
-      chansv[i] = EEPROM.read(i+118);
+      chanenabled[i] = EEPROM.read(i+82);
+      chanmode[i] = EEPROM.read(i+90);
+      chanposfdbk[i] = EEPROM.read(i+98);
+      channegfdbk[i] = EEPROM.read(i+106);
+      chandeadband[i] = EEPROM.read(i+114);
+      chanpvindex[i] = EEPROM.read(i+122);
+      chansv[i] = EEPROM.read(i+130);
     } // for channels
 }
 void listparams(char* mode, byte dest) {
@@ -1392,13 +1346,12 @@ void listparams(char* mode, byte dest) {
   replylength=0;
   replystring[0]=0;
   if (strcmp(mode,"cfg")==0){
-    Serial.println("CONFIG");
     FLASH_STRING(msgbuffer, "cmd:lp,node:");
     msgbuffer.copy(&replystring[replylength], 12);
     replylength+=12;
   
     itoa(NODEID,&replystring[replylength],10);
-    replylength+=2;
+    replylength+=log10(NODEID)+1;
     
     FLASH_STRING(msgbuffer2, ",gw:");
     msgbuffer2.copy(&replystring[replylength], 4);
@@ -1412,190 +1365,237 @@ void listparams(char* mode, byte dest) {
     replylength+=4;
     
     itoa(NETWORKID,&replystring[replylength],10);
-    replylength+=2;
+    replylength+=3;
     
     FLASH_STRING(msgbuffer4, ",loop:");
     msgbuffer4.copy(&replystring[replylength], 6);
     replylength+=6;
     
-    itoa(LOOPPERIOD,&replystring[replylength],10);
-    replylength+=log10(LOOPPERIOD)+1;
+    itoa(LOOPPERIOD/10,&replystring[replylength],10);
+    replylength+=log10(LOOPPERIOD/10)+1;
     
-    FLASH_STRING(msgbuffer5, ",slpmd:");
+    FLASH_STRING(msgbuffer5, ",rfech:");
     msgbuffer5.copy(&replystring[replylength], 7);
+    replylength+=7;
+    
+    itoa(serialrfecho,&replystring[replylength],10);
+    replylength+=1;
+    
+    FLASH_STRING(msgbuffer6, ",slpmd:");
+    msgbuffer6.copy(&replystring[replylength], 7);
     replylength+=7;
     
     itoa(SLEEPMODE,&replystring[replylength],10);
     replylength+=1;
     
-    FLASH_STRING(msgbuffer6, ",slpdly:");
-    msgbuffer6.copy(&replystring[replylength], 8);
+    FLASH_STRING(msgbuffer7, ",slpdly:");
+    msgbuffer7.copy(&replystring[replylength], 8);
     replylength+=8;
     
-    itoa(SLEEPDELAY,&replystring[replylength],10);
-    replylength+=log(SLEEPDELAY);
+    itoa(SLEEPDELAY/100,&replystring[replylength],10);
+    replylength+=log10(SLEEPDELAY/100);
     
-    Serial.println(replylength);
+//    Serial.println(freeRam());
   }
   else if (strcmp(mode,"iomd")==0) {     
     FLASH_STRING(msgbuffer, "cmd:lp,iomd:");
     msgbuffer.copy(&replystring[replylength], 12);
     replylength+=12;
-    replylength = adddigitarraytostring(replystring, iomode, replylength, 13); 
+    adddigitarraytostring(replystring, iomode, replylength, 13); 
   }
   else if (strcmp(mode,"ioen")==0) {
     FLASH_STRING(msgbuffer2, "cmd:lp,ioen:"); 
     msgbuffer2.copy(&replystring[replylength], 12);
     replylength+=12; 
-    replylength = adddigitarraytostring(replystring, ioenabled, replylength, 13); 
+    adddigitarraytostring(replystring, ioenabled, replylength, 13); 
+  }
+  else if (strcmp(mode,"iorpe")==0) {
+    FLASH_STRING(msgbuffer2, "cmd:lp,iorpe:"); 
+    msgbuffer2.copy(&replystring[replylength], 13);
+    replylength+=13; 
+    adddigitarraytostring(replystring, ioreportenabled, replylength, 13); 
   }
   else if (strcmp(mode,"iov")==0) {
     FLASH_STRING(msgbuffer, "cmd:lp,iov:");
     msgbuffer.copy(&replystring[replylength], 12);
     replylength+=11;
-    replylength=addfloatarraytostring(replystring, iovalue, replylength, 0, 4); 
+    addfloatarraytostring(replystring, iovalue, replylength, 0, 4); 
   }
   else if (strcmp(mode,"iov2")==0) {
     FLASH_STRING(msgbuffer, "cmd:lp,iov2:");
     msgbuffer.copy(&replystring[replylength], 12);
     replylength+=12;
-    replylength=addfloatarraytostring(replystring, iovalue, replylength, 5, 8); 
+    addfloatarraytostring(replystring, iovalue, replylength, 5, 8); 
   }
   else if (strcmp(mode,"iov3")==0) {
     FLASH_STRING(msgbuffer, "cmd:lp,iov3:");
     msgbuffer.copy(&replystring[replylength], 12);
     replylength+=12;
-    replylength=addfloatarraytostring(replystring, iovalue, replylength, 9, 12); 
+    addfloatarraytostring(replystring, iovalue, replylength, 9, 12); 
   }
   else if (strcmp(mode,"iordf")==0) {       
     FLASH_STRING(msgbuffer, "cmd:lp,iordf:");
     msgbuffer.copy(&replystring[replylength], 13);
     replylength+=13;
-     
-    for (i=0;i<13;i++) {
-      itoa(ioreadfreq[i]/100,&replystring[replylength],10);
-      replylength+=log10(ioreadfreq[i]/100)+1;
-      FLASH_STRING(msgbuffer2, ",");
-      msgbuffer2.copy(&replystring[replylength], 1);
-      replylength+=1;
-    }
-    replystring[replylength-1]=0;
-    replylength-=1;
-//    Serial.println(replylength);
+    addulongdigitarraytostring(replystring, ioreadfreq, replylength, 13, 100); 
+    Serial.println(freeRam());
   }
-  else if (strcmp(mode,"irpf")==0) {       
+  else if (strcmp(mode,"iorpf")==0) {       
     FLASH_STRING(msgbuffer, "cmd:lp,iorpf:");
-    msgbuffer.copy(&replystring[replylength], 12);
-    replylength+=12;
-     
-    for (i=0;i<13;i++) {
-      itoa(ioreportfreq[i]/100,&replystring[replylength],10);
-      replylength+=log10(ioreportfreq[i]/100)+1;
-      FLASH_STRING(msgbuffer2, ",");
-      msgbuffer2.copy(&replystring[replylength], 1);
-      replylength+=1;
-    }
-    replystring[replylength-1]=0;
-    replylength-=1;
+    msgbuffer.copy(&replystring[replylength], 13);
+    replylength+=13;
+    addulongdigitarraytostring(replystring, ioreportfreq, replylength, 13, 100); 
   }
   else if (strcmp(mode,"chen")==0) {     
     FLASH_STRING(msgbuffer, "cmd:lp,chen:");
     msgbuffer.copy(&replystring[replylength], 12);
     replylength+=12; 
-    replylength = adddigitarraytostring(replystring, chanenabled, replylength, 8); 
+    adddigitarraytostring(replystring, chanenabled, replylength, 8); 
+  }
+  else if (strcmp(mode,"iorpe")==0) {     
+    FLASH_STRING(msgbuffer, "cmd:lp,iorpe:");
+    msgbuffer.copy(&replystring[replylength], 13);
+    replylength+=13; 
+    adddigitarraytostring(replystring, ioreportenabled, replylength, 13); 
   }
   else if (strcmp(mode,"chmd")==0) {      
     FLASH_STRING(msgbuffer, "cmd:lp,chmd:");
     msgbuffer.copy(&replystring[replylength], 12);
     replylength+=12;    
-    replylength = adddigitarraytostring(replystring, chanmode, replylength, 8); 
+    adddigitarraytostring(replystring, chanmode, replylength, 8); 
   }
   else if (strcmp(mode,"chpf")==0) {      
     FLASH_STRING(msgbuffer, "cmd:lp,chpf:");
     msgbuffer.copy(&replystring[replylength], 12);
-    replylength+=12;
-     
-    for (i=0;i<8;i++) {
-        sprintf(&replystring[replylength], "%02d,",chanposfdbk[i]);
-        replylength+=3;
-    }
-    replystring[replylength-1]=0;
+    replylength+=12;    
+    adddigitarraytostring(replystring, chanposfdbk, replylength, 8);
   }
   else if (strcmp(mode,"chnf")==0) {
     FLASH_STRING(msgbuffer, "cmd:lp,chnf:");
     msgbuffer.copy(&replystring[replylength], 12);
     replylength+=12;
-     
-    for (i=0;i<8;i++) {
-        sprintf(&replystring[replylength], "%02d,",channegfdbk[i]);
-        replylength+=3;
-    }
-    replystring[replylength-1]=0;
+    adddigitarraytostring(replystring, channegfdbk, replylength, 8);
   }
   else if (strcmp(mode,"chdb")==0) {      
     FLASH_STRING(msgbuffer, "cmd:lp,chdb:");
     msgbuffer.copy(&replystring[replylength], 12);
     replylength+=12;
-     
-    for (i=0;i<8;i++) {
-        sprintf(&replystring[replylength], "%02d,",chandeadband[i]);
-        replylength+=3;
-    }
-    replystring[replylength-1]=0;
+    adddigitarraytostring(replystring, chandeadband, replylength, 8);  
   }
   else if (strcmp(mode,"chpv")==0) {      
     FLASH_STRING(msgbuffer, "cmd:lp,chpv:");
     msgbuffer.copy(&replystring[replylength], 12);
     replylength+=12;  
-    replylength=addfloatarraytostring(replystring, chanpv, replylength, 0, 3);
+    addfloatarraytostring(replystring, chanpv, replylength, 0, 3);
   }
   else if (strcmp(mode,"chpv2")==0) {       
-    sprintf(&replystring[replylength], "cmd:lp,chpv2:");
-    replylength+=13;
-    replylength=addfloatarraytostring(replystring, chanpv, replylength, 4, 7);
+    FLASH_STRING(msgbuffer, "cmd:lp,chpv2:");
+    msgbuffer.copy(&replystring[replylength], 13);
+    replylength+=13;  
+    addfloatarraytostring(replystring, chanpv, replylength, 4, 7);
   }
   else if (strcmp(mode,"chsv")==0) {       
     FLASH_STRING(msgbuffer, "cmd:lp,chsv:");
     msgbuffer.copy(&replystring[replylength], 12);
     replylength+=12;    
-    replylength=addfloatarraytostring(replystring, chansv, replylength, 0, 3);
+    addfloatarraytostring(replystring, chansv, replylength, 0, 3);
   }
   else if (strcmp(mode,"chsv2")==0) {  
     FLASH_STRING(msgbuffer, "cmd:lp,chsv2:");
     msgbuffer.copy(&replystring[replylength], 13);
     replylength+=13;
-    replylength=addfloatarraytostring(replystring, chansv, replylength, 4, 7);
+    addfloatarraytostring(replystring, chansv, replylength, 4, 7);
+  }
+  else if (strcmp(mode,"chpvind")==0) {       
+    FLASH_STRING(msgbuffer, "cmd:lp,chpvind:");
+    msgbuffer.copy(&replystring[replylength], 15);
+    replylength+=15;
+    adddigitarraytostring(replystring, chanpvindex, replylength, 8);
+  }
+  else {
+    FLASH_STRING(msgbuffer, "cmd:lp,unknown");
+    msgbuffer.copy(&replystring[replylength], 15);
+    replylength+=14;
   }
   if (dest > 0){
-    sendWithSerialNotify(dest, replystring, replylength);
+    // echo locally unless we are in rf serialecho, as this may produce
+    // strange results with attached devices.
+    sendWithSerialNotify(dest, replystring, replylength, ~serialrfecho);
   }
 } // function def
 
-int adddigitarraytostring(char *replystring, byte *array, byte replylength, byte entries){
-         
-    for (int i=0;i<entries;i++) {
-        itoa(array[i],&replystring[replylength],10);
-        replylength+=1;
-        FLASH_STRING(msgbuffer2, ",");
-        msgbuffer2.copy(&replystring[replylength], 1);
-        replylength+=1;
-    }
-    replylength-=1;
-    replystring[replylength]=0;
-    return replylength;
+void addcomma(char *replystring, byte &replylength) {
+  FLASH_STRING(msgbuffer, ",");
+  msgbuffer.copy(&replystring[replylength], 1);
+  replylength+=1;
 }
-
-int addfloatarraytostring(char *replystring, float *array, byte replylength, byte startindex, byte endindex){
-         
+void addsv(char *replystring, byte &replylength) {
+  FLASH_STRING(msgbuffer4, "sv:");
+  msgbuffer4.copy(&replystring[replylength], 3);
+  replylength+=3;
+}
+int addsverror(char *replystring, byte replylength){
+  FLASH_STRING(msgbuffer4, "status:1,err:sv");
+  msgbuffer4.copy(&replystring[replylength], 15);
+  replylength+=15;
+}
+int addindexerror(char *replystring, byte &replylength){
+  FLASH_STRING(msgbuffer4, "status:1,err:index");
+  msgbuffer4.copy(&replystring[replylength], 18);
+  replylength+=18;
+}
+int addstatusok(char *replystring, byte &replylength) {
+  FLASH_STRING(msgbuffer4, "status:0");
+  msgbuffer4.copy(&replystring[replylength], 8);
+  replylength+=8;
+}  
+void adddigitarraytostring(char *replystring, int8_t *array, byte &replylength, byte entries){
+  FLASH_STRING(msgbuffer2, "|");
+  for (int i=0;i<entries;i++) {
+    itoa(array[i],&replystring[replylength],10);
+    if (array[i] == 0){
+      replylength+=1;
+    }
+    else if (array[i]<0){
+      replylength+=log10(-1*array[i])+2;
+    }
+    else {
+      replylength+=log10(array[i])+1;
+    }  
+    msgbuffer2.copy(&replystring[replylength], 1);
+    replylength+=1;
+  }
+  replylength-=1;
+  replystring[replylength]=0;
+}
+void addulongdigitarraytostring(char *replystring, unsigned long *array, byte &replylength, byte entries, byte scale){
+  FLASH_STRING(msgbuffer2, "|");
+  for (int i=0;i<entries;i++) {
+    itoa(array[i]/scale,&replystring[replylength],10);
+    if (array[i]/scale == 0){
+      replylength+=1;
+    }
+    else if (array[i]<0){
+      replylength+=log10(-1*array[i]/scale)+2;
+    }
+    else {
+      replylength+=log10(array[i]/scale)+1;
+    }
+    msgbuffer2.copy(&replystring[replylength], 1);
+    replylength+=1;
+  }
+  replylength-=1;
+  replystring[replylength]=0;
+}
+void addfloatarraytostring(char *replystring, float *array, byte &replylength, byte startindex, byte endindex){    
     for (int i=startindex;i<endindex+1;i++) {
         int wholePart = array[i];
         long fractPart = (array[i] - wholePart) * 10000;
-        sprintf(&replystring[replylength], "%04d.%04d,",wholePart, fractPart);
+        sprintf(&replystring[replylength], "%04d.%04d|",wholePart, fractPart);
         replylength+=10;
     }
     replylength-=1;
     replystring[replylength]=0;
-    return replylength;
 }
     
 void getfirstdsadd(OneWire myds, byte firstadd[]){
@@ -1662,7 +1662,7 @@ float getdstemp(OneWire myds, byte addr[8]) {
   myds.select(addr);
   myds.write(0x44,1);         // start conversion, with parasite power on at the end
   
-  delay(1000);     // maybe 750ms is enough, maybe not
+  delay(800);     // maybe 750ms is enough, maybe not
   // we might do a ds.depower() here, but the reset will take care of it.
   
   present = myds.reset();
@@ -1683,26 +1683,31 @@ float getdstemp(OneWire myds, byte addr[8]) {
 
   // convert the data to actual temperature
 
-  unsigned int raw = (data[1] << 8) | data[0];
-  if (type_s) {
-    raw = raw << 3; // 9 bit resolution default
-    if (data[7] == 0x10) {
-      // count remain gives full 12 bit resolution
-      raw = (raw & 0xFFF0) + 12 - data[6];
-    } else {
-      byte cfg = (data[4] & 0x60);
-      if (cfg == 0x00) raw = raw << 3;  // 9 bit resolution, 93.75 ms
-        else if (cfg == 0x20) raw = raw << 2; // 10 bit res, 187.5 ms
-        else if (cfg == 0x40) raw = raw << 1; // 11 bit res, 375 ms
-        // default is 12 bit resolution, 750 ms conversion time
-    }
-  }
-  celsius = (float)raw / 16.0;
+  celsius=calctemp(data);
+
   fahrenheit = celsius * 1.8 + 32.0;
   //Serial.print('Celsius:');
   //Serial.println(celsius);
   return celsius;
 }
+
+float calctemp(byte data[]) {
+  float celsius;
+  
+  unsigned int TReading = (data[1] << 8) + data[0];
+  unsigned int SignBit = TReading & 0x8000;  // test most sig bit
+  if (SignBit) // negative
+  {
+    TReading = (TReading ^ 0xffff) + 1; // 2's comp
+  }
+  celsius = float(TReading)/16;
+  
+  if (SignBit){
+    celsius = celsius * -1;
+  }
+  return celsius;
+}
+
 int freeRam ()
 {
   extern int __heap_start, *__brkval;
@@ -1723,23 +1728,23 @@ void sendInitMessage(){
   Serial.print(F("NODEID: "));
   Serial.println(NODEID);
 }
-void sendIOMessage(byte pin, byte mode, float value) {
+void sendIOMessage(byte ionum, byte mode, float value) {
   // Initialize send string
 
   int sendlength = 61;  // default
   if (mode == 0 || mode == 1 ) { // for integer values
-    sendlength = 32;
+    sendlength = 30;
 //    char sendstring[sendlength];
-    sprintf(buff, "iopin:%02d,iomode:%02d,iovalue:%04d", pin, mode, value);         
-    sendWithSerialNotify(GATEWAYID, buff, sendlength);
+    sprintf(buff, "ionum:%02d,iomode:%02d,ioval:%04d", ionum, mode, value);         
+    sendWithSerialNotify(GATEWAYID, buff, sendlength,~serialrfecho);
   }
   else if (mode == 2){ // for float values
     int wholePart = value;
     long fractPart = (value - wholePart) * 10000;
     sendlength = 34; 
 //    char sendstring[sendlength];
-    sprintf(buff, "iopin:%02d,iomode:%02d,ioval:%03d.%04d", pin,mode,wholePart, fractPart);
-    sendWithSerialNotify(GATEWAYID, buff, sendlength); 
+    sprintf(buff, "ionum:%02d,iomode:%02d,ioval:%03d.%04d", ionum,mode,wholePart, fractPart);
+    sendWithSerialNotify(GATEWAYID, buff, sendlength,~serialrfecho); 
   }
 }
 void handleOWIO(byte ioindex) {
@@ -1752,13 +1757,13 @@ void handleOWIO(byte ioindex) {
   getfirstdsadd(myds,dsaddr);
   
 //  Serial.print(F("dsaddress:"));
-  int j;
-  for (j=0;j<8;j++) {
-    if (dsaddr[j] < 16) {
-//      Serial.print('0');
-    }
-//    Serial.print(dsaddr[j], HEX);
-  }
+//  int j;
+//  for (j=0;j<8;j++) {
+//    if (dsaddr[j] < 16) {
+////      Serial.print('0');
+//    }
+////    Serial.print(dsaddr[j], HEX);
+//  }
 //  sprintf(dscharaddr,"%02x%02x%02x%02x%02x%02x%02x%02x",dsaddr[0],dsaddr[1],dsaddr[2],dsaddr[3],dsaddr[4],dsaddr[5],dsaddr[6],dsaddr[7]);
 //  Serial.println(',');
   
@@ -1768,15 +1773,17 @@ void handleOWIO(byte ioindex) {
 //  Serial.println(iovalue[ioindex]);
   
   if ((ioreportenabled[ioindex]) && (ioreportfreq[ioindex] == 0)){
-    byte sendlength = 61;
-    char sendstring[sendlength];
-    
+
+    // This is reporting of onewire data regardless of other stuff
+    // it is unnecessary
+//    byte sendlength = 61;
+//    char sendstring[sendlength];
 //    int wholePart = iovalue[ioindex];
 //    long fractPart = (iovalue[ioindex] - wholePart) * 10000;
 //    sprintf(sendstring, "owtmpasc:%03d.%04d,owdev:ds18x,owrom:%0xx%02x%02x%02x%02x%02x%02x%02x%02x", wholePart, fractPart, dsaddr[0],dsaddr[1],dsaddr[2],dsaddr[3],dsaddr[4],dsaddr[5],dsaddr[6],dsaddr[7]); 
-    sendWithSerialNotify(GATEWAYID, sendstring, sendlength);
+//    sendWithSerialNotify(GATEWAYID, sendstring, sendlength,1);
     
-    sendIOMessage(iopins[ioindex], iomode[ioindex], iovalue[ioindex]);
+    sendIOMessage(ioindex, iomode[ioindex], iovalue[ioindex]);
   } // reportenabled and ioreportfreq
 } // run OW sequence
 
