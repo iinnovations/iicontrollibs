@@ -53,27 +53,45 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True):
 
                 # now process data
                 # print(s)
+                # print(s.split('\n'))
                 try:
+                    # print('*************** processing datadict')
                     datadicts, messages = processserialdata(s)
+                    # print('ALL MY DATADICTS')
+                    # print(datadicts)
+                    # print('END OF DICTS')
                 except IOError:
                     print('error processing message')
+                except Exception as ex:
+                    template = "An exception of type {0} occured. Arguments:\n{1!r}"
+                    message = template.format(type(ex).__name__, ex.args)
+                    print message
                 else:
                     for datadict, message in zip(datadicts, messages):
-                        # print("datadict: ")
-                        # print(datadict)
-                        print("message: ")
-                        print(message.strip())
+                        if datadict:
+                            print("datadict: ")
+                            print(datadict)
+                            print("message: ")
+                            print(message)
 
-                        publish=False
-                        for k in datadict:
-                            if k not in ['nodeid','RX_RSSI']:
-                                # print('publishing')
-                                print('LOGGING SHIT')
+                            publish = False
+                            for k in datadict:
+                                # print(k + datadict[k])
+                                if k not in ['nodeid','RX_RSSI']:
+                                    pass
+                            # if 'cmd' in datadict:
+                            publish = True
+                            if publish:
+                                print('publishing message')
                                 statusresult = lograwmessages(message)
 
-                        pilib.sizesqlitetable(pilib.motesdatabase, 'readmessages', 1000)
+                            pilib.sizesqlitetable(pilib.motesdatabase, 'readmessages', 1000)
 
-                        statusresult = processremotedata(datadict, message)
+                            statusresult = processremotedata(datadict, message)
+                        else:
+                            if message:
+                                print('message: ')
+                                print(message)
                         # except:
                         #     print('error processing returned datadict, message:')
                             # print(message)
@@ -135,19 +153,36 @@ def processserialdata(data):
     messages = []
     # try:
     # Break into chunks
-    split1 = data.strip().split('BEGIN RECEIVED')
-    for split in split1:
-        if split.find('END RECEIVED') >= 0:
-            message = split.split('END RECEIVED')[0].replace('\x00', '')
-            # print(message)
-            messages.append(message.strip())
-            try:
-                datadict = parseoptions(message)
-            except:
-                print('error parsing message: ' + message)
-            else:
-                # print(datadict)
-                datadicts.append(datadict)
+
+    # RF Message
+    if data.strip().find('BEGIN RECEIVED') > 0:
+        split1 = data.strip().split('BEGIN RECEIVED')
+        for split in split1:
+            if split.find('END RECEIVED') >= 0:
+                message = split.split('END RECEIVED')[0].replace('\x00', '')
+                # print(message)
+                messages.append(message.strip())
+                try:
+                    datadict = parseoptions(message)
+                except:
+                    print('error parsing message: ' + message)
+                else:
+                    # print(datadict)
+                    datadicts.append(datadict)
+                    messages.append(message)
+    # Serial message
+    else:
+        messagesplit = data.strip().split('\n')
+        # print(messagesplit)
+        datadicts=[]
+        for entry in messagesplit:
+            # print(entry)
+            dict = parseoptions(entry)
+            # print('dict')
+            # print(dict)
+            if 'node' or 'cmd' in dict:
+                datadicts.append(dict)
+                messages.append(entry)
     # except:
     #     print('there was an error processing the message')
     #     return
@@ -184,7 +219,57 @@ def processremotedata(datadict, stringmessage):
         runquery = False
         nodeid = datadict['nodeid']
         querylist = []
-        if 'ioval' in datadict:
+
+        # Command responses, including value requests
+        if 'cmd' in datadict:
+            if datadict['cmd'] == 'lp':
+                # Remove command key and process remaining data
+                del datadict['cmd']
+                motetablename = 'node_' + nodeid + '_status'
+
+                # Create table if it doesn't exist
+                query = 'create table if not exists \'' + motetablename + '\' ( time text, message text primary key, value text)'
+                pilib.sqlitequery(pilib.motesdatabase, query)
+
+                for key in datadict:
+                    thetime = pilib.gettimestring()
+                    if key in ['iov', 'iov2', 'iov3', 'pv', 'pv2', 'sv', 'sv2', 'iomd', 'ioen', 'iordf', 'iorpf', 'chen', 'chmd', 'chnf', 'chpf', 'chdb', 'chsv', 'chsv2', 'chpv', 'chpv2']:
+                        # We need to process these specially, going back to the original message
+                        values = datadict[key]
+                        valuelist = values.split('|')
+                        print(valuelist)
+                        index = 0
+                        if key in ['iov', 'iov2', 'iov3']:
+                            base = 'iov_'
+                            if key == 'iov2':
+                                index = 5
+                            elif key == 'iov3':
+                                index = 9
+                        elif key in ['pv', 'pv2']:
+                            base = 'pv_'
+                            if key == 'pv2':
+                                index = 5
+                        elif key in ['sv', 'sv2']:
+                            base = 'sv_'
+                            if key == 'sv2':
+                                index = 5
+                        else:
+                            base = key + '_'
+
+                        querylist = []
+                        for value in valuelist:
+                            querylist.append(pilib.makesqliteinsert(motetablename, [thetime, base + str(index), value]))
+                            index += 1
+                        pilib.sqlitemultquery(pilib.motesdatabase, querylist)
+
+                    # Update table entry. Each entry has a unique key
+                    # updatetime, keyname, data
+                    else:
+                        pilib.sqliteinsertsingle(pilib.motesdatabase, motetablename, [thetime, key, datadict[key]])
+                        print('inserted ' + thetime + ' ' + key + ' ' + datadict[key])
+
+        # This is for values that are reported by the node
+        elif 'ioval' in datadict:
             # check to see if entry exists with node and ionum. Need to generalize these.
             # Might make sense to put then into an ID to compare. Other database, compatible?
             # iovalue type message
