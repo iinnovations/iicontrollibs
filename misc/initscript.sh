@@ -1,22 +1,16 @@
-#!/bin/sh
+#!/bin/bash
 
-# Initialize users and priuileges
-echo $1
-
-if [ $1 = "install" ]
+if [ $# -eq 0 ]
   then
-
-
+    echo "no arguments supplied. Usage: ./install.sh install [full]"
+elif [ "$1" = "install" ]
+  then
+    echo "running install as requested"
     apt-get update
-    apt-get -y install nginx php5 sqlite3 php5-sqlite
-    a2enmod rewrite
+    apt-get -y install lsb-core
+    apt-get -y install php5 sqlite3 php5-sqlite
     apt-get -y install python-dev python3 python-setuptools
     apt-get -y install swig libfuse-dev libusb-dev php5-dev
-    apt-get -y install i2c-tools python-smbus
-    apt-get -y install hostapd
-    apt-get -y install isc-dhcp-server
-    update-rc.d -f isc-dhcp-server remove
-    update-rc.d -f apache2 remove
 
     apt-get -y install python-pip
     pip install rpi.gpio
@@ -24,24 +18,83 @@ if [ $1 = "install" ]
     apt-get -y install python-serial
     apt-get -y install python-gtk2
     apt-get -y install automake
+
+    apt-get -y install apache2 php5 sqlite3 php5-sqlite libapache2-mod-wsgi libapache2-mod-php5
+    a2enmod rewrite
+    a2enmod ssl
+    # default apache
+    # update-rc.d -f apache2 remove
+
     apt-get -y install nginx
+    update-rc.d -f nginx remove
+
     apt-get -y install uwsgi
-    apt-get -y install uwsgi-python-plugin
+    apt-get -y install uwsgi-plugin-python
     apt-get -y install php5-fpm
 
-    # echo "configuring hamachi"
-    apt-get -y install lsb-core
-    wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.136-1_armhf.deb
-    dpkg -i logmein-hamachi_2.1.0.136-1_armhf.deb
+    apt-get -y install i2c-tools python-smbus
+    apt-get -y install hostapd
+    apt-get -y install isc-dhcp-server
+    update-rc.d -f isc-dhcp-server remove
+
+    echo "installing gpio-admin"
+    apt-get install quickwire-gpio-admin
+
+    echo "installing python-api-master"
+    apt-get install quick2wire-python-api-master/
+
+    echo "installing spi-dev"
+    pip install spidev
+
+    echo "installing bitstring"
+    apt-get install python3-pip
+
+    pip install bitstring
+    pip-3.3 install bitstring
+
+    echo "configuring hamachi"
+
+    wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.139-1_armhf.deb
+    dpkg -i logmein-hamachi_2.1.0.139-1_armhf.deb
     hamachi login
     # hamachi do-join XXX-XX-XXXX
-fi
 
-if [ $1 = "update" ]
-    then
-      echo "updated only, as requested"
-else
-    echo "Configuring users and directories"
+    echo "hamachi complete"
+
+    echo "testing for owfs"
+    testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
+    if [ ${testresult} -ne 0 ]
+      then
+        echo "owfs 2.9p5 already installed"
+    else
+        echo "installing owfs 2.9p5"
+        cd /usr/lib/iicontrollibs/resource
+        tar -xvf owfs-2.9p5.tar.gz
+        cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
+        ./configure
+        make install
+        cd ..
+        rm -R owfs-2.9p5
+    fi
+    echo "owfs complete"
+
+  if [ -z $2 ]
+  then
+    echo "not manipulating users or directories"
+  elif [ "$2" = "full" ]
+  then
+
+    echo "configuring users"
+    addgroup sshers
+    usermod -aG sshers pi
+    usermod -aG www-data pi
+
+    useradd websync
+    usermod -aG sshers websync
+    usermod -aG www-data websync
+    echo "user configuration complete"
+
+    echo "Configuring directories"
     mkdir /usr/lib/iicontrollibs
     chown -R root:pi /usr/lib/iicontrollibs
     chmod -R 775 /usr/lib/iicontrollibs
@@ -67,16 +120,9 @@ else
     chmod -R 775 /var/log/cupid
 
     mkdir /var/1wire
+    echo "directory configuration complete"
 
-    addgroup sshers
-    usermod -aG sshers pi
-    usermod -aG www-data pi
-
-    useradd websync
-    usermod -aG sshers websync
-    usermod -aG www-data websync
-    echo "complete"
-
+    echo "configuring sshd for restricted access"
     echo "Configuring sshd"
     #       Add to sshd_config: AllowGroups sshers
     testresult=$(grep -c 'AllowGroups' /etc/ssh/sshd_config)
@@ -86,8 +132,7 @@ else
     else
       echo "AllowGroups sshers" >> /etc/ssh/sshd_config
     fi
-    echo "complete"
-
+    echo "sshd configuration complete"
 
     echo "Initializing web library repo"
     cd /var/www
@@ -122,6 +167,10 @@ else
 
     echo "Creating default databases"
     /usr/lib/iicontrollibs/cupid/rebuilddatabases.py DEFAULTS
+    chmod g+s /var/www/data
+    chmod -R 775 /var/www/data
+    chown -R root:www-data /var/www/data
+
     echo "Complete"
 
     echo "Copying boot script"
@@ -133,10 +182,10 @@ else
     echo "complete"
 
     # get custom sources
-    cp /usr/lib/iicontrollibs
-    apt-get update
+#    cp /usr/lib/iicontrollibs
+#    apt-get update
 
-    # handled in raspi-config (no, not really. need to fix this.)
+    # handled in raspi-config
 #    echo "Copying inittab"
 #    cp /usr/lib/iicontrollibs/misc/inittab /etc/
 #    echo "Complete"
@@ -147,6 +196,10 @@ else
 
     echo "Copying nginx site"
     cp /usr/lib/iicontrollibs/misc/nginx/nginxsite /etc/nginx/sites-available/default
+    echo "Complete"
+
+    echo "Copying apache site"
+    cp /usr/lib/iicontrollibs/misc/apache/apachesslsites /etc/apache/sites-available/default
     echo "Complete"
 
     echo "Copying nginx config"
@@ -164,24 +217,6 @@ else
     echo "Copying dhcpd.conf"
     cp /usr/lib/iicontrollibs/misc/dhcpd.conf /etc/dhcp/
     echo "Complete"
-
-
-
-    testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
-    if [ ${testresult} -ne 0 ]
-      then
-        echo "owfs 2.9p5 already installed"
-    else
-        echo "installing owfs 2.9p5"
-        cd /usr/lib/iicontrollibs/resource
-        tar -xvf owfs-2.9p5.tar.gz
-        cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
-        ./configure
-        make install
-        cd ..
-        rm -R owfs-2.9p5
-    fi
-    echo "complete"
 
     if [ $(ls /usr/sbin/ | grep -c 'hostapd.edimax') -ne 0 ]
         then
@@ -206,23 +241,8 @@ else
 #    echo "setting modprobe"
 #    modprobe i2c-bcm2708
 
-    echo "coping boot config to disable console serial interface and enable serial interfaces"
-    cp /usr/lib/iicontrollibs/misc/config.txt /boot/
-
-    echo "installing gpio-admin"
-    apt-get install quickwire-gpio-admin
-
-    echo "installing python-api-master"
-    apt-get install quick2wire-python-api-master/
-
-    echo "installing spi-dev"
-    ./setup.py install
-
-    echo "installing bitstring"
-    apt-get install python3-pip
-
-    pip install bitstring
-    pip-3.3 install bitstring
+#    echo "coping boot config to disable console serial interface and enable serial interfaces"
+#    cp /usr/lib/iicontrollibs/misc/config.txt /boot/
 
     echo "Copying icons to desktop"
 
@@ -231,5 +251,13 @@ else
 
     echo "Copying icons"
     cp /usr/lib/iicontrollibs/misc/updatecupidweblibs.desktop /
-
+  else
+    echo "Invalid argument received: "
+    echo "$2"
+    echo "Usage: ./install.sh install [full]"
+  fi
+else
+    echo "Invalid argument received: "
+    echo "$1"
+    echo "Usage: ./install.sh install [full]"
 fi

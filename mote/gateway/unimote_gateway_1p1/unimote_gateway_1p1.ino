@@ -23,7 +23,7 @@
 
 int DEBUG = 1;
 byte NODEID = 1;
-byte NETWORKID = 100;
+byte NETWORKID = 101;
 byte GATEWAYID = 1;
 byte SLEEPMODE = 0;
 char buff[20];

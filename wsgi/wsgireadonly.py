@@ -121,7 +121,6 @@ def application(environ, start_response):
         newetag=''
 
     if 'datasize' in d:
-        import sys
         output['datasize'] = sys.getsizeof(output['data'])
 
     output['etag'] = newetag
