@@ -54,8 +54,8 @@ elif [ "$1" = "install" ]
 
     echo "configuring hamachi"
 
-    wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.139-1_armhf.deb
-    dpkg -i logmein-hamachi_2.1.0.139-1_armhf.deb
+#    wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.139-1_armhf.deb
+    dpkg -i /usr/lib/iicontrollibs/resource/logmein-hamachi_2.1.0.139-1_armhf.deb
     hamachi login
     # hamachi do-join XXX-XX-XXXX
 
