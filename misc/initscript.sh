@@ -54,30 +54,6 @@ elif [ "$1" = "install" ]
 
     echo "configuring hamachi"
 
-#    wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.139-1_armhf.deb
-    dpkg -i /usr/lib/iicontrollibs/resource/logmein-hamachi_2.1.0.139-1_armhf.deb
-    hamachi login
-    # hamachi do-join XXX-XX-XXXX
-
-    echo "hamachi complete"
-
-    echo "testing for owfs"
-    testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
-    if [ ${testresult} -ne 0 ]
-      then
-        echo "owfs 2.9p5 already installed"
-    else
-        echo "installing owfs 2.9p5"
-        cd /usr/lib/iicontrollibs/resource
-        tar -xvf owfs-2.9p5.tar.gz
-        cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
-        ./configure
-        make install
-        cd ..
-        rm -R owfs-2.9p5
-    fi
-    echo "owfs complete"
-
   if [ -z $2 ]
   then
     echo "not manipulating users or directories"
@@ -180,6 +156,31 @@ elif [ "$1" = "install" ]
     echo "Updating crontab"
     crontab /usr/lib/iicontrollibs/misc/crontab
     echo "complete"
+
+
+    #    wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.139-1_armhf.deb
+    dpkg -i /usr/lib/iicontrollibs/resource/logmein-hamachi_2.1.0.139-1_armhf.deb
+    hamachi login
+    # hamachi do-join XXX-XX-XXXX
+
+    echo "hamachi complete"
+
+    echo "testing for owfs"
+    testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
+    if [ ${testresult} -ne 0 ]
+      then
+        echo "owfs 2.9p5 already installed"
+    else
+        echo "installing owfs 2.9p5"
+        cd /usr/lib/iicontrollibs/resource
+        tar -xvf owfs-2.9p5.tar.gz
+        cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
+        ./configure
+        make install
+        cd ..
+        rm -R owfs-2.9p5
+    fi
+    echo "owfs complete"
 
     # get custom sources
 #    cp /usr/lib/iicontrollibs
