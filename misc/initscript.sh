@@ -219,18 +219,18 @@ elif [ "$1" = "install" ]
     cp /usr/lib/iicontrollibs/misc/dhcpd.conf /etc/dhcp/
     echo "Complete"
 
-    if [ $(ls /usr/sbin/ | grep -c 'hostapd.edimax') -ne 0 ]
-        then
-            echo "hostapd already configured"
-    else
-        echo "copying hostapd"
-        mv /usr/sbin/hostapd /usr/sbin/hostapd.bak
-        cp /usr/lib/iicontrollibs/resource/hostapd.edimax /usr/sbin/hostapd.edimax
-        ln -sf /usr/sbin/hostapd.edimax /usr/sbin/hostapd
-        chown root:root /usr/sbin/hostapd
-        chmod 755 /usr/sbin/hostapd
-        echo "hostapd configuration complete"
-    fi
+#    if [ $(ls /usr/sbin/ | grep -c 'hostapd.edimax') -ne 0 ]
+#        then
+#            echo "hostapd already configured"
+#    else
+#        echo "copying hostapd"
+#        mv /usr/sbin/hostapd /usr/sbin/hostapd.bak
+#        cp /usr/lib/iicontrollibs/resource/hostapd.edimax /usr/sbin/hostapd.edimax
+#        ln -sf /usr/sbin/hostapd.edimax /usr/sbin/hostapd
+#        chown root:root /usr/sbin/hostapd
+#        chmod 755 /usr/sbin/hostapd
+#        echo "hostapd configuration complete"
+#    fi
 
     echo "copying hostapd.conf"
     cp /usr/lib/iicontrollibs/misc/hostapd.conf /etc/hostapd/
