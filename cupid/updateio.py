@@ -265,7 +265,7 @@ def updateiodata(database, **kwargs):
                     import readspi
 
                     spitemp = readspi.readspitc(0)
-                    spitcentries = readspi.recordspidata(database, {'temperature' :spitemp})
+                    spitcentries = readspi.recordspidata(database, {'SPITC1' :spitemp})
                     querylist.extend(spitcentries)
 
                 if interface['type'] == 'CuPIDlights':
