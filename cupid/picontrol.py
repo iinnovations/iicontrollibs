@@ -137,7 +137,7 @@ def runpicontrol(runonce=False):
                                 outputsetnames.append(channel['positiveoutput'])
                                 outputresetnames.append(channel['negativeoutput'])
                             elif action < 0:
-                                print("set negative GPIO on")
+                                print("set negative output on")
                                 outputsetnames.append(channel['negativeoutput'])
                                 outputresetnames.append(channel['positiveoutput'])
                             elif action == 0:

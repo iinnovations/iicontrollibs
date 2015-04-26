@@ -26,18 +26,6 @@ querylist = [];
 # read/write on our SPI interface
 
 
-def readspitc(CS=1):
-    valuedict = {}
-    valuedict['SPITC1'] = getspitctemp(CS).rstrip()
-    return valuedict
-
-
-def getspitctemp(CS):
-    import subprocess
-    tctemp = subprocess.check_output(['python3', '/usr/lib/iicontrollibs/cupid/getmaxtemp.py'])
-    return tctemp
-
-
 def recordspidata(database, valuedict, execute=False):
     # This is incomplete and hardcoded partially
     querylist = []
@@ -52,6 +40,18 @@ def recordspidata(database, valuedict, execute=False):
     return querylist
 
 
+def getMAX31855tctemp(CS=1):
+    try:
+        import Adafruit_GPIO.SPI as SPI
+        import Adafruit_MAX31855.MAX31855 as MAX31855
+    except:
+        print('Libraries are not installed!')
+
+    SPI_PORT   = CS
+    SPI_DEVICE = 0
+    sensor = MAX31855.MAX31855(spi=SPI.SpiDev(SPI_PORT, SPI_DEVICE))
+    temp = sensor.readTempC()
+    return temp
 
 if __name__ == "__main__":
     from pilib import controldatabase

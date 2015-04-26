@@ -93,9 +93,6 @@ def getgpiostatus():
     return gpiolist
 
 
-
-
-
 def writedatedlogmsg(logfile, message, reqloglevel=1, currloglevel=1):
     if currloglevel >= reqloglevel:
         logfile = open(logfile, 'a')

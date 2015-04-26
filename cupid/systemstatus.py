@@ -10,7 +10,6 @@ __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
 # do this stuff to access stuff in other directories
-import os
 import netconfig
 
 
@@ -138,13 +137,7 @@ def updatenetstatus(lastnetstatus=None):
     if wpastatusdict['wpa_state'] == 'COMPLETED':
         wpaconnected = 1
 
-        # Need to check IP address. There is a weird bug where we can be connected
-        # but reporting the wrong IP address
-        if wpastatusdict['ip_address'] != netconfigdata['address']:
-            pilib.writedatedlogmsg(pilib.networklog, 'IP address mismatch ( Configured for ' + netconfigdata['address'] + '. Reporting' + wpastatusdict['ip_address'] + ' ). Running config.', 1, pilib.networkloglevel)
-            netconfig.runconfig()
-        else:
-            pilib.writedatedlogmsg(pilib.networklog, 'IP address match for ' + netconfigdata['address'] + '. ', 3, pilib.networkloglevel)
+
 
         # if we have an online time, leave it alone, or set it to now if it is empty
         if 'onlinetime' in lastnetstatus:
@@ -342,7 +335,7 @@ def runsystemstatus(runonce=False):
         pilib.writedatedlogmsg(pilib.systemstatuslog, 'Completed network status. ', 3, pilib.networkloglevel)
 
     # Poll netstatus and return data
-    updatenetstatus(lastnetstatus)
+    wpastatusdict = updatenetstatus(lastnetstatus)
 
     # Keep reading system status?
     while systemstatus['systemstatusenabled']:
@@ -513,6 +506,13 @@ def runsystemstatus(runonce=False):
             else:
                 wpastatusmsg += 'mode error: ' + netconfigdata['mode']
 
+            # Need to check IP address. There is a weird bug where we can be connected
+            # but reporting the wrong IP address
+            if wpastatusdict['ip_address'] != netconfigdata['address']:
+                pilib.writedatedlogmsg(pilib.networklog, 'IP address mismatch ( Configured for ' + netconfigdata['address'] + '. Reporting' + wpastatusdict['ip_address'] + ' ). Running config.', 1, pilib.networkloglevel)
+                netconfig.runconfig()
+            else:
+                pilib.writedatedlogmsg(pilib.networklog, 'IP address match for ' + netconfigdata['address'] + '. ', 3, pilib.networkloglevel)
         else:
             pilib.writedatedlogmsg(pilib.systemstatuslog, 'Netconfig disabled. ', 1, pilib.systemstatusloglevel)
 

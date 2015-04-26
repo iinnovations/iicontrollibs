@@ -271,7 +271,7 @@ def updateowfsinputentries(database, tablename, devices, execute=True):
                         str(device.type) + "','" + str(device.id) + "','" + str(device.name) + "','" + str(device.value) + "','" + str(device.unit)+ "','" +
                         str(device.polltime) + "'," + str(device.pollfreq) + ",'" + device.ontime + "','" + device.offtime + "')")
 
-    print(querylist)
+    # print(querylist)
     if execute:
         sqlitemultquery(controldatabase, querylist)
 

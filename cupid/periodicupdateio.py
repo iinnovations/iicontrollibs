@@ -25,21 +25,24 @@ updateioenabled = pilib.getsinglevalue(pilib.controldatabase, 'systemstatus', 'u
 
 while updateioenabled:
 
-    # print("runtime")
-    #print("reading input")
-    # Read again, once inside each loop so we terminate if the 
-    # variable name is changed
-
-    inputsreadenabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select inputsreadenabled from systemstatus')
+    pilib.writedatedlogmsg(pilib.iolog, 'Running periodicupdateio', 3, pilib.iologlevel)
+    pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running periodicupdateio', 3, pilib.systemstatusloglevel)
 
     # Set last run time
-    pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set lastinputspoll=\'' + pilib.gettimestring() + '\'')
-    pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set updateiostatus=\'1\'')
+    pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'lastinputpoll', pilib.gettimestring())
+    pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'updateiostatus', '1')
 
     # Read and record everything as specified in controldatabase
     # Update database of inputs with read data
 
-    reply = updateio.updateiodata(pilib.controldatabase)
+    # DEBUG
+    runupdate = False 
+    if runupdate:
+        reply = updateio.updateiodata(pilib.controldatabase)
+    else:
+        pilib.writedatedlogmsg(pilib.iolog,'DEBUG: Update IO disabled', 1, pilib.iologlevel)
+        pilib.writedatedlogmsg(pilib.systemstatuslog,'DEBUG: Update IO disabled', 1, pilib.systemstatusloglevel)
+
 
     result = pilib.readonedbrow(pilib.controldatabase, 'systemstatus', 0)
     systemsdict = result[0]
@@ -74,21 +77,19 @@ while updateioenabled:
 
             if controlvalue is not None:
                 # print('control value for channel ' + channelname + ' = ' + str(controlvalue))
-                pilib.sqlitequery(pilib.controldatabase, 'update channels set controlvalue=' + str(
-                    controlvalue) + ' where controlinput = ' + "'" + controlinput + "'")
-                pilib.sqlitequery(pilib.controldatabase,
-                                  'update channels set controlvaluetime=\'' + controltime + '\' where controlinput = ' + "'" + controlinput + "'")
+                pilib.setsinglevalue(pilib.controldatabase, 'channels', 'controlvalue', str(controlvalue), "controlinput='" + controlinput + "'")
+                # pilib.sqlitequery(pilib.controldatabase, 'update channels set controlvalue=' + str(
+                #     controlvalue) + ' where controlinput = ' + "'" + controlinput + "'")
+                pilib.setsinglevalue(pilib.controldatabase, 'channels', 'controlvaluetime', str(controltime), "controlinput='" + controlinput + "'")
+                # pilib.sqlitequery(pilib.controldatabase,
+                #                   'update channels set controlvaluetime=\'' + controltime + '\' where controlinput = ' + "'" + controlinput + "'")
 
         else:  # input is empty
-            pilib.sqlitequery(pilib.controldatabase,
-                              "update channels set statusmessage = 'No controlinput found ' where name='" + channelname + "'")
+            pilib.setsinglevalue(pilib.controldatabase, 'channels', 'statusmessage', 'No controlinput found', "name='" + channelname + "'" )
 
             # disable channel
             #pilib.sqlitequery(controldatabase,"update channels set enabled=0 where controlinput = \'" + controlinput + "'") 
 
-            # print(controlinput)
-            # print(controltime)
-            # print(controlvalue)
 
     ####################################################
     # Log value into tabled log
@@ -119,8 +120,6 @@ while updateioenabled:
             pilib.sizesqlitetable(pilib.logdatabase, logtablename, logpoints)
 
 
-
-
     ####################################################
     # log metadata
     pilib.getandsetmetadata(pilib.logdatabase)
@@ -128,5 +127,8 @@ while updateioenabled:
     pilib.writedatedlogmsg(pilib.iolog,'Sleeping for ' + str(readtime), 1, pilib.iologlevel)
     sleep(readtime)
 
-pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set updateiostatus=\'0\'')
+    # Read from systemstatus to make sure we should be running
+    updateioenabled = pilib.getsinglevalue(pilib.controldatabase, 'systemstatus', 'updateioenabled')
+
+pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'updateiostatus', '0')
 

@@ -22,8 +22,7 @@ elif [ "$1" = "install" ]
     apt-get -y install apache2 php5 sqlite3 php5-sqlite libapache2-mod-wsgi libapache2-mod-php5
     a2enmod rewrite
     a2enmod ssl
-    # default apache
-    # update-rc.d -f apache2 remove
+    update-rc.d -f apache2 remove
 
     apt-get -y install nginx
     update-rc.d -f nginx remove
@@ -37,22 +36,18 @@ elif [ "$1" = "install" ]
     apt-get -y install isc-dhcp-server
     update-rc.d -f isc-dhcp-server remove
 
-    echo "installing gpio-admin"
-    apt-get install quickwire-gpio-admin
-
-    echo "installing python-api-master"
-    apt-get install quick2wire-python-api-master/
+    echo "installing pigpio"
+    wget abyz.co.uk/rpi/pigpio/pigpio.zip
+    unzip pigpio.zip
+    cd PIGPIO
+    make
+    make install
+    cd ..
+    rm -Rf PIGPIO
 
     echo "installing spi-dev"
     pip install spidev
 
-    echo "installing bitstring"
-    apt-get install python3-pip
-
-    pip install bitstring
-    pip-3.3 install bitstring
-
-    echo "configuring hamachi"
 
   if [ -z $2 ]
   then
@@ -158,6 +153,7 @@ elif [ "$1" = "install" ]
     echo "complete"
 
 
+    echo "configuring hamachi"
     #    wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.139-1_armhf.deb
     dpkg -i /usr/lib/iicontrollibs/resource/logmein-hamachi_2.1.0.139-1_armhf.deb
     hamachi login
@@ -181,6 +177,10 @@ elif [ "$1" = "install" ]
         rm -R owfs-2.9p5
     fi
     echo "owfs complete"
+
+    echo "installing MAX31855 library"
+    cd /usr/lib/iicontrollibs/resource/Adafruit_Python_MAX31855-master
+    python setup.py install
 
     # get custom sources
 #    cp /usr/lib/iicontrollibs

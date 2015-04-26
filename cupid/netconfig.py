@@ -115,6 +115,7 @@ def writesupplicantfile(filedata, filepath='/etc/wpa_supplicant/wpa_supplicant.c
 
 
 def updatewpasupplicant():
+    print('I AM UPDATING SUPPLICANT DATA')
     try:
         suppdata = getwpasupplicantconfig()
     except:
@@ -128,6 +129,7 @@ def updatewpasupplicant():
         writedatedlogmsg(networklog, 'Error updating supplicant data. ', 0, networkloglevel)
     else:
         writedatedlogmsg(networklog, 'Supplicant data retrieved successfully. ', 3, networkloglevel)
+
     try:
         writesupplicantfile(updateddata)
     except:

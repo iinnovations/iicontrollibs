@@ -24,7 +24,7 @@ def runping(pingAddress, numpings=1):
     for i in range(numpings):
         # Perform the ping using the system ping command (one ping only)
         try:
-            result, err = Popen(['ping','-c','1','8.8.8.8'], stdout=PIPE, stderr=PIPE).communicate()
+            result, err = Popen(['ping','-c','1', pingAddress], stdout=PIPE, stderr=PIPE).communicate()
         except:
             failed = True
             latency = 0
