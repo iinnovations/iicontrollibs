@@ -264,8 +264,8 @@ def updateiodata(database, **kwargs):
                     pilib.writedatedlogmsg(pilib.iolog, 'Processing SPITC on SPI0', 3, logconfig['iologlevel'])
                     import readspi
 
-                    spitemp = readspi.getMAX31855tctemp(0)
-                    spitcentries = readspi.recordspidata(database, {'SPITC1' :spitemp})
+                    tcdict = readspi.getpigpioMAX31855temp(0,0)
+                    spitcentries = readspi.recordspidata(database, {'SPITC1' :tcdict['tctemp']})
                     querylist.extend(spitcentries)
 
                 if interface['type'] == 'CuPIDlights':
