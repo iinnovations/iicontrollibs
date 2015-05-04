@@ -36,7 +36,7 @@ while updateioenabled:
     # Update database of inputs with read data
 
     # DEBUG
-    runupdate = False 
+    runupdate = True
     if runupdate:
         reply = updateio.updateiodata(pilib.controldatabase)
     else:

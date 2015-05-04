@@ -264,8 +264,10 @@ def updateiodata(database, **kwargs):
                     pilib.writedatedlogmsg(pilib.iolog, 'Processing SPITC on SPI0', 3, logconfig['iologlevel'])
                     import readspi
 
-                    spitemp = readspi.getMAX31855tctemp(0)
-                    spitcentries = readspi.recordspidata(database, {'SPITC1' :spitemp})
+                    tcdict = readspi.getpigpioMAX31855temp(0,0)
+
+                    # Convert to F for now
+                    spitcentries = readspi.recordspidata(database, {'SPITC1' :tcdict['tctemp']*1.8+32})
                     querylist.extend(spitcentries)
 
                 if interface['type'] == 'CuPIDlights':
@@ -535,7 +537,7 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
             if method == 'rpigpio':
                 GPIO.setup(address, GPIO.OUT)
             elif method == 'pigpio':
-                pi.set_mode(address, pigpio.output)
+                pi.set_mode(address, pigpio.OUTPUT)
 
         except TypeError:
             pilib.writedatedlogmsg(pilib.iolog, 'You are trying to set a GPIO with the wrong variable type : ' +
@@ -593,7 +595,7 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
         if method == 'rpigpio':
             GPIO.setup(address, GPIO.IN)
         elif method == 'pigpio':
-            pi.set_mode(address, pigpio.input)
+            pi.set_mode(address, pigpio.INPUT)
 
         if method == 'rpigpio':
             value = GPIO.input(address)
@@ -628,6 +630,9 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
         interface['type'] + '\',\'' + str(address) + '\',\'' + gpioname + '\',\'' + str(
             value) + "','','" +
         str(polltime) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
+
+    if method == 'pigpio' and 'piobject' not in kwargs:
+        pi.stop()
 
     return querylist
 

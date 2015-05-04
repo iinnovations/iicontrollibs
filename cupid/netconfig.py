@@ -100,10 +100,40 @@ def updatesupplicantdata(configdata):
 
 def writesupplicantfile(filedata, filepath='/etc/wpa_supplicant/wpa_supplicant.conf'):
     writestring = ''
-    writestring += filedata.header
+
+    supplicantfilepath = '/etc/wpa_supplicant/wpa_supplicant.conf'
+    # We are hard-coding this, as this will unfortunately propagate a mangled file
+    subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/wpa_supplicant.conf', supplicantfilepath])
+
+    # iterate over fed data
+    ssid = 'not found'
+    psk = 'not found'
     for key, value in filedata.data.items():
-        writestring += key + '=' + value + '\n'
-    writestring += filedata.tail
+        if key == 'ssid':
+            ssid=value
+        elif key == 'psk':
+            psk = value
+
+    file = open(supplicantfilepath)
+    lines = file.readlines()
+    writestring = ''
+    ifacename = None
+    for line in lines:
+        if line.find('psk=') >= 0:
+            # insert our iface parameters
+            try:
+                writestring +='psk=' + psk + '\n'
+            except:
+                writestring +='psk=error'
+        elif line.find('ssid=') >= 0:
+            # insert our iface parameters
+            try:
+                writestring +='ssid=' + ssid + '\n'
+            except:
+                writestring +='psk=error'
+        else:
+            writestring += line
+
     writedatedlogmsg(networklog, 'Writing supplicant file. ', 1, networkloglevel)
     try:
         myfile = open(filepath, 'w')
@@ -115,7 +145,7 @@ def writesupplicantfile(filedata, filepath='/etc/wpa_supplicant/wpa_supplicant.c
 
 
 def updatewpasupplicant():
-    print('I AM UPDATING SUPPLICANT DATA')
+    # print('I AM UPDATING SUPPLICANT DATA')
     try:
         suppdata = getwpasupplicantconfig()
     except:

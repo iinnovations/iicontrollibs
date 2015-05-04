@@ -1,0 +1,4 @@
+#! /bin/sh
+
+rm -rf *cache
+aclocal && autoheader && autoconf && automake && echo "Run './configure' and 'make' to build owfs"

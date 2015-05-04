@@ -1,0 +1,469 @@
+ow_cmciel.lo: ow_cmciel.c ../../../../src/include/config.h \
+ ../../../../src/include/owfs_config.h ../include/ow_cmciel.h \
+ ../include/ow_standard.h ../include/ow.h /usr/include/features.h \
+ /usr/include/arm-linux-gnueabihf/bits/predefs.h \
+ /usr/include/arm-linux-gnueabihf/sys/cdefs.h \
+ /usr/include/arm-linux-gnueabihf/bits/wordsize.h \
+ /usr/include/arm-linux-gnueabihf/gnu/stubs.h \
+ /usr/include/arm-linux-gnueabihf/sys/types.h \
+ /usr/include/arm-linux-gnueabihf/bits/types.h \
+ /usr/include/arm-linux-gnueabihf/bits/typesizes.h /usr/include/time.h \
+ /usr/lib/gcc/arm-linux-gnueabihf/4.6/include/stddef.h \
+ /usr/include/endian.h /usr/include/arm-linux-gnueabihf/bits/endian.h \
+ /usr/include/arm-linux-gnueabihf/bits/byteswap.h \
+ /usr/include/arm-linux-gnueabihf/sys/select.h \
+ /usr/include/arm-linux-gnueabihf/bits/select.h \
+ /usr/include/arm-linux-gnueabihf/bits/sigset.h \
+ /usr/include/arm-linux-gnueabihf/bits/time.h \
+ /usr/include/arm-linux-gnueabihf/sys/sysmacros.h \
+ /usr/include/arm-linux-gnueabihf/bits/pthreadtypes.h \
+ /usr/include/arm-linux-gnueabihf/sys/times.h /usr/include/ctype.h \
+ /usr/include/stdlib.h /usr/include/arm-linux-gnueabihf/bits/waitflags.h \
+ /usr/include/arm-linux-gnueabihf/bits/waitstatus.h /usr/include/alloca.h \
+ /usr/include/stdio.h /usr/include/libio.h /usr/include/_G_config.h \
+ /usr/include/wchar.h \
+ /usr/lib/gcc/arm-linux-gnueabihf/4.6/include/stdarg.h \
+ /usr/include/arm-linux-gnueabihf/bits/stdio_lim.h \
+ /usr/include/arm-linux-gnueabihf/bits/sys_errlist.h \
+ /usr/include/arm-linux-gnueabihf/bits/stdio.h /usr/include/string.h \
+ /usr/include/arm-linux-gnueabihf/bits/string.h \
+ /usr/include/arm-linux-gnueabihf/bits/string2.h /usr/include/strings.h \
+ /usr/include/dirent.h /usr/include/arm-linux-gnueabihf/bits/dirent.h \
+ /usr/include/arm-linux-gnueabihf/bits/posix1_lim.h \
+ /usr/include/arm-linux-gnueabihf/bits/local_lim.h \
+ /usr/include/linux/limits.h /usr/include/signal.h \
+ /usr/include/arm-linux-gnueabihf/bits/signum.h \
+ /usr/include/arm-linux-gnueabihf/bits/siginfo.h \
+ /usr/include/arm-linux-gnueabihf/bits/sigaction.h \
+ /usr/include/arm-linux-gnueabihf/bits/sigcontext.h \
+ /usr/include/arm-linux-gnueabihf/asm/sigcontext.h \
+ /usr/include/arm-linux-gnueabihf/bits/sigstack.h \
+ /usr/include/arm-linux-gnueabihf/sys/ucontext.h \
+ /usr/include/arm-linux-gnueabihf/bits/sigthread.h \
+ /usr/lib/gcc/arm-linux-gnueabihf/4.6/include/stdint.h \
+ /usr/include/stdint.h /usr/include/arm-linux-gnueabihf/bits/wchar.h \
+ /usr/include/unistd.h /usr/include/arm-linux-gnueabihf/bits/posix_opt.h \
+ /usr/include/arm-linux-gnueabihf/bits/environments.h \
+ /usr/include/arm-linux-gnueabihf/bits/confname.h /usr/include/getopt.h \
+ /usr/include/fcntl.h /usr/include/arm-linux-gnueabihf/bits/fcntl.h \
+ /usr/include/arm-linux-gnueabihf/bits/stat.h /usr/include/termios.h \
+ /usr/include/arm-linux-gnueabihf/bits/termios.h \
+ /usr/include/arm-linux-gnueabihf/sys/ttydefaults.h /usr/include/errno.h \
+ /usr/include/arm-linux-gnueabihf/bits/errno.h /usr/include/linux/errno.h \
+ /usr/include/arm-linux-gnueabihf/asm/errno.h \
+ /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
+ /usr/include/syslog.h /usr/include/arm-linux-gnueabihf/sys/syslog.h \
+ /usr/include/arm-linux-gnueabihf/bits/syslog-path.h \
+ /usr/include/arm-linux-gnueabihf/sys/uio.h \
+ /usr/include/arm-linux-gnueabihf/bits/uio.h ../include/ow_timer.h \
+ /usr/include/arm-linux-gnueabihf/sys/time.h \
+ /usr/include/arm-linux-gnueabihf/sys/stat.h \
+ /usr/include/arm-linux-gnueabihf/sys/socket.h \
+ /usr/include/arm-linux-gnueabihf/bits/socket.h \
+ /usr/include/arm-linux-gnueabihf/bits/sockaddr.h \
+ /usr/include/arm-linux-gnueabihf/asm/socket.h \
+ /usr/include/arm-linux-gnueabihf/asm/sockios.h /usr/include/netinet/in.h \
+ /usr/include/arm-linux-gnueabihf/bits/in.h /usr/include/netdb.h \
+ /usr/include/rpc/netdb.h /usr/include/arm-linux-gnueabihf/bits/netdb.h \
+ /usr/include/search.h ../include/compat.h ../include/compat_netdb.h \
+ ../include/compat_getopt.h ../include/ow_debug.h ../include/ow_alloc.h \
+ ../include/ow_bitwork.h ../include/ow_localtypes.h \
+ ../include/ow_busnumber.h ../include/ow_localreturns.h \
+ ../include/ow_fd.h ../include/ow_integer.h ../include/ow_dirblob.h \
+ ../include/ow_charblob.h ../include/ow_memblob.h ../include/rwlock.h \
+ /usr/include/pthread.h /usr/include/sched.h \
+ /usr/include/arm-linux-gnueabihf/bits/sched.h \
+ /usr/include/arm-linux-gnueabihf/bits/setjmp.h ../include/sem.h \
+ /usr/include/semaphore.h \
+ /usr/include/arm-linux-gnueabihf/bits/semaphore.h \
+ ../include/ow_mutexes.h ../include/ow_dl.h /usr/include/dlfcn.h \
+ /usr/include/arm-linux-gnueabihf/bits/dlfcn.h ../include/ow_dnssd.h \
+ ../include/ow_avahi.h ../include/ow_opt.h ../include/ow_filetype.h \
+ ../include/ow_visibility.h ../include/ow_bitfield.h \
+ ../include/ow_device.h ../include/ow_parsedname.h \
+ ../include/ow_generic_read.h ../include/ow_generic_write.h \
+ ../include/ow_onewirequery.h ../include/ow_message.h \
+ ../include/ow_global.h ../include/ow_temperature.h \
+ ../include/ow_pressure.h ../include/ow_detail.h \
+ ../include/ow_stateinfo.h ../include/ow_arg.h ../include/ow_functions.h \
+ ../include/ow_parse_sn.h ../include/ow_cache.h ../include/ow_sibling.h \
+ ../include/ow_programs.h ../include/ow_return_code.h \
+ ../include/ow_connection.h ../include/ow_counters.h \
+ /usr/include/arm-linux-gnueabihf/sys/ioctl.h \
+ /usr/include/arm-linux-gnueabihf/bits/ioctls.h \
+ /usr/include/arm-linux-gnueabihf/asm/ioctls.h \
+ /usr/include/asm-generic/ioctls.h /usr/include/linux/ioctl.h \
+ /usr/include/arm-linux-gnueabihf/asm/ioctl.h \
+ /usr/include/asm-generic/ioctl.h \
+ /usr/include/arm-linux-gnueabihf/bits/ioctl-types.h \
+ ../include/ow_transaction.h ../include/ow_reset.h ../include/ow_search.h \
+ ../include/ow_detect.h ../include/ow_port_in.h \
+ ../include/ow_parse_address.h ../include/ow_w1_seq.h \
+ ../include/ow_usb_cycle.h /usr/include/usb.h \
+ /usr/lib/gcc/arm-linux-gnueabihf/4.6/include-fixed/limits.h \
+ /usr/lib/gcc/arm-linux-gnueabihf/4.6/include-fixed/syslimits.h \
+ /usr/include/limits.h /usr/include/arm-linux-gnueabihf/bits/posix2_lim.h \
+ /usr/include/arm-linux-gnueabihf/bits/xopen_lim.h \
+ /usr/include/arm-linux-gnueabihf/sys/param.h /usr/include/linux/param.h \
+ /usr/include/arm-linux-gnueabihf/asm/param.h ../include/ow_traffic.h \
+ ../include/ow_bus_routines.h ../include/ow_connection_in.h \
+ ../include/ow_master.h ../include/ow_communication.h \
+ ../include/ow_connection_out.h ../include/ow_codes.h
+
+../../../../src/include/config.h:
+
+../../../../src/include/owfs_config.h:
+
+../include/ow_cmciel.h:
+
+../include/ow_standard.h:
+
+../include/ow.h:
+
+/usr/include/features.h:
+
+/usr/include/arm-linux-gnueabihf/bits/predefs.h:
+
+/usr/include/arm-linux-gnueabihf/sys/cdefs.h:
+
+/usr/include/arm-linux-gnueabihf/bits/wordsize.h:
+
+/usr/include/arm-linux-gnueabihf/gnu/stubs.h:
+
+/usr/include/arm-linux-gnueabihf/sys/types.h:
+
+/usr/include/arm-linux-gnueabihf/bits/types.h:
+
+/usr/include/arm-linux-gnueabihf/bits/typesizes.h:
+
+/usr/include/time.h:
+
+/usr/lib/gcc/arm-linux-gnueabihf/4.6/include/stddef.h:
+
+/usr/include/endian.h:
+
+/usr/include/arm-linux-gnueabihf/bits/endian.h:
+
+/usr/include/arm-linux-gnueabihf/bits/byteswap.h:
+
+/usr/include/arm-linux-gnueabihf/sys/select.h:
+
+/usr/include/arm-linux-gnueabihf/bits/select.h:
+
+/usr/include/arm-linux-gnueabihf/bits/sigset.h:
+
+/usr/include/arm-linux-gnueabihf/bits/time.h:
+
+/usr/include/arm-linux-gnueabihf/sys/sysmacros.h:
+
+/usr/include/arm-linux-gnueabihf/bits/pthreadtypes.h:
+
+/usr/include/arm-linux-gnueabihf/sys/times.h:
+
+/usr/include/ctype.h:
+
+/usr/include/stdlib.h:
+
+/usr/include/arm-linux-gnueabihf/bits/waitflags.h:
+
+/usr/include/arm-linux-gnueabihf/bits/waitstatus.h:
+
+/usr/include/alloca.h:
+
+/usr/include/stdio.h:
+
+/usr/include/libio.h:
+
+/usr/include/_G_config.h:
+
+/usr/include/wchar.h:
+
+/usr/lib/gcc/arm-linux-gnueabihf/4.6/include/stdarg.h:
+
+/usr/include/arm-linux-gnueabihf/bits/stdio_lim.h:
+
+/usr/include/arm-linux-gnueabihf/bits/sys_errlist.h:
+
+/usr/include/arm-linux-gnueabihf/bits/stdio.h:
+
+/usr/include/string.h:
+
+/usr/include/arm-linux-gnueabihf/bits/string.h:
+
+/usr/include/arm-linux-gnueabihf/bits/string2.h:
+
+/usr/include/strings.h:
+
+/usr/include/dirent.h:
+
+/usr/include/arm-linux-gnueabihf/bits/dirent.h:
+
+/usr/include/arm-linux-gnueabihf/bits/posix1_lim.h:
+
+/usr/include/arm-linux-gnueabihf/bits/local_lim.h:
+
+/usr/include/linux/limits.h:
+
+/usr/include/signal.h:
+
+/usr/include/arm-linux-gnueabihf/bits/signum.h:
+
+/usr/include/arm-linux-gnueabihf/bits/siginfo.h:
+
+/usr/include/arm-linux-gnueabihf/bits/sigaction.h:
+
+/usr/include/arm-linux-gnueabihf/bits/sigcontext.h:
+
+/usr/include/arm-linux-gnueabihf/asm/sigcontext.h:
+
+/usr/include/arm-linux-gnueabihf/bits/sigstack.h:
+
+/usr/include/arm-linux-gnueabihf/sys/ucontext.h:
+
+/usr/include/arm-linux-gnueabihf/bits/sigthread.h:
+
+/usr/lib/gcc/arm-linux-gnueabihf/4.6/include/stdint.h:
+
+/usr/include/stdint.h:
+
+/usr/include/arm-linux-gnueabihf/bits/wchar.h:
+
+/usr/include/unistd.h:
+
+/usr/include/arm-linux-gnueabihf/bits/posix_opt.h:
+
+/usr/include/arm-linux-gnueabihf/bits/environments.h:
+
+/usr/include/arm-linux-gnueabihf/bits/confname.h:
+
+/usr/include/getopt.h:
+
+/usr/include/fcntl.h:
+
+/usr/include/arm-linux-gnueabihf/bits/fcntl.h:
+
+/usr/include/arm-linux-gnueabihf/bits/stat.h:
+
+/usr/include/termios.h:
+
+/usr/include/arm-linux-gnueabihf/bits/termios.h:
+
+/usr/include/arm-linux-gnueabihf/sys/ttydefaults.h:
+
+/usr/include/errno.h:
+
+/usr/include/arm-linux-gnueabihf/bits/errno.h:
+
+/usr/include/linux/errno.h:
+
+/usr/include/arm-linux-gnueabihf/asm/errno.h:
+
+/usr/include/asm-generic/errno.h:
+
+/usr/include/asm-generic/errno-base.h:
+
+/usr/include/syslog.h:
+
+/usr/include/arm-linux-gnueabihf/sys/syslog.h:
+
+/usr/include/arm-linux-gnueabihf/bits/syslog-path.h:
+
+/usr/include/arm-linux-gnueabihf/sys/uio.h:
+
+/usr/include/arm-linux-gnueabihf/bits/uio.h:
+
+../include/ow_timer.h:
+
+/usr/include/arm-linux-gnueabihf/sys/time.h:
+
+/usr/include/arm-linux-gnueabihf/sys/stat.h:
+
+/usr/include/arm-linux-gnueabihf/sys/socket.h:
+
+/usr/include/arm-linux-gnueabihf/bits/socket.h:
+
+/usr/include/arm-linux-gnueabihf/bits/sockaddr.h:
+
+/usr/include/arm-linux-gnueabihf/asm/socket.h:
+
+/usr/include/arm-linux-gnueabihf/asm/sockios.h:
+
+/usr/include/netinet/in.h:
+
+/usr/include/arm-linux-gnueabihf/bits/in.h:
+
+/usr/include/netdb.h:
+
+/usr/include/rpc/netdb.h:
+
+/usr/include/arm-linux-gnueabihf/bits/netdb.h:
+
+/usr/include/search.h:
+
+../include/compat.h:
+
+../include/compat_netdb.h:
+
+../include/compat_getopt.h:
+
+../include/ow_debug.h:
+
+../include/ow_alloc.h:
+
+../include/ow_bitwork.h:
+
+../include/ow_localtypes.h:
+
+../include/ow_busnumber.h:
+
+../include/ow_localreturns.h:
+
+../include/ow_fd.h:
+
+../include/ow_integer.h:
+
+../include/ow_dirblob.h:
+
+../include/ow_charblob.h:
+
+../include/ow_memblob.h:
+
+../include/rwlock.h:
+
+/usr/include/pthread.h:
+
+/usr/include/sched.h:
+
+/usr/include/arm-linux-gnueabihf/bits/sched.h:
+
+/usr/include/arm-linux-gnueabihf/bits/setjmp.h:
+
+../include/sem.h:
+
+/usr/include/semaphore.h:
+
+/usr/include/arm-linux-gnueabihf/bits/semaphore.h:
+
+../include/ow_mutexes.h:
+
+../include/ow_dl.h:
+
+/usr/include/dlfcn.h:
+
+/usr/include/arm-linux-gnueabihf/bits/dlfcn.h:
+
+../include/ow_dnssd.h:
+
+../include/ow_avahi.h:
+
+../include/ow_opt.h:
+
+../include/ow_filetype.h:
+
+../include/ow_visibility.h:
+
+../include/ow_bitfield.h:
+
+../include/ow_device.h:
+
+../include/ow_parsedname.h:
+
+../include/ow_generic_read.h:
+
+../include/ow_generic_write.h:
+
+../include/ow_onewirequery.h:
+
+../include/ow_message.h:
+
+../include/ow_global.h:
+
+../include/ow_temperature.h:
+
+../include/ow_pressure.h:
+
+../include/ow_detail.h:
+
+../include/ow_stateinfo.h:
+
+../include/ow_arg.h:
+
+../include/ow_functions.h:
+
+../include/ow_parse_sn.h:
+
+../include/ow_cache.h:
+
+../include/ow_sibling.h:
+
+../include/ow_programs.h:
+
+../include/ow_return_code.h:
+
+../include/ow_connection.h:
+
+../include/ow_counters.h:
+
+/usr/include/arm-linux-gnueabihf/sys/ioctl.h:
+
+/usr/include/arm-linux-gnueabihf/bits/ioctls.h:
+
+/usr/include/arm-linux-gnueabihf/asm/ioctls.h:
+
+/usr/include/asm-generic/ioctls.h:
+
+/usr/include/linux/ioctl.h:
+
+/usr/include/arm-linux-gnueabihf/asm/ioctl.h:
+
+/usr/include/asm-generic/ioctl.h:
+
+/usr/include/arm-linux-gnueabihf/bits/ioctl-types.h:
+
+../include/ow_transaction.h:
+
+../include/ow_reset.h:
+
+../include/ow_search.h:
+
+../include/ow_detect.h:
+
+../include/ow_port_in.h:
+
+../include/ow_parse_address.h:
+
+../include/ow_w1_seq.h:
+
+../include/ow_usb_cycle.h:
+
+/usr/include/usb.h:
+
+/usr/lib/gcc/arm-linux-gnueabihf/4.6/include-fixed/limits.h:
+
+/usr/lib/gcc/arm-linux-gnueabihf/4.6/include-fixed/syslimits.h:
+
+/usr/include/limits.h:
+
+/usr/include/arm-linux-gnueabihf/bits/posix2_lim.h:
+
+/usr/include/arm-linux-gnueabihf/bits/xopen_lim.h:
+
+/usr/include/arm-linux-gnueabihf/sys/param.h:
+
+/usr/include/linux/param.h:
+
+/usr/include/arm-linux-gnueabihf/asm/param.h:
+
+../include/ow_traffic.h:
+
+../include/ow_bus_routines.h:
+
+../include/ow_connection_in.h:
+
+../include/ow_master.h:
+
+../include/ow_communication.h:
+
+../include/ow_connection_out.h:
+
+../include/ow_codes.h:
