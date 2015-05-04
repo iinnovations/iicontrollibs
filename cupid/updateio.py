@@ -265,13 +265,9 @@ def updateiodata(database, **kwargs):
                     import readspi
 
                     tcdict = readspi.getpigpioMAX31855temp(0,0)
-<<<<<<< HEAD
 
                     # Convert to F for now
                     spitcentries = readspi.recordspidata(database, {'SPITC1' :tcdict['tctemp']*1.8+32})
-=======
-                    spitcentries = readspi.recordspidata(database, {'SPITC1' :tcdict['tctemp']})
->>>>>>> b9ee42b0083d19a7523eeac58638d7b7d29d8c0d
                     querylist.extend(spitcentries)
 
                 if interface['type'] == 'CuPIDlights':
