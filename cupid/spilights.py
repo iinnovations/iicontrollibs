@@ -61,13 +61,12 @@ def setrawspilights(enabledlists, CS=1, **kwargs):
         if 'piobject' in kwargs:
             pi = kwargs['piobject']
         else:
-            pi = pigpio.open()
+            pi = pigpio.pi()
 
         handle = pi.spi_open(0, 50000, 0)
 
         resp = pi.spi_write(handle, array.array(spiassignments).tostring())
         print(resp)
-
 
     if method == 'pigpio' and 'piobject' not in kwargs:
         pi.stop()
@@ -115,11 +114,11 @@ def setspilights(lightsettingsarray, CS=1):
     # print('enabled lists')
     # print(enabledlist1)
     # print(enabledlist2)
-    setrawspilights([enabledlist1, enabledlist2],CS)
+    setrawspilights([enabledlist1, enabledlist2], CS)
 
 
 def setspilightsoff(CS=1):
-    setrawspilights([[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]],CS)
+    setrawspilights([[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]], CS)
 
 
 def twitterspilights(delay):
