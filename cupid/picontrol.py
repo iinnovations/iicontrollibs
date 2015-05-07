@@ -238,7 +238,7 @@ def runpicontrol(runonce=False):
 
 
             # Set status message for channel
-            print(statusmsg)
+            # print(statusmsg)
             querylist.append('update channels set statusmessage=\'' + statusmsg + '\'' + 'where channelindex=' + channelindex)
 
             # Set update time for channel

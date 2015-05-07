@@ -164,6 +164,8 @@ def rebuildcontroldb(tabledict):
             querylist.append(
                 "insert into " + table + " values ('SPI1','CuPIDlights','','SPIout1','myCuPIDlightboard','',0,0)")
             querylist.append(
+                "insert into " + table + " values ('SPI0','SPITC','','SPITC0','mySPITC','',0,0)")
+            querylist.append(
                 "insert into " + table + " values ('I2C','DS2483','','I2CDS2483','I2C 1Wire','tempunit:F',1,0)")
             querylist.append(
                 "insert into " + table + " values ('LAN','MBTCP','192.168.1.18','MBTCP1','Modbus TCPIP','wordblocksize:24,bitblocksize:96',0,0)")

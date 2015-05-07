@@ -17,19 +17,22 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 
-def runping(pingAddress, numpings=1):
+def runping(pingAddress='8.8.8.8', numpings=1):
     pingtimes = []
     from cupid import pilib
-    from subprocess import Popen, PIPE
+    import subprocess
     for i in range(numpings):
         # Perform the ping using the system ping command (one ping only)
         try:
-            result, err = Popen(['ping','-c','1', pingAddress], stdout=PIPE, stderr=PIPE).communicate()
+            # result, err = Popen(['ping','-c','1', pingAddress], stdout=PIPE, stderr=PIPE).communicate()
+            result, err = subprocess.Popen(['ping','-c','1', pingAddress], stdout=subprocess.PIPE).communicate()
+            # print(result)
         except:
+            print('failed')
             failed = True
             latency = 0
         else:
-            print(result)
+            # print(result)
             # Extract the ping time
             if len(result) < 2:
                 # Failed to find a DNS resolution or route

@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-# Mount 1wire master
-
 import subprocess
 import pilib
 import spilights
@@ -9,8 +7,17 @@ import spilights
 interfaces = pilib.readalldbrows(pilib.controldatabase, 'interfaces')
 systemstatus = pilib.readonedbrow(pilib.controldatabase, 'systemstatus')[0]
 
+# Start pigpiod
+
+subprocess.call(['killall','pigpiod'])
 pilib.writedatedlogmsg(pilib.systemstatuslog, 'boot: starting pigpio daemon', 3, pilib.systemstatusloglevel)
-subprocess.call(['pigpiod'])
+subprocess.call(['/usr/local/bin/pigpiod'])
+
+# Start webserver
+
+subprocess.call(['killall','nginx'])
+subprocess.call(['killall','uwsgi'])
+subprocess.call(['killall','apache2'])
 
 if systemstatus['webserver'] == 'apache':
     pilib.writedatedlogmsg(pilib.systemstatuslog, 'boot: starting apache', 3, pilib.systemstatusloglevel)
@@ -19,6 +26,18 @@ elif systemstatus['webserver'] == 'nginx':
     pilib.writedatedlogmsg(pilib.systemstatuslog, 'boot: starting nginx', 3, pilib.systemstatusloglevel)
     subprocess.call(['service', 'nginx', 'start'])
 
+# Run uwsgi daemon if nginx is running
+result = ''
+result = subprocess.check_output(['service', 'nginx', 'status'])
+if result:
+    pilib.writedatedlogmsg(pilib.systemstatuslog, 'boot: starting uwsgi based on nginx call', 0)
+    subprocess.call(['uwsgi', '--emperor', '/usr/lib/iicontrollibs/wsgi/', '--daemonize', '/var/log/cupid/uwsgi.log'])
+
+# Mount 1wire master
+
+subprocess.call(['killall','owfs'])
+subprocess.call(['killall','owserver'])
+subprocess.call(['killall','owhttpd'])
 
 runi2cowfs = False
 runusbowfs = False
@@ -79,9 +98,3 @@ from systemstatus import readhardwarefileintoversions
 
 readhardwarefileintoversions()
 
-# Run uwsgi daemon if nginx is running
-result = ''
-result = subprocess.check_output(['service', 'nginx', 'status'])
-if result:
-    pilib.writedatedlogmsg(pilib.systemstatuslog, 'boot: starting uwsgi based on nginx call', 0)
-    subprocess.call(['uwsgi', '--emperor', '/usr/lib/iicontrollibs/wsgi/', '--daemonize', '/var/log/cupid/uwsgi.log'])
