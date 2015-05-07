@@ -10,44 +10,69 @@ __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
 
-def setrawspilights(enabledlists, CS=1):
+def setrawspilights(enabledlists, CS=1, **kwargs):
+
     from pilib import writedatedlogmsg, systemstatuslog, systemstatusloglevel
-    try:
-        import spidev
-    except ImportError:
-        writedatedlogmsg(systemstatuslog, 'You have not installed the spidev python package. Exiting.', 0, systemstatusloglevel)
-        exit
+    if 'method' in kwargs:
+        method = kwargs['method']
     else:
-        spi = spidev.SpiDev()
+        method = 'spidev'
 
-    try:
-        spi.open(0, CS)  # Port 0, CS1
-        spi.max_speed_hz = 50000
-    except:
-        writedatedlogmsg(systemstatuslog, 'Error raised on spi open. exiting.', 0, systemstatusloglevel)
-        exit
-    else:
+    # Notes:
+    # Low is on. Cathodes are open drain.
+    # This unforunately means we need to initialize
+    # to off on start-up. not a huge deal
 
-        # Notes:
-        # Low is on. Cathodes are open drain.
-        # This unforunately means we need to initialize
-        # to off on start-up. not a huge deal
+    spiassignments = []
+    for enabledlist in enabledlists:
+        bytesum = 0
+        for index, bit in enumerate(enabledlist):
+            bytesum += bit * (2 ** index)
 
-        spiassignments = []
-        for enabledlist in enabledlists:
-            bytesum = 0
-            for index, bit in enumerate(enabledlist):
-                bytesum += bit * (2 ** index)
+        spiassign = 255 - bytesum
+        spiassignments.append(spiassign)
 
-            spiassign = 255 - bytesum
-            spiassignments.append(spiassign)
+    resp = []
+    if method == 'spidev':
+        try:
+            import spidev
+        except ImportError:
+            writedatedlogmsg(systemstatuslog, 'You have not installed the spidev python package. Exiting.', 0, systemstatusloglevel)
+            exit
+        else:
+            spi = spidev.SpiDev()
+        try:
+            spi.open(0, CS)  # Port 0, CS1
+            spi.max_speed_hz = 50000
+        except:
+            writedatedlogmsg(systemstatuslog, 'Error raised on spi open. exiting.', 0, systemstatusloglevel)
+            exit
+        else:
 
-        # Transfer bytes
-        # print('spi assignments')
-        # print(spiassignments)
-        resp = spi.xfer2(spiassignments)
-        # resp = spi.xfer2(spiassignments)
-        return resp
+            # Transfer bytes
+            # print('spi assignments')
+            # print(spiassignments)
+            resp = spi.xfer2(spiassignments)
+            # resp = spi.xfer2(spiassignments)
+
+    elif method == 'pigpio':
+        import pigpio
+        import array
+        if 'piobject' in kwargs:
+            pi = kwargs['piobject']
+        else:
+            pi = pigpio.open()
+
+        handle = pi.spi_open(0, 50000, 0)
+
+        resp = pi.spi_write(handle, array.array(spiassignments).tostring())
+        print(resp)
+
+
+    if method == 'pigpio' and 'piobject' not in kwargs:
+        pi.stop()
+
+    return resp
 
 
 def setspilights(lightsettingsarray, CS=1):

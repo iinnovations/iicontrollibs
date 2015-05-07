@@ -9,7 +9,7 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
-import RPi.GPIO as GPIO
+# import RPi.GPIO as GPIO
 from datetime import datetime
 import time
 
@@ -29,27 +29,45 @@ def gettimestring(timeinseconds=None):
     return timestring
 
 
-def doGpio(address,mode):
-    # test redeclare
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setwarnings(True)
+def doGpio(address,method,mode):
+
+    if method == 'rpigpio':
+        import RPi.GPIO as GPIO
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(True)
+
     if mode == 'output':
         print(gettimestring() + ' : \tSetting up GPIO ' + str(address))
-        GPIO.setup(address, GPIO.OUT)
-        #print(gettimestring() + ' : \tSetting GPIO ' + str(address))
-        #GPIO.output(address, False)
-        #print(gettimestring() + ' : \tReading GPIO ' + str(address))
-        #value = GPIO.input(address)
-        #print(gettimestring() + ' : \tValue: ' + str(value))
+        if method == 'rpigpio':
+            GPIO.setup(address, GPIO.OUT)
+        elif method == 'pigpio':
+            pi.set_mode(address, pigpio.INPUT)
+        # print(gettimestring() + ' : \tSetting GPIO ' + str(address))
+        # GPIO.output(address, False)
+        # print(gettimestring() + ' : \tReading GPIO ' + str(address))
+        # value = GPIO.input(address)
+        # print(gettimestring() + ' : \tValue: ' + str(value))
     else:
         print(gettimestring() + ' : \tSetting GPIO ' + str(address))
-        GPIO.setup(address, GPIO.IN)
+        if method == 'rpigpio':
+            GPIO.setup(address, GPIO.IN)
+        elif method == 'pigpio':
+            pi.set_mode(address, pigpio.input)
+
         print(gettimestring() + ' : \tReading GPIO ' + str(address))
-        value = GPIO.input(address)
+        if method == 'rpigpio':
+            value = GPIO.input(address)
+        elif method == 'pigpio':
+            pi.read(address)
         print(gettimestring() + ' : \tValue: ' + str(value))
 
-# GPIO.setmode(GPIO.BCM)
-# GPIO.setwarnings(False)
+
+method = 'pigpio'
+if method == 'pigpio':
+    import pigpio
+    pi = pigpio.pi()
+
+theabsolutestarttime = datetime.utcnow()
 
 cycle = 0
 while True:
@@ -57,14 +75,15 @@ while True:
     cycle += 1
     starttime = datetime.utcnow()
 
-    #if cycle/2:
-    if True: 
+    # if cycle/2:
+    if True:
         mode = 'output'
     else:
         mode = 'input'
 
     print(gettimestring() + ' : Beginning GPIO set/reads. Mode: ' + mode)
     for address in gpioaddresses:
-        doGpio(address, mode)
+        doGpio(address, method, mode)
     print('elapsed time: ' + str((datetime.utcnow()-starttime).total_seconds()))
-    #time.sleep(0.1)
+    print('total elapsed time: ' + str((datetime.utcnow()-theabsolutestarttime).total_seconds()))
+    # time.sleep(0.1)

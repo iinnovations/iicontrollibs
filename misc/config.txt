@@ -44,4 +44,5 @@
 
 # Enable serial interfaces
 dtparam=i2c_arm=on
+dtparam=i2c_vc=on
 dtparam=spi=on

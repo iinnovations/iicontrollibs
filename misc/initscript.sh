@@ -46,7 +46,13 @@ elif [ "$1" = "install" ]
     rm -Rf PIGPIO
 
     echo "installing spi-dev"
-    pip install spidev
+    wget https://github.com/Gadgetoid/py-spidev/archive/master.zip
+    unzip master.zip
+    rm master.zip
+    cd py-spidev-master
+    sudo python setup.py install
+    cd ..
+    rm -R py-spidev-master
 
 
   if [ -z $2 ]
@@ -204,7 +210,10 @@ elif [ "$1" = "install" ]
     echo "Complete"
 
     echo "Copying nginx config"
-    cp /usr/lib/iicontrollibs/misc/nginx/ngin.conf /etc/nginx/nginx.conf
+    cp /usr/lib/iicontrollibs/misc/nginx/nginx.ssl.conf /etc/nginx/nginx.conf
+
+    # fix security limit extensions
+    cp /usr/lib/iicontrollibs/misc/nginx/www.conf /etc/php5/fpm/pool.d/www.conf
     echo "Complete"
 
     echo "Creating self-signed ssl cert"
@@ -235,15 +244,15 @@ elif [ "$1" = "install" ]
     echo "copying hostapd.conf"
     cp /usr/lib/iicontrollibs/misc/hostapd.conf /etc/hostapd/
 
-    # These are now handled via raspi-config (I think. In testing)
-#    echo "copying blacklist file"
+    # Ensure i2c-dev module is loaded
+#    echo "copying modules file"
 #    cp /usr/lib/iicontrollibs/misc/raspi-blacklist.conf /etc/modprobe.d/
 
 #    echo "setting modprobe"
 #    modprobe i2c-bcm2708
 
-#    echo "coping boot config to disable console serial interface and enable serial interfaces"
-#    cp /usr/lib/iicontrollibs/misc/config.txt /boot/
+    echo "copying boot config to disable console serial interface and enable serial interfaces"
+    cp /usr/lib/iicontrollibs/misc/modules /etc/modules
 
     echo "Copying icons to desktop"
 

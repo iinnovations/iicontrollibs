@@ -503,16 +503,18 @@ def runsystemstatus(runonce=False):
                         pilib.writedatedlogmsg(pilib.systemstatuslog, 'Restarting netconfig on bad wpastatus', 1,
                                                pilib.systemstatusloglevel)
                         netconfig.runconfig()
+
+                    if wpastatusdict['ip_address'] != netconfigdata['address']:
+                        pilib.writedatedlogmsg(pilib.networklog, 'IP address mismatch ( Configured for ' + netconfigdata['address'] + '. Reporting' + wpastatusdict['ip_address'] + ' ). Running config.', 1, pilib.networkloglevel)
+                        netconfig.runconfig()
+                    else:
+                        pilib.writedatedlogmsg(pilib.networklog, 'IP address match for ' + netconfigdata['address'] + '. ', 3, pilib.networkloglevel)
             else:
                 wpastatusmsg += 'mode error: ' + netconfigdata['mode']
 
             # Need to check IP address. There is a weird bug where we can be connected
             # but reporting the wrong IP address
-            if wpastatusdict['ip_address'] != netconfigdata['address']:
-                pilib.writedatedlogmsg(pilib.networklog, 'IP address mismatch ( Configured for ' + netconfigdata['address'] + '. Reporting' + wpastatusdict['ip_address'] + ' ). Running config.', 1, pilib.networkloglevel)
-                netconfig.runconfig()
-            else:
-                pilib.writedatedlogmsg(pilib.networklog, 'IP address match for ' + netconfigdata['address'] + '. ', 3, pilib.networkloglevel)
+
         else:
             pilib.writedatedlogmsg(pilib.systemstatuslog, 'Netconfig disabled. ', 1, pilib.systemstatusloglevel)
 

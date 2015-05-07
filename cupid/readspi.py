@@ -55,7 +55,7 @@ def getMAX31855tctemp(CS=0,device=0):
     return temp
 
 
-def readspi(CS=0,device=0,**kwargs):
+def readspi(CS=0, device=0, **kwargs):
 
     # import spidev
     import pigpio
