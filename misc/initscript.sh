@@ -221,9 +221,6 @@ elif [ "$1" = "install" ]
     openssl req -new -x509 -days 365 -nodes -out /etc/ssl/localcerts/mycert.pem -keyout /etc/ssl/localcerts/mycert.key
     echo "Complete"
 
-    echo "setting fpm extensions to allow html files"
-    # cp pool.d/www.conf file over ...
-
     echo "Copying dhcpd.conf"
     cp /usr/lib/iicontrollibs/misc/dhcpd.conf /etc/dhcp/
     echo "Complete"
