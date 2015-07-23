@@ -137,21 +137,37 @@ def rebuildcontroldb(tabledict):
         querylist.append("create table " + table + " (id text primary key, name text, options text)")
         if addentries:
             querylist.append(
-                "insert into " + table + " values ('GPIO18', 'GPIO1', '')")
+                "insert into " + table + " values ('GPIO18', 'GPIO18', '')")
             querylist.append(
-                "insert into " + table + " values ('GPIO23', 'GPIO2', '')")
+                "insert into " + table + " values ('GPIO23', 'GPIO23', '')")
             querylist.append(
-                "insert into " + table + " values ('GPIO24', 'GPIO3', '')")
+                "insert into " + table + " values ('GPIO24', 'GPIO24', '')")
             querylist.append(
-                "insert into " + table + " values ('GPIO25', 'GPIO4', '')")
+                "insert into " + table + " values ('GPIO25', 'GPIO25(BootOk)', '')")
             querylist.append(
-                "insert into " + table + " values ('GPIO4', 'GPIO5', '')")
+                "insert into " + table + " values ('GPIO4', 'GPIO4(MotePower)', '')")
             querylist.append(
-                "insert into " + table + " values ('GPIO17', 'GPIO6', '')")
+                "insert into " + table + " values ('GPIO17', 'GPIO17', '')")
             querylist.append(
-                "insert into " + table + " values ('GPIO21', 'GPIO7', '')")
+                "insert into " + table + " values ('GPIO27', 'GPIO27', '')")
             querylist.append(
-                "insert into " + table + " values ('GPIO22', 'GPIO8', '')")
+                "insert into " + table + " values ('GPIO22', 'GPIO22', '')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO5', 'GPIO5', '')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO6', 'GPIO6', '')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO13', 'GPIO13', '')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO19', 'GPIO19', '')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO26', 'GPIO26', '')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO16', 'GPIO16', '')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO20', 'GPIO20', '')")
+            querylist.append(
+                "insert into " + table + " values ('GPIO21', 'GPIO21(WiFi)', '')")
 
     ### Interfaces Table
     if 'interfaces' in tabledict:
@@ -170,21 +186,37 @@ def rebuildcontroldb(tabledict):
             querylist.append(
                 "insert into " + table + " values ('LAN','MBTCP','192.168.1.18','MBTCP1','Modbus TCPIP','wordblocksize:24,bitblocksize:96',0,0)")
             querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','18','GPIO18','GPIO 1','mode:output,pullupdown:pulldown',1,0)")
+                "insert into " + table + " values ('GPIO','GPIO','18','GPIO18','GPIO 18','mode:input,pullupdown:pullup',1,0)")
             querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','23','GPIO23','GPIO 2','mode:output,pullupdown:pulldown',1,0)")
+                "insert into " + table + " values ('GPIO','GPIO','23','GPIO23','GPIO 23','mode:input,pullupdown:pullu',1,0)")
             querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','24','GPIO24','GPIO 3','mode:output,pullupdown:pulldown',1,0)")
+                "insert into " + table + " values ('GPIO','GPIO','24','GPIO24','GPIO 24','mode:input,pullupdown:pullup',1,0)")
             querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','25','GPIO25','GPIO 4','mode:output,pullupdown:pulldown',1,0)")
+                "insert into " + table + " values ('GPIO','GPIO','25','GPIO25','GPIO 25','mode:output',1,0)")
             querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','4','GPIO4','GPIO 5','mode:output,pullupdown:pulldown',1,0)")
+                "insert into " + table + " values ('GPIO','GPIO','4','GPIO4','GPIO 4','mode:input,pullupdown:pullup',1,0)")
             querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','17','GPIO17','GPIO6','mode:output,pullupdown:pulldown',1,0)")
+                "insert into " + table + " values ('GPIO','GPIO','17','GPIO17','GPIO 17','mode:input,pullupdown:pullup',1,0)")
             querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','21','GPIO21','GPIO 7','mode:output,pullupdown:pulldown',1,0)")
+                "insert into " + table + " values ('GPIO','GPIO','27','GPIO27','GPIO 27','mode:input,pullupdown:pullup',1,0)")
             querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','22','GPIO22','GPIO 8','mode:output,pullupdown:pulldown',1,0)")
+                "insert into " + table + " values ('GPIO','GPIO','22','GPIO22','GPIO 22','mode:input,pullupdown:pullup',1,0)")
+            querylist.append(
+                "insert into " + table + " values ('GPIO','GPIO','5','GPIO5','GPIO 5','mode:input,pullupdown:pullup',1,0)")
+            querylist.append(
+                "insert into " + table + " values ('GPIO','GPIO','6','GPIO6','GPIO 6','mode:input,pullupdown:pullup',1,0)")
+            querylist.append(
+                "insert into " + table + " values ('GPIO','GPIO','13','GPIO13','GPIO 13','mode:input,pullupdown:pullup',1,0)")
+            querylist.append(
+                "insert into " + table + " values ('GPIO','GPIO','19','GPIO19','GPIO 19','mode:input,pullupdown:pullup',1,0)")
+            querylist.append(
+                "insert into " + table + " values ('GPIO','GPIO','26','GPIO26','GPIO 26','mode:input,pullupdown:pullup',1,0)")
+            querylist.append(
+                "insert into " + table + " values ('GPIO','GPIO','16','GPIO16','GPIO 16','mode:input,pullupdown:pullup',1,0)")
+            querylist.append(
+                "insert into " + table + " values ('GPIO','GPIO','20','GPIO20','GPIO 20','mode:input,pullupdown:pulldown,function:shutdown,functionstate:true',1,0)")
+            querylist.append(
+                "insert into " + table + " values ('GPIO','GPIO','21','GPIO21','GPIO 21','mode:input,pullupdown:pullup',1,0)")
 
     ### modbustcp Table
     if 'modbustcp' in tabledict:
@@ -225,10 +257,10 @@ def rebuildcontroldb(tabledict):
         table = 'channels'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (channelindex integer primary key, name text unique, controlinput text default 'none', enabled boolean default 0, outputsenabled boolean default 0, controlupdatetime text, controlalgorithm text default 'on/off 1', controlrecipe text default 'none', recipestage integer default 0, recipestarttime real default 0, recipestagestarttime real default 0, setpointvalue real, controlvalue real, controlvaluetime text, positiveoutput text default none, negativeoutput text default none, action real default 0, mode text default manual, statusmessage text, logpoints real default 100)")
+            "create table " + table + " (channelindex integer primary key, name text unique, controlinput text default 'none', enabled boolean default 0, outputsenabled boolean default 0, controlupdatetime text, controlalgorithm text default 'on/off 1', controlrecipe text default 'none', recipestage integer default 0, recipestarttime real default 0, recipestagestarttime real default 0, setpointvalue real, controlvalue real, controlvaluetime text, positiveoutput text default none, negativeoutput text default none, action real default 0, mode text default manual, statusmessage text, logpoints real default 100, data text)")
         if addentries:
             querylist.append(
-                "insert into " + table + " values (1, 'channel 1', 'none', 0, 0, '', 'on/off 1', 'none',0,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000)")
+                "insert into " + table + " values (1, 'channel 1', 'none', 0, 0, '', 'on/off 1', 'none',0,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'')")
 
     if runquery:
         print(querylist)
@@ -495,7 +527,7 @@ if __name__ == "__main__":
         rebuildusersdata('defaults')
         rebuildcontroldb({'actions': True, 'modbustcp': True, 'logconfig': True, 'defaults': True, 'systemstatus': True,
                           'indicators': True, 'inputs': True, 'outputs': True, 'owfs': True, 'ioinfo': True,
-                          'interfaces': True, 'inputsdata': True, 'algorithms': True, 'algorithmtypes': True,
+                          'interfaces': True, 'algorithms': True, 'algorithmtypes': True,
                           'channels': True, 'remotes': True, 'mote':True})
         rebuildsystemdatadb(
             {'metadata': True, 'netconfig': True, 'netstatus': True, 'versions': True, 'systemflags': True})
@@ -571,10 +603,6 @@ if __name__ == "__main__":
         answer = raw_input('Rebuild interfaces table (y/N)?')
         if answer == 'y':
             controltabledict['interfaces'] = True
-
-        answer = raw_input('Rebuild inputsdata table (y/N)?')
-        if answer == 'y':
-            controltabledict['inputsdata'] = True
 
         answer = raw_input('Rebuild algorithms table (y/N)?')
         if answer == 'y':

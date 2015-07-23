@@ -71,8 +71,8 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True):
                         if datadict:
                             print("datadict: ")
                             print(datadict)
-                            print("message: ")
-                            print(message)
+                            # print("message: ")
+                            # print(message)
 
                             publish = False
                             for k in datadict:
@@ -192,13 +192,23 @@ def processserialdata(data):
 
 def lograwmessages(message):
     from cupid.pilib import sqliteinsertsingle, motesdatabase, gettimestring
-    try:
-        sqliteinsertsingle(motesdatabase, 'readmessages', [gettimestring(), str(message)])
-    except:
-        return {'status':1, 'message':'query error'}
-    else:
-        return{'status':0, 'message':'ok' }
+    # try:
+    strmessage = str(message).replace('\x00','').strip()
+    print(repr(strmessage))
+    sqliteinsertsingle(motesdatabase, 'readmessages', [gettimestring(), strmessage])
+    # sqliteinsertsingle(motesdatabase, 'readmessages', [gettimestring(), 'nodeid:2,chan:02,sv:070.000,pv:071.000,RX_RSSI:_57'])
+    # except:
+    #     print('it did not go ok')
+    #     return {'status':1, 'message':'query error'}
+    # else:
+    #     print('it went ok')
+    #     return{'status':0, 'message':'ok' }
 
+
+# THis function processes remote data as it is read. This is reserved for things that should happen synchronously.
+# Keep in mind, however, that we are trying to read data in real-time within the limits of the UART, so we should
+# put off all time-consuming activities until later if at all possible to avoid missing messages due to buffer
+# limitations
 
 def processremotedata(datadict, stringmessage):
     import cupid.pilib as pilib
@@ -299,21 +309,66 @@ def processremotedata(datadict, stringmessage):
             else:
                 runquery = True
         elif 'chan' in datadict:
-            # {chan:name,sp:XXX.XXX,pv:XXX.XXX,act:XXX.XXX}
-            pass
+            # insert or update remotes database value
+            # first need to get existing entry if one exists
+            msgtype = 'channel'
+            keyvalue = str(int(datadict['chan'])) # Zeroes bad
+            keyvaluename = str(int(datadict['chan']))
+
+            # conditions = '"nodeid"=2 and "msgtype"=\'channel\' and "keyvalue"=\'' + keyvalue + '\'"'
+
+            # Should be able to offer all conditions, but it is not working for some reason, so we will
+            # iterate over list to find correct enty
+
+            conditions = '"nodeid"=\''+ datadict['nodeid'] + '\' and "msgtype"=\'channel\''
+            chanentries = pilib.readalldbrows(pilib.controldatabase, 'remotes', conditions)
+
+            # parse through to get data from newdata
+            newdata = {}
+            for key, value in datadict.iteritems():
+                if key not in ['chan','nodeid']:
+                    newdata[key] = value
+
+            updateddata = newdata.copy()
+
+            # This does not take time into account. This should not be an issue, as there should only be one entry
+            for chanentry in chanentries:
+                if (str(int(chanentry['keyvalue']))) == keyvalue:
+                    print('I FOUND')
+
+                    # newdata  = {'fakedatatype':'fakedata', 'anotherfakedatatype':'morefakedata'}
+                    olddata = pilib.parseoptions(chanentry['data'])
+
+                    olddata.update(updateddata)
+                    updateddata = olddata.copy()
+
+                    newqueries = []
+                    conditions += ' and "keyvalue"=\'' + keyvalue +"\'"
+
+            # Ok, so here we are. We have either added new data to old data, or we have the new data alone.
+            # We take our dictionary and convert it back to json and put it in the text entry
+
+            updatedjsonentry = pilib.dicttojson(updateddata)
+
+            conditions += 'and "keyvalue"=\'' + keyvalue +'\''
+            deletequery = pilib.makedeletesinglevaluequery('remotes',conditions)
+
+            # hardcode this for now, should supply valuename list.
+            addquery = pilib.makesqliteinsert('remotes',[datadict['nodeid'],'channel',keyvalue,'channel',updatedjsonentry,pilib.gettimestring()])
+
+            pilib.sqlitemultquery(pilib.controldatabase, [deletequery, addquery])
+
+            # pass
         elif 'scalevalue' in datadict:
             querylist.append('create table if not exists scalevalues (value float, time string)')
             querylist.append(pilib.makesqliteinsert('scalevalues',[datadict['scalevalue'], pilib.gettimestring()],['value','time']))
             pilib.sqlitemultquery(pilib.logdatabase, querylist)
 
         if runquery:
-            print('running query')
-            print(stringmessage.strip())
             deletequery = pilib.makedeletesinglevaluequery('remotes', {'conditionnames': ['nodeid', 'keyvalue', 'keyvaluename'], 'conditionvalues': [nodeid ,keyvalue, keyvaluename]})
             insertquery = pilib.makesqliteinsert('remotes',  [nodeid, msgtype, keyvaluename, keyvalue, stringmessage.replace('\x00', ''), pilib.gettimestring()], ['nodeid', 'msgtype', 'keyvaluename', 'keyvalue', 'data', 'time'])
             querylist.append(deletequery)
             querylist.append(insertquery)
-            print(querylist)
             pilib.sqlitemultquery(pilib.controldatabase, querylist)
 
             return

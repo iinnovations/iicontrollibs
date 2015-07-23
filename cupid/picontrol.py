@@ -52,10 +52,8 @@ def runpicontrol(runonce=False):
 
             # Make sure channel is enabled
             if channel['enabled']:
-
                 # Create log if it doesn't exist
                 query = 'create table if not exists \'' + logtablename + '\' (time text, controlinput text, controlvalue real, setpointvalue real, action real, algorithm text, enabled real, statusmsg text)'
-
                 pilib.sqlitequery(pilib.logdatabase, query)
 
                 statusmsg = ''
@@ -222,8 +220,9 @@ def runpicontrol(runonce=False):
                     pilib.sizesqlitetable(pilib.logdatabase, logtablename, logpoints)
                     # print(statusmsg)
 
-                else:
-                    statusmsg += 'Channel not enabled. '
+            else:
+                # print('channel not enabled')
+                statusmsg += 'Channel not enabled. '
 
             # If active reset and we didn't set channel modes, disable outputs
             # Active reset is not yet explicitly declared, but implied

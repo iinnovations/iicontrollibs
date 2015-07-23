@@ -67,7 +67,7 @@ while updateioenabled:
         # Then get the value and readtime from the input if it
         # can be found
 
-        if controlinput:
+        if controlinput and controlinput not in ['none', 'None']:
 
             controlvalue = pilib.getsinglevalue(pilib.controldatabase, 'inputs', 'value', "name='" + controlinput + "'")
             controltime = pilib.getsinglevalue(pilib.controldatabase, 'inputs', 'polltime',

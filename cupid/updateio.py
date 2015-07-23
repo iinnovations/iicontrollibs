@@ -25,7 +25,7 @@ def updateiodata(database, **kwargs):
         import pigpio
         pi = pigpio.pi()
 
-    allowedGPIOaddresses = [18, 23, 24, 25, 4, 17, 21, 22]
+    allowedGPIOaddresses = [18, 23, 24, 25, 4, 17, 27, 22, 5, 6, 13, 19, 26, 16, 20, 21]
 
     logconfig = pilib.getlogconfig()
 
@@ -123,80 +123,151 @@ def updateiodata(database, **kwargs):
                  pilib.writedatedlogmsg(pilib.iolog, 'USB Interface ' + interface['name'] + ' disabled', 3,
                                        logconfig['iologlevel'])
         elif interface['interface'] == 'MOTE':
-            pilib.writedatedlogmsg(pilib.iolog, 'Processing Mote interface' + interface['name'], 3,
+
+            #determine and then update id based on fields
+            entryid = interface['interface'] + '_' + interface['type'] + '_' + interface['address']
+            condition = '"interface"=\'' + interface['interface'] + '\' and "type"=\'' + interface['type'] + '\' and "address"=\'' + interface['address'] + '\''
+
+            print(condition)
+            pilib.setsinglevalue(pilib.controldatabase, 'interfaces', 'id', entryid, condition)
+
+            pilib.writedatedlogmsg(pilib.iolog, 'Processing Mote interface' + interface['name'] + ', id:' + entryid, 3,
                                    logconfig['iologlevel'])
             if interface['enabled']:
-                pilib.writedatedlogmsg(pilib.iolog, 'Mote Interface ' + interface['name'] + ' enabled', 3,
+                pilib.writedatedlogmsg(pilib.iolog, 'Mote Interface ' + interface['name'] + ', id:' + entryid + ' enabled', 3,
                                        logconfig['iologlevel'])
 
                 # Grab mote entries from remotes table
-                nodeaddress = int(interface['address'])
-                nodeentries = pilib.dynamicsqliteread(pilib.controldatabase, 'remotes', condition="\"nodeid\"='" + str(nodeaddress) + "'")
+                # nodeid and keyvalue are keyed into address in remotes table
+                # keyvalues are :
+                #   channel: channel number
+                #   iovalue: ionumber
+                #   owdev: ROM
 
-                # Create queries for table insertion
-                # TODO: process mote pollfreq, ontime, offtime
-                moteentries = []
-                for nodeentry in nodeentries:
+                split = interface['address'].split(':')
+                nodeid = split[0]
+                keyvalue = split[1]
 
-                    datadict = pilib.parseoptions(nodeentry['data'])
-                    try:
-                        entrytype = nodeentry['msgtype']
-                        entryid = 'MOTE' + str(nodeentry['nodeid']) + '_' + nodeentry['keyvaluename'] + '_' + nodeentry['keyvalue']
+                # so we used to enable an interface and then take all etnries from a node
+                # Now, we have to explicitly add an interface for each device, unless the keychar * is used as the
+                # keyvalue. This will allow us to insert all automatically, for example for owdevs or iovals from a
+                # node.
+
+                # This pulls out all mote entries that have nodeid and keyvalue that match the interface address
+                # We should just find one, ideally
+                if keyvalue == '*':
+                    pass
+                else:
+                    condition = "\"nodeid\"='" + nodeid + "' and \"keyvalue\"='" + keyvalue + "'"
+                    nodeentries = pilib.dynamicsqliteread(pilib.controldatabase, 'remotes', condition=condition)
+
+                print("WE FOUND MOTE")
+                print(condition)
+                print(len(nodeentries))
+
+                if interface['type'] == 'channel':
+                    print('channel')
+                    if len(nodeentries) == 1:
+                        print('one entry found')
+
+                        nodeentry = nodeentries[0]
+                        nodedata = pilib.parseoptions(nodeentry['data'])
+
+                        # Find existing channel so we can get existing data, settings, etc., and retain channel ordering
+                        newchanneldata = {'name':interface['name'], 'controlvalue':nodedata['pv'], 'setpointvalue':nodedata['sv'],'controlvaluetime':pilib.gettimestring(), 'data':nodeentry['data']}
+                        newchannel = {}
+                        existingchannels = pilib.readalldbrows(pilib.controldatabase, 'channels')
+                        for channel in existingchannels:
+                            if channel['name'] == interface['name']:
+                                print('updating')
+                                print(channel)
+                                newchannel.update(channel)
+                                print(newchannel)
+                        newchannel.update(newchanneldata)
+                        print(newchannel)
+
+                        keys = []
+                        values = []
+                        for key, value in newchannel.iteritems():
+                            keys.append(key)
+                            values.append(value)
 
 
-                        entrymetareturn = pilib.dynamicsqliteread(pilib.controldatabase, 'ioinfo', condition="\"id\"='" + entryid + "'")
-                        try:
-                            entrymeta = entrymetareturn[0]
-                        except:
-                            entrymeta = []
-
-                        # print(entrymeta)
-
-                        entryoptions={}
-                        if entrymeta:
-                            entryname = entrymeta['name']
-                            if entrymeta['options']:
-                                entryoptions = pilib.parseoptions(entrymeta['options'])
-                        else:
-                            entryname = '[MOTE' + str(nodeentry['nodeid']) + '] ' + nodeentry['keyvaluename'] + ':' + nodeentry['keyvalue']
-                    except KeyError:
-                        print('OOPS KEY ERROR')
+                        query = pilib.makesqliteinsert('channels',values, keys)
+                        # print(query)
+                        pilib.sqlitequery(pilib.controldatabase,query)
                     else:
-                        if entrytype == 'iovalue':
-                            if 'scale' in entryoptions:
-                                entryvalue = str(float(entryoptions['scale']) * float(datadict['ioval']))
-                            elif 'formula' in entryoptions:
-                                x = float(datadict['ioval'])
-                                try:
-                                    entryvalue = eval(entryoptions['formula'])
-                                except:
-                                    entryvalue = float(datadict['ioval'])
+                        print('multiple entries found for channel. not appropriate')
+                else:
+                    pass
+                    # Create queries for table insertion
+                    # TODO: process mote pollfreq, ontime, offtime
+                    moteentries = []
+                    for nodeentry in nodeentries:
+
+                        # THis breaks out all of the strictly json-encoded data.
+                        datadict = pilib.parseoptions(nodeentry['data'])
+                        try:
+                            entrytype = nodeentry['msgtype']
+
+                            # now treat each mote type entry specially
+                            # if entrytype == 'channel':
+
+                            entryid = 'MOTE' + str(nodeentry['nodeid']) + '_' + nodeentry['keyvaluename'] + '_' + nodeentry['keyvalue']
+
+                            entrymetareturn = pilib.dynamicsqliteread(pilib.controldatabase, 'ioinfo', condition="\"id\"='" + entryid + "'")
+                            try:
+                                entrymeta = entrymetareturn[0]
+                            except:
+                                entrymeta = []
+
+                            # print(entrymeta)
+
+                            entryoptions={}
+                            if entrymeta:
+                                entryname = entrymeta['name']
+                                if entrymeta['options']:
+                                    entryoptions = pilib.parseoptions(entrymeta['options'])
                             else:
-                                entryvalue = float(datadict['ioval'])
-                        elif entrytype == 'owdev':
-                            if 'owtmpasc' in datadict:
+                                entryname = '[MOTE' + str(nodeentry['nodeid']) + '] ' + nodeentry['keyvaluename'] + ':' + nodeentry['keyvalue']
+                        except KeyError:
+                            print('OOPS KEY ERROR')
+                        else:
+                            if entrytype == 'iovalue':
                                 if 'scale' in entryoptions:
-                                    entryvalue = str(float(entryoptions['scale']) * float(datadict['owtmpasc']))
+                                    entryvalue = str(float(entryoptions['scale']) * float(datadict['ioval']))
                                 elif 'formula' in entryoptions:
-                                    x = float(datadict['owtmpasc'])
+                                    x = float(datadict['ioval'])
                                     try:
                                         entryvalue = eval(entryoptions['formula'])
                                     except:
-                                        entryvalue = float(datadict['owtmpasc'])
+                                        entryvalue = float(datadict['ioval'])
                                 else:
-                                    entryvalue = datadict['owtmpasc']
+                                    entryvalue = float(datadict['ioval'])
+                            elif entrytype == 'owdev':
+                                if 'owtmpasc' in datadict:
+                                    if 'scale' in entryoptions:
+                                        entryvalue = str(float(entryoptions['scale']) * float(datadict['owtmpasc']))
+                                    elif 'formula' in entryoptions:
+                                        x = float(datadict['owtmpasc'])
+                                        try:
+                                            entryvalue = eval(entryoptions['formula'])
+                                        except:
+                                            entryvalue = float(datadict['owtmpasc'])
+                                    else:
+                                        entryvalue = datadict['owtmpasc']
+                                else:
+                                    entryvalue = -1
                             else:
                                 entryvalue = -1
-                        else:
-                            entryvalue = -1
 
 
-                        moteentries.append('insert into inputs values (\'' + entryid + '\',\'' + interface['interface'] + '\',\'' +
-                            interface['type'] + '\',\'' + str(address) + '\',\'' + entryname + '\',\'' + str(entryvalue) + "','','" +
-                             nodeentry['time'] + '\',\'' + str(15) + "','" + '' + "','" + '' + "')")
-                # print('querylist')
-                # print(moteentries)
-                querylist.extend(moteentries)
+                            moteentries.append('insert into inputs values (\'' + entryid + '\',\'' + interface['interface'] + '\',\'' +
+                                interface['type'] + '\',\'' + str(address) + '\',\'' + entryname + '\',\'' + str(entryvalue) + "','','" +
+                                 nodeentry['time'] + '\',\'' + str(15) + "','" + '' + "','" + '' + "')")
+                    # print('querylist')
+                    # print(moteentries)
+                    querylist.extend(moteentries)
 
             else:
                 pilib.writedatedlogmsg(pilib.iolog, 'Mote Interface ' + interface['name'] + ' disnabled', 3,
@@ -522,8 +593,6 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
     options = pilib.parseoptions(interface['options'])
     address = int(interface['address'])
 
-    # TODO : respond to more options, like pullup and pulldown
-
     pilib.writedatedlogmsg(pilib.iolog, 'GPIO address' + str(address) + ' enabled', 4, logconfig['iologlevel'])
     # Get name from ioinfo table to give it a colloquial name
     gpioname = pilib.sqlitedatumquery(pilib.controldatabase, 'select name from ioinfo where id=\'' + interface['id'] + '\'')
@@ -591,16 +660,34 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
             address) + '\',\'' +
                          gpioname + '\',\'' + str(value) + "','','" + str(polltime) + '\',\'' +
                          str(pollfreq) + "','" + ontime + "','" + offtime + "')")
-    else:
+    elif options['mode'] == 'input':
         if method == 'rpigpio':
             GPIO.setup(address, GPIO.IN)
         elif method == 'pigpio':
+            if 'pullupdown' in options:
+                if options['pullupdown'] == 'pullup':
+                    pi.set_pull_up_down(address, pigpio.PUD_UP)
+                elif options['pullupdown'] == 'pulldown':
+                    pi.set_pull_up_down(address, pigpio.PUD_DOWN)
+                else:
+                    pi.set_pull_up_down(address, pigpio.PUD_OFF)
+            else:
+                pi.set_pull_up_down(17, pigpio.PUD_OFF)
+
             pi.set_mode(address, pigpio.INPUT)
 
         if method == 'rpigpio':
             value = GPIO.input(address)
         elif method == 'pigpio':
             value = pi.read(address)
+
+        if 'function' in options:
+            if options['function'] == 'shutdown':
+                # TODO : The reboot function is still held in a shell script, because it works.
+                if 'functionstate' in options:
+                    if value == 1 and options['functionstate'] in ['true', 'On', 'True', '1']:
+                        from systemstatus import processsystemflags
+                        processsystemflags()
 
         pilib.writedatedlogmsg(pilib.iolog, 'Setting input mode for GPIO address' + str(address), 3,
                                logconfig['iologlevel'])

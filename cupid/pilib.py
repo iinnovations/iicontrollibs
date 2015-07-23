@@ -165,6 +165,12 @@ def parseoptions(optionstring):
 
     return optionsdict
 
+def dicttojson(dict):
+    jsonentry = ''
+    for key, value in dict.iteritems():
+        jsonentry += key + ':' + value.replace('\x00','') + ','
+    jsonentry = jsonentry[:-1]
+    return jsonentry
 
 #####################################
 # Time functions
@@ -362,10 +368,11 @@ def ordertableindices(databasename, tablename, indicestoorder, uniqueindex):
     queryarray = []
     for i, uniquevalue in enumerate(uniquearray):
         for indextoorder in indicestoorder:
-            queryarray.append('update \'' + tablename + '\' set \'' + indextoorder + '\'=' + str(
-                i + 1) + '  where \'' + uniqueindex + '\'=\'' + uniquevalue + '\'')
+            queryarray.append('update \'' + tablename + '\' set "' + indextoorder + '"=\'' + str(
+                i + 1) + '\'  where "' + uniqueindex + '"=\'' + str(uniquevalue) + '\'')
 
     # print(queryarray)
+    print(queryarray)
     sqlitemultquery(databasename, queryarray)
 
 def logtimevaluedata(database, tablename, timeinseconds, value, logsize=5000, logfrequency=0):
@@ -752,7 +759,7 @@ def cleanlog(databasename, logname):
 def sizesqlitetable(databasename, tablename, size):
     logsize = sqlitedatumquery(databasename, 'select count(*) from \'' + tablename + '\'')
 
-    if logsize > size:
+    if logsize and (logsize > size):
         logexcess = int(logsize) - int(size)
         sqlitequery(databasename, 'delete from\'' + tablename + '\' order by time limit ' + str(logexcess))
     else:

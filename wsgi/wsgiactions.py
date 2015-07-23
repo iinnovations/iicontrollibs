@@ -247,7 +247,7 @@ def application(environ, start_response):
                 else:
                     output['message'] += 'Insufficient data for setvalue '
             elif action == 'updateioinfo':
-                if all(k in d for k in ('database' 'ioid', 'value')):
+                if all(k in d for k in ['database', 'ioid', 'value']):
                     query = pilib.makesqliteinsert('ioinfo', [d['ioid'], d['value']], ['id', 'name'])
                     try:
                         pilib.sqliteinsertsingle(pilib.controldatabase, 'ioinfo', [d['ioid'], d['value']], ['id', 'name'])
@@ -257,7 +257,7 @@ def application(environ, start_response):
                     else:
                         output['message'] += 'Executed updateioinfo query. '
                 else:
-                    output['message'] += 'Insufficient data for updateioinfo query. '
+                    output['message'] += 'Insufficient data for updateioinfo query ! '
 
             # These are all very specific actions that could be rolled up or built into classes
             elif action == 'spchange' and 'database' in d:

@@ -3,6 +3,7 @@
 import subprocess
 import pilib
 import spilights
+from time import sleep
 
 interfaces = pilib.readalldbrows(pilib.controldatabase, 'interfaces')
 systemstatus = pilib.readonedbrow(pilib.controldatabase, 'systemstatus')[0]
@@ -10,6 +11,7 @@ systemstatus = pilib.readonedbrow(pilib.controldatabase, 'systemstatus')[0]
 # Start pigpiod
 
 subprocess.call(['killall','pigpiod'])
+sleep(1)
 pilib.writedatedlogmsg(pilib.systemstatuslog, 'boot: starting pigpio daemon', 3, pilib.systemstatusloglevel)
 subprocess.call(['/usr/local/bin/pigpiod'])
 
@@ -41,6 +43,12 @@ subprocess.call(['killall','owhttpd'])
 
 runi2cowfs = False
 runusbowfs = False
+
+mightyboost = True
+if mightyboost:
+    subprocess.Popen(['/usr/lib/iicontrollibs/misc/mightyboost.sh','&'])
+
+
 for interface in interfaces:
     if interface['enabled']:
         if interface['interface'] == 'I2C' and interface['type'] == 'DS2483':
