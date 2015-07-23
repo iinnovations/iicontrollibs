@@ -206,7 +206,7 @@ elif [ "$1" = "install" ]
     echo "Complete"
 
     echo "Copying apache site"
-    cp /usr/lib/iicontrollibs/misc/apache/apachesslsites /etc/apache/sites-available/default
+    cp /usr/lib/iicontrollibs/misc/apache/apachesslsites /etc/apache2/sites-available/default
     echo "Complete"
 
     echo "Copying nginx config"
@@ -257,7 +257,7 @@ elif [ "$1" = "install" ]
     sudo -u pi pcmanfm -w /var/www/images/splash/cupid_splash_big.png
 
     echo "Copying icons"
-    cp /usr/lib/iicontrollibs/misc/updatecupidweblibs.desktop /
+    cp /usr/lib/iicontrollibs/misc/updatecupidweblibs.desktop ~/
   else
     echo "Invalid argument received: "
     echo "$2"
