@@ -277,10 +277,15 @@ def startapservices():
         writedatedlogmsg(networklog, 'Started dhcp server without error. ', 3, networkloglevel)
 
 
-def setapmode(netconfig=None):
+def setapmode(interface='wlan0', netconfig=None):
     writedatedlogmsg(networklog, 'Setting ap mode. ', 1, networkloglevel)
     try:
-        subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.ap', '/etc/network/interfaces'])
+        if interface == 'wlan0':
+            subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.ap', '/etc/network/interfaces'])
+        elif interface == 'wlan0wlan1':
+            subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.wlan0apwlan1', '/etc/network/interfaces'])
+        elif interface == 'wlan1wlan0':
+            subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.wlan0wlan1ap', '/etc/network/interfaces'])
     except:
         writedatedlogmsg(networklog, 'Error copying network configuration file. ', 0, networkloglevel)
     else:
@@ -329,11 +334,42 @@ def runconfig(onboot=False):
                 if not onboot:
                     writedatedlogmsg(networklog, 'Rebooting after set ap mode', 0, networkloglevel)
                     writedatedlogmsg(systemstatuslog, 'Rebooting after set ap mode ', 0, systemstatusloglevel)
-                    # subprocess.call(['reboot'])
+                    # subprocess.call(['reboot']
+
+            # All of these require ipv4 being enabled in /etc/sysctl.conf
+
+            elif netconfigdata['mode'] == 'wlan0wlan1bridge':
+                pass
+            elif netconfigdata['mode'] == 'wlan1wlan0bridge':
+                pass
+            elif netconfigdata['mode'] == 'eth0wlan0bridge':
+                setapmode(interface='wlan0')
+                flushIPTables()
+                runeth0wlan0bridgeIPTables()
+
+
 
         else:
             writedatedlogmsg(networklog, 'Netconfig is disabled', 3, networkloglevel)
 
+
+def runeth0wlan0bridgeIPTables():
+    # eth0 has ethernet connectivity. wlan0 is AP
+    subprocess.call(['iptables','-t','nat','-A','POSTROUTING','-o','eth0','-j','MASQUERADE'])
+    subprocess.call(['iptables','-A','FORWARD','-i','eth0','-o','wlan0','-m','state','--state','RELATED,ESTABLISHED','-j','ACCEPT'])
+    subprocess.call(['iptables','-A','FORWARD','-i','wlan0','-o','eth0','-j','ACCEPT'])
+
+
+def flushIPTables():
+    subprocess.call(['iptables', '-F'])
+    subprocess.call(['iptables', '-X'])
+    subprocess.call(['iptables', '-t', 'nat', '-F'])
+    subprocess.call(['iptables', '-t', 'nat', '-X'])
+    subprocess.call(['iptables', '-t', 'mangle', '-F'])
+    subprocess.call(['iptables', '-t', 'mangle', '-X'])
+    subprocess.call(['iptables', '-P', 'INPUT', 'ACCEPT'])
+    subprocess.call(['iptables', '-P', 'FORWARD', 'ACCEPT'])
+    subprocess.call(['iptables', '-P', 'OUTPUT', 'ACCEPT'])
 
 if __name__ == "__main__":
     # This will run the configuration script (if netconfig is enabled) and set

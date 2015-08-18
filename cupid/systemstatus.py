@@ -368,6 +368,23 @@ def runsystemstatus(runonce=False):
 
         wpastatusmsg = ''
 
+        if systemstatus['checkhamachistatus']:
+            pilib.writedatedlogmsg(pilib.systemstatuslog, 'Checking Hamachi Status. ', 3, pilib.systemstatusloglevel)
+
+            from netfun import gethamachistatusdata, restarthamachi
+            try:
+                hamachistatusdata = gethamachistatusdata()
+                if hamachistatusdata['status'] not in ['logged in']:
+                    pilib.writedatedlogmsg(pilib.systemstatuslog, 'Restarting Hamachi. ', 1, pilib.systemstatusloglevel)
+
+                    restarthamachi()
+                else:
+                    pilib.writedatedlogmsg(pilib.systemstatuslog, 'Hamachi appears fine. ', 3, pilib.systemstatusloglevel)
+
+            except:
+                pilib.writedatedlogmsg(pilib.systemstatuslog, 'Error checking Hamachi. ', 1, pilib.systemstatusloglevel)
+
+
         # Do we want to autoconfig the network?
         # TODO: Better split netconfig up into reporting and configuration
         # Also, we appear to have duplicated a parameter, putting netconfig in both the netconfig
@@ -394,9 +411,9 @@ def runsystemstatus(runonce=False):
                 if not GPIO.input(pinaddress):
                     pilib.writedatedlogmsg(pilib.networklog, "GPIO On. Setting AP Mode.", 3, pilib.networkloglevel)
                     pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'ap')
-                else:
-                    pilib.writedatedlogmsg(pilib.networklog, "GPIO Off. Setting Station Mode.", 3, pilib.networkloglevel)
-                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'station')
+                # else:
+                #     pilib.writedatedlogmsg(pilib.networklog, "GPIO Off. Setting Station Mode.", 3, pilib.networkloglevel)
+                #     pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'station')
 
 
             pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running interface configuration. ', 4,
@@ -509,8 +526,9 @@ def runsystemstatus(runonce=False):
                         netconfig.runconfig()
                     else:
                         pilib.writedatedlogmsg(pilib.networklog, 'IP address match for ' + netconfigdata['address'] + '. ', 3, pilib.networkloglevel)
-            else:
-                wpastatusmsg += 'mode error: ' + netconfigdata['mode']
+            elif netconfigdata['mode'] in ['']:
+                # We don't yet handle bridge modes. We probably should (!)
+                wpastatusmsg += 'mode not handled: ' + netconfigdata['mode']
 
             # Need to check IP address. There is a weird bug where we can be connected
             # but reporting the wrong IP address

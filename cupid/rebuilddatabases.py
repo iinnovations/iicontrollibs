@@ -50,7 +50,7 @@ def rebuildcontroldb(tabledict):
         table = 'systemstatus'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text default '', updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 15, lastiopoll text default '', enableoutputs boolean default 0, sessioncontrolenabled boolean default 0, sessioncontrolstatus boolean default 0, systemstatusenabled boolean default 1, netconfigenabled boolean default 0, systemstatusstatus boolean default 0, systemstatusfreq real default 15, lastsystemstatuspoll text default '', systemmessage text default '', serialhandlerenabled boolean default 0, serialhandlerstatus boolean default 0, webserver text default 'nginx')")
+            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text default '', updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 15, lastiopoll text default '', enableoutputs boolean default 0, sessioncontrolenabled boolean default 0, sessioncontrolstatus boolean default 0, systemstatusenabled boolean default 1, netconfigenabled boolean default 0, checkhamachistatus boolean default 0, systemstatusstatus boolean default 0, systemstatusfreq real default 15, lastsystemstatuspoll text default '', systemmessage text default '', serialhandlerenabled boolean default 0, serialhandlerstatus boolean default 0, webserver text default 'nginx')")
         if addentries:
             querylist.append("insert into " + table + " default values")
 
@@ -192,7 +192,7 @@ def rebuildcontroldb(tabledict):
             querylist.append(
                 "insert into " + table + " values ('GPIO','GPIO','24','GPIO24','GPIO 24','mode:input,pullupdown:pullup',1,0)")
             querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','25','GPIO25','GPIO 25','mode:output',1,0)")
+                "insert into " + table + " values ('GPIO','GPIO','25','GPIO25','GPIO 25','mode:output',0,0)")
             querylist.append(
                 "insert into " + table + " values ('GPIO','GPIO','4','GPIO4','GPIO 4','mode:input,pullupdown:pullup',1,0)")
             querylist.append(
@@ -364,6 +364,16 @@ def rebuildsystemdatadb(tabledict):
         querylist.append("create table " + table + " (  devicename text, groupname text)")
         querylist.append("insert into " + table + " values ( 'My CuPID', 'None' )")
 
+    if 'uisettings' in tabledict:
+        runquery = True
+        table = 'uisettings'
+        querylist.append('drop table if exists ' + table)
+        querylist.append("create table " + table + " (  'setting' text, 'group' text, 'value' text)")
+        querylist.append("insert into " + table + " values ( 'showgpiologs', 'dataviewer', '1' )")
+        querylist.append("insert into " + table + " values ( 'showinputlogs', 'dataviewer', '1' )")
+        querylist.append("insert into " + table + " values ( 'showchannellogs', 'dataviewer', '1' )")
+
+
     if 'versions' in tabledict:
         runquery = True
         table = 'versions'
@@ -515,131 +525,84 @@ def rebuildsafedata():
     sqlitemultquery(safedatabase, querylist)
 
 
+def maketruetabledict(namelist):
+    truetabledict = {}
+    for name in namelist:
+        truetabledict[name] = True
+    return truetabledict
+
 # default routine
 if __name__ == "__main__":
     import sys
 
     # Check for DEFAULTS argument
 
+    controldbtables = ['actions', 'modbustcp', 'logconfig', 'defaults', 'systemstatus', 'indicators', 'inputs', 'outputs', 'owfs', 'ioinfo', 'interfaces',
+                       'algorithms', 'algorithmtypes', 'netconfig', 'channels', 'remotes', 'mote']
+    systemdbtables = ['metadata', 'netconfig', 'netstatus', 'versions', 'systemflags', 'uisettings']
+    motestables = ['readmessages', 'queuedmessages', 'sentmessages']
+
     if len(sys.argv) > 1 and sys.argv[1] == 'DEFAULTS':
         print('making default databases')
         rebuildsafedata()
         rebuildusersdata('defaults')
-        rebuildcontroldb({'actions': True, 'modbustcp': True, 'logconfig': True, 'defaults': True, 'systemstatus': True,
-                          'indicators': True, 'inputs': True, 'outputs': True, 'owfs': True, 'ioinfo': True,
-                          'interfaces': True, 'algorithms': True, 'algorithmtypes': True,
-                          'channels': True, 'remotes': True, 'mote':True})
-        rebuildsystemdatadb(
-            {'metadata': True, 'netconfig': True, 'netstatus': True, 'versions': True, 'systemflags': True})
+
+        rebuildcontroldb(maketruetabledict(controldbtables))
+        rebuildsystemdatadb(maketruetabledict(systemdbtables))
+        rebuildmotesdb(maketruetabledict(motestables))
+
         rebuildrecipesdb({'recipes': True})
         rebuildsessiondb()
 
+    elif len(sys.argv) > 1:
+        if sys.argv[1] in controldbtables:
+            rebuildcontroldb(sys.argv[1])
+        elif sys.argv[1] in systemdbtables:
+            rebuildsystemdatadb(sys.argv[1])
+        elif sys.argv[1] in motestables:
+            rebuildmotesdb(sys.argv[1])
     else:
+
+        print("** Motes tables **")
+        tablestorebuild = []
+        execute = False
+        for table in motestables:
+            answer = raw_input('Rebuild ' + table + ' table (y/N)?')
+            if answer == 'y':
+                execute = True
+                tablestorebuild.append(table)
+        if execute:
+            rebuildmotesdb(maketruetabledict(tablestorebuild))
+
+        print("** Control tables **")
+        tablestorebuild = []
+        execute = False
+        for table in controldbtables:
+            answer = raw_input('Rebuild ' + table + ' table (y/N)?')
+            if answer == 'y':
+                execute = True
+                tablestorebuild.append(table)
+        if execute:
+            rebuildcontroldb(maketruetabledict(tablestorebuild))
+
+        print("** System tables **")
+        tablestorebuild = []
+        execute = False
+        for table in systemdbtables:
+            answer = raw_input('Rebuild ' + table + ' table (y/N)?')
+            if answer == 'y':
+                execute = True
+                tablestorebuild.append(table)
+        if execute:
+            rebuildsystemdatadb(maketruetabledict(tablestorebuild))
+
         answer = raw_input('Rebuild wireless table (y/N)?')
         if answer == 'y':
             rebuildsafedata()
 
-        answer = raw_input('Rebuild motes received messages table (y/N)?')
-        if answer == 'y':
-            rebuildmotesdb('readmessages')
-
-        answer = raw_input('Rebuild motes queued messages table (y/N)?')
-        if answer == 'y':
-            rebuildmotesdb('queuedmessages')
-
-        answer = raw_input('Rebuild motes sent messages table (y/N)?')
-        if answer == 'y':
-            rebuildmotesdb('sentmessages')
-
         answer = raw_input('Rebuild users table (y/N)?')
         if answer == 'y':
             rebuildusersdata()
-
-        controltabledict = {}
-        answer = raw_input('Rebuild remotes table (y/N)?')
-        if answer == 'y':
-            controltabledict['remotes'] = True
-
-        answer = raw_input('Rebuild actions table (y/N)?')
-        if answer == 'y':
-            controltabledict['actions'] = True
-
-        answer = raw_input('Rebuild logconfig table (y/N)?')
-        if answer == 'y':
-            controltabledict['logconfig'] = True
-
-        answer = raw_input('Rebuild defaults table (y/N)?')
-        if answer == 'y':
-            controltabledict['defaults'] = True
-
-        answer = raw_input('Rebuild systemstatus table (y/N)?')
-        if answer == 'y':
-            controltabledict['systemstatus'] = True
-
-        answer = raw_input('Rebuild indicators table (y/N)?')
-        if answer == 'y':
-            controltabledict['indicators'] = True
-
-        answer = raw_input('Rebuild inputs table (y/N)?')
-        if answer == 'y':
-            controltabledict['inputs'] = True
-
-        answer = raw_input('Rebuild modbus table (y/N)?')
-        if answer == 'y':
-            controltabledict['modbustcp'] = True
-
-        answer = raw_input('Rebuild outputs table (y/N)?')
-        if answer == 'y':
-            controltabledict['outputs'] = True
-
-        answer = raw_input('Rebuild owfs table (y/N)?')
-        if answer == 'y':
-            controltabledict['owfs'] = True
-
-        answer = raw_input('Rebuild ioinfo table (y/N)?')
-        if answer == 'y':
-            controltabledict['ioinfo'] = True
-
-        answer = raw_input('Rebuild interfaces table (y/N)?')
-        if answer == 'y':
-            controltabledict['interfaces'] = True
-
-        answer = raw_input('Rebuild algorithms table (y/N)?')
-        if answer == 'y':
-            controltabledict['algorithms'] = True
-
-        answer = raw_input('Rebuild algorithmtypes table (y/N)?')
-        if answer == 'y':
-            controltabledict['algorithmtypes'] = True
-
-        answer = raw_input('Rebuild channels table (y/N)?')
-        if answer == 'y':
-            controltabledict['channels'] = True
-
-        rebuildcontroldb(controltabledict)
-
-        systemtabledict = {}
-        answer = raw_input('Rebuild metadata table (y/N)?')
-        if answer == 'y':
-            systemtabledict['metadata'] = True
-
-        answer = raw_input('Rebuild versions table (y/N)?')
-        if answer == 'y':
-            systemtabledict['versions'] = True
-
-        answer = raw_input('Rebuild netconfig table (y/N)?')
-        if answer == 'y':
-            systemtabledict['netconfig'] = True
-
-        answer = raw_input('Rebuild netstatus table (y/N)?')
-        if answer == 'y':
-            systemtabledict['netstatus'] = True
-
-        answer = raw_input('Rebuild systemflags table (y/N)?')
-        if answer == 'y':
-            systemtabledict['systemflags'] = True
-
-        rebuildsystemdatadb(systemtabledict)
 
         recipetabledict = {}
         answer = raw_input('Rebuild recipes table (y/N)?')

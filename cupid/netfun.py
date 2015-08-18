@@ -154,6 +154,23 @@ def gethamachidata():
     return dictarray
 
 
+def gethamachistatusdata():
+    from subprocess import Popen, PIPE
+    rawoutput = Popen(['hamachi',], stdout=PIPE)
+    output = rawoutput.stdout.read()
+    lines = output.split('\n')
+    statusdict = {}
+    print(lines)
+    for line in lines:
+        try:
+            split = line.split(':')
+            itemname = split[0].strip()
+            itemvalue = ':'.join(split[1:]).strip()
+            statusdict[itemname] = itemvalue
+        except:
+            print('oops')
+    return statusdict
+
 def restarthamachi():
     import subprocess
     subprocess.call(['/etc/init.d/logmein-hamachi','restart'])
