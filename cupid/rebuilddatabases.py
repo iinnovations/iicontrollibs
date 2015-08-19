@@ -369,8 +369,8 @@ def rebuildsystemdatadb(tabledict):
         table = 'uisettings'
         querylist.append('drop table if exists ' + table)
         querylist.append("create table " + table + " (  'setting' text, 'group' text, 'value' text)")
-        querylist.append("insert into " + table + " values ( 'showgpiologs', 'dataviewer', '1' )")
-        querylist.append("insert into " + table + " values ( 'showinputlogs', 'dataviewer', '1' )")
+        querylist.append("insert into " + table + " values ( 'showinputgpiologs', 'dataviewer', '1' )")
+        querylist.append("insert into " + table + " values ( 'showinput1wirelogs', 'dataviewer', '1' )")
         querylist.append("insert into " + table + " values ( 'showchannellogs', 'dataviewer', '1' )")
 
 
