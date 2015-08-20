@@ -165,6 +165,7 @@ def parseoptions(optionstring):
 
     return optionsdict
 
+
 def dicttojson(dict):
     jsonentry = ''
     for key, value in dict.iteritems():
@@ -245,9 +246,13 @@ class action:
 
         elif self.actiontype == 'indicator':
             # process indicator action
-            self.status += 'Processing indicator on action. '
+            self.statusmsg += 'Processing indicator on action. '
             indicatorname = self.actiondetail
             sqlitequery(controldatabase, 'update indicators set status=1 where name = \'' + indicatorname + '\'')
+
+        elif self.actiontype == 'output':
+            self.statusmsg += 'Processing output on action. '
+            setsinglevalue(controldatabase, 'outputs', 'value', '1', condition='"id"=\'' + self.actiondetail +"'")
 
     def offact(self):
         if self.actiontype == 'email':
@@ -264,6 +269,10 @@ class action:
             self.status +='Processing indicator off action.'
             indicatorname = self.actiondetail
             sqlitequery(controldatabase, 'update indicators set status=0 where name = ' + indicatorname)
+
+        elif self.actiontype == 'output':
+            self.statusmsg += 'Processing output off action. '
+            setsinglevalue(controldatabase, 'outputs', 'value', '0', condition='"id"=\'' + self.actiondetail +"'")
 
     def publish(self):
         # reinsert updated action back into database
@@ -429,11 +438,11 @@ def getdatameta(database):
     tablenames = gettablenames(database)
     queryarray = []
     for tablename in tablenames:
-        queryarray.append('select count(*) from \'' + tablename + '\'')
+        queryarray.append("select count(*) from '" + tablename + "'")
     results = sqlitemultquery(database, queryarray)
     meta = []
     for result, tablename in zip(results, tablenames):
-        meta.append([tablename, result[0][0]])
+        meta.append({'tablename':tablename, 'numpoints':result[0][0]})
     return meta
 
 
@@ -442,8 +451,8 @@ def getandsetmetadata(database):
     queryarray = []
     queryarray.append('drop table if exists metadata')
     queryarray.append('create table metadata ( name text, numpoints int)')
-    for item in meta:
-        queryarray.append('insert into metadata values (\'' + str(item[0]) + '\',' + '\'' + str(item[1]) + '\')')
+    for metaitem in meta:
+        queryarray.append("insert into metadata values ('" + str(metaitem['tablename']) + "','" + str(metaitem['numpoints']) + "')")
         #print(queryarray)
     sqlitemultquery(database, queryarray)
 
@@ -641,11 +650,11 @@ def makedeletesinglevaluequery(table, condition=None):
 def setsinglevalue(database, table, valuename, value, condition=None):
     query = makesinglevaluequery(table, valuename, value, condition)
     response = sqlitequery(database, query)
-    return (response)
+    return response
 
 
 def makesinglevaluequery(table, valuename, value, condition=None):
-    query = 'update ' + '\'' + table + '\' set \'' + valuename + '\'=\'' + str(value) + '\''
+    query = 'update ' + "'" + table + '\' set "' + valuename + '"=\'' + str(value) + "'"
     if condition:
         query += ' where ' + condition
     return query

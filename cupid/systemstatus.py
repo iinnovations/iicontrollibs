@@ -375,10 +375,12 @@ def runsystemstatus(runonce=False):
             try:
                 hamachistatusdata = gethamachistatusdata()
                 if hamachistatusdata['status'] not in ['logged in']:
+                    pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'hamachistatus', 0)
                     pilib.writedatedlogmsg(pilib.systemstatuslog, 'Restarting Hamachi. ', 1, pilib.systemstatusloglevel)
 
                     restarthamachi()
                 else:
+                    pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'hamachistatus', 1)
                     pilib.writedatedlogmsg(pilib.systemstatuslog, 'Hamachi appears fine. ', 3, pilib.systemstatusloglevel)
 
             except:

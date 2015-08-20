@@ -13,6 +13,7 @@ import pilib
 
 
 def processactions():
+
     # Read database to get our actions
 
     actiondicts = pilib.readalldbrows(pilib.controldatabase, 'actions')
@@ -20,6 +21,7 @@ def processactions():
     for actiondict in actiondicts:
         alert = False
 
+        # Instantiate the action class
         thisaction = pilib.action(actiondict)
         thisaction.statusmsg = ''
         # print(actiondict)
@@ -44,7 +46,8 @@ def processactions():
                 curstatus = False
                 if vartype == 'boolean':
                     thisaction.statusmsg += ' Processing boolean. '
-                    if thisaction.variablevalue == thisaction.criterion:
+                    # TODO: String conversion is a hack here and needs series work.
+                    if str(thisaction.variablevalue) == str(thisaction.criterion):
                         curstatus = True
                 elif vartype == 'integer' or vartype == 'real':
                     thisaction.statusmsg += ' Processing integer/real. '
@@ -129,6 +132,8 @@ def processactions():
                 # test to see if it is time to alert, based on delay ond alert time
                 if thisaction.active:
                     # check to see if it is time to alert
+                    # For things like outputs, actionfrequency should be zero to always enforce that action is on.
+
                     # print(pilib.timestringtoseconds(currenttime))
                     # print(pilib.timestringtoseconds(thisaction.lastactiontime))
                     # print(float(thisaction.actionfrequency))
