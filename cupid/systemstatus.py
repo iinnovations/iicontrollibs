@@ -129,59 +129,66 @@ def updatenetstatus(lastnetstatus=None):
                                netconfigdata['netstatslogfreq'])
 
     # Check supplicant status, set on/offtime if necessary.
+    # Only check supplicant status if is SHOULD be running
 
-    wpastatusdict = getwpaclientstatus()
-    # try:
+    wpastatusdict = {}
+    if netconfigdata['mode'] in ['station', 'wlan0wlan1bridge']:
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Checking WPA status for mode ' + netconfigdata['mode'], 2, pilib.systemstatusloglevel)
+        wpastatusdict = getwpaclientstatus()
+        # try:
 
-    # COMPLETED is onlinetime
-    if wpastatusdict['wpa_state'] == 'COMPLETED':
-        wpaconnected = 1
+        # COMPLETED is onlinetime
+        if wpastatusdict['wpa_state'] == 'COMPLETED':
+            wpaconnected = 1
 
 
 
-        # if we have an online time, leave it alone, or set it to now if it is empty
-        if 'onlinetime' in lastnetstatus:
-            # if we are newly connected or empty online time, set online time
-            if lastnetstatus['connected'] == 0 or lastnetstatus['onlinetime'] == '':
-                pilib.writedatedlogmsg(pilib.networklog, 'setting online time', 2, pilib.networkloglevel)
+            # if we have an online time, leave it alone, or set it to now if it is empty
+            if 'onlinetime' in lastnetstatus:
+                # if we are newly connected or empty online time, set online time
+                if lastnetstatus['connected'] == 0 or lastnetstatus['onlinetime'] == '':
+                    pilib.writedatedlogmsg(pilib.networklog, 'setting online time', 2, pilib.networkloglevel)
+                    netstatusdict['onlinetime'] = gettimestring()
+
+                # else retain onlinetime
+                else:
+                    netstatusdict['onlinetime'] = lastnetstatus['onlinetime']
+            # if no onlinetime, set ot current time
+            else:
                 netstatusdict['onlinetime'] = gettimestring()
 
-            # else retain onlinetime
+            # if we have an offlinetime, keep it. otherwise set to empty
+            if 'offlinetime' in lastnetstatus:
+                netstatusdict['offlinetime'] = lastnetstatus['offlinetime']
             else:
-                netstatusdict['onlinetime'] = lastnetstatus['onlinetime']
-        # if no onlinetime, set ot current time
+                netstatusdict['offlinetime'] = ''
+
+        # Else we are unconnected. do opposite of above
         else:
-            netstatusdict['onlinetime'] = gettimestring()
+            wpaconnected = 0
 
-        # if we have an offlinetime, keep it. otherwise set to empty
-        if 'offlinetime' in lastnetstatus:
-            netstatusdict['offlinetime'] = lastnetstatus['offlinetime']
-        else:
-            netstatusdict['offlinetime'] = ''
+            # if we have an offline time, leave it alone, or set it to now if it is empty
+            if 'offlinetime' in lastnetstatus:
+                # if we are newly connected or empty online time, set online time
+                if lastnetstatus['connected'] == 1 or lastnetstatus['offlinetime'] == '':
+                    pilib.writedatedlogmsg(pilib.networklog, 'setting offline time', 2, pilib.networkloglevel)
+                    netstatusdict['offlinetime'] = gettimestring()
 
-    # Else we are unconnected. do opposite of above
-    else:
-        wpaconnected = 0
-
-        # if we have an offline time, leave it alone, or set it to now if it is empty
-        if 'offlinetime' in lastnetstatus:
-            # if we are newly connected or empty online time, set online time
-            if lastnetstatus['connected'] == 1 or lastnetstatus['offlinetime'] == '':
-                pilib.writedatedlogmsg(pilib.networklog, 'setting offline time', 2, pilib.networkloglevel)
+                # else retain offlinetime
+                else:
+                    netstatusdict['offlinetime'] = lastnetstatus['offlinetime']
+            # if no offlinetime, set ot current time
+            else:
                 netstatusdict['offlinetime'] = gettimestring()
 
-            # else retain offlinetime
+            # if we have an onlinetime, keep it. otherwise set to empty
+            if 'onlinetime' in lastnetstatus:
+                netstatusdict['onlinetime'] = lastnetstatus['onlinetime']
             else:
-                netstatusdict['offlinetime'] = lastnetstatus['offlinetime']
-        # if no offlinetime, set ot current time
-        else:
-            netstatusdict['offlinetime'] = gettimestring()
-
-        # if we have an onlinetime, keep it. otherwise set to empty
-        if 'onlinetime' in lastnetstatus:
-            netstatusdict['onlinetime'] = lastnetstatus['onlinetime']
-        else:
-            netstatusdict['onlinetime'] = ''
+                netstatusdict['onlinetime'] = ''
+    else:
+        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Not checking WPA status for mode ' + netconfigdata['mode'], 2, pilib.systemstatusloglevel)
+        wpastatusdict = {'connected':0}
 
     # Check dhcp server status
     pilib.writedatedlogmsg(pilib.networklog, 'Checking dhcp server status ', 4, pilib.networkloglevel)
@@ -204,7 +211,7 @@ def updatenetstatus(lastnetstatus=None):
 
     pilib.writedatedlogmsg(pilib.networklog, 'Updating netstatus. ', 4, pilib.networkloglevel)
 
-    wpastatusdict['connected'] = wpaconnected
+    wpaconnected = wpastatusdict['connected']
     try:
         wpastatusdict['dhcpstatus'] = dhcpstatus
     except:
@@ -371,13 +378,24 @@ def runsystemstatus(runonce=False):
         if systemstatus['checkhamachistatus']:
             pilib.writedatedlogmsg(pilib.systemstatuslog, 'Checking Hamachi Status. ', 3, pilib.systemstatusloglevel)
 
-            from netfun import gethamachistatusdata, restarthamachi
+            from netfun import runping, restarthamachi, killhamachi
             try:
-                hamachistatusdata = gethamachistatusdata()
-                if hamachistatusdata['status'] not in ['logged in']:
+                # Turns out this is not going to work, as when it hangs, it hangs hard
+                # hamachistatusdata = gethamachistatusdata()
+
+                # So instead, we are going to test with a ping to another member on the network that
+                # should always be online. This of course means that we have to make sure that it is, in fact, always
+                # online
+
+                pingtime = runping('25.215.49.105')[0]
+
+                # if hamachistatusdata['status'] not in ['logged in']:
+                if (pingtime == 0 or pingtime > 3000):
+                    pilib.writedatedlogmsg(pilib.systemstatuslog, 'Pingtime unacceptable: . ' + str(pingtime) + ' . ', 1, pilib.systemstatusloglevel)
                     pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'hamachistatus', 0)
                     pilib.writedatedlogmsg(pilib.systemstatuslog, 'Restarting Hamachi. ', 1, pilib.systemstatusloglevel)
 
+                    killhamachi()
                     restarthamachi()
                 else:
                     pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'hamachistatus', 1)
@@ -385,6 +403,8 @@ def runsystemstatus(runonce=False):
 
             except:
                 pilib.writedatedlogmsg(pilib.systemstatuslog, 'Error checking Hamachi. ', 1, pilib.systemstatusloglevel)
+                killhamachi()
+                restarthamachi()
 
 
         # Do we want to autoconfig the network?

@@ -37,7 +37,7 @@ class Proc(object):
         return '%s %s %s' % (self.user, self.pid, self.cmd)
 
 
-def get_proc_list():
+def get_proc_list(filter=None):
     """ Return a list [] of Proc objects representing the active
     process list list """
 
@@ -45,7 +45,10 @@ def get_proc_list():
     from re import split
 
     proc_list = []
-    sub_proc = Popen(['ps', 'aux'], shell=False, stdout=PIPE)
+    args = ['ps','aux']
+    if filter:
+        args.extend(['|','grep',filter])
+    sub_proc = Popen(args, shell=False, stdout=PIPE)
 
     #Discard the first line (ps aux header)
     sub_proc.stdout.readline()

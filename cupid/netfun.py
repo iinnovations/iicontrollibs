@@ -59,7 +59,7 @@ def runping(pingAddress='8.8.8.8', numpings=1):
             # Ping stored in latency in milliseconds
             #print '%f ms' % (latency)
             pingtimes.append(latency)
-            pilib.writedatedlogmsg(pilib.networklog, 'ping times: ' + str(pingtimes), 3, pilib.networkloglevel)
+            # pilib.writedatedlogmsg(pilib.networklog, 'ping times: ' + str(pingtimes), 3, pilib.networkloglevel)
     return pingtimes
 
 
@@ -171,9 +171,23 @@ def gethamachistatusdata():
             print('oops')
     return statusdict
 
+
 def restarthamachi():
     import subprocess
     subprocess.call(['/etc/init.d/logmein-hamachi','restart'])
+    return
+
+
+def killhamachi():
+    import subprocess
+    result = subprocess.check_output(['pgrep','hamachi'])
+    split = result.split('\n')
+    print(split)
+    for pid in split:
+        if pid:
+            print(pid)
+            subprocess.call(['kill', '-9', str(pid.strip())])
+    return
 
 
 def checksharemount(sharepath):

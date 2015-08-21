@@ -38,7 +38,7 @@ def processactions():
                 thisaction.variablevalue = pilib.getsinglevalue(dbpath, thisaction.tablename, thisaction.variablename, 'rowid=' + str(thisaction.valuerowid))
 
                 # get variable type to handle
-                variablestypedict = pilib.getpragmanametypedict(pilib.controldatabase, thisaction.tablename)
+                variablestypedict = pilib.getpragmanametypedict(dbpath, thisaction.tablename)
                 vartype = variablestypedict[thisaction.variablename]
                 thisaction.statusmsg += ' Variablevalue: ' + str(thisaction.variablevalue) + '. Criterion: ' + str(thisaction.criterion) + ' . '
 
