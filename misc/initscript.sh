@@ -7,6 +7,7 @@ elif [ "$1" = "install" ]
   then
     echo "running install as requested"
     apt-get update
+    apt-get remove --purge wolfram-engine
     apt-get -y install lsb-core
     apt-get -y install php5 sqlite3 php5-sqlite
     apt-get -y install python-dev python3 python-setuptools
@@ -184,9 +185,9 @@ elif [ "$1" = "install" ]
     fi
     echo "owfs complete"
 
-    echo "installing MAX31855 library"
-    cd /usr/lib/iicontrollibs/resource/Adafruit_Python_MAX31855-master
-    python setup.py install
+#    echo "installing MAX31855 library"
+#    cd /usr/lib/iicontrollibs/resource/Adafruit_Python_MAX31855-master
+#    python setup.py install
 
     # get custom sources
 #    cp /usr/lib/iicontrollibs
@@ -218,7 +219,7 @@ elif [ "$1" = "install" ]
 
     echo "Creating self-signed ssl cert"
     mkdir /etc/ssl/localcerts
-    openssl req -new -x509 -days 365 -nodes -out /etc/ssl/localcerts/mycert.pem -keyout /etc/ssl/localcerts/mycert.key
+    openssl req -new -x509 -sha256 -days 365 -nodes -out /etc/ssl/localcerts/mycert.pem -keyout /etc/ssl/localcerts/mycert.key
     echo "Complete"
 
     echo "Copying dhcpd.conf"
