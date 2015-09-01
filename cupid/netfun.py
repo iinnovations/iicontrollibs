@@ -132,26 +132,38 @@ def gethamachidata():
     rawoutput = Popen(['hamachi', 'list'], stdout=PIPE)
     output = rawoutput.stdout.read()
     lines = output.split('\n')
-    data = lines[1:-1]  # one whitespace line at end
-    dictarray = []
-    #print(data)
+    data = lines[0:-1]  # one whitespace line at end
+    dictarrays = []
+    networks = []
+    index = -1
     for row in data:
-        dict = {}
-
-        if row[5] == '*':
-            dict['onlinestatus'] = 'online'
+        # print(row)
+        # print(row.find('['))
+        if row[3] == '[':
+            # print("network")
+            networks.append({'networkid':row.split('[')[1].split(']')[0].strip(), 'name':row.split(']')[1].split('capacity')[0].strip()})
+            index += 1
+            # print(index)
+            dictarrays.append([])
         else:
-            dict['onlinestatus'] = 'offline'
-        dict['name'] = row[21:35].strip()
-        dict['clientid'] = row[7:17].strip()
-        dict['hamachiip'] = row[48:64].strip()
-        dict['alias'] = row[73:88].strip()
-        dict['connipport'] = row[90:100].strip()
-        dict['conntype'] = row[135:145].strip()
-        dict['connprotocol'] = row[147:151].strip()
-        dict['connipport'] = row[152:173].strip()
-        dictarray.append(dict)
-    return dictarray
+            # print('not network')
+            dict = {}
+
+            if row[5] == '*':
+                dict['onlinestatus'] = 'online'
+            else:
+                dict['onlinestatus'] = 'offline'
+            dict['name'] = row[21:45].strip()
+            dict['clientid'] = row[7:17].strip()
+            dict['hamachiip'] = row[48:64].strip()
+            dict['alias'] = row[73:88].strip()
+            dict['connipport'] = row[90:100].strip()
+            dict['conntype'] = row[135:145].strip()
+            dict['connprotocol'] = row[147:151].strip()
+            dict['connipport'] = row[152:173].strip()
+            dictarrays[index].append(dict)
+
+    return networks, dictarrays
 
 
 def gethamachistatusdata():
@@ -182,10 +194,10 @@ def killhamachi():
     import subprocess
     result = subprocess.check_output(['pgrep','hamachi'])
     split = result.split('\n')
-    print(split)
+    # print(split)
     for pid in split:
         if pid:
-            print(pid)
+            # print(pid)
             subprocess.call(['kill', '-9', str(pid.strip())])
     return
 
