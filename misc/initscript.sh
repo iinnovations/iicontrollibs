@@ -1,13 +1,20 @@
 #!/bin/bash
 
+RED='\033[0;31m'
+WHT='\033[1;37m'
+NC='\033[0m' # No Color
+
 if [ $# -eq 0 ]
   then
     echo "no arguments supplied. Usage: ./install.sh install [full]"
 elif [ "$1" = "install" ]
   then
-    echo "running install as requested"
+    echo -e "${WHT}************************************${NC}"
+    echo -e "${WHT}*****      RUNNING INSTALL     *****${NC}"
+    echo -e "${WHT}************************************${NC}"
+
     apt-get update
-    apt-get remove --purge wolfram-engine
+    apt-get -y remove --purge wolfram-engine
     apt-get -y install lsb-core
     apt-get -y install php5 sqlite3 php5-sqlite
     apt-get -y install python-dev python3 python-setuptools
@@ -55,14 +62,19 @@ elif [ "$1" = "install" ]
     cd ..
     rm -R py-spidev-master
 
+    echo -e "${WHT}************************************${NC}"
+    echo -e "${WHT}*****   STD  INSTALL  COMPLETE *****${NC}"
+    echo -e "${WHT}************************************${NC}"
 
-  if [ -z $2 ]
-  then
-    echo "not manipulating users or directories"
-  elif [ "$2" = "full" ]
-  then
+fi
 
-    echo "configuring users"
+if [ "$2" = "full" -o "$1" = "full" ]
+  then
+    echo -e "${WHT}************************************${NC}"
+    echo -e "${WHT}*******  RUNNING ADDITIONAL  *******${NC}"
+    echo -e "${WHT}*******  INSTALL CONPONENTS  *******${NC}"
+    echo -e "${WHT}************************************${NC}"
+
     addgroup sshers
     usermod -aG sshers pi
     usermod -aG www-data pi
@@ -161,46 +173,47 @@ elif [ "$1" = "install" ]
 
 
     echo "configuring hamachi"
-    #    wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.139-1_armhf.deb
+    apt-get -y lsb-core
+    # wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.139-1_armhf.deb
     dpkg -i /usr/lib/iicontrollibs/resource/logmein-hamachi_2.1.0.139-1_armhf.deb
     hamachi login
     # hamachi do-join XXX-XX-XXXX
-
+    #
     echo "hamachi complete"
 
-    echo "testing for owfs"
-    testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
-    if [ ${testresult} -ne 0 ]
-      then
-        echo "owfs 2.9p5 already installed"
-    else
-        echo "installing owfs 2.9p5"
-        cd /usr/lib/iicontrollibs/resource
-        tar -xvf owfs-2.9p5.tar.gz
-        cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
-        ./configure
-        make install
-        cd ..
-        rm -R owfs-2.9p5
-    fi
-    echo "owfs complete"
+    #    echo "testing for owfs"
+    #    testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
+    #    if [ ${testresult} -ne 0 ]
+    #      then
+    #        echo "owfs 2.9p5 already installed"
+    #    else
+    #        echo "installing owfs 2.9p5"
+    #        cd /usr/lib/iicontrollibs/resource
+    #        tar -xvf owfs-2.9p5.tar.gz
+    #        cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
+    #        ./configure
+    #        make install
+    #        cd ..
+    #        rm -R owfs-2.9p5
+    #    fi
+    #    echo "owfs complete"
 
-#    echo "installing MAX31855 library"
-#    cd /usr/lib/iicontrollibs/resource/Adafruit_Python_MAX31855-master
-#    python setup.py install
+    echo "installing MAX31855 library"
+    cd /usr/lib/iicontrollibs/resource/Adafruit_Python_MAX31855-master
+    python setup.py install
 
     # get custom sources
-#    cp /usr/lib/iicontrollibs
-#    apt-get update
+    #    cp /usr/lib/iicontrollibs
+    #    apt-get update
 
     # handled in raspi-config
-#    echo "Copying inittab"
-#    cp /usr/lib/iicontrollibs/misc/inittab /etc/
-#    echo "Complete"
+    #    echo "Copying inittab"
+    #    cp /usr/lib/iicontrollibs/misc/inittab /etc/
+    #    echo "Complete"
 
-#    echo "Copying cmdline.txt"
-#    cp /usr/lib/iicontrollibs/misc/cmdline.txt /boot/
-#    echo "Complete"
+    #    echo "Copying cmdline.txt"
+    #    cp /usr/lib/iicontrollibs/misc/cmdline.txt /boot/
+    #    echo "Complete"
 
     echo "Copying nginx site"
     cp /usr/lib/iicontrollibs/misc/nginx/nginxsite /etc/nginx/sites-available/default
@@ -219,12 +232,17 @@ elif [ "$1" = "install" ]
 
     echo "Creating self-signed ssl cert"
     mkdir /etc/ssl/localcerts
-    openssl req -new -x509 -sha256 -days 365 -nodes -out /etc/ssl/localcerts/mycert.pem -keyout /etc/ssl/localcerts/mycert.key
+    openssl req -new -x509 -sha256 -days 365 -nodes \
+        -subj "/C=US/ST=OR/L=Portland/O=Interface Innovations/OU=CuPID Controls/CN=interfaceinnovations.org" \
+        -out /etc/ssl/localcerts/mycert.pem \
+        -keyout /etc/ssl/localcerts/mycert.key
+
     echo "Complete"
 
-    echo "Copying dhcpd.conf"
-    cp /usr/lib/iicontrollibs/misc/dhcpd.conf /etc/dhcp/
-    echo "Complete"
+#    This is now done at configure time, with dedicated dhcpd files
+#    echo "Copying dhcpd.conf"
+#    cp /usr/lib/iicontrollibs/misc/dhcpd.conf /etc/dhcp/
+#    echo "Complete"
 
     if [ $(ls /usr/sbin/ | grep -c 'hostapd.edimax') -ne 0 ]
         then
@@ -239,33 +257,38 @@ elif [ "$1" = "install" ]
         echo "hostapd configuration complete"
     fi
 
-    echo "copying hostapd.conf"
-    cp /usr/lib/iicontrollibs/misc/hostapd.conf /etc/hostapd/
+#    We now run hostapd directly
+#    echo "copying hostapd.conf"
+#    cp /usr/lib/iicontrollibs/misc/hostapd.conf /etc/hostapd/
 
-    # Ensure i2c-dev module is loaded
-#    echo "copying modules file"
-#    cp /usr/lib/iicontrollibs/misc/raspi-blacklist.conf /etc/modprobe.d/
-
-#    echo "setting modprobe"
-#    modprobe i2c-bcm2708
-
-    echo "copying boot config to disable console serial interface and enable serial interfaces"
-    cp /usr/lib/iicontrollibs/misc/modules /etc/modules
+#    # Ensure i2c-dev module is loaded
+    testresult=$(grep -c 'i2c-dev' /etc/modules)
+    if [ ${testresult} -ne 0 ]
+      then
+        echo "i2c-dev already exists"
+    else
+      echo "loading dev module"
+      echo "i2c-dev" >> /etc/modules
+    fi
+    echo "i2c-dev configuration complete"
 
     echo "Copying icons to desktop"
+    cp /usr/lib/iicontrollibs/misc/icons/* /home/pi/Desktop
 
     echo "Changing desktop wallpaper"
-    sudo -u pi pcmanfm -w /var/www/images/splash/cupid_splash_big.png
+    cp /usr/lib/iicontrollibs/misc/desktop-items-0.conf /home/pi/.config/pcmanfm/LXDE-pi/
+#
+#    echo "Copying icons"
+#    cp /usr/lib/iicontrollibs/misc/updatecupidweblibs.desktop ~/
+    echo -e "${WHT}************************************${NC}"
+    echo -e "${WHT}******* FINISHED  ADDITIONAL  ******${NC}"
+    echo -e "${WHT}*******  INSTALL CONPONENTS  *******${NC}"
+    echo -e "${WHT}************************************${NC}"
+fi
 
-    echo "Copying icons"
-    cp /usr/lib/iicontrollibs/misc/updatecupidweblibs.desktop ~/
-  else
+if [ "$1" != "install" -a "$1" != "full" ]
+  then
     echo "Invalid argument received: "
     echo "$2"
-    echo "Usage: ./install.sh install [full]"
-  fi
-else
-    echo "Invalid argument received: "
-    echo "$1"
     echo "Usage: ./install.sh install [full]"
 fi

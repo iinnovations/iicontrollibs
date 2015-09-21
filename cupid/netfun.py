@@ -63,9 +63,9 @@ def runping(pingAddress='8.8.8.8', numpings=1):
     return pingtimes
 
 
-def getiwstatus():
+def getiwstatus(interface='wlan0'):
     from subprocess import check_output, PIPE
-    iwresult = check_output(['iwconfig', 'wlan0'], stderr=PIPE)
+    iwresult = check_output(['iwconfig', interface], stderr=PIPE)
     resultdict = {}
     for iwresult in iwresult.split('  '):
         if iwresult:
@@ -95,20 +95,20 @@ def getifacestatus():
         ifacedict['ifaceindex'] = str(iface.index).strip()
         ifacedict['bcast'] = iface._Interface__sockaddrToStr(iface.broadaddr).strip()
         ifacedict['mask'] = iface._Interface__sockaddrToStr(iface.netmask).strip()
-        ifacedict['flags'] = pyiface.flagsToStr(iface.flags).strip()
+        ifacedict['flags'] = pyiface.flagsToStr(iface.flags).replace('\n','').replace('\t',' ').strip()
         ifacesdictarray.append(ifacedict)
 
     return ifacesdictarray
 
 
-def getwpaclientstatus():
+def getwpaclientstatus(interface='wlan0'):
     import subprocess
     from pilib import writedatedlogmsg, networklog, networkloglevel
 
     resultdict = {}
     try:
         writedatedlogmsg(networklog, 'Attempting WPA client status read. ', 4, networkloglevel)
-        result = subprocess.check_output(['/sbin/wpa_cli', 'status'], stderr=subprocess.PIPE)
+        result = subprocess.check_output(['/sbin/wpa_cli', 'status', '-i', interface], stderr=subprocess.PIPE)
     except:
         writedatedlogmsg(networklog, 'Error reading wpa client status. Setting error status for systemstatus to catch.', 0, networkloglevel)
         resultdict['wpa_state'] = 'ERROR'

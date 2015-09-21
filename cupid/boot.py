@@ -41,7 +41,7 @@ subprocess.call(['killall','owfs'])
 subprocess.call(['killall','owserver'])
 subprocess.call(['killall','owhttpd'])
 
-runi2cowfs = False
+runi2cowfs = True
 runusbowfs = False
 
 mightyboost = True

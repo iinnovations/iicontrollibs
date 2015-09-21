@@ -162,7 +162,6 @@ def parseoptions(optionstring):
                 optionsdict[split[0].strip()] = split[1].strip()
         except:
             pass
-
     return optionsdict
 
 
@@ -672,8 +671,7 @@ def readonedbrow(database, table, rownumber=0, condition=None):
         dictarray = [dict]
     except:
         # print('no row here')
-        dictarray = {}
-        pass
+        dictarray = []
 
     return dictarray
 

@@ -50,7 +50,7 @@ def rebuildcontroldb(tabledict):
         table = 'systemstatus'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text default '', updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 15, lastiopoll text default '', enableoutputs boolean default 0, sessioncontrolenabled boolean default 0, sessioncontrolstatus boolean default 0, systemstatusenabled boolean default 1, netconfigenabled boolean default 0, checkhamachistatus boolean default 0, hamachistatus boolean default 0, systemstatusstatus boolean default 0, systemstatusfreq real default 15, lastsystemstatuspoll text default '', systemmessage text default '', serialhandlerenabled boolean default 0, serialhandlerstatus boolean default 0, webserver text default 'nginx')")
+            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text default '', updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 15, lastiopoll text default '', enableoutputs boolean default 0, sessioncontrolenabled boolean default 0, sessioncontrolstatus boolean default 0, systemstatusenabled boolean default 1, netstatusenabled boolean default 1, netconfigenabled default 0, checkhamachistatus boolean default 0, hamachistatus boolean default 0, systemstatusstatus boolean default 0, systemstatusfreq real default 15, lastsystemstatuspoll text default '', systemmessage text default '', serialhandlerenabled boolean default 0, serialhandlerstatus boolean default 0, webserver text default 'nginx')")
         if addentries:
             querylist.append("insert into " + table + " default values")
 
@@ -335,7 +335,7 @@ def rebuildsystemdatadb(tabledict):
         table = 'netstatus'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " ( address text default '', connected boolean default 0, WANaccess boolean default 0, latency real default 0, SSID text default '', dhcpstatus boolean default 0, mode text default station, onlinetime text, offlinetime text default '', statusmsg text default '')")
+            "create table " + table + " ( WANaccess boolean default 0, latency real default 0, mode text default 'eth0wlan0bridge', onlinetime text, offlinetime text default '', updatetime text '', statusmsg text default '')")
         querylist.append("insert into " + table + "  default values")
 
     if 'netconfig' in tabledict:
@@ -343,9 +343,8 @@ def rebuildsystemdatadb(tabledict):
         table = 'netconfig'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (enabled boolean, SSID text, mode text, aprevert text default '', addtype text default 'dhcp', address text, gateway text, dhcpstart text default '192.168.0.70', dhcpend text default '192.168.1.99', apreverttime integer default 60, stationretrytime integer default 300, laststationretry text, pingthreshold integer default 200, netstatslogenabled boolean default 0, netstatslogfreq integer default 60)")
-        querylist.append(
-            "insert into " + table + " values ('1','OurHouse','station','','static','192.168.1.30','192.168.1.1','','',60,300,0,200, 1, 60)")
+            "create table " + table + " (SSID text default none, mode text default eth0wlan0bridge, aprevert text default '', addtype text default 'dhcp', address text default '192.168.1.30', gateway text default '192.168.0.1', dhcpstart text default '192.168.0.70', dhcpend text default '192.168.0.99', apreverttime integer default 60, stationretrytime integer default 300, laststationretry text default '', pingthreshold integer default 2000, netstatslogenabled boolean default 0, netstatslogfreq integer default 60, apoverride boolean default 0, apoverridepin integer default 21)")
+        querylist.append("insert into " + table + "  default values")
 
     if 'systemflags' in tabledict:
         runquery = True
@@ -515,12 +514,21 @@ def rebuildusersdata(argument=None):
 ############################################
 # safedata
 
-def rebuildsafedata():
-    runquery = False
+def rebuildwirelessdata():
     querylist = []
     querylist.append('drop table if exists wireless')
     querylist.append('create table wireless (SSID text, password text)')
 
+    sqlitemultquery(safedatabase, querylist)
+
+
+def rebuildapdata(SSID='cupidwifi', password='cupidpassword'):
+    querylist = []
+
+    querylist.append('drop table if exists apsettings')
+    querylist.append("create table apsettings (SSID text default 'cupidwifi', password text default 'cupidpassword')")
+    querylist.append(
+                "insert into apsettings values('" + SSID + "','" + password + "')")
     sqlitemultquery(safedatabase, querylist)
 
 
@@ -537,13 +545,18 @@ if __name__ == "__main__":
     # Check for DEFAULTS argument
 
     controldbtables = ['actions', 'modbustcp', 'logconfig', 'defaults', 'systemstatus', 'indicators', 'inputs', 'outputs', 'owfs', 'ioinfo', 'interfaces',
-                       'algorithms', 'algorithmtypes', 'netconfig', 'channels', 'remotes', 'mote']
+                       'algorithms', 'algorithmtypes', 'channels', 'remotes', 'mote']
     systemdbtables = ['metadata', 'netconfig', 'netstatus', 'versions', 'systemflags', 'uisettings']
     motestables = ['readmessages', 'queuedmessages', 'sentmessages']
 
     if len(sys.argv) > 1 and sys.argv[1] == 'DEFAULTS':
         print('making default databases')
-        rebuildsafedata()
+        rebuildwirelessdata()
+
+        # This checks the hostname, sets it as the hostname with 'cupid' prefix, and sets default password
+        # Then it calls the file rebuild
+        from netconfig import setdefaultapsettings
+        setdefaultapsettings()
         rebuildusersdata('defaults')
 
         rebuildcontroldb(maketruetabledict(controldbtables))
@@ -555,11 +568,15 @@ if __name__ == "__main__":
 
     elif len(sys.argv) > 1:
         if sys.argv[1] in controldbtables:
+            print('running rebuild control tables for ' + sys.argv[1])
             rebuildcontroldb(sys.argv[1])
         elif sys.argv[1] in systemdbtables:
+            print('running rebuild system tables for ' + sys.argv[1])
             rebuildsystemdatadb(sys.argv[1])
         elif sys.argv[1] in motestables:
+            print('running rebuild motes tables for ' + sys.argv[1])
             rebuildmotesdb(sys.argv[1])
+
     else:
 
         print("** Motes tables **")
@@ -597,7 +614,11 @@ if __name__ == "__main__":
 
         answer = raw_input('Rebuild wireless table (y/N)?')
         if answer == 'y':
-            rebuildsafedata()
+            rebuildwirelessdata()
+
+        answer = raw_input('Rebuild AP table (y/N)?')
+        if answer == 'y':
+            rebuildapdata()
 
         answer = raw_input('Rebuild users table (y/N)?')
         if answer == 'y':

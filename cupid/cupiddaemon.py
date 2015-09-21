@@ -11,6 +11,7 @@ __status__ = "Development"
 
 import pilib
 
+
 class Proc(object):
     ''' Data structure for a processes . The class properties are
     process attributes '''
@@ -37,7 +38,7 @@ class Proc(object):
         return '%s %s %s' % (self.user, self.pid, self.cmd)
 
 
-def get_proc_list(filter=None):
+def get_proc_list():
     """ Return a list [] of Proc objects representing the active
     process list list """
 
@@ -45,10 +46,7 @@ def get_proc_list(filter=None):
     from re import split
 
     proc_list = []
-    args = ['ps','aux']
-    if filter:
-        args.extend(['|','grep',filter])
-    sub_proc = Popen(args, shell=False, stdout=PIPE)
+    sub_proc = Popen(['ps', 'aux'], shell=False, stdout=PIPE)
 
     #Discard the first line (ps aux header)
     sub_proc.stdout.readline()
@@ -59,6 +57,29 @@ def get_proc_list(filter=None):
         proc_info = split(" *", line)
         proc_list.append(Proc(proc_info))
     return proc_list
+
+
+def pgrepstatus(regex, full=True):
+    import subprocess
+    if full:
+        cmd = ['pgrep','-f',regex]
+    else:
+        cmd = ['pgrep',regex]
+    try:
+        result = subprocess.check_output(cmd)
+    except:
+        pcount = 0
+        pids = []
+    else:
+        split = result.split('\n')
+        # print(split)
+        pcount = 0
+        pids = []
+        for pid in split:
+            if pid:
+                pcount += 1
+                pids.append(pid)
+    return {'count': pcount, 'pids': pids}
 
 
 def findprocstatuses(procstofind):
