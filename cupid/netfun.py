@@ -107,7 +107,7 @@ def getwpaclientstatus(interface='wlan0'):
 
     resultdict = {}
     try:
-        writedatedlogmsg(networklog, 'Attempting WPA client status read. ', 4, networkloglevel)
+        writedatedlogmsg(networklog, 'Attempting WPA client status read for interface ' + interface, 4, networkloglevel)
         result = subprocess.check_output(['/sbin/wpa_cli', 'status', '-i', interface], stderr=subprocess.PIPE)
     except:
         writedatedlogmsg(networklog, 'Error reading wpa client status. Setting error status for systemstatus to catch.', 0, networkloglevel)

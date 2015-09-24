@@ -52,7 +52,7 @@ def updatehostapd(path='/etc/hostapd/hostapd.conf', interface='wlan0'):
     #     SSID = 'cupidwifi'
     #     password = 'cupidpassword'
 
-    print(SSID)
+    # print(SSID)
     myfile = open(path, 'w')
     filestring = 'interface=' + interface + '\n'
     filestring += 'driver=rtl871xdrv\nssid='
@@ -324,8 +324,10 @@ def killdhcpserver():
 def startapservices(interface='wlan0'):
     from time import sleep
     try:
-        updatehostapd(path='/etc/hostapd/hostapd.conf', interface=interface)
-        subprocess.call(['/usr/sbin/hostapd', '-B', '/etc/hostapd/hostapd.conf'])
+        # We name the file by the interfae. This way when we pgrep, we know we're running AP on the right interface
+        hostapdfilename = '/etc/hostapd/hostapd' + interface + '.conf'
+        updatehostapd(path=hostapdfilename, interface=interface)
+        subprocess.call(['/usr/sbin/hostapd', '-B', hostapdfilename])
     except:
         pilib.writedatedlogmsg(pilib.networklog, 'Error starting hostapd. ', 0, pilib.networkloglevel)
     else:
@@ -362,7 +364,7 @@ def setapmode(interface='wlan0', netconfig=None):
 
 
 def resetwlan(interface='wlan0'):
-    pilib.writedatedlogmsg(pilib.networklog, 'Resetting' + interface + ' . ', 3, pilib.networkloglevel)
+    pilib.writedatedlogmsg(pilib.networklog, 'Resetting ' + interface + ' . ', 3, pilib.networkloglevel)
     try:
         subprocess.check_output(['/sbin/ifdown', '--force', interface], stderr=subprocess.PIPE)
         subprocess.call(['/sbin/ifup', interface], stderr=subprocess.PIPE)

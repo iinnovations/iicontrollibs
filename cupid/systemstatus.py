@@ -335,13 +335,13 @@ def watchdognetstatus(allnetstatus=None):
             if wpadata['wpa_state'] == 'COMPLETED':
                 pilib.writedatedlogmsg(pilib.networklog, 'station interface ' + stationinterface + ' wpastatus appears ok. ', 3, pilib.networkloglevel)
             else:
-                pilib.writedatedlogmsg(pilib.networklog, 'station interface does not appear ok judged by wpa_state. ', 1, pilib.networkloglevel)
+                pilib.writedatedlogmsg(pilib.networklog, 'station interface for ' + stationinterface + ' does not appear ok judged by wpa_state. ', 1, pilib.networkloglevel)
                 statusmsg += 'station interface does not appear ok judged by wpa_state. '
                 runconfig = True
 
         # Check wlan1 dhcp and hostapd status
         try:
-            apifacedata =ifacedict[apinterface]
+            apifacedata = ifacedict[apinterface]
         except KeyError:
             pilib.writedatedlogmsg(pilib.networklog, 'No apiface data(' + apinterface + ') present for mode ' + netconfigdata['mode'], 1, pilib.networkloglevel)
             runconfig = True
@@ -353,7 +353,7 @@ def watchdognetstatus(allnetstatus=None):
                 result = subprocess.check_output(['/usr/sbin/service', 'isc-dhcp-server', 'status'], stderr=subprocess.PIPE)
             except Exception, e:
                 # If not running, the subprocess call will throw an error
-                pilib.writedatedlogmsg(pilib.networklog, 'Error in reading dhcp server status. Assumed down. ', 1, pilib.networkloglevel)
+                pilib.writedatedlogmsg(pilib.networklog, 'Error in reading dhcp server status for interface ' + apinterface + ' Assumed down. ', 1, pilib.networkloglevel)
                 statusmsg += 'Error in reading dhcp server status. Assumed down. '
                 runconfig = True
             else:
