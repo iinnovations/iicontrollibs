@@ -135,7 +135,7 @@ def runallprocs():
 def rundaemon(startall=False):
     from subprocess import Popen, PIPE
     from time import sleep
-    from pilib import writedatedlogmsg, daemonlog, daemonloglevel
+    from pilib import log, daemonlog, daemonloglevel
 
     # Set up list of enabled statuses (whether to restart if
     # we find that the process is not currently running
@@ -156,7 +156,7 @@ def rundaemon(startall=False):
     for name, enabled, status in zip(pilib.daemonprocs, enableditemlist, itemstatuses):
         systemstatusmsg += name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. '
         if pilib.daemonloglevel > 0:
-            pilib.writedatedlogmsg(pilib.daemonlog, name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. ')
+            pilib.log(pilib.daemonlog, name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. ')
 
     pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'systemmessage', systemstatusmsg)
 
@@ -171,17 +171,17 @@ def rundaemon(startall=False):
         if itemstatuses[index]:
             pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
             if pilib.daemonloglevel > 0:
-                pilib.writedatedlogmsg(pilib.daemonlog, 'Process is running: ' + pilib.baselibdir + pilib.daemonprocs[index])
+                pilib.log(pilib.daemonlog, 'Process is running: ' + pilib.baselibdir + pilib.daemonprocs[index])
         else:
             pilib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')
             if pilib.daemonloglevel > 0:
-                pilib.writedatedlogmsg(pilib.daemonlog, 'Process is not running: ' + pilib.baselibdir + pilib.daemonprocs[index])
+                pilib.log(pilib.daemonlog, 'Process is not running: ' + pilib.baselibdir + pilib.daemonprocs[index])
 
             # run if set to enable
             if enableditemlist[index]:
                 # print(pilib.baselibdir + pilib.daemonprocs[index])
                 if pilib.daemonloglevel > 0:
-                    pilib.writedatedlogmsg(pilib.daemonlog, 'Starting ' + pilib.baselibdir + pilib.daemonprocs[index])
+                    pilib.log(pilib.daemonlog, 'Starting ' + pilib.baselibdir + pilib.daemonprocs[index])
                 procresult = Popen([pilib.baselibdir + pilib.daemonprocs[index]], stdout=PIPE, stderr=PIPE)
                 # if pilib.daemonloglevel > 0:
                 #     pilib.writedatedlogmsg(pilib.daemonproclog, procresult.stdout.read())
@@ -206,13 +206,13 @@ def rundaemon(startall=False):
 
     # Rotate all logs
     pilib.rotatelogs(pilib.networklog, pilib.numlogs, pilib.maxlogsize)
-    pilib.rotatelogs(pilib.systemstatuslog, pilib.numlogs, pilib.maxlogsize)
+    pilib.rotatelogs(pilib.syslog, pilib.numlogs, pilib.maxlogsize)
     pilib.rotatelogs(pilib.iolog, pilib.numlogs, pilib.maxlogsize)
     pilib.rotatelogs(pilib.controllog, pilib.numlogs, pilib.maxlogsize)
     pilib.rotatelogs(pilib.daemonlog, pilib.numlogs, pilib.maxlogsize)
 
 if __name__ == "__main__":
-    from pilib import writedatedlogmsg, daemonlog, daemonloglevel
-    writedatedlogmsg(daemonlog, 'Running daemon.', 1, daemonloglevel)
+    from pilib import log, daemonlog, daemonloglevel
+    log(daemonlog, 'Running daemon.', 1, daemonloglevel)
     rundaemon()
-    writedatedlogmsg(daemonlog, 'Daemon complete.',1,daemonloglevel)
+    log(daemonlog, 'Daemon complete.',1,daemonloglevel)

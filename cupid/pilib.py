@@ -34,7 +34,7 @@ logdir = '/var/log/cupid/'
 networklog = logdir + 'network.log'
 iolog = logdir + 'io.log'
 remotelog = logdir + 'remotes.log'
-systemstatuslog = logdir + 'systemstatus.log'
+syslog = logdir + 'systemstatus.log'
 controllog = logdir + 'control.log'
 daemonlog = logdir + 'daemon.log'
 
@@ -49,7 +49,7 @@ numlogs = 5
 
 networkloglevel = 5
 iologlevel = 3
-systemstatusloglevel = 4
+sysloglevel = 4
 controlloglevel = 3
 daemonloglevel = 3
 
@@ -93,7 +93,7 @@ def getgpiostatus():
     return gpiolist
 
 
-def writedatedlogmsg(logfile, message, reqloglevel=1, currloglevel=1):
+def log(logfile, message, reqloglevel=1, currloglevel=1):
     if currloglevel >= reqloglevel:
         logfile = open(logfile, 'a')
         logfile.writelines([gettimestring() + ' : ' + message + '\n'])
@@ -176,6 +176,7 @@ def dicttojson(dict):
 # Time functions
 #####################################
 
+
 def gettimestring(timeinseconds=None):
     import time
     if timeinseconds:
@@ -188,7 +189,7 @@ def gettimestring(timeinseconds=None):
     return timestring
 
 
-def timestringtoseconds(timestring):
+def timestringtoseconds(timestring=None):
     import time
     try:
         timeinseconds = time.mktime(time.strptime(timestring, '%Y-%m-%d %H:%M:%S'))

@@ -20,8 +20,8 @@ def runpicontrol(runonce=False):
 
     while systemstatus['picontrolenabled']:
 
-        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running picontrol', 3, pilib.systemstatusloglevel)
-        pilib.writedatedlogmsg(pilib.controllog, 'Running picontrol', 3, pilib.controlloglevel)
+        pilib.log(pilib.syslog, 'Running picontrol', 3, pilib.sysloglevel)
+        pilib.log(pilib.controllog, 'Running picontrol', 3, pilib.controlloglevel)
 
         # Set poll date. While intuitively we might want to set this
         # after the poll is complete, if we error below, we will know
@@ -258,11 +258,11 @@ def runpicontrol(runonce=False):
         if runonce:
             break
 
-        pilib.writedatedlogmsg(pilib.systemstatuslog, 'Picontrol Sleeping for ' + str(systemstatus['picontrolfreq']), 2, pilib.systemstatusloglevel)
-        pilib.writedatedlogmsg(pilib.controllog, 'Picontrol Sleeping for ' + str(systemstatus['picontrolfreq']), 2, pilib.systemstatusloglevel)
+        pilib.log(pilib.syslog, 'Picontrol Sleeping for ' + str(systemstatus['picontrolfreq']), 2, pilib.sysloglevel)
+        pilib.log(pilib.controllog, 'Picontrol Sleeping for ' + str(systemstatus['picontrolfreq']), 2, pilib.sysloglevel)
         sleep(systemstatus['picontrolfreq'])
 
-    pilib.writedatedlogmsg(pilib.systemstatuslog, 'picontrol not enabled. exiting.', 1, pilib.systemstatusloglevel)
+    pilib.log(pilib.syslog, 'picontrol not enabled. exiting.', 1, pilib.sysloglevel)
 
 if __name__ == "__main__":
     runpicontrol()

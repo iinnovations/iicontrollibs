@@ -63,6 +63,14 @@ def runping(pingAddress='8.8.8.8', numpings=1):
     return pingtimes
 
 
+def pingstatus(pingAddress='8.8.8.8', numpings=1):
+    pingtimes = runping(pingAddress, numpings=5)
+    pingmax = max(pingtimes)
+    pingmin = min(pingtimes)
+    pingave = sum(pingtimes)/len(pingtimes)
+    return {'pingtimes': pingtimes, 'pingmax': pingmax, 'pingmin': pingmin, 'pingave': pingave}
+
+
 def getiwstatus(interface='wlan0'):
     from subprocess import check_output, PIPE
     iwresult = check_output(['iwconfig', interface], stderr=PIPE)
@@ -81,11 +89,11 @@ def getiwstatus(interface='wlan0'):
 
 
 def getifacestatus():
-    from pilib import writedatedlogmsg, networklog, networkloglevel
+    from pilib import log, networklog, networkloglevel
     import resource.pyiface.iface as pyiface
 
     allIfaces = pyiface.getIfaces()
-    writedatedlogmsg(networklog, 'Got ifaces data. ', 5, networkloglevel)
+    log(networklog, 'Got ifaces data. ', 5, networkloglevel)
     ifacesdictarray=[]
     for iface in allIfaces:
         ifacedict = {}
@@ -103,17 +111,17 @@ def getifacestatus():
 
 def getwpaclientstatus(interface='wlan0'):
     import subprocess
-    from pilib import writedatedlogmsg, networklog, networkloglevel
+    from pilib import log, networklog, networkloglevel
 
     resultdict = {}
     try:
-        writedatedlogmsg(networklog, 'Attempting WPA client status read for interface ' + interface, 4, networkloglevel)
+        log(networklog, 'Attempting WPA client status read for interface ' + interface, 4, networkloglevel)
         result = subprocess.check_output(['/sbin/wpa_cli', 'status', '-i', interface], stderr=subprocess.PIPE)
     except:
-        writedatedlogmsg(networklog, 'Error reading wpa client status. Setting error status for systemstatus to catch.', 0, networkloglevel)
+        log(networklog, 'Error reading wpa client status. Setting error status for systemstatus to catch.', 0, networkloglevel)
         resultdict['wpa_state'] = 'ERROR'
     else:
-        writedatedlogmsg(networklog, 'Completed WPA client status read. ', 4, networkloglevel)
+        log(networklog, 'Completed WPA client status read. ', 4, networkloglevel)
 
         # prune interface ID
         resultitems = result.split('\n')
@@ -186,7 +194,10 @@ def gethamachistatusdata():
 
 def restarthamachi():
     import subprocess
+    from time import sleep
     subprocess.call(['/etc/init.d/logmein-hamachi','restart'])
+    sleep(15)
+    subprocess.call(['hamachi','login'])
     return
 
 

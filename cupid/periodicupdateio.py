@@ -25,8 +25,8 @@ updateioenabled = pilib.getsinglevalue(pilib.controldatabase, 'systemstatus', 'u
 
 while updateioenabled:
 
-    pilib.writedatedlogmsg(pilib.iolog, 'Running periodicupdateio', 3, pilib.iologlevel)
-    pilib.writedatedlogmsg(pilib.systemstatuslog, 'Running periodicupdateio', 3, pilib.systemstatusloglevel)
+    pilib.log(pilib.iolog, 'Running periodicupdateio', 3, pilib.iologlevel)
+    pilib.log(pilib.syslog, 'Running periodicupdateio', 3, pilib.sysloglevel)
 
     # Set last run time
     pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'lastinputpoll', pilib.gettimestring())
@@ -40,8 +40,8 @@ while updateioenabled:
     if runupdate:
         reply = updateio.updateiodata(pilib.controldatabase)
     else:
-        pilib.writedatedlogmsg(pilib.iolog,'DEBUG: Update IO disabled', 1, pilib.iologlevel)
-        pilib.writedatedlogmsg(pilib.systemstatuslog,'DEBUG: Update IO disabled', 1, pilib.systemstatusloglevel)
+        pilib.log(pilib.iolog,'DEBUG: Update IO disabled', 1, pilib.iologlevel)
+        pilib.log(pilib.syslog,'DEBUG: Update IO disabled', 1, pilib.sysloglevel)
 
 
     result = pilib.readonedbrow(pilib.controldatabase, 'systemstatus', 0)
@@ -124,7 +124,7 @@ while updateioenabled:
     # log metadata
     pilib.getandsetmetadata(pilib.logdatabase)
 
-    pilib.writedatedlogmsg(pilib.iolog,'Sleeping for ' + str(readtime), 1, pilib.iologlevel)
+    pilib.log(pilib.iolog,'Sleeping for ' + str(readtime), 1, pilib.iologlevel)
     sleep(readtime)
 
     # Read from systemstatus to make sure we should be running

@@ -12,7 +12,7 @@ __status__ = "Development"
 
 def setrawspilights(enabledlists, CS=1, **kwargs):
 
-    from pilib import writedatedlogmsg, systemstatuslog, systemstatusloglevel
+    from pilib import log, syslog, sysloglevel
     if 'method' in kwargs:
         method = kwargs['method']
     else:
@@ -37,7 +37,7 @@ def setrawspilights(enabledlists, CS=1, **kwargs):
         try:
             import spidev
         except ImportError:
-            writedatedlogmsg(systemstatuslog, 'You have not installed the spidev python package. Exiting.', 0, systemstatusloglevel)
+            log(syslog, 'You have not installed the spidev python package. Exiting.', 0, sysloglevel)
             exit
         else:
             spi = spidev.SpiDev()
@@ -45,7 +45,7 @@ def setrawspilights(enabledlists, CS=1, **kwargs):
             spi.open(0, CS)  # Port 0, CS1
             spi.max_speed_hz = 50000
         except:
-            writedatedlogmsg(systemstatuslog, 'Error raised on spi open. exiting.', 0, systemstatusloglevel)
+            log(syslog, 'Error raised on spi open. exiting.', 0, sysloglevel)
             exit
         else:
 

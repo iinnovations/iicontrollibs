@@ -28,9 +28,9 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True):
         checktime = mktime(localtime())
         checkfrequency = 15  # seconds
         if runhandler:
-           pilib.writedatedlogmsg(pilib.iolog, "Starting monitoring of serial port", 1, pilib.iologlevel)
+           pilib.log(pilib.iolog, "Starting monitoring of serial port", 1, pilib.iologlevel)
         else:
-            pilib.writedatedlogmsg(pilib.iolog, "Not starting monitoring of serial port. How did I get here?", 1, pilib.iologlevel)
+            pilib.log(pilib.iolog, "Not starting monitoring of serial port. How did I get here?", 1, pilib.iologlevel)
     else:
         runhandler = True
 
@@ -137,10 +137,10 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True):
                 runserialhandler = systemstatus['serialhandlerenabled']
                 if runserialhandler:
                     checktime = thetime
-                    pilib.writedatedlogmsg(pilib.iolog, 'Continuing serialhandler based on status check',3,pilib.iologlevel)
+                    pilib.log(pilib.iolog, 'Continuing serialhandler based on status check',3,pilib.iologlevel)
                 else:
                     runhandler=False
-                    pilib.writedatedlogmsg(pilib.iolog, 'Aborting serialhandler based on status check',3,pilib.iologlevel)
+                    pilib.log(pilib.iolog, 'Aborting serialhandler based on status check',3,pilib.iologlevel)
 
 
 def sendserialmessage(serobject, message):
