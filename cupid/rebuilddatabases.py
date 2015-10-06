@@ -343,7 +343,7 @@ def rebuildsystemdatadb(tabledict):
         table = 'netconfig'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (requireWANaccess integer default 1, WANretrytime integer default 60, mode text default eth0wlan0bridge, aprevert text default '', addtype text default 'dhcp', address text default '192.168.1.30', gateway text default '192.168.0.1', dhcpstart text default '192.168.0.70', dhcpend text default '192.168.0.99', apreverttime integer default 60, stationretrytime integer default 300, laststationretry text default '', pingthreshold integer default 2000, netstatslogenabled boolean default 0, netstatslogfreq integer default 60, apoverride boolean default 0, apoverridepin integer default 21, rebootonfail integer default 0, rebootonfailperiod default 900)")
+            "create table " + table + " (requireWANaccess integer default 1, WANretrytime integer default 60, mode text default eth0wlan0bridge, SSID text default '', aprevert text default '', addtype text default 'dhcp', address text default '192.168.1.30', gateway text default '192.168.0.1', dhcpstart text default '192.168.0.70', dhcpend text default '192.168.0.99', apreverttime integer default 60, stationretrytime integer default 300, laststationretry text default '', pingthreshold integer default 2000, netstatslogenabled boolean default 0, netstatslogfreq integer default 60, apoverride boolean default 0, apoverridepin integer default 21, rebootonfail integer default 0, rebootonfailperiod default 900)")
         querylist.append("insert into " + table + "  default values")
 
     if 'systemflags' in tabledict:

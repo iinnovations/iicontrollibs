@@ -44,13 +44,13 @@ def updatedhcpd(path='/etc/dhcp/dhcpd.conf', interface='wlan0', gateway='192.168
 
 
 def updatehostapd(path='/etc/hostapd/hostapd.conf', interface='wlan0'):
-    # try:
-    apsettings = pilib.readonedbrow(pilib.safedatabase, 'apsettings')[0]
-    SSID = apsettings['SSID']
-    password = apsettings['password']
-    # except:
-    #     SSID = 'cupidwifi'
-    #     password = 'cupidpassword'
+    try:
+        apsettings = pilib.readonedbrow(pilib.safedatabase, 'apsettings')[0]
+        SSID = apsettings['SSID']
+        password = apsettings['password']
+    except:
+        SSID = 'cupidwifi'
+        password = 'cupidpassword'
 
     # print(SSID)
     myfile = open(path, 'w')
@@ -196,7 +196,7 @@ def writesupplicantfile(filedata, filepath='/etc/wpa_supplicant/wpa_supplicant.c
         pilib.log(pilib.networklog, 'Supplicant file written. ', 3, pilib.networkloglevel)
 
 
-def updatewpasupplicant(interface='wlan0'):
+def updatewpasupplicantOLD(interface='wlan0'):
     # print('I AM UPDATING SUPPLICANT DATA')
     try:
         suppdata = getwpasupplicantconfig()
@@ -218,6 +218,41 @@ def updatewpasupplicant(interface='wlan0'):
         pilib.log(pilib.networklog, 'Error writing supplicant data. ', 0, pilib.networkloglevel)
     else:
         pilib.log(pilib.networklog, 'Supplicant data written successfully. ', 3, pilib.networkloglevel)
+
+
+def updatewpasupplicant(path='/etc/wpa_supplicant/wpa_supplicant.conf'):
+
+    netconfig = pilib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
+
+    try:
+        wirelessauths = pilib.readalldbrows(pilib.safedatabase, 'wireless')
+    except:
+         pilib.log(pilib.networklog, 'Error reading wireless data. ', 0, pilib.networkloglevel)
+    else:
+         pilib.log(pilib.networklog, 'Read wireless data. ', 4, pilib.networkloglevel)
+
+    psk = ''
+    ssid = ''
+
+    # we only update if we find the credentials
+    for auth in wirelessauths:
+        if auth['SSID'] == netconfig['SSID']:
+            password = auth['password']
+            ssid = auth['SSID']
+            pilib.log(pilib.networklog, 'SSID ' + auth['SSID'] + 'found. ', 1, pilib.networkloglevel)
+            psk = password
+            ssid = ssid
+
+
+    myfile = open(path, 'w')
+
+    filestring = 'ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\nupdate_config=1\n\n'
+    filestring += 'network={\n'
+    filestring += 'psk="' + psk + '"\n'
+    filestring += 'ssid="' + ssid + '"\n'
+    filestring += 'proto=RSN\nauth_alg=OPEN\npairwise=CCMP\nkey_mgmt=WPA-PSK\n}'
+
+    myfile.write(filestring)
 
 
 def replaceifaceparameters(iffilein, iffileout, iface, parameternames, parametervalues):
@@ -262,6 +297,10 @@ def replaceifaceparameters(iffilein, iffileout, iface, parameternames, parameter
 
 def setstationmode(netconfigdata=None):
     pilib.log(pilib.networklog, 'Setting station mode. ', 3, pilib.networkloglevel)
+    pilib.log(pilib.networklog, 'Updating supplicant data. ', 3, pilib.networkloglevel)
+
+    updatewpasupplicant()
+
     from time import sleep
     if not netconfigdata:
         pilib.log(pilib.networklog, 'Retrieving unfound netconfig data. ', 3, pilib.networkloglevel)
