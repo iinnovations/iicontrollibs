@@ -150,6 +150,8 @@ def watchdognetstatus(allnetstatus=None):
         # print(iface)
         ifacedict[iface['name']] = iface
 
+    print(ifacedict)
+
     statusmsg = ''
     currenttime = pilib.gettimestring()
 
@@ -210,10 +212,10 @@ def watchdognetstatus(allnetstatus=None):
             runconfig = True
         else:
             wpadata = pilib.parseoptions(stationifacedata['wpastate'])
-            if wpadata['wpa_state'] == 'COMPLETED':
-                pilib.log(pilib.networklog, 'station interface ' + stationinterface + ' wpastatus appears ok. ', 3, pilib.networkloglevel)
+            if wpadata['wpa_state'] == 'COMPLETED' and stationifacedata['address']:
+                pilib.log(pilib.networklog, 'station interface ' + stationinterface + ' wpastatus appears ok with address ' + str(stationifacedata['address']), 3, pilib.networkloglevel)
             else:
-                pilib.log(pilib.networklog, 'station interface for ' + stationinterface + ' does not appear ok judged by wpa_state. ', 1, pilib.networkloglevel)
+                pilib.log(pilib.networklog, 'station interface for ' + stationinterface + ' does not appear ok judged by wpa_state: wpastate = ' + wpadata['wpa_state'] + ' address= ' + stationifacedata['address'], 1, pilib.networkloglevel)
                 statusmsg += 'station interface does not appear ok judged by wpa_state. '
                 runconfig = True
 
@@ -370,6 +372,7 @@ def watchdognetstatus(allnetstatus=None):
                 # If not running, the subprocess call will throw an error
                 pilib.log(pilib.networklog, 'Error in reading dhcp server status for interface ' + apinterface + ' Assumed down. ', 1, pilib.networkloglevel)
                 statusmsg += 'Error in reading dhcp server status. Assumed down. '
+                print('SETTING TRUE')
                 runconfig = True
             else:
                 pilib.log(pilib.networklog, 'DHCP server appears to be up. ', 1,  pilib.networkloglevel)
@@ -593,7 +596,7 @@ def updatenetstatus(lastnetstatus=None):
     import pilib
     import time
     import subprocess
-    from netfun import getifacestatus, getwpaclientstatus
+    from netfun import getifacestatus, getwpaclientstatus, getifconfigstatus
 
     netconfigdata = pilib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
 
@@ -610,10 +613,12 @@ def updatenetstatus(lastnetstatus=None):
             except:
                 pilib.log(pilib.syslog, 'Error recreating netstatus. ', 1, pilib.networkloglevel)
 
-    """ Pyiface is one way to read some iface data """
+    """ Pyiface is one way to read some iface data, but it doesn't always appear to show all interfaces(?!)
+        So we wrote our own instead. A work in progress but quite functional at the moment. """
 
     pilib.log(pilib.networklog, 'Reading ifaces with pyiface. ', 4, pilib.networkloglevel)
-    ifacesdictarray = getifacestatus()
+    ifacesdictarray = getifconfigstatus()
+    # ifacesdictarray = getifacestatus()
 
     """ We supplement with wpa status on the wlan interfaces """
 
@@ -837,13 +842,6 @@ def runsystemstatus(runonce=False):
         Do we want to autoconfig the network? If so, we analyze our netstatus data against what should be going on,
         and translate this into a network status
         """
-
-        if systemstatus['checkhamachistatus']:
-            pilib.log(pilib.syslog, 'Checking Hamachi Status. ', 3, pilib.sysloglevel)
-            pilib.log(pilib.networklog, 'Checking Hamachi Status. ', 2, pilib.networkloglevel)
-
-            watchdoghamachi(pingip='25.37.18.7')
-
         if systemstatus['netconfigenabled'] and systemstatus['netstatusenabled']:
 
             # No need to get this fresh. We have it stored.
@@ -854,6 +852,7 @@ def runsystemstatus(runonce=False):
                 result = processapoverride(21)
 
             ''' Now we check network status depending on the configuration we have selected '''
+            ''' Now we check network status depending on the configuration we have selected '''
             pilib.log(pilib.syslog, 'Running interface configuration watchdog. ', 4,
                                    pilib.sysloglevel)
             pilib.log(pilib.networklog, 'Running interface configuration. Mode: ' + netconfigdata['mode'], 4,
@@ -861,12 +860,28 @@ def runsystemstatus(runonce=False):
 
             result = watchdognetstatus()
 
-
-
         else:
             pilib.log(pilib.syslog, 'Netconfig disabled. ', 1, pilib.sysloglevel)
             pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'mode', 'manual')
             pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', 'netconfig is disabled')
+
+
+        if systemstatus['checkhamachistatus']:
+            pilib.log(pilib.syslog, 'Hamachi watchdog is enabled', 3, pilib.sysloglevel)
+            pilib.log(pilib.networklog, 'Hamachi watchdog is enabled. ', 3, pilib.networkloglevel)
+
+            # Only watchdog haamchi if we are connected to the network.
+            netstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
+            if netstatus['WANaccess']:
+                pilib.log(pilib.syslog, 'We appear to be online. Checking Hamachi Status. ', 3, pilib.sysloglevel)
+                pilib.log(pilib.networklog, 'We appear to be online. Checking Hamachi Status. ', 3, pilib.networkloglevel)
+                watchdoghamachi(pingip='25.37.18.7')
+            else:
+                pilib.log(pilib.syslog, 'We appear to be offline. Not checking Hamachi Status. ', 3, pilib.sysloglevel)
+                pilib.log(pilib.networklog, 'We appear to be offline. Not checking Hamachi Status. ', 3, pilib.networkloglevel)
+
+        else:
+            pilib.log(pilib.syslog, 'Hamachi watchdog is disnabled', 3, pilib.sysloglevel)
 
         pilib.log(pilib.syslog, 'Finished interface configuration. ', 4,
                                pilib.sysloglevel)

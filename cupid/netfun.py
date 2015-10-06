@@ -88,6 +88,7 @@ def getiwstatus(interface='wlan0'):
     return resultdict
 
 
+# This was great, but does nto seem to function properly. We are going to have to manually parse
 def getifacestatus():
     from pilib import log, networklog, networkloglevel
     import resource.pyiface.iface as pyiface
@@ -107,6 +108,49 @@ def getifacestatus():
         ifacesdictarray.append(ifacedict)
 
     return ifacesdictarray
+
+
+def getifconfigstatus():
+    import subprocess
+    ifconfigdata = subprocess.check_output(['ifconfig']).split('\n')
+    interfaces = []
+    ifaceindex = -1
+    blankinterface = {'name':'', 'hwaddress':'', 'address':'', 'ifaceindex':'', 'bcast':'', 'mask': '', 'flags':''}
+    for line in ifconfigdata:
+        if line.find('Link') >= 0:
+            ifaceindex += 1
+            interfaces.append(blankinterface.copy())
+            interfaces[ifaceindex]['name'] = line.split(' ')[0].strip()
+            try:
+                interfaces[ifaceindex]['hwaddress'] = line.split('HWaddr')[1].strip()
+            except:
+                pass
+                # print('error parsing HWaddress')
+
+        else:
+            if line.find('addr') >= 0:
+                items = {}
+                splits = line.split(':')
+                numitems = len(splits) - 1
+                if numitems == 1:
+                    items[splits[0].strip()]=splits[1].strip()
+                elif numitems == 2:
+                    items[splits[0].strip()]= splits[1].split(' ')[0].strip()
+                    items[splits[1].split(' ')[-1]] = splits[2].strip()
+                elif numitems == 3:
+                    items[splits[0].strip()]= splits[1].split(' ')[0].strip()
+                    items[splits[1].split(' ')[-1]] = splits[2].split(' ')[0].strip()
+                    items[splits[2].split(' ')[-1]] = splits[3].strip()
+
+                if 'inet addr' in items:
+                    interfaces[ifaceindex]['address'] = items['inet addr']
+                if 'Mask' in items:
+                    interfaces[ifaceindex]['mask'] = items['Mask']
+                if 'Bcast' in items:
+                    interfaces[ifaceindex]['bcast'] = items['Bcast']
+
+    return(interfaces)
+
 
 
 def getwpaclientstatus(interface='wlan0'):
