@@ -150,7 +150,7 @@ def watchdognetstatus(allnetstatus=None):
         # print(iface)
         ifacedict[iface['name']] = iface
 
-    print(ifacedict)
+    # print(ifacedict)
 
     statusmsg = ''
     currenttime = pilib.gettimestring()
