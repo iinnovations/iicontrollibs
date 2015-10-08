@@ -112,7 +112,8 @@ def getifacestatus():
 
 def getifconfigstatus():
     import subprocess
-    ifconfigdata = subprocess.check_output(['ifconfig']).split('\n')
+    import pilib
+    ifconfigdata = subprocess.check_output(['/sbin/ifconfig']).split('\n')
     interfaces = []
     ifaceindex = -1
     blankinterface = {'name':'', 'hwaddress':'', 'address':'', 'ifaceindex':'', 'bcast':'', 'mask': '', 'flags':''}
@@ -124,8 +125,7 @@ def getifconfigstatus():
             try:
                 interfaces[ifaceindex]['hwaddress'] = line.split('HWaddr')[1].strip()
             except:
-                pass
-                # print('error parsing HWaddress')
+                pilib.log(pilib.networklog, 'Error parsing hwaddress in ifconifg', 1, pilib.networkloglevel)
 
         else:
             if line.find('addr') >= 0:
@@ -149,8 +149,7 @@ def getifconfigstatus():
                 if 'Bcast' in items:
                     interfaces[ifaceindex]['bcast'] = items['Bcast']
 
-    return(interfaces)
-
+    return interfaces
 
 
 def getwpaclientstatus(interface='wlan0'):

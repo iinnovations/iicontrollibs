@@ -616,7 +616,7 @@ def updatenetstatus(lastnetstatus=None):
     """ Pyiface is one way to read some iface data, but it doesn't always appear to show all interfaces(?!)
         So we wrote our own instead. A work in progress but quite functional at the moment. """
 
-    pilib.log(pilib.networklog, 'Reading ifaces with pyiface. ', 4, pilib.networkloglevel)
+    pilib.log(pilib.networklog, 'Reading ifaces with ifconfig status. ', 4, pilib.networkloglevel)
     ifacesdictarray = getifconfigstatus()
     # ifacesdictarray = getifacestatus()
 
