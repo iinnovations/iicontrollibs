@@ -22,9 +22,10 @@ if top_folder not in sys.path:
 def runcheck():
     import cupid.netfun as netfun
 
-    pingtime = netfun.runping('25.215.49.105')[0]
+    pingtime = netfun.runping('25.37.18.7')[0]
 
     if ( pingtime > 1000 or pingtime == 0 ):
+        print('bad things')
         from cupid.pilib import gmail
         message = 'Libation is restarting its Hamachi daemon. '
         subject = 'Keeping Hamachi online!'
@@ -34,6 +35,8 @@ def runcheck():
 
         netfun.killhamachi()
         netfun.restarthamachi()
+    else:
+        print(pingtime)
 
 
 def generatehamachipage(path=None):
