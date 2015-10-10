@@ -297,9 +297,6 @@ def replaceifaceparameters(iffilein, iffileout, iface, parameternames, parameter
 
 def setstationmode(netconfigdata=None):
     pilib.log(pilib.networklog, 'Setting station mode. ', 3, pilib.networkloglevel)
-    pilib.log(pilib.networklog, 'Updating supplicant data. ', 3, pilib.networkloglevel)
-
-    updatewpasupplicant()
 
     from time import sleep
     if not netconfigdata:

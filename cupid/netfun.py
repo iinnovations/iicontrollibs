@@ -125,7 +125,7 @@ def getifconfigstatus():
             try:
                 interfaces[ifaceindex]['hwaddress'] = line.split('HWaddr')[1].strip()
             except:
-                pilib.log(pilib.networklog, 'Error parsing hwaddress in ifconifg', 1, pilib.networkloglevel)
+                pilib.log(pilib.networklog, 'Error parsing hwaddress in ifconfig', 1, pilib.networkloglevel)
 
         else:
             if line.find('addr') >= 0:

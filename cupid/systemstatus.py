@@ -401,13 +401,20 @@ def watchdognetstatus(allnetstatus=None):
 
     if netconfigdata['requireWANaccess']:
         pilib.log(pilib.networklog, 'Requiring WAN access. Checking status and times. ', 3, pilib.networkloglevel)
+        print('NETSTATUS')
+        print(netstatus)
         if not netstatus['WANaccess']:
-            pilib.log(pilib.networklog, 'No WANaccess. Checking times. ', 2, pilib.networkloglevel)
-            offlinetime = netstatus['offlinetime']
+            pilib.log(pilib.networklog, 'No WANaccess. Checking offline time. ', 2, pilib.networkloglevel)
+            try:
+                offlinetime = netstatus['offlinetime']
+            except:
+                print('netstatus ERROR')
+                pilib.log(pilib.networklog, 'Error gettng offlinetime. ', 2, pilib.networkloglevel)
+
             offlineperiod = pilib.timestringtoseconds(pilib.gettimestring()) - pilib.timestringtoseconds(offlinetime)
             pilib.log(pilib.networklog, 'We have been offline for ' + str(offlineperiod))
             if offlineperiod > int(netconfigdata['WANretrytime']):
-
+                pilib.log(pilib.networklog, 'Offline period of ' + str(offlineperiod) + ' has exceeded retry time of ' + str(int(netconfigdata['WANretrytime'])))
                 # Note that although we obey this period once, after we start this process we don't reset the offlinetime,
                 # so it will just continue to run. This is good in a way, as it will continually set the netstateok to bad,
                 # which will eventually cause us to reboot
@@ -675,6 +682,7 @@ def updatenetstatus(lastnetstatus=None):
 
         latency = pingresult
 
+    # we set all the values here, so when we retreive it we get changed and also whatever else happens to be there.
     pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'latency', latency)
     updatetime = pilib.gettimestring()
     pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'updatetime', updatetime)
@@ -688,7 +696,8 @@ def updatenetstatus(lastnetstatus=None):
                                netconfigdata['netstatslogfreq'])
 
     #This is kinda ugly. Should be fixed.
-    netstatusdict = {'WANaccess':wanaccess, 'latency': latency, 'updatetime': updatetime}
+    # netstatusdict = {'WANaccess':wanaccess, 'latency': latency, 'updatetime': updatetime}
+    netstatusdict = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
 
     return {'netstatusdict': netstatusdict, 'ifacesdictarray': ifacesdictarray, 'netconfigdata':netconfigdata}
 
