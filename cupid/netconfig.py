@@ -235,24 +235,47 @@ def updatewpasupplicant(path='/etc/wpa_supplicant/wpa_supplicant.conf'):
     ssid = ''
 
     # we only update if we find the credentials
-    for auth in wirelessauths:
-        if auth['SSID'] == netconfig['SSID']:
-            password = auth['password']
-            ssid = auth['SSID']
-            pilib.log(pilib.networklog, 'SSID ' + auth['SSID'] + 'found. ', 1, pilib.networkloglevel)
-            psk = password
-            ssid = ssid
+    try:
+        ourssid = netconfig['SSID']
+    except KeyError:
+        pilib.log(pilib.syslog, 'No SSID found in netconfig. Finding first in wireless', 1, pilib.sysloglevel)
+        # try to attach to first network by setting SSID to first network in wireless auths
+        # this can help alleviate some headaches down the line, hopefully
+        wirelessauths = pilib.readalldbrows(pilib.safedatabase, 'wireless')
 
+        try:
+            defaultauths = wirelessauths[0]
+            currssid = defaultauths['SSID']
+        except:
+            pilib.log(pilib.syslog, 'No SSID in wireless table to default to. ', 1, pilib.sysloglevel)
+            currssid = ''
 
-    myfile = open(path, 'w')
+    if currssid:
+        for auth in wirelessauths:
+            if auth['SSID'] == netconfig['SSID']:
+                password = auth['password']
+                ssid = auth['SSID']
+                pilib.log(pilib.networklog, 'SSID ' + auth['SSID'] + 'found. ', 1, pilib.networkloglevel)
+                psk = password
+                ssid = ssid
 
-    filestring = 'ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\nupdate_config=1\n\n'
-    filestring += 'network={\n'
-    filestring += 'psk="' + psk + '"\n'
-    filestring += 'ssid="' + ssid + '"\n'
-    filestring += 'proto=RSN\nauth_alg=OPEN\npairwise=CCMP\nkey_mgmt=WPA-PSK\n}'
+        if psk:
 
-    myfile.write(filestring)
+            myfile = open(path, 'w')
+
+            filestring = 'ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\nupdate_config=1\n\n'
+            filestring += 'network={\n'
+            filestring += 'psk="' + psk + '"\n'
+            filestring += 'ssid="' + ssid + '"\n'
+            filestring += 'proto=RSN\nauth_alg=OPEN\npairwise=CCMP\nkey_mgmt=WPA-PSK\n}'
+
+            myfile.write(filestring)
+
+        else:
+            pilib.log(pilib.networklog, 'No auths recovered for SSID, so not writing wpa_supplicant', 1, pilib.networkloglevel)
+    else:
+        pilib.log(pilib.networklog, 'No SSID found to write, so not writing wpa_supplicant', 1, pilib.networkloglevel)
+
 
 
 def replaceifaceparameters(iffilein, iffileout, iface, parameternames, parametervalues):
