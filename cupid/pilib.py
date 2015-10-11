@@ -652,7 +652,37 @@ def makedeletesinglevaluequery(table, condition=None):
 def setsinglecontrolvalue(database, table, valuename, value, condition=None):
     if table == 'channels':
         if valuename in ['setpointvalue']:
+            # Get the channel data
+            channeldata = readonedbrow(controldatabase, 'channels', condition=condition)[0]
+
+            if channeldata['type'] == 'remote' and channeldata['enabled']:
+                # Process setpointvalue send for remote here to make it as fast as possible.
+                # First we need to identify the node and channel by retrieving the interface
+
+                channelname = channeldata['name']
+                print(channelname)
+                # Then go to the interfaces table to get the node and channel addresses
+                address = getsinglevalue(controldatabase, 'interfaces', 'address', "name='" + channelname + "'")
+                print(address)
+                node = address.split(':')[0]
+                channel = address.split(':')[1]
+
+                # If it's local, we send the command to the controller directly
+                if int(node) == 1:
+                    message = '~setsv;' + channel + ';' + str(value)
+
+                # If not, first insert the sendmsg command to send it to the remote node
+                else:
+                    message = '~sendmsg;' + node + ';~setsv;' + channel + ';' + str(value)
+
+                print(message)
+
+                # Then queue up the message for dispatch
+                sqliteinsertsingle(motesdatabase, 'queuedmessages', [gettimestring(), message])
+
             # get existing pending entry
+            pendingvaluelist = []
+
             pendingentry = getsinglevalue(database, table, 'pending', condition)
             if pendingentry:
                 try:
@@ -667,10 +697,11 @@ def setsinglecontrolvalue(database, table, valuename, value, condition=None):
 
             pendinglistentry = ','.join(pendingvaluelist)
 
-            setsinglevalue(database, table, 'pending', pendinglistentry)
+            setsinglevalue(database, table, 'pending', pendinglistentry, condition)
 
     # carry out original query no matter what
-    setsinglevalue(database, table, valuename, value, condition=None)
+    response = setsinglevalue(database, table, valuename, value, condition=None)
+    return response
 
 
 def setsinglevalue(database, table, valuename, value, condition=None):
@@ -697,7 +728,6 @@ def readonedbrow(database, table, rownumber=0, condition=None):
         dict = datarowtodict(database, table, datarow)
         dictarray = [dict]
     except:
-        # print('no row here')
         dictarray = []
 
     return dictarray
