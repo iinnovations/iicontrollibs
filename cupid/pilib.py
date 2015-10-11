@@ -647,6 +647,32 @@ def makedeletesinglevaluequery(table, condition=None):
     return query
 
 
+# this is an auxiliary function that will carry out additional actions depending on
+# table values. For example, setting a 'pending' value when modifying setpoints
+def setsinglecontrolvalue(database, table, valuename, value, condition=None):
+    if table == 'channels':
+        if valuename in ['setpointvalue']:
+            # get existing pending entry
+            pendingentry = getsinglevalue(database, table, 'pending', condition)
+            if pendingentry:
+                try:
+                    pendingvaluelist = pendingentry.split(',')
+                except:
+                    pendingvaluelist = []
+
+            if valuename in pendingvaluelist:
+                pass
+            else:
+                pendingvaluelist.append(valuename)
+
+            pendinglistentry = ','.join(pendingvaluelist)
+
+            setsinglevalue(database, table, 'pending', pendinglistentry)
+
+    # carry out original query no matter what
+    setsinglevalue(database, table, valuename, value, condition=None)
+
+
 def setsinglevalue(database, table, valuename, value, condition=None):
     query = makesinglevaluequery(table, valuename, value, condition)
     response = sqlitequery(database, query)

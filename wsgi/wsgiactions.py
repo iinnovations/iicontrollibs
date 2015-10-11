@@ -235,15 +235,16 @@ def application(environ, start_response):
                 rundaemon()
 
             elif action == 'setvalue':
+                # we use the auxiliary 'setsinglecontrolvalue' to add additional actions to update
                 if all(k in d for k in ('database', 'table', 'valuename', 'value')):
                     output['message'] += 'Carrying out setvalue. '
                     if 'condition' in d:
                         pilib.setsinglevalue(d['database'], d['table'], d['valuename'], d['value'], d['condition'])
                     elif 'index' in d:
                         condition = 'rowid= ' + d['index']
-                        pilib.setsinglevalue(d['database'], d['table'], d['valuename'], d['value'], d['condition'])
+                        pilib.setsinglecontrolvalue(d['database'], d['table'], d['valuename'], d['value'], condition)
                     else:
-                        pilib.setsinglevalue(d['database'], d['table'], d['valuename'], d['value'])
+                        pilib.setsinglecontrolvalue(d['database'], d['table'], d['valuename'], d['value'])
                 else:
                     output['message'] += 'Insufficient data for setvalue '
             elif action == 'updateioinfo':

@@ -257,10 +257,12 @@ def rebuildcontroldb(tabledict):
         table = 'channels'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " (channelindex integer primary key, name text unique, controlinput text default 'none', enabled boolean default 0, outputsenabled boolean default 0, controlupdatetime text, controlalgorithm text default 'on/off 1', controlrecipe text default 'none', recipestage integer default 0, recipestarttime real default 0, recipestagestarttime real default 0, setpointvalue real, controlvalue real, controlvaluetime text, positiveoutput text default none, negativeoutput text default none, action real default 0, mode text default manual, statusmessage text, logpoints real default 100, data text)")
+            "create table " + table + " (channelindex integer primary key, type text default local, name text unique, controlinput text default 'none', enabled boolean default 0, outputsenabled boolean default 0, controlupdatetime text, controlalgorithm text default 'on/off 1', controlrecipe text default 'none', recipestage integer default 0, recipestarttime real default 0, recipestagestarttime real default 0, setpointvalue real, controlvalue real, controlvaluetime text, positiveoutput text default none, negativeoutput text default none, action real default 0, mode text default manual, statusmessage text, logpoints real default 100, data text, dataclasses text default '', pending text default '')")
         if addentries:
-            querylist.append(
-                "insert into " + table + " values (1, 'channel 1', 'none', 0, 0, '', 'on/off 1', 'none',0,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'')")
+            # querylist.append("insert into " + table + " values (1, 'local', 'channel 1', '', 'none', 0, 0, '', 'on/off 1', 'none',0,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'', '', '')")
+            querylist.append("insert into " + table + " values (1, 'remote', 'Kettle', 'none', 0, 0, '', 'on/off 1', 'none',1,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'', '', '')")
+            querylist.append("insert into " + table + " values (2, 'remote', 'MLT', 'none', 0, 0, '', 'on/off 1', 'none',1,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'', '', '')")
+            querylist.append("insert into " + table + " values (3, 'remote', 'HLT', 'none', 0, 0, '', 'on/off 1', 'none',1,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'', '', '')")
 
     if runquery:
         print(querylist)

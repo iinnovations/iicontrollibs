@@ -144,11 +144,13 @@ def updateiodata(database, **kwargs):
                 #   iovalue: ionumber
                 #   owdev: ROM
 
+                # This would look like, for example
+                # 1:1 for a nodeid:channel scenario for a controller
                 split = interface['address'].split(':')
                 nodeid = split[0]
                 keyvalue = split[1]
 
-                # so we used to enable an interface and then take all etnries from a node
+                # so we used to enable an interface and then take all entries from a node
                 # Now, we have to explicitly add an interface for each device, unless the keychar * is used as the
                 # keyvalue. This will allow us to insert all automatically, for example for owdevs or iovals from a
                 # node.
@@ -174,7 +176,7 @@ def updateiodata(database, **kwargs):
                         nodedata = pilib.parseoptions(nodeentry['data'])
 
                         # Find existing channel so we can get existing data, settings, etc., and retain channel ordering
-                        newchanneldata = {'name':interface['name'], 'controlvalue':nodedata['pv'], 'setpointvalue':nodedata['sv'],'controlvaluetime':pilib.gettimestring(), 'data':nodeentry['data']}
+                        newchanneldata = {'name':interface['name'], 'controlvalue':nodedata['pv'], 'setpointvalue':nodedata['sv'],'controlvaluetime':pilib.gettimestring(), 'data':nodeentry['data'], 'type':'remote'}
                         newchannel = {}
                         existingchannels = pilib.readalldbrows(pilib.controldatabase, 'channels')
                         for channel in existingchannels:
