@@ -37,6 +37,8 @@ remotelog = logdir + 'remotes.log'
 syslog = logdir + 'systemstatus.log'
 controllog = logdir + 'control.log'
 daemonlog = logdir + 'daemon.log'
+seriallog = logdir + 'serial.log'
+
 
 daemonproclog = logdir + '/daemonproc.log'
 errorlog = logdir + '/error.log'
@@ -50,8 +52,9 @@ numlogs = 5
 networkloglevel = 5
 iologlevel = 3
 sysloglevel = 4
-controlloglevel = 3
+controlloglevel = 4
 daemonloglevel = 3
+serialloglevel = 2
 
 daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py', 'mote/serialhandler.py']
 
@@ -651,56 +654,69 @@ def makedeletesinglevaluequery(table, condition=None):
 # table values. For example, setting a 'pending' value when modifying setpoints
 def setsinglecontrolvalue(database, table, valuename, value, condition=None):
     if table == 'channels':
+        log(controllog, "Table: " + table + " found in keywords", 4, controlloglevel)
+
         if valuename in ['setpointvalue']:
+            log(controllog, "Set value: " + valuename + " found in keywords", 4, controlloglevel)
+
             # Get the channel data
-            channeldata = readonedbrow(controldatabase, 'channels', condition=condition)[0]
-
-            if channeldata['type'] == 'remote' and channeldata['enabled']:
-                # Process setpointvalue send for remote here to make it as fast as possible.
-                # First we need to identify the node and channel by retrieving the interface
-
-                channelname = channeldata['name']
-                print(channelname)
-                # Then go to the interfaces table to get the node and channel addresses
-                address = getsinglevalue(controldatabase, 'interfaces', 'address', "name='" + channelname + "'")
-                print(address)
-                node = address.split(':')[0]
-                channel = address.split(':')[1]
-
-                # If it's local, we send the command to the controller directly
-                if int(node) == 1:
-                    message = '~setsv;' + channel + ';' + str(value)
-
-                # If not, first insert the sendmsg command to send it to the remote node
-                else:
-                    message = '~sendmsg;' + node + ';~setsv;' + channel + ';' + str(value)
-
-                print(message)
-
-                # Then queue up the message for dispatch
-                sqliteinsertsingle(motesdatabase, 'queuedmessages', [gettimestring(), message])
-
-            # get existing pending entry
-            pendingvaluelist = []
-
-            pendingentry = getsinglevalue(database, table, 'pending', condition)
-            if pendingentry:
-                try:
-                    pendingvaluelist = pendingentry.split(',')
-                except:
-                    pendingvaluelist = []
-
-            if valuename in pendingvaluelist:
-                pass
+            try:
+                channeldata = readonedbrow(controldatabase, 'channels', condition=condition)[0]
+            except:
+                log(controllog, "error retrieving channel with condition " + condition, 1, controlloglevel)
             else:
-                pendingvaluelist.append(valuename)
+                log(controllog, "Channel retrieval went ok with " + condition, 1, controlloglevel)
 
-            pendinglistentry = ','.join(pendingvaluelist)
+                if channeldata['type'] == 'remote' and channeldata['enabled']:
+                    # Process setpointvalue send for remote here to make it as fast as possible.
+                    # First we need to identify the node and channel by retrieving the interface
 
-            setsinglevalue(database, table, 'pending', pendinglistentry, condition)
+                    channelname = channeldata['name']
+                    log(controllog, "Processing remote setpoint for channel " + channelname, 1, iologlevel)
+                    # Then go to the interfaces table to get the node and channel addresses
+                    address = getsinglevalue(controldatabase, 'interfaces', 'address', "name='" + channelname + "'")
+                    log(controllog, "Channel has address " + address, 1, iologlevel)
+
+                    node = address.split(':')[0]
+                    channel = address.split(':')[1]
+
+                    # If it's local, we send the command to the controller directly
+                    if int(node) == 1:
+                        message = '~setsv;' + channel + ';' + str(value)
+
+                    # If not, first insert the sendmsg command to send it to the remote node
+                    else:
+                        message = '~sendmsg;' + node + ';~setsv;' + channel + ';' + str(value)
+
+                    log(controllog, "Sending message: " + message, 1, iologlevel)
+
+
+                    # Then queue up the message for dispatch
+                    sqliteinsertsingle(motesdatabase, 'queuedmessages', [gettimestring(), message])
+
+                # get existing pending entry
+                pendingvaluelist = []
+
+                pendingentry = getsinglevalue(database, table, 'pending', condition)
+                if pendingentry:
+                    try:
+                        pendingvaluelist = pendingentry.split(',')
+                    except:
+                        pendingvaluelist = []
+
+                if valuename in pendingvaluelist:
+                    pass
+                else:
+                    pendingvaluelist.append(valuename)
+
+                pendinglistentry = ','.join(pendingvaluelist)
+
+                setsinglevalue(database, table, 'pending', pendinglistentry, condition)
+        else:
+            log(controllog, "Set value: " + valuename + " not found in keywords", 4, controlloglevel)
 
     # carry out original query no matter what
-    response = setsinglevalue(database, table, valuename, value, condition=None)
+    response = setsinglevalue(database, table, valuename, value, condition)
     return response
 
 
