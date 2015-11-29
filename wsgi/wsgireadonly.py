@@ -12,7 +12,7 @@ def application(environ, start_response):
     if top_folder not in sys.path:
         sys.path.insert(0, top_folder)
 
-    from cupid.pilib import dynamicsqliteread, gettablenames, sqlitequery, switchtablerows
+    from cupid.pilib import dynamicsqliteread, gettablenames, sqlitequery, switchtablerows, dbnametopath
     from time import time
 
     post_env = environ.copy()
@@ -36,78 +36,97 @@ def application(environ, start_response):
     output['data'] = []
     output['message'] = ''
 
+
+    # Need to do auths in here.
+
     try:
         action = d['action']
     except KeyError:
         output['message'] = 'no action in request'
     else:
         if action == 'gettablenames':
+            dbpath = dbnametopath(d['database'])
             try:
-                output['data'] = gettablenames(d['database'])
+                output['data'] = gettablenames(dbpath)
             except:
                 output['message'] += 'Error getting table names'
         elif action == 'switchtablerows':
-            switchtablerows(d['database'], d['tablename'], d['row1'], d['row2'], d['uniqueindex'])
+            dbpath = dbnametopath(d['database'])
+            switchtablerows(dbpath, d['tablename'], d['row1'], d['row2'], d['uniqueindex'])
         elif action == 'modwsgistatus':
             output['processgroup'] = repr(environ['mod_wsgi.process_group'])
             output['multithread'] = repr(environ['wsgi.multithread'])
         elif action == 'gettabledata':
             output['message']+='Gettabledata. '
-            if 'tablenames[]' in d:  # Get multiple tables
-                output['message']+='Multiple tables. '
-                data = []
-                if 'start' in d:
-                    fixedstart = int(d['start'])
-                else:
-                    fixedstart = 0
-                if 'length' in d:
-                    fixedlength = int(d['length'])
-                else:
-                    fixedlength = 1
-                if 'lengths[]' in d:
-                    lengths = map(int, d['lengths[]'])
-                else:
-                    lengths = []
-                if 'starts[]' in d:
-                    starts = map(int, d['starts'])
-                else:
-                    starts = []
+            if 'database' in d:
+                dbpath = dbnametopath(d['database'])
+                if dbpath:
+                    output['message'] += 'Friendly name ' + d['database'] + ' translated to path ' + dbpath + ' successfully. '
 
-                for index, table in enumerate(d['tablenames[]']):
-                    try:
-                        length = lengths[index]
-                    except IndexError:
-                        length = fixedlength
-                    try:
-                        start = starts[index]
-                    except IndexError:
-                        start = fixedstart
+                    if 'tablenames[]' in d:  # Get multiple tables
+                        output['message'] += 'Multiple tables. '
+                        data = []
+                        if 'start' in d:
+                            fixedstart = int(d['start'])
+                        else:
+                            fixedstart = 0
+                        if 'length' in d:
+                            fixedlength = int(d['length'])
+                        else:
+                            fixedlength = 1
+                        if 'lengths[]' in d:
+                            lengths = map(int, d['lengths[]'])
+                        else:
+                            lengths = []
+                        if 'starts[]' in d:
+                            starts = map(int, d['starts'])
+                        else:
+                            starts = []
 
-                    data.append(dynamicsqliteread(d['database'], table, start, length))
-                    output['data']=data
-            elif 'length' in d:  # Handle table row subset
-                output['message']+='Length keyword. '
-                if not 'start' in d:
-                    d['start'] = 0
-                thetime = time();
-                output['data'] = dynamicsqliteread(d['database'], d['tablename'], d['start'], d['length'])
-                output['querytime'] = time() - thetime
-            elif 'row' in d:  # Handle table row
-                output['message']+='Row keyword. '
-                thetime = time();
-                output['data'] = dynamicsqliteread(d['database'], d['tablename'], d['row'])
-                output['querytime'] = time() - thetime
-            elif 'tablename' in d:  # Handle entire table
-                output['message']+='Tablename keyword. '
-                thetime = time();
-                if 'condition' in d:
-                    if not d['condition'] == '':
-                        output['data'] = dynamicsqliteread(d['database'], d['tablename'], condition=d['condition'])
-                    else:
-                        output['data'] = dynamicsqliteread(d['database'], d['tablename'])
+                        for index, table in enumerate(d['tablenames[]']):
+                            try:
+                                length = lengths[index]
+                            except IndexError:
+                                length = fixedlength
+                            try:
+                                start = starts[index]
+                            except IndexError:
+                                start = fixedstart
+
+                            data.append(dynamicsqliteread(dbpath, table, start, length))
+                            output['data']=data
+                    elif 'length' in d:  # Handle table row subset
+                        output['message']+='Length keyword. '
+                        if not 'start' in d:
+                            d['start'] = 0
+                        thetime = time();
+                        output['data'] = dynamicsqliteread(dbpath, d['tablename'], d['start'], d['length'])
+                        output['querytime'] = time() - thetime
+                    elif 'row' in d:  # Handle table row
+                        output['message'] += 'Row keyword. ' + str(d['row'])
+                        thetime = time();
+                        output['data'] = dynamicsqliteread(dbpath, d['tablename'], d['row'])
+                        output['querytime'] = time() - thetime
+                    elif 'tablename' in d:  # Handle entire table
+                        output['message'] += 'Tablename keyword: ' + d['tablename']
+                        thetime = time();
+                        if 'condition' in d:
+                            if not d['condition'] == '':
+                                output['data'] = dynamicsqliteread(dbpath, d['tablename'], condition=d['condition'])
+                            else:
+                                output['data'] = dynamicsqliteread(dbpath, d['tablename'])
+                        else:
+                            try:
+                                output['data'] = dynamicsqliteread(dbpath, d['tablename'])
+                            except:
+                                output['message'] += 'Error retrieving data. '
+                            else:
+                                output['message'] += 'Data query appears successful. '
+                        output['querytime'] = time() - thetime
                 else:
-                    output['data'] = dynamicsqliteread(d['database'], d['tablename'])
-                output['querytime'] = time() - thetime
+                    output['message'] += 'Friendly name ' + d['database'] + ' unsuccessfully translated. '
+            else:
+                output['message'] += 'No database present in action request'
         else:
             output['message'] = 'no command matched for action ' + action
 

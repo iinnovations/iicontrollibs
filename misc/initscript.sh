@@ -26,6 +26,7 @@ elif [ "$1" = "install" ]
     apt-get -y install python-serial
     apt-get -y install python-gtk2
     apt-get -y install automake
+    pip install asteval
 
     apt-get -y install apache2 php5 sqlite3 php5-sqlite libapache2-mod-wsgi libapache2-mod-php5
     a2enmod rewrite

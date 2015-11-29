@@ -25,6 +25,8 @@ sessiondatabase = databasedir + 'authlog.db'
 recipedatabase = databasedir + 'recipedata.db'
 systemdatadatabase = databasedir + 'systemdata.db'
 motesdatabase = databasedir + 'motes.db'
+infodatabase = databasedir + 'deviceinfo.db'
+authsdatabase = databasedir + 'authslog.db'
 
 safedatabase = '/var/wwwsafe/safedata.db'
 usersdatabase = '/var/wwwsafe/users.db'
@@ -37,6 +39,8 @@ remotelog = logdir + 'remotes.log'
 syslog = logdir + 'systemstatus.log'
 controllog = logdir + 'control.log'
 daemonlog = logdir + 'daemon.log'
+seriallog = logdir + 'serial.log'
+
 
 daemonproclog = logdir + '/daemonproc.log'
 errorlog = logdir + '/error.log'
@@ -50,8 +54,9 @@ numlogs = 5
 networkloglevel = 5
 iologlevel = 3
 sysloglevel = 4
-controlloglevel = 3
+controlloglevel = 4
 daemonloglevel = 3
+serialloglevel = 2
 
 daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py', 'mote/serialhandler.py']
 
@@ -59,6 +64,26 @@ daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systems
 #############################################
 ## Utility Functions
 #############################################
+
+# This function is what keeps things sane for our database handling.
+# We moved all references to database paths out of html entirely, and we
+# pass handles. This does several things:
+#   1. Centralizes all path references. No longer do we need to name paths in js and also in python
+#      Now all references live on the server, where they belong. This way the the html/js is totally agnostic to
+#      where things live.
+#   2. Removes any path information from the html. Security issue: all html/js is visible to world.
+#   3. Eliminates the possibility of queries on databases that are not properly locked down. There are permissions in
+#      place to require authorization for anything but read-only operation, and often requirements in these cases,
+#      but even better, we do aliasing server-side so that ONLY those databases that we alias (and under which conditions
+#      we specify) are even readable. It also puts in place a clean way of selectively allowing access via user auths/keywords.
+
+def dbnametopath(friendlyname):
+    friendlynames = ['controldb', 'logdatadb', 'infodb', 'systemdb', 'authdb', 'safedb', 'usersdb', 'motesdb']
+    paths = [controldatabase, logdatabase, infodatabase, systemdatadatabase, authsdatabase, safedatabase, usersdatabase, motesdatabase]
+    path = None
+    if friendlyname in friendlynames:
+        path = paths[friendlynames.index(friendlyname)]
+    return path
 
 
 def getgpiostatus():
@@ -158,8 +183,12 @@ def parseoptions(optionstring):
         try:
             list = optionstring.split(',')
             for item in list:
+                print(item)
                 split = item.split(':')
-                optionsdict[split[0].strip()] = split[1].strip()
+                valuename = split[0]
+                # Need to allow for colons in the value.
+                stringvalue = ':'.join(split[1:]).replace('"','').strip()
+                optionsdict[valuename] = stringvalue
         except:
             pass
     return optionsdict
@@ -193,9 +222,31 @@ def timestringtoseconds(timestring=None):
     import time
     try:
         timeinseconds = time.mktime(time.strptime(timestring, '%Y-%m-%d %H:%M:%S'))
-    except ValueError:
+    except:
         timeinseconds = 0
     return timeinseconds
+
+
+def getnexttime(timestring, unit, increment):
+    from datetime import datetime, timedelta
+    actiontime = datetime.fromtimestamp(timestringtoseconds(timestring))
+    currenttime = datetime.fromtimestamp(timestringtoseconds(gettimestring()))
+
+    if unit == 'second':
+        nextactiontime = datetime(currenttime.year, currenttime.month, currenttime.day, currenttime.hour, currenttime.minute, currenttime.second)
+        nextactiontime = nextactiontime + timedelta(seconds=increment)
+    elif unit == 'minute':
+        nextactiontime = datetime(currenttime.year, currenttime.month, currenttime.day, currenttime.hour, currenttime.minute + increment, actiontime.second)
+    elif unit == 'hour':
+        nextactiontime = datetime(currenttime.year, currenttime.month, currenttime.day, currenttime.hour + increment, actiontime.minute, actiontime.second)
+    elif unit == 'day':
+        nextactiontime = datetime(currenttime.year, currenttime.month, currenttime.day + increment, actiontime.hour, actiontime.minute, actiontime.second)
+    elif unit == 'month':
+        nextactiontime = datetime(currenttime.year, currenttime.month + increment, actiontime.day, actiontime.hour, actiontime.minute, actiontime.second)
+    else:
+        nextactiontime = currenttime
+    # print(nextactiontime)
+    return(nextactiontime)
 
 
 def isvalidtimestring(timestring):
@@ -226,63 +277,6 @@ def tail(f, n, offset=None):
             return lines[-to_read:offset and -offset or None], \
                    len(lines) > to_read or pos > 0
         avg_line_length *= 1.3
-
-
-# This class defines actions taken on
-class action:
-    def __init__(self, actiondict):
-        for key, value in actiondict.items():
-            setattr(self, key, value)
-
-    def onact(self):
-        if self.actiontype == 'email':
-            # process email action
-            self.statusmsg += 'Processing email alert. '
-            email = self.actiondetail
-            message = 'Alert is active for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + str(self.criterion) + ' with an operator of ' + self.operator + '. This alarm status has been on since ' + self.ontime + '.'
-            subject = 'CuPID Alert : Alarm On - ' + self.name
-            actionmail = gmail(message=message, subject=subject, recipient=email)
-            actionmail.send()
-
-        elif self.actiontype == 'indicator':
-            # process indicator action
-            self.statusmsg += 'Processing indicator on action. '
-            indicatorname = self.actiondetail
-            sqlitequery(controldatabase, 'update indicators set status=1 where name = \'' + indicatorname + '\'')
-
-        elif self.actiontype == 'output':
-            self.statusmsg += 'Processing output on action. '
-            setsinglevalue(controldatabase, 'outputs', 'value', '1', condition='"id"=\'' + self.actiondetail +"'")
-
-    def offact(self):
-        if self.actiontype == 'email':
-            # process email action
-            self.statusmsg +='Processing email alert.'
-            email = self.actiondetail
-            message = 'Alert has gone inactive for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + str(self.criterion) + ' with an operator of ' + self.operator + '. This alarm status has been of since ' + self.offtime + '.'
-            subject = 'CuPID Alert : Alarm Off - ' + self.name
-            actionmail = gmail(message=message, subject=subject, recipient=email)
-            actionmail.send()
-
-        elif self.actiontype == 'indicator':
-            # process indicator action
-            self.status +='Processing indicator off action.'
-            indicatorname = self.actiondetail
-            sqlitequery(controldatabase, 'update indicators set status=0 where name = ' + indicatorname)
-
-        elif self.actiontype == 'output':
-            self.statusmsg += 'Processing output off action. '
-            setsinglevalue(controldatabase, 'outputs', 'value', '0', condition='"id"=\'' + self.actiondetail +"'")
-
-    def publish(self):
-        # reinsert updated action back into database
-        valuelist=[]
-        valuenames=[]
-        for attr,value in self.__dict__.iteritems():
-            valuelist.append(value)
-            valuenames.append(attr)
-        sqliteinsertsingle(controldatabase, 'actions', valuelist, valuenames)
-        # setsinglevalue(controldatabase, 'actions', 'ontime', gettimestring(), 'rowid=' + str(self.rowid))
 
 
 class gmail:
@@ -647,6 +641,77 @@ def makedeletesinglevaluequery(table, condition=None):
     return query
 
 
+# this is an auxiliary function that will carry out additional actions depending on
+# table values. For example, setting a 'pending' value when modifying setpoints
+def setsinglecontrolvalue(database, table, valuename, value, condition=None):
+    if table == 'channels':
+        log(controllog, "Table: " + table + " found in keywords", 4, controlloglevel)
+
+        if valuename in ['setpointvalue']:
+            log(controllog, "Set value: " + valuename + " found in keywords", 4, controlloglevel)
+
+            # Get the channel data
+            try:
+                channeldata = readonedbrow(controldatabase, 'channels', condition=condition)[0]
+            except:
+                log(controllog, "error retrieving channel with condition " + condition, 1, controlloglevel)
+            else:
+                log(controllog, "Channel retrieval went ok with " + condition, 1, controlloglevel)
+
+                if channeldata['type'] == 'remote' and channeldata['enabled']:
+                    # Process setpointvalue send for remote here to make it as fast as possible.
+                    # First we need to identify the node and channel by retrieving the interface
+
+                    channelname = channeldata['name']
+                    log(controllog, "Processing remote setpoint for channel " + channelname, 1, iologlevel)
+                    # Then go to the interfaces table to get the node and channel addresses
+                    address = getsinglevalue(controldatabase, 'interfaces', 'address', "name='" + channelname + "'")
+                    log(controllog, "Channel has address " + address, 1, iologlevel)
+
+                    node = address.split(':')[0]
+                    channel = address.split(':')[1]
+
+                    # If it's local, we send the command to the controller directly
+                    if int(node) == 1:
+                        message = '~setsv;' + channel + ';' + str(value)
+
+                    # If not, first insert the sendmsg command to send it to the remote node
+                    else:
+                        message = '~sendmsg;' + node + ';;~setsv;' + channel + ';' + str(value)
+
+                    log(controllog, "Sending message: " + message, 1, iologlevel)
+
+
+                    # Then queue up the message for dispatch
+
+                    sqliteinsertsingle(motesdatabase, 'queuedmessages', [gettimestring(), message])
+
+                # get existing pending entry
+                pendingvaluelist = []
+
+                pendingentry = getsinglevalue(database, table, 'pending', condition)
+                if pendingentry:
+                    try:
+                        pendingvaluelist = pendingentry.split(',')
+                    except:
+                        pendingvaluelist = []
+
+                if valuename in pendingvaluelist:
+                    pass
+                else:
+                    pendingvaluelist.append(valuename)
+
+                pendinglistentry = ','.join(pendingvaluelist)
+
+                setsinglevalue(database, table, 'pending', pendinglistentry, condition)
+        else:
+            log(controllog, "Set value: " + valuename + " not found in keywords", 4, controlloglevel)
+
+    # carry out original query no matter what
+    response = setsinglevalue(database, table, valuename, value, condition)
+    return response
+
+
 def setsinglevalue(database, table, valuename, value, condition=None):
     query = makesinglevaluequery(table, valuename, value, condition)
     response = sqlitequery(database, query)
@@ -671,7 +736,6 @@ def readonedbrow(database, table, rownumber=0, condition=None):
         dict = datarowtodict(database, table, datarow)
         dictarray = [dict]
     except:
-        # print('no row here')
         dictarray = []
 
     return dictarray
