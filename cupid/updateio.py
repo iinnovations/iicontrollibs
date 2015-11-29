@@ -128,7 +128,7 @@ def updateiodata(database, **kwargs):
             entryid = interface['interface'] + '_' + interface['type'] + '_' + interface['address']
             condition = '"interface"=\'' + interface['interface'] + '\' and "type"=\'' + interface['type'] + '\' and "address"=\'' + interface['address'] + '\''
 
-            print(condition)
+            # print(condition)
             pilib.setsinglevalue(pilib.controldatabase, 'interfaces', 'id', entryid, condition)
 
             pilib.log(pilib.iolog, 'Processing Mote interface' + interface['name'] + ', id:' + entryid, 3,
@@ -144,11 +144,13 @@ def updateiodata(database, **kwargs):
                 #   iovalue: ionumber
                 #   owdev: ROM
 
+                # This would look like, for example
+                # 1:1 for a nodeid:channel scenario for a controller
                 split = interface['address'].split(':')
                 nodeid = split[0]
                 keyvalue = split[1]
 
-                # so we used to enable an interface and then take all etnries from a node
+                # so we used to enable an interface and then take all entries from a node
                 # Now, we have to explicitly add an interface for each device, unless the keychar * is used as the
                 # keyvalue. This will allow us to insert all automatically, for example for owdevs or iovals from a
                 # node.
@@ -161,30 +163,53 @@ def updateiodata(database, **kwargs):
                     condition = "\"nodeid\"='" + nodeid + "' and \"keyvalue\"='" + keyvalue + "'"
                     nodeentries = pilib.dynamicsqliteread(pilib.controldatabase, 'remotes', condition=condition)
 
-                print("WE FOUND MOTE")
-                print(condition)
-                print(len(nodeentries))
+                # print("WE FOUND MOTE")
+                # print(condition)
+                # print(len(nodeentries))
 
                 if interface['type'] == 'channel':
-                    print('channel')
+                    # print('channel')
                     if len(nodeentries) == 1:
-                        print('one entry found')
+                        # print('one entry found')
 
                         nodeentry = nodeentries[0]
                         nodedata = pilib.parseoptions(nodeentry['data'])
 
+
+
+                        newchanneldata = {'name':interface['name'],'controlvaluetime':pilib.gettimestring(), 'data':nodeentry['data'], 'type':'remote'}
+
+                        if 'svcmd' in nodedata:
+                            # Delete from node data
+                            nodedata.pop('svcmd',None)
+
+                            # Delete from remotes data by inserting entry without svcmd
+                            pilib.setsinglevalue(pilib.controldatabase, 'remotes', 'data', pilib.dicttojson(nodedata), condition=condition)
+
+                            # Nuke pending entry
+                            newchanneldata['pending'] = ''
+
+                        findentries = ['sv', 'pv']
+                        findentrydictnames = ['setpointvalue', 'controlvalue', 'pending']
+
+                        # Insert if found, otherwise leave untouched.
+                        for entry, entryname in zip(findentries, findentrydictnames):
+                            if entry in nodedata:
+                                newchanneldata[entryname] = nodedata[entry]
+
                         # Find existing channel so we can get existing data, settings, etc., and retain channel ordering
-                        newchanneldata = {'name':interface['name'], 'controlvalue':nodedata['pv'], 'setpointvalue':nodedata['sv'],'controlvaluetime':pilib.gettimestring(), 'data':nodeentry['data']}
+                        # TODO: Reorder starting at 1 for when things get wonky
+
                         newchannel = {}
                         existingchannels = pilib.readalldbrows(pilib.controldatabase, 'channels')
                         for channel in existingchannels:
                             if channel['name'] == interface['name']:
-                                print('updating')
-                                print(channel)
+                                # print('updating')
+                                # print(channel)
                                 newchannel.update(channel)
-                                print(newchannel)
+                                # print(newchannel)
                         newchannel.update(newchanneldata)
-                        print(newchannel)
+                        # print(newchannel)
 
                         keys = []
                         values = []
@@ -192,12 +217,12 @@ def updateiodata(database, **kwargs):
                             keys.append(key)
                             values.append(value)
 
-
                         query = pilib.makesqliteinsert('channels',values, keys)
                         # print(query)
                         pilib.sqlitequery(pilib.controldatabase,query)
                     else:
-                        print('multiple entries found for channel. not appropriate')
+                        # print('multiple entries found for channel. not appropriate')
+                        pass
                 else:
                     pass
                     # Create queries for table insertion
