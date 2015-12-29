@@ -183,11 +183,7 @@ def parseoptions(optionstring):
         try:
             list = optionstring.split(',')
             for item in list:
-<<<<<<< HEAD
                 # print(item)
-=======
-                print(item)
->>>>>>> b86ff9e583c3313e19d8fda26fb5d55afe19e65d
                 split = item.split(':')
                 valuename = split[0]
                 # Need to allow for colons in the value.
@@ -689,7 +685,6 @@ def setsinglecontrolvalue(database, table, valuename, value, condition=None):
                     # Then queue up the message for dispatch
 
                     sqliteinsertsingle(motesdatabase, 'queuedmessages', [gettimestring(), message])
-<<<<<<< HEAD
 
                 # get existing pending entry
                 pendingvaluelist = []
@@ -708,26 +703,6 @@ def setsinglecontrolvalue(database, table, valuename, value, condition=None):
 
                 pendinglistentry = ','.join(pendingvaluelist)
 
-=======
-
-                # get existing pending entry
-                pendingvaluelist = []
-
-                pendingentry = getsinglevalue(database, table, 'pending', condition)
-                if pendingentry:
-                    try:
-                        pendingvaluelist = pendingentry.split(',')
-                    except:
-                        pendingvaluelist = []
-
-                if valuename in pendingvaluelist:
-                    pass
-                else:
-                    pendingvaluelist.append(valuename)
-
-                pendinglistentry = ','.join(pendingvaluelist)
-
->>>>>>> b86ff9e583c3313e19d8fda26fb5d55afe19e65d
                 setsinglevalue(database, table, 'pending', pendinglistentry, condition)
         else:
             log(controllog, "Set value: " + valuename + " not found in keywords", 4, controlloglevel)
