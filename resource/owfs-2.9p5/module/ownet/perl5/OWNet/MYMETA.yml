@@ -1,0 +1,22 @@
+---
+abstract: 'Light-weight connection to owserver to access the Dallas 1-wire system for monitoring and control'
+author:
+  - 'Paul H Alfille <paul.alfille@gmail.com>'
+build_requires:
+  ExtUtils::MakeMaker: 0
+configure_requires:
+  ExtUtils::MakeMaker: 0
+distribution_type: module
+dynamic_config: 0
+generated_by: 'ExtUtils::MakeMaker version 6.57_05'
+license: unknown
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: OWNet
+no_index:
+  directory:
+    - t
+    - inc
+requires: {}
+version: undef

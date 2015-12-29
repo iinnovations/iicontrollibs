@@ -1,0 +1,9 @@
+Current configuration
+libraries ['ow']
+library_dirs ['../../owlib/src/c/.libs']
+include_dirs ['../../owlib/src/include', '../../../src/include']
+define_macros []
+extra_link_args ['-L/usr/lib/arm-linux-gnueabihf', '-lusb', '-L/usr/lib/python2.7/config', '-lpthread', '-ldl', '-lutil', '-lm', '-lpython2.7', '-Xlinker', '-export-dynamic', '-Wl,-O1', '-Wl,-Bsymbolic-functions']
+extra_compile_args ['-D_FILE_OFFSET_BITS=64', '-I/usr/include/python2.7', '-I/usr/include/python2.7', '-fno-strict-aliasing', '-DNDEBUG', '-g', '-fwrapv', '-O2', '-Wall', '-Wstrict-prototypes', '-D_FORTIFY_SOURCE=2', '-g', '-fstack-protector', '--param=ssp-buffer-size=4', '-Wformat', '-Werror=format-security']
+runtime_library_dirs ['/opt/owfs/lib']
+extra_objects []
