@@ -210,6 +210,7 @@ def rundaemon(startall=False):
     pilib.rotatelogs(pilib.iolog, pilib.numlogs, pilib.maxlogsize)
     pilib.rotatelogs(pilib.controllog, pilib.numlogs, pilib.maxlogsize)
     pilib.rotatelogs(pilib.daemonlog, pilib.numlogs, pilib.maxlogsize)
+    pilib.rotatelogs(pilib.seriallog, pilib.numlogs, pilib.maxlogsize)
 
 if __name__ == "__main__":
     from pilib import log, daemonlog, daemonloglevel

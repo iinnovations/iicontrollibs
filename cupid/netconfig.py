@@ -236,9 +236,9 @@ def updatewpasupplicant(path='/etc/wpa_supplicant/wpa_supplicant.conf'):
 
     # we only update if we find the credentials
     try:
-        ourssid = netconfig['SSID']
+        ssid = netconfig['SSID']
     except KeyError:
-        pilib.log(pilib.syslog, 'No SSID found in netconfig. Finding first in wireless', 1, pilib.sysloglevel)
+        pilib.log(pilib.networklog, 'No SSID found in netconfig. Finding first in wireless', 1, pilib.sysloglevel)
         # try to attach to first network by setting SSID to first network in wireless auths
         # this can help alleviate some headaches down the line, hopefully
         wirelessauths = pilib.readalldbrows(pilib.safedatabase, 'wireless')
@@ -248,9 +248,8 @@ def updatewpasupplicant(path='/etc/wpa_supplicant/wpa_supplicant.conf'):
             currssid = defaultauths['SSID']
         except:
             pilib.log(pilib.syslog, 'No SSID in wireless table to default to. ', 1, pilib.sysloglevel)
-            currssid = ''
 
-    if currssid:
+    if ssid:
         for auth in wirelessauths:
             if auth['SSID'] == netconfig['SSID']:
                 password = auth['password']

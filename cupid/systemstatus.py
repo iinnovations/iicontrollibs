@@ -391,7 +391,7 @@ def watchdognetstatus(allnetstatus=None):
             else:
                 pilib.log(pilib.networklog, 'hostapd on ' + apinterface + ' does NOT appear to be ok. ', 1, pilib.networkloglevel)
                 statusmsg += 'hostapd on ' + apinterface + ' does NOT appear to be ok. '
-                runconfig=True
+                runconfig = True
 
     elif netconfigdata['mode'] in ['']:
         statusmsg += 'mode not handled: ' + netconfigdata['mode']
@@ -415,6 +415,7 @@ def watchdognetstatus(allnetstatus=None):
             pilib.log(pilib.networklog, 'We have been offline for ' + str(offlineperiod))
             if offlineperiod > int(netconfigdata['WANretrytime']):
                 pilib.log(pilib.networklog, 'Offline period of ' + str(offlineperiod) + ' has exceeded retry time of ' + str(int(netconfigdata['WANretrytime'])))
+
                 # Note that although we obey this period once, after we start this process we don't reset the offlinetime,
                 # so it will just continue to run. This is good in a way, as it will continually set the netstateok to bad,
                 # which will eventually cause us to reboot
@@ -647,7 +648,7 @@ def updatenetstatus(lastnetstatus=None):
     else:
         pilib.log(pilib.networklog, 'Empty ifaces query. ', 2, pilib.networkloglevel)
 
-    pilib.log(pilib.networklog, 'Completed pyiface ifaces. ', 4, pilib.networkloglevel)
+    pilib.log(pilib.networklog, 'Completed ifaces. ', 4, pilib.networkloglevel)
 
     """ Now we check to see if we can connect to WAN """
 
@@ -668,6 +669,7 @@ def updatenetstatus(lastnetstatus=None):
         wanaccess = 0
         latency = 0
     else:
+        latency = pingresult
         if pingresult < okping:
             wanaccess = 1
             pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'WANaccess', 1)
@@ -676,11 +678,11 @@ def updatenetstatus(lastnetstatus=None):
 
         else:
             wanaccess = 0
-            pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'WANaccess', 0)
-            if lastnetstatus['WANaccess'] == 1 or not lastnetstatus['offlinetime']:
-                pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'offlinetime', pilib.gettimestring())
 
-        latency = pingresult
+    if not wanaccess:
+        pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'WANaccess', 0)
+        if lastnetstatus['WANaccess'] == 1 or not lastnetstatus['offlinetime']:
+            pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'offlinetime', pilib.gettimestring())
 
     # we set all the values here, so when we retreive it we get changed and also whatever else happens to be there.
     pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'latency', latency)

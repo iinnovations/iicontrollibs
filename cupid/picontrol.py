@@ -249,7 +249,7 @@ def runpicontrol(runonce=False):
         # We do this system status again to refresh settings
         systemstatus = pilib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
 
-        from processactions import processactions
+        from actions import processactions
         processactions()
 
         # Wait for delay time

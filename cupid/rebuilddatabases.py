@@ -39,10 +39,11 @@ def rebuildcontroldb(tabledict):
         runquery = True
         table = 'actions'
         querylist.append('drop table if exists ' + table)
+        # actionindex, actiontype,
         querylist.append(
-            "create table " + table + " (actionindex integer primary key, valuerowid integer default 1, name text unique default 'myaction', enabled boolean default 0, actiontype text default 'email', actiondetail text default 'info@interfaceinnovations.org', conditiontype text default 'dbvalue',database text default 'controldata',tablename text default 'channels', variablename text default 'controlvalue', variablevalue text default '', operator text default 'equal',criterion text default '25',offdelay real default 0,ondelay real default 0,active boolean default 0, activereset boolean default 1, status boolean default 0,ontime text,offtime text,actionfrequency real default 60, lastactiontime text default '', statusmsg text default 'default msg')")
-        if addentries:
-            querylist.append("insert into " + table + " default values")
+        #     "create table " + table + " (actionindex integer primary key, valuerowid integer default 1, name text unique default 'myaction', enabled boolean default 0, actiontype text default 'email', actiondetail text default 'info@interfaceinnovations.org', conditiontype text default 'dbvalue',database text default 'controldata',tablename text default 'channels', variablename text default 'controlvalue', variablevalue text default '', operator text default 'equal',criterion text default '25',offdelay real default 0,ondelay real default 0,active boolean default 0, activereset boolean default 1, status boolean default 0,ontime text,offtime text,actionfrequency real default 60, lastactiontime text default '', statusmsg text default 'default msg')")
+             "create table " + table + " (actionindex integer primary key, name text unique default 'myaction', enabled boolean default 0, actiontype text default 'email', actiondetail text default 'info@interfaceinnovations.org', conditiontype text default 'logical', actiondata text default '', value text default '', offdelay real default 0, ondelay real default 0, active boolean default 0, activereset boolean default 1, status boolean default 0,ontime text,offtime text,actionfrequency real default 60, lastactiontime text default '', statusmsg text default 'default msg')")
+        # querylist.append("create table " + table + " (actionindex integer primary key, actiondata text default '')")
 
     ### SystemStatus table
     if 'systemstatus' in tabledict:
