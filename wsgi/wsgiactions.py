@@ -235,11 +235,12 @@ def application(environ, start_response):
                 rundaemon()
 
             elif action == 'setvalue':
+                pilib.log(pilib.controllog, "Setting value in wsgi", 1, 1)
                 # we use the auxiliary 'setsinglecontrolvalue' to add additional actions to update
                 if all(k in d for k in ('database', 'table', 'valuename', 'value')):
                     output['message'] += 'Carrying out setvalue. '
                     if 'condition' in d:
-                        pilib.setsinglevalue(d['database'], d['table'], d['valuename'], d['value'], d['condition'])
+                        pilib.setsinglecontrolvalue(d['database'], d['table'], d['valuename'], d['value'], d['condition'])
                     elif 'index' in d:
                         condition = 'rowid= ' + d['index']
                         pilib.setsinglecontrolvalue(d['database'], d['table'], d['valuename'], d['value'], condition)

@@ -3,10 +3,13 @@
 # do this stuff to access the pilib for sqlite
 import os, sys, inspect
 
+
 top_folder = \
     os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
+
+import cupid.pilib as pilib
 
 
 def write(message, port='/dev/ttyAMA0', baudrate=115200, timeout=1):
@@ -19,8 +22,16 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True):
     import serial
     import cupid.pilib as pilib
     from time import mktime, localtime
+    from time import sleep
 
     data = []
+
+    stringmessage = ''
+    rawseriallog = True
+    if rawseriallog:
+        print('serial logging is enabled.')
+        logfile = open(pilib.seriallog, 'a', 1)
+        logfile.write('\n' + pilib.gettimestring() + ": Initializing serial log\n")
 
     if checkstatus:
         systemstatus = pilib.readonedbrow(pilib.controldatabase, 'systemstatus')[0]
@@ -40,107 +51,159 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True):
     else:
         print('not monitoring serial port ')
     while runhandler:
-        ch = ser.read(1)
-        if len(ch) == 0:
-            # rec'd nothing print all
-            if len(data) > 0:
-                s = ''
-                for x in data:
-                    s += '%s' % x # ord(x)
+        # This reading has to happen faster than the messages come, or they will all be stuck together
+        try:
+            ch = ser.read(1)
+            # if ch == '\x0D':
+            #     print('carriage return')
+            # elif ch == '\x00':
+            #     print('null character')
 
-                # Here for diagnostics
-                # print '%s [len = %d]' % (s, len(data))
+            if len(ch) == 0 or ch == '\x0D':
+                # print('LEN ZERO OR END CHAR: PROCESS TIME')
 
-                # now process data
-                # print(s)
-                # print(s.split('\n'))
-                try:
-                    # print('*************** processing datadict')
-                    datadicts, messages = processserialdata(s)
-                    # print('ALL MY DATADICTS')
-                    # print(datadicts)
-                    # print('END OF DICTS')
-                except IOError:
-                    print('error processing message')
-                except Exception as ex:
-                    template = "An exception of type {0} occured. Arguments:\n{1!r}"
-                    message = template.format(type(ex).__name__, ex.args)
-                    print message
-                else:
-                    for datadict, message in zip(datadicts, messages):
-                        if datadict:
-                            print("datadict: ")
-                            print(datadict)
-                            # print("message: ")
-                            # print(message)
+                # rec'd nothing print all
+                if len(data) > 0:
+                    s = ''
+                    for x in data:
+                        s += '%s' % x # ord(x)
 
-                            publish = False
-                            for k in datadict:
-                                # print(k + datadict[k])
-                                if k not in ['nodeid','RX_RSSI']:
-                                    pass
-                            # if 'cmd' in datadict:
-                            publish = True
-                            if publish:
-                                print('publishing message')
-                                statusresult = lograwmessages(message)
+                    # Here for diagnostics
+                    # print '%s [len = %d]' % (s, len(data))
 
-                            pilib.sizesqlitetable(pilib.motesdatabase, 'readmessages', 1000)
-
-                            statusresult = processremotedata(datadict, message)
-                        else:
-                            if message:
-                                print('message: ')
-                                print(message)
-                        # except:
-                        #     print('error processing returned datadict, message:')
-                            # print(message)
-                        # else:
-                        #     print("message parse was successful")
-                        #     print(message)
-            else:
-                # no data, let's see if we should send message
-                try:
-                    lastqueuedmessage = pilib.getfirsttimerow(pilib.motesdatabase, 'queuedmessages', 'queuedtime')[0]
-                except IndexError:
-                    # no rows
-                    # print('we have an error getting a queued message. Could be just no message.')
-                    pass
-                else:
-                    # send queued message
-                    print(lastqueuedmessage)
+                    # now process data
+                    # print(s)
+                    # print(s.split('\n'))
                     try:
-                        print('going to send message:')
-                        print(lastqueuedmessage['message'])
-                        ser.write(lastqueuedmessage['message'].encode())
-                        # sendserialmessage(ser, lastqueuedmessage['message'])
-                    except:
-                        print('oops')
+                        # print('*************** processing datadict')
+                        datadicts, messages = processserialdata(s)
+                        # print('ALL MY DATADICTS')
+                        # print(datadicts)
+                        # print('END OF DICTS')
+                    except IOError:
+                        print('error processing message')
+                    except Exception as ex:
+                        template = "An exception of type {0} occured. Arguments:\n{1!r}"
+                        message = template.format(type(ex).__name__, ex.args)
+                        print message
                     else:
-                        print('that worked out. remove message from queue')
-                        conditionnames = ['queuedtime', 'message']
-                        conditionvalues = [lastqueuedmessage['queuedtime'], lastqueuedmessage['message']]
-                        delquery = pilib.makedeletesinglevaluequery('queuedmessages', {'conditionnames':conditionnames, 'conditionvalues':conditionvalues})
-                        pilib.sqlitequery(pilib.motesdatabase, delquery)
-                        print('move to sent messages')
-                        pilib.sqliteinsertsingle(pilib.motesdatabase, 'sentmessages', [lastqueuedmessage['queuedtime'], pilib.gettimestring(), lastqueuedmessage['message']])
-            data = []
+                        for datadict, message in zip(datadicts, messages):
+                            if datadict:
+                                # print("datadict: ")
+                                # print(datadict)
+                                # print("message: ")
+                                # print(message)
 
-        else:
-            data.append(ch)
+                                publish = False
+                                for k in datadict:
+                                    # print(k + datadict[k])
+                                    if k not in ['nodeid','RX_RSSI']:
+                                        pass
+                                # if 'cmd' in datadict:
+                                publish = True
+                                if publish:
+                                    # print('publishing message')
+                                    statusresult = lograwmessages(message)
 
-        if checkstatus:
-            thetime = mktime(localtime())
-            if thetime-checktime > checkfrequency:
-                print('checking control status')
-                systemstatus = pilib.readonedbrow(pilib.controldatabase, 'systemstatus')[0]
-                runserialhandler = systemstatus['serialhandlerenabled']
-                if runserialhandler:
-                    checktime = thetime
-                    pilib.log(pilib.iolog, 'Continuing serialhandler based on status check',3,pilib.iologlevel)
+                                pilib.sizesqlitetable(pilib.motesdatabase, 'readmessages', 1000)
+
+                                statusresult = processremotedata(datadict, message)
+                            else:
+                                if message:
+                                    print('message: ')
+                                    print(message)
+
+                            # Log message
+                            if rawseriallog:
+                                try:
+                                    logfile.write(pilib.gettimestring() + ' : ' + message + '\n')
+                                except Exception as e:
+                                    template = "An exception of type {0} occured. Arguments:\n{1!r}"
+                                    message = template.format(type(ex).__name__, ex.args)
+                                    print message
+
                 else:
-                    runhandler=False
-                    pilib.log(pilib.iolog, 'Aborting serialhandler based on status check',3,pilib.iologlevel)
+                    # no data, let's see if we should send message
+                    # print('no data, try sending')
+                    pass
+
+                pilib.log(pilib.seriallog, "Attempting send routine", 1, 1)
+                # See if there are messages to send.
+                # try:
+                runsendhandler(ser)
+                # except Exception as e:
+                #     pilib.log(pilib.seriallog, "Error in send routine", 1, 1)
+                #
+                #     template = "An exception of type {0} occured. Arguments:\n{1!r}"
+                #     message = template.format(type(ex).__name__, ex.args)
+                #     pilib.log(pilib.seriallog, message, 1, 1)
+                #     print message
+                data = []
+
+            else:
+                # print('DATA NOT ZERO')
+                # print(ch)
+                data.append(ch)
+                stringmessage += str(ch)
+
+
+            if checkstatus:
+                print('checking status')
+                thetime = mktime(localtime())
+                if thetime-checktime > checkfrequency:
+                    print('checking control status')
+                    systemstatus = pilib.readonedbrow(pilib.controldatabase, 'systemstatus')[0]
+                    runserialhandler = systemstatus['serialhandlerenabled']
+                    if runserialhandler:
+                        checktime = thetime
+                        pilib.log(pilib.iolog, 'Continuing serialhandler based on status check',3,pilib.iologlevel)
+                    else:
+                        runhandler=False
+                        pilib.log(pilib.iolog, 'Aborting serialhandler based on status check',3,pilib.iologlevel)
+        except KeyboardInterrupt:
+            print('\n Exiting on keyboard interrupt\n')
+            logfile.close()
+            return
+        except:
+            # print('no characters available!')
+            sleep(0.5)
+        #     return
+            #runsendhandler(ser)
+
+    logfile.close()
+    ser.close()
+    return
+
+
+def runsendhandler(ser):
+    # print('looking for message to send')
+    try:
+        lastqueuedmessage = pilib.getfirsttimerow(pilib.motesdatabase, 'queuedmessages', 'queuedtime')[0]
+    except IndexError:
+        # no rows
+        # print('we have an error getting a queued message. Could be just no message.')
+        pass
+    else:
+        print('I HAVE A MESSAE')
+        # send queued message
+
+        pilib.log(pilib.seriallog, 'Sending serial message: ' + lastqueuedmessage['message'], 1, 1)
+        try:
+            # print('going to send message:')
+            # print(lastqueuedmessage['message'])
+            ser.write(lastqueuedmessage['message'].encode())
+            # sendserialmessage(ser, lastqueuedmessage['message'])
+        except:
+             pilib.log(pilib.seriallog, 'Error sending message', 1, 1)
+        else:
+            pilib.log(pilib.seriallog, 'Success sending message', 1, 1)
+
+            conditionnames = ['queuedtime', 'message']
+            conditionvalues = [lastqueuedmessage['queuedtime'], lastqueuedmessage['message']]
+            delquery = pilib.makedeletesinglevaluequery('queuedmessages', {'conditionnames':conditionnames, 'conditionvalues':conditionvalues})
+            pilib.sqlitequery(pilib.motesdatabase, delquery)
+            pilib.sqliteinsertsingle(pilib.motesdatabase, 'sentmessages', [lastqueuedmessage['queuedtime'], pilib.gettimestring(), lastqueuedmessage['message']])
+    return
 
 
 def sendserialmessage(serobject, message):
@@ -194,7 +257,7 @@ def lograwmessages(message):
     from cupid.pilib import sqliteinsertsingle, motesdatabase, gettimestring
     # try:
     strmessage = str(message).replace('\x00','').strip()
-    print(repr(strmessage))
+    # print(repr(strmessage))
     sqliteinsertsingle(motesdatabase, 'readmessages', [gettimestring(), strmessage])
     # sqliteinsertsingle(motesdatabase, 'readmessages', [gettimestring(), 'nodeid:2,chan:02,sv:070.000,pv:071.000,RX_RSSI:_57'])
     # except:
@@ -334,7 +397,7 @@ def processremotedata(datadict, stringmessage):
             # This does not take time into account. This should not be an issue, as there should only be one entry
             for chanentry in chanentries:
                 if (str(int(chanentry['keyvalue']))) == keyvalue:
-                    print('I FOUND')
+                    # print('I FOUND')
 
                     # newdata  = {'fakedatatype':'fakedata', 'anotherfakedatatype':'morefakedata'}
                     olddata = pilib.parseoptions(chanentry['data'])
@@ -375,6 +438,7 @@ def processremotedata(datadict, stringmessage):
         else:
             # print('not running query')
             pass
+    return
 
 if __name__ == '__main__':
     monitor(checkstatus=False)

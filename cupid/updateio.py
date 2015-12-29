@@ -209,7 +209,7 @@ def updateiodata(database, **kwargs):
                                 newchannel.update(channel)
                                 # print(newchannel)
                         newchannel.update(newchanneldata)
-                        print(newchannel)
+                        # print(newchannel)
 
                         keys = []
                         values = []
