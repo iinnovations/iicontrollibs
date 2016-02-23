@@ -83,9 +83,9 @@ def generatehamachipage(path=None):
             # print(client['name'] + ' : ' + client['hamachiip'])
             if path:
                 htmlstring += '<li>'
-                # htmlstring += '<a href="http://' +  client['hamachiip'] +'">' + client['name'] + '</a> : ' + client['hamachiip']
                 htmlstring += '<fieldset class="ui-grid-a"><div class="ui-block-a" style="width:50%">'
-                htmlstring += client['name'] + ' : ' + client['hamachiip']
+                #htmlstring += client['name'] + ' : ' + client['hamachiip']
+                htmlstring += '<a href="https://' +  client['hamachiip'] +'">' + client['name'] + '</a> : ' + client['hamachiip']
 
                 if client['onlinestatus'] == 'online':
                     htmlstring += '</div><div class="online" style="width:60px; float:right; text-align:center; border-radius:0.4em; border-width:1px; border-style:solid; border-color:#333333">Online</div>'

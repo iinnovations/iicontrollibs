@@ -238,7 +238,7 @@ def gethamachistatusdata():
 def restarthamachi():
     import subprocess
     from time import sleep
-    subprocess.call(['/etc/init.d/logmein-hamachi','restart'])
+    subprocess.call(['service','logmein-hamachi','restart'])
     sleep(15)
     subprocess.call(['hamachi','login'])
     return
