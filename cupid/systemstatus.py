@@ -86,6 +86,7 @@ def watchdoghamachi(pingip):
 
         killhamachi()
         restarthamachi()
+        print('blurg')
 
 
 def updatehamachistatus():
@@ -413,12 +414,13 @@ def watchdognetstatus(allnetstatus=None):
 
             offlineperiod = pilib.timestringtoseconds(pilib.gettimestring()) - pilib.timestringtoseconds(offlinetime)
             pilib.log(pilib.networklog, 'We have been offline for ' + str(offlineperiod))
-            if offlineperiod > int(netconfigdata['WANretrytime']):
-                pilib.log(pilib.networklog, 'Offline period of ' + str(offlineperiod) + ' has exceeded retry time of ' + str(int(netconfigdata['WANretrytime'])))
 
-                # Note that although we obey this period once, after we start this process we don't reset the offlinetime,
-                # so it will just continue to run. This is good in a way, as it will continually set the netstateok to bad,
-                # which will eventually cause us to reboot
+            # When did we last restart the network config? Is it time to again?
+            timesincelastnetrestart = pilib.timestringtoseconds(pilib.gettimestring()) - pilib.timestringtoseconds(netconfigdata['lastnetreconfig'])
+            pilib.log('It has been ' + str(timesincelastnetrestart) + ' seconds since we last restarted the network configuration. ')
+            if timesincelastnetrestart > int(netconfigdata['WANretrytime']):
+                pilib.log(pilib.networklog, 'We are not online, and it has been long enough, exceeding retry time of ' + str(int(netconfigdata['WANretrytime'])))
+                pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'lastnetreconfig', pilib.gettimestring())
 
                 # We do reset the WAN offline time in the reboot sequence, hwoever.
 
@@ -427,9 +429,10 @@ def watchdognetstatus(allnetstatus=None):
                 pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'WANaccessrestarts', restarts)
 
                 pilib.log(pilib.networklog, 'Going to run netconfig to correct WAN access.')
+                runconfig = True
+
             else:
                 pilib.log(pilib.networklog, 'Not yet time to run netconfig to correct WAN access. Retry time set at ' + str(netconfigdata['WANretrytime']))
-                runconfig = True
         else:
             pilib.log(pilib.networklog, 'WANAccess is fine. ')
 
@@ -876,7 +879,6 @@ def runsystemstatus(runonce=False):
             pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'mode', 'manual')
             pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', 'netconfig is disabled')
 
-
         if systemstatus['checkhamachistatus']:
             pilib.log(pilib.syslog, 'Hamachi watchdog is enabled', 3, pilib.sysloglevel)
             pilib.log(pilib.networklog, 'Hamachi watchdog is enabled. ', 3, pilib.networkloglevel)
@@ -888,11 +890,13 @@ def runsystemstatus(runonce=False):
                 pilib.log(pilib.networklog, 'We appear to be online. Checking Hamachi Status. ', 3, pilib.networkloglevel)
                 watchdoghamachi(pingip='25.37.18.7')
             else:
-                pilib.log(pilib.syslog, 'We appear to be offline. Not checking Hamachi Status. ', 3, pilib.sysloglevel)
-                pilib.log(pilib.networklog, 'We appear to be offline. Not checking Hamachi Status. ', 3, pilib.networkloglevel)
+                pilib.log(pilib.syslog, 'We appear to be offline. Not checking Hamachi Status, but setting to 0. ', 3, pilib.sysloglevel)
+                pilib.log(pilib.networklog, 'We appear to be offline. Not checking Hamachi Status, but setting to 0. ', 3, pilib.networkloglevel)
+                pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'hamachistatus', 0)
+
 
         else:
-            pilib.log(pilib.syslog, 'Hamachi watchdog is disnabled', 3, pilib.sysloglevel)
+            pilib.log(pilib.syslog, 'Hamachi watchdog is disabled', 3, pilib.sysloglevel)
 
         pilib.log(pilib.syslog, 'Finished interface configuration. ', 4,
                                pilib.sysloglevel)

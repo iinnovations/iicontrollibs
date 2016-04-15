@@ -209,7 +209,7 @@ def updateiodata(database, **kwargs):
                                 newchannel.update(channel)
                                 # print(newchannel)
                         newchannel.update(newchanneldata)
-                        print(newchannel)
+                        # print(newchannel)
 
                         keys = []
                         values = []
@@ -218,7 +218,7 @@ def updateiodata(database, **kwargs):
                             values.append(value)
 
                         query = pilib.makesqliteinsert('channels',values, keys)
-                        print(query)
+                        # print(query)
                         pilib.sqlitequery(pilib.controldatabase,query)
                     else:
                         # print('multiple entries found for channel. not appropriate')
@@ -255,7 +255,8 @@ def updateiodata(database, **kwargs):
                             else:
                                 entryname = '[MOTE' + str(nodeentry['nodeid']) + '] ' + nodeentry['keyvaluename'] + ':' + nodeentry['keyvalue']
                         except KeyError:
-                            print('OOPS KEY ERROR')
+                            # print('OOPS KEY ERROR')
+                            pass
                         else:
                             if entrytype == 'iovalue':
                                 if 'scale' in entryoptions:

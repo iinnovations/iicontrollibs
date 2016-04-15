@@ -29,12 +29,20 @@ elif systemstatus['webserver'] == 'nginx':
     subprocess.call(['service', 'nginx', 'start'])
 
 # Run uwsgi daemon if nginx is running
-result = ''
-result = subprocess.check_output(['service', 'nginx', 'status'])
+
+try:
+    result = subprocess.check_output(['service', 'nginx', 'status'])
+except subprocess.CalledProcessError as e:
+    result = ''
+    # print('I AM FAILING')
+    # print e.output
+
 if result:
     pilib.log(pilib.syslog, 'boot: starting uwsgi based on nginx call', 0)
     subprocess.call(['uwsgi', '--emperor', '/usr/lib/iicontrollibs/wsgi/', '--daemonize', '/var/log/cupid/uwsgi.log'])
-
+else:
+    # print(' I KNOW NGINX IS NOT RUNNING')
+    pass
 # Mount 1wire master
 
 subprocess.call(['killall','owfs'])

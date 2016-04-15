@@ -25,15 +25,28 @@ def runping(pingAddress='8.8.8.8', numpings=1):
         # Perform the ping using the system ping command (one ping only)
         try:
             # result, err = Popen(['ping','-c','1', pingAddress], stdout=PIPE, stderr=PIPE).communicate()
-            result, err = subprocess.Popen(['ping','-c','1', pingAddress], stdout=subprocess.PIPE).communicate()
-            # print(result)
+            # Default ping timeout is 500ms. This is about right.
+            result = subprocess.Popen(['fping','-c','1', pingAddress], stdout=subprocess.PIPE)
+            pingresult = result.stdout.read()
+            print(pingresult)
         except:
-            print('failed')
-            failed = True
-            latency = 0
+            print('there is problem')
+            pingtimes.append(-1)
         else:
-            # print(result)
             # Extract the ping time
+            if pingresult:
+                resultsplit = pingresult.split(',')
+                # print(resultsplit)
+                # print(resultsplit[2].split('ms')[0].strip())
+                latency = float(resultsplit[2].split('ms')[0].strip())
+                # print('latency is ' + str(latency))
+                pingtimes.append(latency)
+
+            else:
+                pingtimes.append(0)
+
+
+            """ OLD STUFF
             if len(result) < 2:
                 # Failed to find a DNS resolution or route
                 failed = True
@@ -50,16 +63,7 @@ def runping(pingAddress='8.8.8.8', numpings=1):
                     latency = result[index + 5:]
                     latency = latency[:latency.find(' ')]
                     latency = float(latency)
-
-        # Set our outputs
-        if failed:
-            # Could not ping
-            pingtimes.append(0)
-        else:
-            # Ping stored in latency in milliseconds
-            #print '%f ms' % (latency)
-            pingtimes.append(latency)
-            # pilib.writedatedlogmsg(pilib.networklog, 'ping times: ' + str(pingtimes), 3, pilib.networkloglevel)
+            """
     return pingtimes
 
 
@@ -238,7 +242,7 @@ def gethamachistatusdata():
 def restarthamachi():
     import subprocess
     from time import sleep
-    subprocess.call(['service','logmein-hamachi','restart'])
+    subprocess.call(['/etc/init.d/logmein-hamachi','restart'])
     sleep(15)
     subprocess.call(['hamachi','login'])
     return
@@ -246,13 +250,18 @@ def restarthamachi():
 
 def killhamachi():
     import subprocess
-    result = subprocess.check_output(['pgrep','hamachi'])
-    split = result.split('\n')
-    # print(split)
-    for pid in split:
-        if pid:
-            # print(pid)
-            subprocess.call(['kill', '-9', str(pid.strip())])
+    try:
+        result = subprocess.check_output(['pgrep','hamachi'])
+    except:
+        # Error thrown means hamachi is not running
+        print('catching error')
+    else:
+        split = result.split('\n')
+        # print(split)
+        for pid in split:
+            if pid:
+                # print(pid)
+                subprocess.call(['kill', '-9', str(pid.strip())])
     return
 
 

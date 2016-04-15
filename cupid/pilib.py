@@ -78,8 +78,8 @@ daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systems
 #      we specify) are even readable. It also puts in place a clean way of selectively allowing access via user auths/keywords.
 
 def dbnametopath(friendlyname):
-    friendlynames = ['controldb', 'logdatadb', 'infodb', 'systemdb', 'authdb', 'safedb', 'usersdb', 'motesdb']
-    paths = [controldatabase, logdatabase, infodatabase, systemdatadatabase, authsdatabase, safedatabase, usersdatabase, motesdatabase]
+    friendlynames = ['controldb', 'logdatadb', 'infodb', 'systemdb', 'authdb', 'safedatadb', 'usersdb', 'motesdb', 'systemdatadb']
+    paths = [controldatabase, logdatabase, infodatabase, systemdatadatabase, authsdatabase, safedatabase, usersdatabase, motesdatabase, systemdatadatabase]
     path = None
     if friendlyname in friendlynames:
         path = paths[friendlynames.index(friendlyname)]

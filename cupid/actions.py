@@ -425,7 +425,7 @@ def parsedbvn(dbvn):
     dbname = split[0].strip()
     dbpath = pilib.dbnametopath(dbname)
     if not dbpath:
-        print("error getting dbpath, for dbname: " + dbname)
+        # print("error getting dbpath, for dbname: " + dbname)
         return None
 
     tablename = split[1].strip()
@@ -454,7 +454,7 @@ def processactions():
         thisaction = action(actiondict)
 
         thisaction.process()
-
+        print(thisaction.name)
         print(thisaction.statusmsg)
         thisaction.publish()
 
