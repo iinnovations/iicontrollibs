@@ -67,17 +67,22 @@ def application(environ, start_response):
             output['message'] += 'Found action. '
             if action == 'runquery':
                 output['message'] += 'Query keyword found. '
-                if 'query' in d:  # Take plain single query
-                    result = pilib.sqlitequery(d['database'], d['query'])
-                    output['response'] = result
-                    output['message'] += 'Query executed. '
-                elif 'queryarray[]' in d:  # Take query array, won't find
-                    result = []
-                    queryarray = d['queryarray[]']
-                    for query in queryarray:
-                        result.append(pilib.sqlitequery(d['database'], query))
-                    output['response'] = result
-                    output['message'] += 'Query array executed. '
+                dbpath = pilib.dbnametopath(d['database'])
+                if dbpath:
+                    output['message'] += 'Friendly dbpath ' + dbpath + ' found. '
+                    if 'query' in d:  # Take plain single query
+                        result = pilib.sqlitequery(dbpath, d['query'])
+                        output['response'] = result
+                        output['message'] += 'Query ' + d['query'] + ' executed. '
+                    elif 'queryarray[]' in d:  # Take query array, won't find
+                        result = []
+                        queryarray = d['queryarray[]']
+                        for query in queryarray:
+                            result.append(pilib.sqlitequery(dbpath, query))
+                        output['response'] = result
+                        output['message'] += 'Query array executed. '
+                else:
+                     output['message'] += 'Name "' + d['database'] + '"  unsuccessfully translated. '
             elif action == 'testmodule':
                 output['message'] += 'Testing module: '
                 if 'modulename' in d:
@@ -97,14 +102,22 @@ def application(environ, start_response):
                 else:
                     output['message'] += 'Testname not found. '
             elif action == 'dump':
-                if 'database' in d and 'tablelist' in d and 'outputfile' in d:
-                    pilib.sqlitedatadump(d['database'],d['tablelist'],d['outputfile'])
-                    output['message'] = 'data dumped'
-                elif 'database' in d and 'tablename' in d and 'outputfile' in d:
-                    pilib.sqlitedatadump(d['database'],[d['tablename']],d['outputfile'])
-                    output['message'] = 'data dumped'
+                if 'database' in d:
+                    dbpath = pilib.dbnametopath(d['database'])
+                    if dbpath:
+                        if 'tablelist' in d and 'outputfile' in d:
+                            dbpath = pilib.dbnametopath(d['database'])
+                            pilib.sqlitedatadump(dbpath, d['tablelist'], d['outputfile'])
+                            output['message'] = 'data dumped'
+                        elif 'tablename' in d and 'outputfile' in d:
+                            pilib.sqlitedatadump(dbpath, [d['tablename']], d['outputfile'])
+                            output['message'] = 'data dumped. '
+                        else:
+                            output['message'] += 'keys not present for dump. '
+                    else:
+                        output['message'] += 'keys not present for dump. '
                 else:
-                    data = 'keys not present for dump'
+                    output['message'] += 'keys not present for dump. '
             elif action in ['userdelete', 'useradd', 'usermodify']:
 
                 # Ensure that we are authorized for this action
@@ -238,14 +251,18 @@ def application(environ, start_response):
                 pilib.log(pilib.controllog, "Setting value in wsgi", 1, 1)
                 # we use the auxiliary 'setsinglecontrolvalue' to add additional actions to update
                 if all(k in d for k in ('database', 'table', 'valuename', 'value')):
-                    output['message'] += 'Carrying out setvalue. '
-                    if 'condition' in d:
-                        pilib.setsinglecontrolvalue(d['database'], d['table'], d['valuename'], d['value'], d['condition'])
-                    elif 'index' in d:
-                        condition = 'rowid= ' + d['index']
-                        pilib.setsinglecontrolvalue(d['database'], d['table'], d['valuename'], d['value'], condition)
+                    dbpath = pilib.dbnametopath(d['database'])
+                    if dbpath:
+                        output['message'] += 'Carrying out setvalue for value ' + d['valuename'] + ' on ' + d['table'] + ' in '  + dbpath
+                        if 'condition' in d:
+                            pilib.setsinglecontrolvalue(dbpath, d['table'], d['valuename'], d['value'], d['condition'])
+                        elif 'index' in d:
+                            condition = 'rowid= ' + d['index']
+                            pilib.setsinglecontrolvalue(dbpath, d['table'], d['valuename'], d['value'], condition)
+                        else:
+                            pilib.setsinglecontrolvalue(dbpath, d['table'], d['valuename'], d['value'])
                     else:
-                        pilib.setsinglecontrolvalue(d['database'], d['table'], d['valuename'], d['value'])
+                        output['message'] += 'Problem translating dbpath from friendly name: ' + d['database']
                 else:
                     output['message'] += 'Insufficient data for setvalue '
             elif action == 'updateioinfo':
@@ -264,47 +281,61 @@ def application(environ, start_response):
             # These are all very specific actions that could be rolled up or built into classes
             elif action == 'spchange' and 'database' in d:
                 output['message'] += 'Spchanged. '
-                if 'subaction' in d:
-                    if d['subaction'] == 'incup':
-                        controllib.incsetpoint(d['database'], d['channelname'])
-                        output['message'] += 'incup. '
-                    if d['subaction'] == 'incdown':
-                        controllib.decsetpoint(d['database'], d['channelname'])
-                        output['message'] += 'incdown. '
-                    if d['subaction'] == 'setvalue':
-                        controllib.setsetpoint(d['database'], d['channelname'], d['value'])
-                        output['message'] += 'Setvalue: ' + d['database'] + ' ' + d['channelname'] + ' ' + d['value']
+                dbpath = pilib.dbnametopath(d['database'])
+                if dbpath:
+                    if 'subaction' in d:
+                        if d['subaction'] == 'incup':
+                            controllib.incsetpoint(d['database'], d['channelname'])
+                            output['message'] += 'incup. '
+                        if d['subaction'] == 'incdown':
+                            controllib.decsetpoint(d['database'], d['channelname'])
+                            output['message'] += 'incdown. '
+                        if d['subaction'] == 'setvalue':
+                            controllib.setsetpoint(d['database'], d['channelname'], d['value'])
+                            output['message'] += 'Setvalue: ' + d['database'] + ' ' + d['channelname'] + ' ' + d['value']
+                    else:
+                        output['message'] += 'subaction not found. '
                 else:
-                    output['message'] += 'subaction not found. '
+                    output['message'] += 'Problem translating dbpath from friendly name: ' + d['database']
             elif action == 'togglemode' and 'database' in d:
+
                 controllib.togglemode(d['database'], d['channelname'])
             elif action == 'setmode' and 'database' in d:
-                controllib.setmode(d['database'], d['channelname'], d['mode'])
+                dbpath = pilib.dbnametopath(d['database'])
+                controllib.setmode(dbpath, d['channelname'], d['mode'])
             elif action == 'setrecipe':
-                controllib.setrecipe(d['database'], d['channelname'], d['recipe'])
+                dbpath = pilib.dbnametopath(d['database'])
+                controllib.setrecipe(dbpath, d['channelname'], d['recipe'])
             elif action == 'setcontrolinput':
-                controllib.setcontrolinput(d['database'], d['channelname'], d['controlinput'])
+                dbpath = pilib.dbnametopath(d['database'])
+                controllib.setcontrolinput(dbpath, d['channelname'], d['controlinput'])
             elif action == 'setchannelenabled':
-                controllib.setchannelenabled(d['database'], d['channelname'], d['newstatus'])
+                dbpath = pilib.dbnametopath(d['database'])
+                controllib.setchannelenabled(dbpath, d['channelname'], d['newstatus'])
             elif action == 'setchanneloutputsenabled':
-                controllib.setchanneloutputsenabled(d['database'], d['channelname'], d['newstatus'])
+                dbpath = pilib.dbnametopath(d['database'])
+                controllib.setchanneloutputsenabled(dbpath, d['channelname'], d['newstatus'])
             elif action == 'manualactionchange' and 'database' in d and 'channelname' in d and 'subaction' in d:
-                curchanmode = pilib.controllib.getmode(d['database'], d['channelname'])
+                dbpath = pilib.dbnametopath(d['database'])
+                curchanmode = pilib.controllib.getmode(dbpath, d['channelname'])
                 if curchanmode == 'manual':
                     if d['subaction'] == 'poson':
-                        controllib.setaction(d['database'], d['channelname'], '100.0')
+                        controllib.setaction(dbpath, d['channelname'], '100.0')
                     elif d['subaction'] == 'negon':
-                        controllib.setaction(d['database'], d['channelname'], '-100.0')
+                        controllib.setaction(dbpath, d['channelname'], '-100.0')
                     else:
-                        controllib.setaction(d['database'], d['channelname'], '0.0')
+                        controllib.setaction(dbpath, d['channelname'], '0.0')
             elif action == 'setposoutput' and 'database' in d and 'channelname' in d and 'outputname' in d:
-                controllib.setposout(d['database'], d['channelname'], d['outputname'])
+                dbpath = pilib.dbnametopath(d['database'])
+                controllib.setposout(dbpath, d['channelname'], d['outputname'])
             elif action == 'setnegoutput' and 'database' in d and 'channelname' in d:
-                controllib.setnegout(d['database'], d['channelname'], d['outputname'])
+                dbpath = pilib.dbnametopath(d['database'])
+                controllib.setnegout(dbpath, d['channelname'], d['outputname'])
             elif action == 'actiondown' and 'database' in d and 'channelname' in d:
-                curchanmode = controllib.getmode(d['database'], d['channelname'])
+                dbpath = pilib.dbnametopath(d['database'])
+                curchanmode = controllib.getmode(dbpath, d['channelname'])
                 if curchanmode == "manual":
-                    curaction = int(controllib.getaction(d['database'], d['channelname']))
+                    curaction = int(controllib.getaction(dbpath, d['channelname']))
                     if curaction == 100:
                         nextvalue = 0
                     elif curaction == 0:
@@ -313,11 +344,12 @@ def application(environ, start_response):
                         nextvalue = -100
                     else:
                         nextvalue = 0
-                    controllib.setaction(d['database'], d['channelname'], d['nextvalue'])
+                    controllib.setaction(dbpath, d['channelname'], d['nextvalue'])
             elif action == 'actionup' and 'database' in d and 'channelname' in d:
-                curchanmode = controllib.getmode(d['database'], d['channelname'])
+                dbpath = pilib.dbnametopath(d['database'])
+                curchanmode = controllib.getmode(dbpath, d['channelname'])
                 if curchanmode == "manual":
-                    curaction = int(controllib.getaction(d['database'], d['channelname']))
+                    curaction = int(controllib.getaction(dbpath, d['channelname']))
                     if curaction == 100:
                         nextvalue = 100
                     elif curaction == 0:
@@ -326,13 +358,12 @@ def application(environ, start_response):
                         nextvalue = 0
                     else:
                         nextvalue = 0
-                    controllib.setaction(d['database'], d['channelname'], nextvalue)
+                    controllib.setaction(dbpath, d['channelname'], nextvalue)
             elif action == 'deletechannelbyname' and 'database' in d and 'channelname' in d:
-                pilib.sqlitequery(d['database'], 'delete channelname from channels where name=\"' + d['channelname'] + '\"')
-
+                dbpath = pilib.dbnametopath(d['database'])
+                pilib.sqlitequery(dbpath, 'delete channelname from channels where name=\"' + d['channelname'] + '\"')
             else:
                 output['message'] += 'Action keyword present(' + action + '), but not handled. '
-
         else:
             output['message'] += 'action keyword not present. '
     else:

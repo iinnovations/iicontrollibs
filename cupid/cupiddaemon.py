@@ -83,23 +83,41 @@ def pgrepstatus(regex, full=True):
 
 
 def findprocstatuses(procstofind):
+    import subprocess
+    statuses = []
+    for proc in procstofind:
+        status = False
+        try:
+            result = subprocess.check_output(['pgrep','-fc',proc])
+            print(result)
+        except:
+            pass
+        else:
+            if int(result) > 0:
+                status = True
+        statuses.append(status)
+    return statuses
+
+# This thing sucks. See above for trivially simple way to do this.
+def deprecatedfindprocstatuses(procstofind):
     proc_list = get_proc_list()
 
     #Show the minimal proc list (user, pid, cmd)
 
     #stdout.write('Process list:n')
-    #print(proc_list)
+    # print(proc_list)
 
     procslist = ''
     for proc in proc_list:
         strproc = proc.to_str()
-        #stdout.write('t' + strproc + 'n')
+        # stdout.write('t' + strproc + 'n')
+        print(strproc + '\n')
         procslist = procslist + strproc
         for proc in procstofind:
             if strproc.count(proc) > 0:
-                #print('** found **')
-                #print(proc + ' in ')
-                #print(strproc)
+                print('** found **')
+                print(proc + ' in ')
+                print(strproc)
                 pass
 
     #Build &amp; print a list of processes that are owned by root

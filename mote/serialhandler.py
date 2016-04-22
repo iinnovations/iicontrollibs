@@ -18,7 +18,7 @@ def write(message, port='/dev/ttyAMA0', baudrate=115200, timeout=1):
     ser.write(message)
 
 
-def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True):
+def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, printmessages=False):
     import serial
     import cupid.pilib as pilib
     from time import mktime, localtime
@@ -75,7 +75,9 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True):
                     # print(s)
                     # print(s.split('\n'))
                     try:
-                        # print('*************** processing datadict')
+                        if (printmessages):
+                            print('*************** processing datadict')
+
                         datadicts, messages = processserialdata(s)
                         # print('ALL MY DATADICTS')
                         # print(datadicts)
@@ -89,8 +91,9 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True):
                     else:
                         for datadict, message in zip(datadicts, messages):
                             if datadict:
-                                # print("datadict: ")
-                                # print(datadict)
+                                if (printmessages):
+                                    print("datadict: ")
+                                    print(datadict)
                                 # print("message: ")
                                 # print(message)
 
@@ -102,7 +105,9 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True):
                                 # if 'cmd' in datadict:
                                 publish = True
                                 if publish:
-                                    # print('publishing message')
+                                    if (printmessages):
+                                        print('publishing message: ')
+                                        print(message)
                                     statusresult = lograwmessages(message)
 
                                 pilib.sizesqlitetable(pilib.motesdatabase, 'readmessages', 1000)
@@ -127,12 +132,13 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True):
                     # print('no data, try sending')
                     pass
 
-                pilib.log(pilib.seriallog, "Attempting send routine", 1, 1)
+                pilib.log(pilib.seriallog, "Attempting send routine", 4, pilib.serialloglevel)
+
                 # See if there are messages to send.
-                # try:
-                runsendhandler(ser)
-                # except Exception as e:
-                #     pilib.log(pilib.seriallog, "Error in send routine", 1, 1)
+                try:
+                    runsendhandler(ser)
+                except Exception as e:
+                    pilib.log(pilib.seriallog, "Error in send routine", 1, 1)
                 #
                 #     template = "An exception of type {0} occured. Arguments:\n{1!r}"
                 #     message = template.format(type(ex).__name__, ex.args)
@@ -184,9 +190,6 @@ def runsendhandler(ser):
         # print('we have an error getting a queued message. Could be just no message.')
         pass
     else:
-        print('I HAVE A MESSAE')
-        # send queued message
-
         pilib.log(pilib.seriallog, 'Sending serial message: ' + lastqueuedmessage['message'], 1, 1)
         try:
             # print('going to send message:')
@@ -217,7 +220,7 @@ def processserialdata(data):
     # try:
     # Break into chunks
 
-    # RF Message
+    # RF Message (deprecated, all are of serial form below)
     if data.strip().find('BEGIN RECEIVED') > 0:
         split1 = data.strip().split('BEGIN RECEIVED')
         for split in split1:
@@ -383,6 +386,7 @@ def processremotedata(datadict, stringmessage):
             # Should be able to offer all conditions, but it is not working for some reason, so we will
             # iterate over list to find correct enty
 
+            # Here, get all remote entries for the specific node id
             conditions = '"nodeid"=\''+ datadict['nodeid'] + '\' and "msgtype"=\'channel\''
             chanentries = pilib.readalldbrows(pilib.controldatabase, 'remotes', conditions)
 
@@ -395,6 +399,9 @@ def processremotedata(datadict, stringmessage):
             updateddata = newdata.copy()
 
             # This does not take time into account. This should not be an issue, as there should only be one entry
+            # Now match entry from node. Here, for example, keyvaluename could be channel, and keyvalue representing the
+            # channel or controller on the node.
+
             for chanentry in chanentries:
                 if (str(int(chanentry['keyvalue']))) == keyvalue:
                     # print('I FOUND')
@@ -421,7 +428,7 @@ def processremotedata(datadict, stringmessage):
 
             pilib.sqlitemultquery(pilib.controldatabase, [deletequery, addquery])
 
-            # pass
+
         elif 'scalevalue' in datadict:
             querylist.append('create table if not exists scalevalues (value float, time string)')
             querylist.append(pilib.makesqliteinsert('scalevalues',[datadict['scalevalue'], pilib.gettimestring()],['value','time']))
@@ -441,5 +448,5 @@ def processremotedata(datadict, stringmessage):
     return
 
 if __name__ == '__main__':
-    monitor(checkstatus=False)
+    monitor(checkstatus=False, printmessages=True)
     # monitor()
