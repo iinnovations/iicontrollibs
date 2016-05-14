@@ -10,7 +10,9 @@ __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
 # do this stuff to access the pilib for sqlite
-import os, sys, inspect
+import inspect
+import os
+import sys
 
 top_folder = \
     os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]

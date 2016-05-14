@@ -416,8 +416,8 @@ def watchdognetstatus(allnetstatus=None):
             pilib.log(pilib.networklog, 'We have been offline for ' + str(offlineperiod))
 
             # When did we last restart the network config? Is it time to again?
-            timesincelastnetrestart = pilib.timestringtoseconds(pilib.gettimestring()) - pilib.timestringtoseconds(netconfigdata['lastnetreconfig'])
-            pilib.log('It has been ' + str(timesincelastnetrestart) + ' seconds since we last restarted the network configuration. ')
+            timesincelastnetrestart = pilib.timestringtoseconds(pilib.gettimestring()) - pilib.timestringtoseconds(netstatus['lastnetreconfig'])
+            pilib.log(pilib.networklog, 'It has been ' + str(timesincelastnetrestart) + ' seconds since we last restarted the network configuration. ')
             if timesincelastnetrestart > int(netconfigdata['WANretrytime']):
                 pilib.log(pilib.networklog, 'We are not online, and it has been long enough, exceeding retry time of ' + str(int(netconfigdata['WANretrytime'])))
                 pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'lastnetreconfig', pilib.gettimestring())
