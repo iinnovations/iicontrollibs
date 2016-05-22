@@ -11,6 +11,8 @@ import os
 import inspect
 import sys
 
+import utilities
+
 top_folder = \
     os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
 if top_folder not in sys.path:
@@ -94,7 +96,8 @@ def getiwstatus(interface='wlan0'):
 
 # This was great, but does nto seem to function properly. We are going to have to manually parse
 def getifacestatus():
-    from pilib import log, networklog, networkloglevel
+    from pilib import networklog, networkloglevel
+    from utilities import log
     import resource.pyiface.iface as pyiface
 
     allIfaces = pyiface.getIfaces()
@@ -122,14 +125,17 @@ def getifconfigstatus():
     ifaceindex = -1
     blankinterface = {'name':'', 'hwaddress':'', 'address':'', 'ifaceindex':'', 'bcast':'', 'mask': '', 'flags':''}
     for line in ifconfigdata:
-        if line.find('Link') >= 0:
+        if line.find('Link encap:') >= 0:
+            # print('item!')
             ifaceindex += 1
             interfaces.append(blankinterface.copy())
+            interfaces[ifaceindex]['ifaceindex'] = str(ifaceindex)
             interfaces[ifaceindex]['name'] = line.split(' ')[0].strip()
             try:
                 interfaces[ifaceindex]['hwaddress'] = line.split('HWaddr')[1].strip()
             except:
-                pilib.log(pilib.networklog, 'Error parsing hwaddress in ifconfig', 1, pilib.networkloglevel)
+                # print('error parsing interface - ' + )
+                utilities.log(pilib.networklog, 'Error parsing hwaddress in ifconfig for interface' + interfaces[ifaceindex]['name'], 4, pilib.networkloglevel)
 
         else:
             if line.find('addr') >= 0:
@@ -158,7 +164,8 @@ def getifconfigstatus():
 
 def getwpaclientstatus(interface='wlan0'):
     import subprocess
-    from pilib import log, networklog, networkloglevel
+    from pilib import networklog, networkloglevel
+    from utilities import log
 
     resultdict = {}
     try:
@@ -192,16 +199,16 @@ def gethamachidata():
     networks = []
     index = -1
     for row in data:
-        # print(row)
+        #print(str(index) + ' : ' + row)
         # print(row.find('['))
         if row[3] == '[':
-            # print("network")
-            networks.append({'networkid':row.split('[')[1].split(']')[0].strip(), 'name':row.split(']')[1].split('capacity')[0].strip()})
+            #print("network")
+            networks.append({'id':row.split('[')[1].split(']')[0].strip(), 'name':row.split(']')[1].split('capacity')[0].strip()})
             index += 1
             # print(index)
             dictarrays.append([])
         else:
-            # print('not network')
+            #print('not network')
             dict = {}
 
             if row[5] == '*':
@@ -209,7 +216,7 @@ def gethamachidata():
             else:
                 dict['onlinestatus'] = 'offline'
             dict['name'] = row[21:45].strip()
-            dict['clientid'] = row[7:17].strip()
+            dict['id'] = row[7:17].strip()
             dict['hamachiip'] = row[48:64].strip()
             dict['alias'] = row[73:88].strip()
             dict['connipport'] = row[90:100].strip()
@@ -218,7 +225,7 @@ def gethamachidata():
             dict['connipport'] = row[152:173].strip()
             dictarrays[index].append(dict)
 
-    return networks, dictarrays
+    return {'networks':networks, 'clients':dictarrays}
 
 
 def gethamachistatusdata():

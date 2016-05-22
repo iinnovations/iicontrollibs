@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import datalib
+import dblib
 
 __author__ = 'Colin Reese'
 __copyright__ = 'Copyright 2014, Interface Innovations'
@@ -162,7 +164,8 @@ def getowbusdevices(host='localhost'):
 
 
 def updateowfstable(database, tablename, busdevices, execute=True):
-    from pilib import makesqliteinsert, sqlitemultquery
+    from dblib import sqlitemultquery
+    from dblib import makesqliteinsert
 
     querylist = []
     for device in busdevices:
@@ -180,10 +183,10 @@ def updateowfsdevices(busdevices, myProxy=None):
     import pilib
 
     # get defaults
-    defaults = pilib.readalldbrows(pilib.controldatabase, 'defaults')[0]
+    defaults = dblib.readalldbrows(pilib.controldatabase, 'defaults')[0]
 
     # get current entries
-    previnputs = pilib.readalldbrows(pilib.controldatabase, 'inputs')
+    previnputs = dblib.readalldbrows(pilib.controldatabase, 'inputs')
 
     # Make list of IDs for easy indexing
     previnputids = []
@@ -224,7 +227,7 @@ def updateowfsdevices(busdevices, myProxy=None):
 
 
             # Get name if one exists
-            name = pilib.sqlitedatumquery(pilib.controldatabase, 'select name from ioinfo where id=\'' + device.sensorid + '\'')
+            name = dblib.sqlitedatumquery(pilib.controldatabase, 'select name from ioinfo where id=\'' + device.sensorid + '\'')
 
             # If doesn't exist, check to see if proposed name exists. If it doesn't, add it.
             # If it does, keep trying.
@@ -234,20 +237,20 @@ def updateowfsdevices(busdevices, myProxy=None):
                     # check to see if name exists
                     name = device.type + '-' + str(int(index + 1))
                     # print(name)
-                    foundid = pilib.sqlitedatumquery(pilib.controldatabase, 'select id from ioinfo where name=\'' + name + '\'')
+                    foundid = dblib.sqlitedatumquery(pilib.controldatabase, 'select id from ioinfo where name=\'' + name + '\'')
                     # print('foundid' + foundid)
                     if foundid:
                         pass
                     else:
-                        pilib.sqlitequery(pilib.controldatabase, pilib.makesqliteinsert('ioinfo', valuelist=[device.sensorid, name],
-                                                                           valuenames=['id', 'name']))
+                        dblib.sqlitequery(pilib.controldatabase, dblib.makesqliteinsert('ioinfo', valuelist=[device.sensorid, name],
+                                                                                        valuenames=['id', 'name']))
                         break
             device.name = name
 
         # Is it time to read temperature?
-        if pilib.timestringtoseconds(pilib.gettimestring()) - pilib.timestringtoseconds(device.polltime) > device.pollfreq:
+        if datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(device.polltime) > device.pollfreq:
             device.readprop('temperature', myProxy)
-            device.polltime = pilib.gettimestring()
+            device.polltime = datalib.gettimestring()
             device.value = device.temperature
         else:
             pass
@@ -262,7 +265,9 @@ def updateowfsdevices(busdevices, myProxy=None):
 
 
 def updateowfsinputentries(database, tablename, devices, execute=True):
-    from pilib import readalldbrows, controldatabase, sqlitemultquery
+    from pilib import controldatabase
+    from dblib import readalldbrows
+    from dblib import sqlitemultquery
     querylist = []
     querylist.append("delete from '" + tablename + "' where interface='1wire'")
 
@@ -285,7 +290,8 @@ def runowfsupdate(debug=False, execute=True):
     import time
 
     queries = []
-    from pilib import onewiredir, controldatabase, sqlitemultquery
+    from pilib import onewiredir, controldatabase
+    from dblib import sqlitemultquery
 
     if debug:
         print('getting buses')

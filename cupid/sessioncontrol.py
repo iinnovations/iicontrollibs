@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 __author__ = "Colin Reese"
-__copyright__ = "Copyright 2014, Interface Innovations"
+__copyright__ = "Copyright 2016, Interface Innovations"
 __credits__ = ["Colin Reese"]
 __license__ = "Apache 2.0"
 __version__ = "1.0"
@@ -9,43 +9,56 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
+import os
+import sys
+import inspect
+
+top_folder = \
+    os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
+if top_folder not in sys.path:
+    sys.path.insert(0, top_folder)
+
+
+from utilities import dblib
+from utilities.utility import datalib
+
+from cupid import pilib
+import time
+
+"""
 # sessioncontrol.py
 
-# Colin Reese
-# 9/9/2013
+This script updates the number of sessions currently
+active by deleting expired sessions (those that did
+not include a log out) and counting those that are
+active. Besides being able to tell who is online at
+any given time and from where, this will allow us to
+limit the number of sessions per user
 
-# This script updates the number of sessions currently
-# active by deleting expired sessions (those that did
-# not include a log out) and counting those that are
-# active. Besides being able to tell who is online at
-# any given time and from where, this will allow us to
-# limit the number of sessions per user
-
-import pilib
-import time
+"""
 
 # Determine whether this process is enabled:
 
-enabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select sessioncontrolenabled from \'systemstatus\'')
+enabled = dblib.sqlitedatumquery(pilib.controldatabase, 'select sessioncontrolenabled from \'systemstatus\'')
 
 while enabled:
     #print('enabled')
-    polltime = pilib.sqlitedatumquery(pilib.sessiondatabase, 'select updatefrequency from \'settings\'')
+    polltime = dblib.sqlitedatumquery(pilib.sessiondatabase, 'select updatefrequency from \'settings\'')
 
     # Go through sessions and delete expired ones
-    sessions = pilib.readalldbrows(pilib.sessiondatabase, 'sessions')
+    sessions = dblib.readalldbrows(pilib.sessiondatabase, 'sessions')
     arrayquery = []
     for session in sessions:
-        sessionstart = pilib.timestringtoseconds(session['timecreated'])
+        sessionstart = datalib.timestringtoseconds(session['timecreated'])
         sessionlength = session['sessionlength']
         if time.time() - sessionstart > sessionlength:
             arrayquery.append('delete from sessions where sessionid=\'' + session['sessionid'] + '\'')
 
     # Delete offensive sessions 
-    pilib.sqlitemultquery(pilib.sessiondatabase, arrayquery)
+    dblib.sqlitemultquery(pilib.sessiondatabase, arrayquery)
 
     # Reload surviving sessions and summarize
-    sessions = pilib.readalldbrows(pilib.sessiondatabase, 'sessions')
+    sessions = dblib.readalldbrows(pilib.sessiondatabase, 'sessions')
     sessiondictarray = []
     for session in sessions:
         found = 0
@@ -65,10 +78,10 @@ while enabled:
     for dict in sessiondictarray:
         queryarray.append(
             'insert into sessionsummary values (\'' + dict['username'] + '\',\'' + str(dict['sessions']) + '\')')
-    pilib.sqlitemultquery(pilib.sessiondatabase, queryarray)
+    dblib.sqlitemultquery(pilib.sessiondatabase, queryarray)
 
-    polltime = pilib.sqlitedatumquery(pilib.sessiondatabase, 'select updatefrequency from \'settings\'')
+    polltime = dblib.sqlitedatumquery(pilib.sessiondatabase, 'select updatefrequency from \'settings\'')
 
     time.sleep(polltime)
-    enabled = pilib.sqlitedatumquery(pilib.controldatabase, 'select sessioncontrolenabled from \'systemstatus\'')
+    enabled = dblib.sqlitedatumquery(pilib.controldatabase, 'select sessioncontrolenabled from \'systemstatus\'')
 

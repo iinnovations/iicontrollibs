@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 __author__ = "Colin Reese"
-__copyright__ = "Copyright 2014, Interface Innovations"
+__copyright__ = "Copyright 2016, Interface Innovations"
 __credits__ = ["Colin Reese"]
 __license__ = "Apache 2.0"
 __version__ = "1.0"
@@ -9,10 +9,22 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
+import os
+import sys
+import inspect
+
+top_folder = \
+    os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
+if top_folder not in sys.path:
+    sys.path.insert(0, top_folder)
+
+from utilities import dblib
+
 
 def setrawspilights(enabledlists, CS=1, **kwargs):
 
-    from pilib import log, syslog, sysloglevel
+    from pilib import syslog, sysloglevel
+    from utilities.utility import log
     if 'method' in kwargs:
         method = kwargs['method']
     else:
@@ -160,8 +172,8 @@ def updatelightsfromdb(database, table, CS):
     query = 'select status from \'' + table + '\' where interface=\'SPI' + str(CS) + '\''
     query2 = 'select name from \'' + table + '\' where interface=\'SPI' + str(CS) + '\''
 
-    statuses = pilib.sqlitequery(database, query)
-    names = pilib.sqlitequery(database, query2)
+    statuses = dblib.sqlitequery(database, query)
+    names = dblib.sqlitequery(database, query2)
     # print(statuses)
     # print(names)
     d = {}
@@ -186,7 +198,8 @@ def getCuPIDlightsentries(table, CS, previndicators=None):
     querylist=[]
 
     if not previndicators:
-        from pilib import readalldbrows, controldatabase
+        from pilib import controldatabase
+        from utilities.dblib import readalldbrows
         previndicators = readalldbrows(controldatabase, 'indicators')
 
     previndicatornames = []

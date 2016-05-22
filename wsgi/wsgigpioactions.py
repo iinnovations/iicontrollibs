@@ -1,3 +1,7 @@
+import datalib
+import dblib
+
+
 def application(environ, start_response):
 
     import cgi
@@ -31,15 +35,15 @@ def application(environ, start_response):
 
     gpiolist = [18,23,24,25,4,17,21,22]
     import cupid.pilib as pilib
-    inputs = pilib.readalldbrows(pilib.controldatabase, 'inputs')
-    interfaces = pilib.readalldbrows(pilib.controldatabase, 'interfaces')
+    inputs = dblib.readalldbrows(pilib.controldatabase, 'inputs')
+    interfaces = dblib.readalldbrows(pilib.controldatabase, 'interfaces')
 
     statusdict={}
     for input in inputs:
         statusdict[input['id'] + 'value'] = input['value']
     for interface in interfaces:
         if interface['type'] == 'GPIO':
-            options = pilib.parseoptions(interface['options'])
+            options = datalib.parseoptions(interface['options'])
             statusdict[interface['id'] + 'mode'] = options['mode']
 
     # Execute commands
@@ -48,7 +52,7 @@ def application(environ, start_response):
         if d['action'] == 'toggleGPIOmode':
             print('stuff')
         elif d['action'] == 'toggleGPIOvalue':
-            outputs = pilib.readalldbrows(pilib.controldatabase,'outputs')
+            outputs = dblib.readalldbrows(pilib.controldatabase, 'outputs')
             for output in outputs:
                 if output['id'] == d['GPIOid']:
                     curval = output['value']

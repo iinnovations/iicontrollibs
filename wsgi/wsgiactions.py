@@ -1,3 +1,8 @@
+import datalib
+import dblib
+import utilities
+
+
 def application(environ, start_response):
 
     import cgi
@@ -40,7 +45,7 @@ def application(environ, start_response):
         from pilib import salt
 
         try:
-            userdata = pilib.datarowtodict(pilib.usersdatabase, 'users', pilib.sqlitequery(pilib.usersdatabase, "select * from users where name='" + d['sessionuser'] + "'")[0])
+            userdata = dblib.datarowtodict(pilib.usersdatabase, 'users', dblib.sqlitequery(pilib.usersdatabase, "select * from users where name='" + d['sessionuser'] + "'")[0])
         except:
             output['message'] += 'error in user sqlite query. '
             # unsuccessful authentication
@@ -71,14 +76,14 @@ def application(environ, start_response):
                 if dbpath:
                     output['message'] += 'Friendly dbpath ' + dbpath + ' found. '
                     if 'query' in d:  # Take plain single query
-                        result = pilib.sqlitequery(dbpath, d['query'])
+                        result = dblib.sqlitequery(dbpath, d['query'])
                         output['response'] = result
                         output['message'] += 'Query ' + d['query'] + ' executed. '
                     elif 'queryarray[]' in d:  # Take query array, won't find
                         result = []
                         queryarray = d['queryarray[]']
                         for query in queryarray:
-                            result.append(pilib.sqlitequery(dbpath, query))
+                            result.append(dblib.sqlitequery(dbpath, query))
                         output['response'] = result
                         output['message'] += 'Query array executed. '
                 else:
@@ -107,10 +112,10 @@ def application(environ, start_response):
                     if dbpath:
                         if 'tablelist' in d and 'outputfile' in d:
                             dbpath = pilib.dbnametopath(d['database'])
-                            pilib.sqlitedatadump(dbpath, d['tablelist'], d['outputfile'])
+                            dblib.sqlitedatadump(dbpath, d['tablelist'], d['outputfile'])
                             output['message'] = 'data dumped'
                         elif 'tablename' in d and 'outputfile' in d:
-                            pilib.sqlitedatadump(dbpath, [d['tablename']], d['outputfile'])
+                            dblib.sqlitedatadump(dbpath, [d['tablename']], d['outputfile'])
                             output['message'] = 'data dumped. '
                         else:
                             output['message'] += 'keys not present for dump. '
@@ -125,7 +130,7 @@ def application(environ, start_response):
                     output['message'] += 'User selected has sufficient authorizations. '
                     if action == 'userdelete':
                         try:
-                            pilib.sqlitequery(pilib.usersdatabase, "delete from users where name='" + d['usertodelete'] + "'")
+                            dblib.sqlitequery(pilib.usersdatabase, "delete from users where name='" + d['usertodelete'] + "'")
                         except:
                             output['message'] += 'Error in delete query. '
                         else:
@@ -149,7 +154,7 @@ def application(environ, start_response):
                                 querylist.append("update users set authlevel='" + d['newauthlevel'] + "' where name='" + d['usertomodify'] + "'")
 
                             try:
-                                pilib.sqlitemultquery(pilib.usersdatabase, querylist)
+                                dblib.sqlitemultquery(pilib.usersdatabase, querylist)
                             except:
                                 output['message'] += 'Error in modify/add query: ' + ",".join(querylist)
                             else:
@@ -171,7 +176,7 @@ def application(environ, start_response):
                             newauthlevel = 0
                             query = "insert into users values(NULL,'" + username + "','','" + newemail + "',''," + str(newauthlevel) + ")"
                         try:
-                            pilib.sqlitequery(pilib.usersdatabase, query)
+                            dblib.sqlitequery(pilib.usersdatabase, query)
                         except:
                             output['message'] += "Error in useradd sqlite query: " + query + ' . '
                         else:
@@ -207,7 +212,7 @@ def application(environ, start_response):
                         output['data'] = []
                         if startposition == 'end':
                             try:
-                                output['data'] = pilib.tail(file, numlines)[0]
+                                output['data'] = datalib.tail(file, numlines)[0]
                             except:
                                 output['message'] += 'Error in tail read. '
                         else:
@@ -233,7 +238,7 @@ def application(environ, start_response):
                 output['message'] += 'Queue message. '
                 if 'message' in d:
                     try:
-                        pilib.sqliteinsertsingle(pilib.motesdatabase, 'queuedmessages', [pilib.gettimestring(), d['message']])
+                        dblib.sqliteinsertsingle(pilib.motesdatabase, 'queuedmessages', [datalib.gettimestring(), d['message']])
                     except Exception, e:
                         output['message'] += 'Error in queue insert query: ' + str(e)
                     else:
@@ -242,13 +247,13 @@ def application(environ, start_response):
                     output['message'] += 'No message present. '
             elif action == 'setsystemflag' and 'systemflag' in d:
                 database = pilib.systemdatadatabase
-                pilib.setsinglevalue(database, 'systemflags', 'value', 1, "name=\'" + d['systemflag'] + "'")
+                dblib.setsinglevalue(database, 'systemflags', 'value', 1, "name=\'" + d['systemflag'] + "'")
             elif action == 'rundaemon':
                 from cupiddaemon import rundaemon
                 rundaemon()
 
             elif action == 'setvalue':
-                pilib.log(pilib.controllog, "Setting value in wsgi", 1, 1)
+                utilities.log(pilib.controllog, "Setting value in wsgi", 1, 1)
                 # we use the auxiliary 'setsinglecontrolvalue' to add additional actions to update
                 if all(k in d for k in ('database', 'table', 'valuename', 'value')):
                     dbpath = pilib.dbnametopath(d['database'])
@@ -267,9 +272,9 @@ def application(environ, start_response):
                     output['message'] += 'Insufficient data for setvalue '
             elif action == 'updateioinfo':
                 if all(k in d for k in ['database', 'ioid', 'value']):
-                    query = pilib.makesqliteinsert('ioinfo', [d['ioid'], d['value']], ['id', 'name'])
+                    query = dblib.makesqliteinsert('ioinfo', [d['ioid'], d['value']], ['id', 'name'])
                     try:
-                        pilib.sqliteinsertsingle(pilib.controldatabase, 'ioinfo', [d['ioid'], d['value']], ['id', 'name'])
+                        dblib.sqliteinsertsingle(pilib.controldatabase, 'ioinfo', [d['ioid'], d['value']], ['id', 'name'])
                     except:
                         output['message'] += 'Error in updateioinfo query execution: ' + query +'. '
                         output['message'] += 'ioid: ' + d['ioid'] + ' . '
@@ -361,7 +366,26 @@ def application(environ, start_response):
                     controllib.setaction(dbpath, d['channelname'], nextvalue)
             elif action == 'deletechannelbyname' and 'database' in d and 'channelname' in d:
                 dbpath = pilib.dbnametopath(d['database'])
-                pilib.sqlitequery(dbpath, 'delete channelname from channels where name=\"' + d['channelname'] + '\"')
+                dblib.sqlitequery(dbpath, 'delete channelname from channels where name=\"' + d['channelname'] + '\"')
+            elif action == 'updatecameraimage':
+                output['message'] += 'Take camera image keyword. '
+                import cupid.camera
+                try:
+                    values = cupid.camera.takesnap()
+                except:
+                    output['message'] += 'Error taking image. '
+                else:
+                    output['message'] += 'Appears successful. Path : ' + values['imagepath'] + '. Timestamp : ' + values['timestamp'] + '. '
+                    output['data'] = values
+            elif action == 'getcurrentcamtimestamp':
+                output['message'] += 'getcurrentcamtimestamp keyword found. '
+                try:
+                    with open('/var/www/webcam/images/current.jpg.timestamp') as f:
+                        data = f.read()
+                except:
+                    output['message'] += 'Error reading file as requested. '
+                else:
+                    output['data'] = data
             else:
                 output['message'] += 'Action keyword present(' + action + '), but not handled. '
         else:

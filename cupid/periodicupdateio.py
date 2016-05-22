@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 __author__ = "Colin Reese"
-__copyright__ = "Copyright 2014, Interface Innovations"
+__copyright__ = "Copyright 2016, Interface Innovations"
 __credits__ = ["Colin Reese"]
 __license__ = "Apache 2.0"
 __version__ = "1.0"
@@ -9,28 +9,36 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
-# This script runs the input reading scripts 
-# specified interval, sends to log, channels and plot dbs
+import os
+import sys
+import inspect
 
-# TODO: Update to include better logging
+top_folder = \
+    os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
+if top_folder not in sys.path:
+    sys.path.insert(0, top_folder)
 
-import pilib
-import updateio
+
+from utilities import utility
+from utilities import dblib
+from utilities import datalib
+from cupid import pilib
+from cupid import updateio
 from time import sleep
 
 readtime = 10  # default, seconds
 
 # Read from systemstatus to make sure we should be running
-updateioenabled = pilib.getsinglevalue(pilib.controldatabase, 'systemstatus', 'updateioenabled')
+updateioenabled = dblib.getsinglevalue(pilib.controldatabase, 'systemstatus', 'updateioenabled')
 
 while updateioenabled:
 
-    pilib.log(pilib.iolog, 'Running periodicupdateio', 3, pilib.iologlevel)
-    pilib.log(pilib.syslog, 'Running periodicupdateio', 3, pilib.sysloglevel)
+    utility.log(pilib.iolog, 'Running periodicupdateio', 3, pilib.iologlevel)
+    utility.log(pilib.syslog, 'Running periodicupdateio', 3, pilib.sysloglevel)
 
     # Set last run time
-    pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'lastinputpoll', pilib.gettimestring())
-    pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'updateiostatus', '1')
+    dblib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'lastinputpoll', datalib.gettimestring())
+    dblib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'updateiostatus', '1')
 
     # Read and record everything as specified in controldatabase
     # Update database of inputs with read data
@@ -40,11 +48,11 @@ while updateioenabled:
     if runupdate:
         reply = updateio.updateiodata(pilib.controldatabase)
     else:
-        pilib.log(pilib.iolog,'DEBUG: Update IO disabled', 1, pilib.iologlevel)
-        pilib.log(pilib.syslog,'DEBUG: Update IO disabled', 1, pilib.sysloglevel)
+        utility.log(pilib.iolog, 'DEBUG: Update IO disabled', 1, pilib.iologlevel)
+        utility.log(pilib.syslog, 'DEBUG: Update IO disabled', 1, pilib.sysloglevel)
 
 
-    result = pilib.readonedbrow(pilib.controldatabase, 'systemstatus', 0)
+    result = dblib.readonedbrow(pilib.controldatabase, 'systemstatus', 0)
     systemsdict = result[0]
     #print("here is the systems dict")
     #print(systemsdict)
@@ -57,7 +65,7 @@ while updateioenabled:
     ################################################### 
     # Update controlvalues in channels
 
-    channels = pilib.readalldbrows(pilib.controldatabase, 'channels')
+    channels = dblib.readalldbrows(pilib.controldatabase, 'channels')
     for channel in channels:
 
         # Get controlinput for each channel
@@ -69,23 +77,23 @@ while updateioenabled:
 
         if controlinput and controlinput not in ['none', 'None']:
 
-            controlvalue = pilib.getsinglevalue(pilib.controldatabase, 'inputs', 'value', "name='" + controlinput + "'")
-            controltime = pilib.getsinglevalue(pilib.controldatabase, 'inputs', 'polltime',
+            controlvalue = dblib.getsinglevalue(pilib.controldatabase, 'inputs', 'value', "name='" + controlinput + "'")
+            controltime = dblib.getsinglevalue(pilib.controldatabase, 'inputs', 'polltime',
                                                "name='" + controlinput + "'")
 
             # Only update channel value if value was found
 
             if controlvalue is not None:
                 # print('control value for channel ' + channelname + ' = ' + str(controlvalue))
-                pilib.setsinglevalue(pilib.controldatabase, 'channels', 'controlvalue', str(controlvalue), "controlinput='" + controlinput + "'")
+                dblib.setsinglevalue(pilib.controldatabase, 'channels', 'controlvalue', str(controlvalue), "controlinput='" + controlinput + "'")
                 # pilib.sqlitequery(pilib.controldatabase, 'update channels set controlvalue=' + str(
                 #     controlvalue) + ' where controlinput = ' + "'" + controlinput + "'")
-                pilib.setsinglevalue(pilib.controldatabase, 'channels', 'controlvaluetime', str(controltime), "controlinput='" + controlinput + "'")
+                dblib.setsinglevalue(pilib.controldatabase, 'channels', 'controlvaluetime', str(controltime), "controlinput='" + controlinput + "'")
                 # pilib.sqlitequery(pilib.controldatabase,
                 #                   'update channels set controlvaluetime=\'' + controltime + '\' where controlinput = ' + "'" + controlinput + "'")
 
         else:  # input is empty
-            pilib.setsinglevalue(pilib.controldatabase, 'channels', 'statusmessage', 'No controlinput found', "name='" + channelname + "'" )
+            dblib.setsinglevalue(pilib.controldatabase, 'channels', 'statusmessage', 'No controlinput found', "name='" + channelname + "'")
 
             # disable channel
             #pilib.sqlitequery(controldatabase,"update channels set enabled=0 where controlinput = \'" + controlinput + "'") 
@@ -96,39 +104,39 @@ while updateioenabled:
 
     # Get data for all sensors online
 
-    inputsdata = pilib.readalldbrows(pilib.controldatabase, 'inputs')
+    inputsdata = dblib.readalldbrows(pilib.controldatabase, 'inputs')
     for inputrow in inputsdata:
         logtablename = 'input_' + inputrow['id'] + '_log'
 
-        if pilib.isvalidtimestring(inputrow['polltime']):
+        if datalib.isvalidtimestring(inputrow['polltime']):
             # Create table if it doesn't exist
 
 
             query = 'create table if not exists \'' + logtablename + '\' ( value real, time text primary key)'
-            pilib.sqlitequery(pilib.logdatabase, query)
+            dblib.sqlitequery(pilib.logdatabase, query)
 
             # Enter row
-            pilib.sqliteinsertsingle(pilib.logdatabase, logtablename,
+            dblib.sqliteinsertsingle(pilib.logdatabase, logtablename,
                                      valuelist=[inputrow['value'], inputrow['polltime']],
                                      valuenames=['value', 'time'])
 
             # Clean log
-            pilib.cleanlog(pilib.logdatabase, logtablename)
+            dblib.cleanlog(pilib.logdatabase, logtablename)
 
             # Size log based on specified size
 
-            pilib.sizesqlitetable(pilib.logdatabase, logtablename, logpoints)
+            dblib.sizesqlitetable(pilib.logdatabase, logtablename, logpoints)
 
 
     ####################################################
     # log metadata
-    pilib.getandsetmetadata(pilib.logdatabase)
+    dblib.getandsetmetadata(pilib.logdatabase)
 
-    pilib.log(pilib.iolog,'Sleeping for ' + str(readtime), 1, pilib.iologlevel)
+    utility.log(pilib.iolog, 'Sleeping for ' + str(readtime), 1, pilib.iologlevel)
     sleep(readtime)
 
     # Read from systemstatus to make sure we should be running
-    updateioenabled = pilib.getsinglevalue(pilib.controldatabase, 'systemstatus', 'updateioenabled')
+    updateioenabled = dblib.getsinglevalue(pilib.controldatabase, 'systemstatus', 'updateioenabled')
 
-pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'updateiostatus', '0')
+dblib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'updateiostatus', '0')
 

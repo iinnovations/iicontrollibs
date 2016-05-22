@@ -9,10 +9,20 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
-import pilib
+top_folder = \
+    os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
+if top_folder not in sys.path:
+    sys.path.insert(0, top_folder)
 
-""" This class defines actions taken on stuff.
- We are going to restructure this. An action is something that happens, for example:
+import pilib
+import utilities.utility as utilities
+import utilities.datalib as datalib
+import utilities.dbb as dblib
+
+
+"""
+  This class defines actions taken on stuff.
+  We are going to restructure this. An action is something that happens, for example:
      action.type == 'setvalue' : value is sent
         actiondetail contains dbvn reference to value to be set.
         By default this is binary : action active sets to 1, active reset will set to 0
@@ -31,18 +41,17 @@ import pilib
                               Can also code in other database variables using syntax: [dbname:tablename:valuename]
                               Not yet implemented, but that's the idea.
 
-
      action.conditiontype == 'time'
      action.conditionvalue == date time string in UTC seconds
      action.
 
-Some value have fields. These are universal values:
- *
+  Some value have fields. These are universal values:
 
-All other data is contained in the actiondata field. These are values that are typically actiontype or conditiontype specific
-The actiondata is json, and parsed out by helper functions. If we need to modify it and reinsert it, we can modify the
-actiondata dictionary and parse it back into json before publishing it back to the database
-
+  All other data is contained in the actiondata field. These are values that are typically actiontype or conditiontype specific
+  The actiondata is json, and parsed out by helper functions. If we need to modify it and reinsert it, we can modify the
+"""
+"""
+    actiondata dictionary and parse it back into json before publishing it back to the database
 """
 
 
@@ -60,7 +69,7 @@ class action:
             would not be able to easily keep track of where to write back modified entries.
             """
 
-            self.actiondatadict = pilib.parseoptions(actiondict['actiondata'])
+            self.actiondatadict = datalib.parseoptions(actiondict['actiondata'])
 
 
             """ TODO: Set default values as a condition of alarm type to make alarm work when values are not specified.
@@ -73,18 +82,18 @@ class action:
             email = self.actiondetail
             message = 'Alert is active for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + str(self.criterion) + ' with an operator of ' + self.operator + '. This alarm status has been on since ' + self.ontime + '.'
             subject = 'CuPID Alert : Alarm On - ' + self.name
-            actionmail = pilib.gmail(message=message, subject=subject, recipient=email)
+            actionmail = utilities.gmail(message=message, subject=subject, recipient=email)
             actionmail.send()
 
         elif self.actiontype == 'indicator':
             # process indicator action
             self.statusmsg += 'Processing indicator on action. '
             indicatorname = self.actiondetail
-            pilib.sqlitequery(pilib.controldatabase, 'update indicators set status=1 where name = \'' + indicatorname + '\'')
+            dblib.sqlitequery(pilib.controldatabase, 'update indicators set status=1 where name = \'' + indicatorname + '\'')
 
         elif self.actiontype == 'output':
             self.statusmsg += 'Processing output on action. '
-            pilib.setsinglevalue(pilib.controldatabase, 'outputs', 'value', '1', condition='"id"=\'' + self.actiondetail +"'")
+            dblib.setsinglevalue(pilib.controldatabase, 'outputs', 'value', '1', condition='"id"=\'' + self.actiondetail + "'")
 
         # This should be the generic handler that we migrate to
         elif self.actiontype == 'setvalue':
@@ -98,7 +107,7 @@ class action:
 
             if 'setvalueformula' in self.actiondatadict:
                 # Stuff that we don't know yet.
-                pilib.setsinglevalue(dbpath, dbvndict['tablename'], dbvndict['valuename'], 'formulastuff here', dbvndict['condition'])
+                dblib.setsinglevalue(dbpath, dbvndict['tablename'], dbvndict['valuename'], 'formulastuff here', dbvndict['condition'])
             else:
 
                 """ TODO: Fix this hack. We cannot currently single quote in the database entry because it breaks the reinsert.
@@ -109,7 +118,7 @@ class action:
                     # print(querycondition)
                 else:
                     querycondition = None
-                pilib.setsinglevalue(dbpath, dbvndict['tablename'], dbvndict['valuename'], '1', querycondition)
+                dblib.setsinglevalue(dbpath, dbvndict['tablename'], dbvndict['valuename'], '1', querycondition)
 
     def offact(self):
         if self.actiontype == 'email':
@@ -118,18 +127,18 @@ class action:
             email = self.actiondetail
             message = 'Alert has gone inactive for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + str(self.criterion) + ' with an operator of ' + self.operator + '. This alarm status has been of since ' + self.offtime + '.'
             subject = 'CuPID Alert : Alarm Off - ' + self.name
-            actionmail = pilib.gmail(message=message, subject=subject, recipient=email)
+            actionmail = utilities.gmail(message=message, subject=subject, recipient=email)
             actionmail.send()
 
         elif self.actiontype == 'indicator':
             # process indicator action
             self.status +='Processing indicator off action.'
             indicatorname = self.actiondetail
-            pilib.sqlitequery(pilib.controldatabase, 'update indicators set status=0 where name = ' + indicatorname)
+            dblib.sqlitequery(pilib.controldatabase, 'update indicators set status=0 where name = ' + indicatorname)
 
         elif self.actiontype == 'output':
             self.statusmsg += 'Processing output off action. '
-            pilib.setsinglevalue(pilib.controldatabase, 'outputs', 'value', '0', condition='"id"=\'' + self.actiondetail +"'")
+            dblib.setsinglevalue(pilib.controldatabase, 'outputs', 'value', '0', condition='"id"=\'' + self.actiondetail + "'")
 
         # This should be the generic handler that we migrate to
         elif self.actiontype == 'setvalue':
@@ -143,7 +152,7 @@ class action:
 
             if 'setvalueformula' in self.actiondatadict:
                 # Stuff that we don't know yet.
-                pilib.setsinglevalue(dbpath, dbvndict['tablename'], dbvndict['valuename'], 'formulastuff here', dbvndict['condition'])
+                dblib.setsinglevalue(dbpath, dbvndict['tablename'], dbvndict['valuename'], 'formulastuff here', dbvndict['condition'])
             else:
 
                 """ TODO: Fix this hack. We cannot currently single quote in the database entry because it breaks the reinsert.
@@ -154,7 +163,7 @@ class action:
                     # print(querycondition)
                 else:
                     querycondition = None
-                pilib.setsinglevalue(dbpath, dbvndict['tablename'], dbvndict['valuename'], '0', querycondition)
+                dblib.setsinglevalue(dbpath, dbvndict['tablename'], dbvndict['valuename'], '0', querycondition)
 
     def printvalues(self):
         for attr,value in self.__dict__.iteritems():
@@ -166,7 +175,7 @@ class action:
         valuenames=[]
 
         # We convert our actiondatadict back into a string
-        self.actiondata = pilib.dicttojson(self.actiondatadict)
+        self.actiondata = datalib.dicttojson(self.actiondatadict)
 
         attrdict = {}
         for attr, value in self.__dict__.iteritems():
@@ -178,19 +187,20 @@ class action:
         # print(valuenames)
         # print(valuelist)
 
-        pilib.sqliteinsertsingle(pilib.controldatabase, 'actions', valuelist, valuenames)
+        dblib.sqliteinsertsingle(pilib.controldatabase, 'actions', valuelist, valuenames)
         # setsinglevalue(controldatabase, 'actions', 'ontime', gettimestring(), 'rowid=' + str(self.rowid))
 
     def process(self):
         # print(actiondict)
         # process condition
         if self.enabled:
-            self.statusmsg = pilib.gettimestring() + ' : Enabled and processing. '
+            self.statusmsg = datalib.gettimestring() + ' : Enabled and processing. '
             if self.conditiontype == 'temporal':
 
                 # Test event time against current time
                 # Has time passed, and then is time within action window (don't want to act on all past actions if we miss them)
-                timediff = float(pilib.timestringtoseconds(pilib.gettimestring()) - pilib.timestringtoseconds(self.actiontime))
+                timediff = float(
+                    datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(self.actiontime))
                 if timediff >= 0:
                     if timediff < int(self.actiontimewindow):
                         # We act
@@ -198,7 +208,8 @@ class action:
 
                         # Then create the repeat event if we are supposed to.
                         if hasattr(self, 'repeat'):
-                            newtimestring = str(pilib.getnexttime(self.actiontime, self.repeat, int(self.repeatvalue)))
+                            newtimestring = str(
+                                datalib.getnexttime(self.actiontime, self.repeat, int(self.repeatvalue)))
                             self.actiontime = newtimestring
 
                     else:
@@ -217,7 +228,7 @@ class action:
                 # else:
                 #     self.variablevalue = pilib.getsinglevalue(self.database, self.tablename, self.variablename)
 
-                currstatus = evalactionformula(self.actiondatadict['condition'])
+                currstatus = datalib.evalactionformula(self.actiondatadict['condition'])
 
                 # get variable type to handle
                 # variablestypedict = pilib.getpragmanametypedict(dbpath, self.tablename)
@@ -267,17 +278,17 @@ class action:
                 else:
                     self.statusmsg += 'Last status is not true. Currstatus is ' + str(currstatus) + '. '
 
-                currenttime = pilib.gettimestring()
+                currenttime = datalib.gettimestring()
 
                 # if status is true and current status is false, set ontime
                 if currstatus and not self.status:
                     # print(str(curstatus) + ' ' + str(self.status))
                     self.statusmsg += 'Setting status ontime. '
-                    self.ontime = pilib.gettimestring()
+                    self.ontime = datalib.gettimestring()
                     self.status = 1
                 elif not currstatus and self.status:
                     self.statusmsg += 'Setting status offtime. '
-                    self.offtime = pilib.gettimestring()
+                    self.offtime = datalib.gettimestring()
                     self.status = 0
 
                 # Set current status
@@ -291,7 +302,7 @@ class action:
                 # if status is true and alarm isn't yet active, see if ondelay exceeded
                 if currstatus and not self.active:
                     # print(pilib.timestringtoseconds(currenttime))
-                    statusontime = pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(self.ontime)
+                    statusontime = datalib.timestringtoseconds(currenttime) - datalib.timestringtoseconds(self.ontime)
                     # print(statusontime)
                     if statusontime >= self.ondelay:
                         self.statusmsg += 'Setting action active. '
@@ -301,7 +312,7 @@ class action:
 
                 # if status is not true and alarm is active, see if offdelay exceeded
                 if not currstatus and self.active:
-                    statusofftime = pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(self.offtime)
+                    statusofftime = datalib.timestringtoseconds(currenttime) - datalib.timestringtoseconds(self.offtime)
                     if statusofftime >= self.offdelay:
                         self.statusmsg += 'Setting action inactive. '
                         self.active = 0
@@ -320,7 +331,7 @@ class action:
                     # print(pilib.timestringtoseconds(self.lastactiontime))
                     # print(float(self.actionfrequency))
                     # print(pilib.timestringtoseconds(currenttime)-pilib.timestringtoseconds(self.lastactiontime))
-                    if pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(self.lastactiontime) >= float(self.actionfrequency):
+                    if datalib.timestringtoseconds(currenttime) - datalib.timestringtoseconds(self.lastactiontime) >= float(self.actionfrequency):
                         act = True
                         self.statusmsg += "Time to act. "
                     else:
@@ -329,7 +340,7 @@ class action:
                 else:
                     # Send an alert / reset indicator if activereset is on
                     if self.activereset:
-                        if pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(self.lastactiontime) >= float(self.actionfrequency):
+                        if datalib.timestringtoseconds(currenttime) - datalib.timestringtoseconds(self.lastactiontime) >= float(self.actionfrequency):
                             act = True
                             self.statusmsg += "Time to act. "
                         else:
@@ -350,99 +361,11 @@ class action:
             self.statusmsg += 'Mode unrecognized.'
 
 
-def evalactionformula(formula, type='value'):
-
-    #if type == 'value':
-    # first we need to get all the values that are provided as db-coded entries.
-
-    split = formula.split('[')
-
-    textform = ''
-    for index, splitlet in enumerate(split):
-        # print('splitlet: ' + splitlet)
-        if index == 0:
-            textform += splitlet
-        else:
-            splitletsplit = splitlet.split(']')
-            dbvn = splitletsplit[0]
-            # print('dbvn: ' + dbvn)
-            value = dbvntovalue(dbvn)
-            # print('value: ' + str(value))
-            textform += str(value) + splitletsplit[1]
-
-    # print('EQN Text:')
-    # print('"' + textform + '"')
-
-    from asteval import Interpreter
-    aeval = Interpreter()
-    result = aeval(textform)
-    # print('RESULT: ' + str(result))
-    return result
-
-
-def getvartype(dbpath, tablename, valuename):
-    variablestypedict = pilib.getpragmanametypedict(dbpath, tablename)
-    vartype = variablestypedict[valuename]
-    return vartype
-
-
-def dbvntovalue(dbvn, interprettype=False):
-
-    dbvndict = parsedbvn(dbvn)
-
-    # try:
-
-    value = pilib.getsinglevalue(dbvndict['dbpath'], dbvndict['tablename'], dbvndict['valuename'], dbvndict['condition'])
-    # except:
-    #     print('error getting value')
-    #     print(dbvndict)
-    #     return None
-
-    if interprettype:
-        # get type
-
-        vartype = getvartype(dbvndict['dbpath'], dbvndict['tablename'], dbvndict['valuename'])
-
-        if vartype == 'boolean':
-            return bool(value)
-        elif vartype == 'float':
-            return float(value)
-        elif vartype == 'int':
-            return int(value)
-
-    return value
-
-
-def parsedbvn(dbvn):
-
-    # print('DBVN: ')
-    # print(dbvn)
-    """
-    databasename:tablename:valuename:condition
-    """
-
-    split = dbvn.split(':')
-    dbname = split[0].strip()
-    dbpath = pilib.dbnametopath(dbname)
-    if not dbpath:
-        # print("error getting dbpath, for dbname: " + dbname)
-        return None
-
-    tablename = split[1].strip()
-    valuename = split[2].strip()
-    if len(split) == 4:
-        condition = split[3]
-    else:
-        condition = None
-
-    return {'dbname':dbname,'dbpath':dbpath,'tablename':tablename,'valuename':valuename,'condition':condition}
-
-
 def processactions():
 
     # Read database to get our actions
 
-    actiondicts = pilib.readalldbrows(pilib.controldatabase, 'actions')
+    actiondicts = dblib.readalldbrows(pilib.controldatabase, 'actions')
 
     for actiondict in actiondicts:
         alert = False

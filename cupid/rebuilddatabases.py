@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 __author__ = "Colin Reese"
-__copyright__ = "Copyright 2014, Interface Innovations"
+__copyright__ = "Copyright 2016, Interface Innovations"
 __credits__ = ["Colin Reese"]
 __license__ = "Apache 2.0"
 __version__ = "1.0"
@@ -9,17 +9,27 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
+import os
+import sys
+import inspect
+
+top_folder = \
+    os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
+if top_folder not in sys.path:
+    sys.path.insert(0, top_folder)
+
 
 # This script resets the control databases
-
-from pilib import sqlitemultquery, controldatabase, systemdatadatabase, recipedatabase, sessiondatabase, safedatabase, \
-    usersdatabase, motesdatabase
 
 ################################################
 # Main control database
 
 
 def rebuildcontroldb(tabledict):
+
+    from utilities.dblib import sqlitemultquery
+    from cupid.pilib import controldatabase
+
     # Create databases entries or leave them empty?
     addentries = True
 
@@ -232,6 +242,16 @@ def rebuildcontroldb(tabledict):
             querylist.append("insert into " + table + " values ('MBTCP1', '400005', 'read', 2, 1, 0, 'float32','')")
             querylist.append("insert into " + table + " values ('MBTCP1', '400007', 'read', 2, 1, 0, 'float32','')")
 
+     ### modbustcp Table
+    if 'labjack' in tabledict:
+        runquery = True
+        table = 'labjack'
+        querylist.append('drop table if exists ' + table)
+        querylist.append(
+            "create table " + table + " (interfaceid text, address integer, mode text default 'read', options text)")
+        if addentries:
+            querylist.append("insert into " + table + " values ('USB1', '0', 'AIN', '')")
+
     ### Controlalgorithms table
     if 'algorithms' in tabledict:
         runquery = True
@@ -274,6 +294,9 @@ def rebuildcontroldb(tabledict):
 # authlog
 
 def rebuildsessiondb():
+    from utilities.dblib import sqlitemultquery
+    from cupid.pilib import sessiondatabase
+
     querylist = []
 
     ### Session limits
@@ -331,6 +354,8 @@ def rebuildsessiondb():
 # device info 
 
 def rebuildsystemdatadb(tabledict):
+    from utilities.dblib import sqlitemultquery
+    from cupid.pilib import systemdatadatabase
     runquery = "False"
     querylist = []
     if 'netstatus' in tabledict:
@@ -338,7 +363,7 @@ def rebuildsystemdatadb(tabledict):
         table = 'netstatus'
         querylist.append('drop table if exists ' + table)
         querylist.append(
-            "create table " + table + " ( WANaccess boolean default 0, WANaccessrestarts integer default 0, latency real default 0, mode text default 'eth0wlan0bridge', onlinetime text, offlinetime text default '', lastnetreconfig text default '', netstate integer default 0, netstateoktime text default '', updatetime text '', statusmsg text default '', netrebootcounter integer default 0)")
+            "create table " + table + " ( WANaccess boolean default 0, WANaccessrestarts integer default 0, latency real default 0, mode text default 'eth0wlan0bridge', onlinetime text, offlinetime text default '', lastnetreconfig text default '', netstate integer default 0, netstateoktime text default '', updatetime text '', statusmsg text default '', netrebootcounter integer default 0, addresses text default '')")
         querylist.append("insert into " + table + "  default values")
 
     if 'netconfig' in tabledict:
@@ -390,6 +415,9 @@ def rebuildsystemdatadb(tabledict):
 # recipesdata
 
 def rebuildrecipesdb(tabledict):
+    from utilities.dblib import sqlitemultquery
+    from cupid.pilib import recipedatabase
+
     runquery = False
     querylist = []
     addentries = True
@@ -417,6 +445,9 @@ def rebuildrecipesdb(tabledict):
 
 
 def rebuildmotesdb(tabledict):
+    from cupid.pilib import motesdatabase
+    from utilities.dblib import sqlitemultquery
+
     runquery = False
     querylist = []
     addentries = True
@@ -454,7 +485,8 @@ def rebuildmotesdb(tabledict):
 
 
 def rebuildusersdata(argument=None):
-    from pilib import gethashedentry
+    from pilib import gethashedentry, usersdatabase
+    from utilities.dblib import sqlitemultquery
 
     querylist = []
     runquery = True
@@ -518,6 +550,8 @@ def rebuildusersdata(argument=None):
 # safedata
 
 def rebuildwirelessdata():
+    from utilities.dblib import sqlitemultquery
+    from cupid.pilib import safedatabase
     querylist = []
     querylist.append('drop table if exists wireless')
     querylist.append('create table wireless (SSID text, password text)')
@@ -526,8 +560,9 @@ def rebuildwirelessdata():
 
 
 def rebuildapdata(SSID='cupidwifi', password='cupidpassword'):
+    from utilities.dblib import sqlitemultquery
+    from cupid.pilib import safedatabase
     querylist = []
-
     querylist.append('drop table if exists apsettings')
     querylist.append("create table apsettings (SSID text default 'cupidwifi', password text default 'cupidpassword')")
     querylist.append(
@@ -547,7 +582,7 @@ if __name__ == "__main__":
 
     # Check for DEFAULTS argument
 
-    controldbtables = ['actions', 'modbustcp', 'logconfig', 'defaults', 'systemstatus', 'indicators', 'inputs', 'outputs', 'owfs', 'ioinfo', 'interfaces',
+    controldbtables = ['actions', 'modbustcp', 'labjack', 'logconfig', 'defaults', 'systemstatus', 'indicators', 'inputs', 'outputs', 'owfs', 'ioinfo', 'interfaces',
                        'algorithms', 'algorithmtypes', 'channels', 'remotes', 'mote']
     systemdbtables = ['metadata', 'netconfig', 'netstatus', 'versions', 'systemflags', 'uisettings']
     motestables = ['readmessages', 'queuedmessages', 'sentmessages']

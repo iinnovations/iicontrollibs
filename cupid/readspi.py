@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+from utilities import dblib
+from utilities.utility import datalib
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2014, Interface Innovations"
@@ -30,12 +32,12 @@ def recordspidata(database, valuedict, execute=False):
     # This is incomplete and hardcoded partially
     querylist = []
     for key, value in valuedict.iteritems():
-        querylist.append(pilib.makesqliteinsert('inputs',
-                                                valuelist=[key, 'SPI1', 'TC', '1', 'SPITC1', value, 'F', pilib.gettimestring(), 1,
+        querylist.append(dblib.makesqliteinsert('inputs',
+                                                valuelist=[key, 'SPI1', 'TC', '1', 'SPITC1', value, 'F', datalib.gettimestring(), 1,
                                                            '','']))
-        querylist.append(pilib.makesqliteinsert('ioinfo', valuelist=[key, key, '']))
+        querylist.append(dblib.makesqliteinsert('ioinfo', valuelist=[key, key, '']))
     if execute:
-        pilib.sqlitemultquery(database, querylist)
+        dblib.sqlitemultquery(database, querylist)
 
     return querylist
 

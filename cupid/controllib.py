@@ -16,7 +16,10 @@ __status__ = "Development"
 #######################################################
 
 def runalgorithm(controldatabase, recipedatabase, channelname):
-    from pilib import sqlitequery, datarowtodict, gettimestring, timestringtoseconds
+    from utilities.utility import timestringtoseconds
+    from utilities.utility import gettimestring
+    from utilities.dblib import sqlitequery
+    from utilities.dblib import datarowtodict
     import time
 
     message = ''
@@ -178,25 +181,30 @@ class channel:
             setattr(self,key,value)
 
     def setsetpoint(self,setpointvalue):
-        from pilib import controldatabase, sqlitequery
+        from pilib import controldatabase
+        from utilities.dblib import sqlitequery
         sqlitequery(controldatabase, 'update channels set setpointvalue=\'' + str(setpointvalue) + '\' where name=\'' + channel.name + '\'')
 
     def setaction(self,action):
-         from pilib import controldatabase, sqlitequery
+         from pilib import controldatabase
+         from utilities.dblib import sqlitequery
          sqlitequery(controldatabase,
             'update channels set action = \'' + str(action) + '\' where name = \'' + channel.name + '\'')
 
     def setcontrolinput(self,inputid):
-        from pilib import controldatabase, sqlitequery
+        from pilib import controldatabase
+        from utilities.dblib import sqlitequery
         sqlitequery(controldatabase,
                 'update channels set controlinput = \'' + inputid + '\' where name = \'' + channel.name + '\'')
 
     def getaction(self):
-        from pilib import controldatabase, sqlitedatumquery
+        from pilib import controldatabase
+        from utilities.dblib import sqlitedatumquery
         self.action = sqlitedatumquery(controldatabase,'select action from channels where name=\'' + channel.name + '\'')
 
     def getsetpointvalue(self):
-        from pilib import controldatabase, sqlitedatumquery
+        from pilib import controldatabase
+        from utilities.dblib import sqlitedatumquery
         self.setpointvalue = sqlitedatumquery(controldatabase, 'select setpointvalue from channels where name=\'' + channel.name + '\'')
 
     def incsetpoint(self):
@@ -208,15 +216,18 @@ class channel:
         self.setsetpoint(self.setpointvalue-1)
 
     def getmode(self):
-        from pilib import controldatabase, sqlitedatumquery
+        from pilib import controldatabase
+        from utilities.dblib import sqlitedatumquery
         self.mode = sqlitedatumquery(controldatabase, 'select mode from channels where name=\'' + channel.name + '\'')
 
     def setmode(self,mode):
-        from pilib import controldatabase, sqlitequery
+        from pilib import controldatabase
+        from utilities.dblib import sqlitequery
         sqlitequery(controldatabase, 'update channels set mode=\'' + str(mode) + '\' where name=\'' + channel.name + '\'')
 
     def togglemode(self,mode):
-        from pilib import controldatabase, sqlitedatumquery
+        from pilib import controldatabase
+        from utilities.dblib import sqlitedatumquery
         self.getmode()
         if self.mode == 'manual':
             self.mode = 'auto'
@@ -226,42 +237,42 @@ class channel:
 # This works fine, for now.
 
 def setsetpoint(controldatabase, channelname, setpointvalue):
-    from pilib import sqlitequery
+    from utilities.dblib import sqlitequery
 
     sqlitequery(controldatabase, 'update channels set setpointvalue=\'' + str(
         setpointvalue) + '\' where name=\'' + channelname + '\'')
 
 
 def setaction(controldatabase, channelname, action):
-    from pilib import sqlitequery
+    from utilities.dblib import sqlitequery
 
     sqlitequery(controldatabase,
                 'update channels set action = \'' + str(action) + '\' where name = \'' + channelname + '\'')
 
 
 def setcontrolinput(controldatabase, channelname, inputid):
-    from pilib import sqlitequery
+    from utilities.dblib import sqlitequery
 
     sqlitequery(controldatabase,
                 'update channels set controlinput = \'' + inputid + '\' where name = \'' + channelname + '\'')
 
 
 def setcontrolvalue(controldatabase, channelname, controlvalue):
-    from pilib import sqlitequery
+    from utilities.dblib import sqlitequery
 
     sqlitequery(controldatabase,
                 'update channels set controlvalue = \'' + str(controlvalue) + '\' where name = \'' + channelname + '\'')
 
 
 def getaction(controldatabase, channelname):
-    from pilib import sqlitequery
+    from utilities.dblib import sqlitequery
 
     action = sqlitequery(controldatabase, 'select action from channels where name=\'' + channelname + '\'')[0][0]
     return action
 
 
 def getsetpoint(controldatabase, channelname):
-    from pilib import sqlitequery
+    from utilities.dblib import sqlitequery
 
     currentsetpoint = \
         sqlitequery(controldatabase, 'select setpointvalue from channels where name=\'' + channelname + '\'')[0][0]
@@ -281,7 +292,7 @@ def incsetpoint(controldatabase, channelname):
 
 
 def setmode(controldatabase, channelname, mode):
-    from pilib import sqlitequery
+    from utilities.dblib import sqlitequery
 
     sqlitequery(controldatabase, 'update channels set mode=\'' + mode + '\' where name=\'' + channelname + '\'')
 
@@ -291,14 +302,14 @@ def setmode(controldatabase, channelname, mode):
 
 
 def getmode(controldatabase, channelname):
-    from pilib import sqlitequery
+    from utilities.dblib import sqlitequery
 
     mode = sqlitequery(controldatabase, 'select mode from channels where name=\'' + channelname + '\'')[0][0]
     return mode
 
 
 def togglemode(controldatabase, channelname):
-    from pilib import sqlitequery
+    from utilities.dblib import sqlitequery
     from controllib import setaction
 
     curmode = getmode(controldatabase, channelname)
@@ -313,7 +324,7 @@ def togglemode(controldatabase, channelname):
 
 def checkifenableready(outputname, outputs):
     from time import time
-    from pilib import timestringtoseconds
+    from utilities.utility import timestringtoseconds
 
     # Find the variables we want
     for output in outputs:
@@ -329,7 +340,7 @@ def checkifenableready(outputname, outputs):
 
 def checkifdisableready(outputname, outputs):
     from time import time
-    from pilib import timestringtoseconds
+    from utilities.utility import timestringtoseconds
 
     # Find the variables we want
     for output in outputs:
@@ -344,28 +355,28 @@ def checkifdisableready(outputname, outputs):
 
 
 def setposout(controldatabase, channelname, outputname):
-    from pilib import sqlitequery
+    from utilities.dblib import sqlitequery
 
     sqlitequery(controldatabase,
                 'update channels set positiveoutput=\'' + outputname + '\' where name=\'' + channelname + '\'')
 
 
 def setnegout(controldatabase, channelname, outputname):
-    from pilib import sqlitequery
+    from utilities.dblib import sqlitequery
 
     sqlitequery(controldatabase,
                 'update channels set negativeoutput=\'' + outputname + '\' where name=\'' + channelname + '\'')
 
 
 def setalgorithm(controldatabase, channelname, algorithm):
-    from pilib import sqlitequery
+    from utilities.dblib import sqlitequery
 
     sqlitequery(controldatabase,
                 'update channels set controlalgorithm=\'' + algorithm + '\' where name=\'' + channelname + '\'')
 
 
 def setrecipe(controldatabase, channelname, recipe, startstage=0):
-    from pilib import sqlitequery
+    from utilities.dblib import sqlitequery
 
     sqlitequery(controldatabase,
                 'update channels set controlrecipe=\'' + recipe + '\' where name=\'' + channelname + '\'')
@@ -374,20 +385,21 @@ def setrecipe(controldatabase, channelname, recipe, startstage=0):
 
 
 def setchannelenabled(controldatabase, channelname, newstatus):
-    from pilib import sqlitequery
+    from utilities.dblib import sqlitequery
 
     sqlitequery(controldatabase, 'update channels set enabled=\'' + newstatus + '\' where name=\'' + channelname + '\'')
 
 
 def setchanneloutputsenabled(controldatabase, channelname, newstatus):
-    from pilib import sqlitequery
+    from utilities.dblib import sqlitequery
 
     sqlitequery(controldatabase,
                 'update channels set outputsenabled=\'' + newstatus + '\' where name=\'' + channelname + '\'')
 
 
 def disablealloutputs():
-    from pilib import controldatabase, readalldbrows
+    from pilib import controldatabase
+    from utilities.dblib import readalldbrows
 
     outputs = readalldbrows(controldatabase,'outputs')
 

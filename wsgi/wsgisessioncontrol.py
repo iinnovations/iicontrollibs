@@ -11,7 +11,8 @@ def application(environ, start_response):
     if top_folder not in sys.path:
         sys.path.insert(0,top_folder)
 
-    from cupid.pilib import sqlitequery, gettimestring 
+    from cupid.datalib import gettimestring
+    from cupid.dblib import sqlitequery
     import cupid.controllib as controllib
 
     post_env = environ.copy()

@@ -12,7 +12,10 @@ def application(environ, start_response):
     if top_folder not in sys.path:
         sys.path.insert(0, top_folder)
 
-    from cupid.pilib import dynamicsqliteread, gettablenames, sqlitequery, switchtablerows, dbnametopath
+    from cupid.pilib import dbnametopath
+    from cupid.dblib import dynamicsqliteread
+    from cupid.dblib import gettablenames
+    from cupid.dblib import switchtablerows
     from time import time
 
     post_env = environ.copy()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 __author__ = "Colin Reese"
-__copyright__ = "Copyright 2014, Interface Innovations"
+__copyright__ = "Copyright 2016, Interface Innovations"
 __credits__ = ["Colin Reese"]
 __license__ = "Apache 2.0"
 __version__ = "1.0"
@@ -20,7 +20,10 @@ if top_folder not in sys.path:
 
 
 def readhardwarefileintoversions():
-    import pilib
+
+    from utilities import utility
+    from cupid import pilib
+    from utilities import dblib
 
     devicefile = '/var/wwwsafe/devicedata'
     try:
@@ -32,18 +35,22 @@ def readhardwarefileintoversions():
             try:
                 devicedict[split[0].strip()] = split[1].strip()
             except:
-                pilib.log(pilib.syslog, 'Device data parse error', 1, pilib.sysloglevel)
-        pilib.sqlitequery(pilib.systemdatadatabase,
-                          pilib.makesqliteinsert('versions', ['hardware', devicedict['hardware']], ['item', 'version']))
+                utility.log(pilib.syslog, 'Device data parse error', 1, pilib.sysloglevel)
+        dblib.sqlitequery(pilib.systemdatadatabase,
+                          dblib.makesqliteinsert('versions', ['hardware', devicedict['hardware']], ['item', 'version']))
     except:
-        pilib.log(pilib.syslog, 'Cannot find devicedata file to parse', 1,
-                               pilib.sysloglevel)
+        utility.log(pilib.syslog, 'Error opening devicedata file to parse', 1,
+                      pilib.sysloglevel)
 
 
 def updateiwstatus():
-    from pilib import insertstringdicttablelist, systemdatadatabase, gettimestring
-    import netfun
-    iwdict = netfun.getiwstatus()
+
+    from utilities.netfun import getiwstatus
+    from utilities.datalib import gettimestring
+    from cupid.pilib import systemdatadatabase
+    from utilities.dblib import insertstringdicttablelist
+
+    iwdict = getiwstatus()
     iwdict['updatetime'] = gettimestring()
 
     # put into database
@@ -51,8 +58,11 @@ def updateiwstatus():
 
 
 def watchdoghamachi(pingip):
-    from netfun import runping, restarthamachi, killhamachi
-    import pilib
+    from utilities.netfun import runping, restarthamachi, killhamachi
+    from utilities import utility
+    from utilities import dblib
+    from cupid import pilib
+
     try:
         # Turns out this is not going to work, as when it hangs, it hangs hard
         # hamachistatusdata = gethamachistatusdata()
@@ -68,21 +78,24 @@ def watchdoghamachi(pingip):
 
         # if hamachistatusdata['status'] not in ['logged in']:
         if pingave == 0 or pingave > 3000:
-            pilib.log(pilib.networklog, 'Pingtime unacceptable: ' + str(pingave) + '. ', 1, pilib.networkloglevel)
-            pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'hamachistatus', 0)
-            pilib.log(pilib.networklog, 'Restarting Hamachi. ', 1, pilib.networkloglevel)
+            utility.log(pilib.networklog, 'Pingtime unacceptable: ' + str(pingave) + '. ', 1, pilib.networkloglevel)
+            dblib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'hamachistatus', 0)
+            utility.log(pilib.networklog, 'Restarting Hamachi. ', 1, pilib.networkloglevel)
 
             killhamachi()
             restarthamachi()
+            utility.log(pilib.networklog, 'Completed restarting Hamachi. ', 1, pilib.networkloglevel)
+
         else:
             if pingmax > 3000 or pingmin <= 0:
-                pilib.log(pilib.syslog, 'Hamachi lives, with issues: ' + str(pingtimes), 3, pilib.sysloglevel)
+                utility.log(pilib.syslog, 'Hamachi lives, with issues: ' + str(pingtimes), 3, pilib.sysloglevel)
             else:
-                pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'hamachistatus', 1)
-                pilib.log(pilib.networklog, 'Hamachi appears fine. ', 3, pilib.networkloglevel)
+                dblib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'hamachistatus', 1)
+                utility.log(pilib.networklog, 'Hamachi appears fine. ', 3, pilib.networkloglevel)
 
     except Exception as e:
-        pilib.log(pilib.networklog, 'Error checking Hamachi with message:  ' + e.message, 1, pilib.networkloglevel)
+
+        utility.log(pilib.networklog, 'Error checking Hamachi with message:  ' + e.message, 1, pilib.networkloglevel)
 
         killhamachi()
         restarthamachi()
@@ -90,8 +103,10 @@ def watchdoghamachi(pingip):
 
 
 def updatehamachistatus():
-    from pilib import insertstringdicttablelist, systemdatadatabase, gettimestring
-    import netfun
+    from pilib import systemdatadatabase
+    from utilities.dblib import insertstringdicttablelist
+    from utilities import netfun
+    from utilities.datalib import gettimestring
     try:
         hamdicts = netfun.gethamachidata()
     except:
@@ -105,10 +120,14 @@ def updatehamachistatus():
 
 
 def watchdognetstatus(allnetstatus=None):
-    import pilib
-    import netconfig
+
     import subprocess
     from cupiddaemon import pgrepstatus
+    from utilities import utility
+    from cupid import pilib
+    from utilities import datalib
+    from cupid import netconfig
+    from utilities import dblib
 
     """
     And now comes the checking of configuration specific statuses and restarting them if enabled
@@ -154,11 +173,11 @@ def watchdognetstatus(allnetstatus=None):
     # print(ifacedict)
 
     statusmsg = ''
-    currenttime = pilib.gettimestring()
+    currenttime = datalib.gettimestring()
 
     runconfig = False
     if netconfigdata['mode'] in ['ap', 'tempap']:
-        pilib.log(pilib.networklog, 'AP Mode is set. ', 1, pilib.networkloglevel)
+        utility.log(pilib.networklog, 'AP Mode is set. ', 1, pilib.networkloglevel)
 
         """
 
@@ -167,56 +186,56 @@ def watchdognetstatus(allnetstatus=None):
         """
 
         if netconfigdata['mode'] == 'tempap':
-            timesincelastretry = pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(netconfigdata['laststationretry'])
-            pilib.log(pilib.networklog, 'TempAP mode: Time since last retry:  ' + str(timesincelastretry) + '. Station retry time: '
-                                   + str(netconfigdata['stationretrytime']), 1, pilib.networkloglevel)
+            timesincelastretry = datalib.timestringtoseconds(currenttime) - datalib.timestringtoseconds(netconfigdata['laststationretry'])
+            utility.log(pilib.networklog, 'TempAP mode: Time since last retry:  ' + str(timesincelastretry) + '. Station retry time: '
+                          + str(netconfigdata['stationretrytime']), 1, pilib.networkloglevel)
 
             if timesincelastretry > netconfigdata['stationretrytime']:
                 # We go back to station mode
                 statusmsg += 'Time to go back to station mode. '
-                pilib.log(pilib.networklog, 'Time to go back to station mode. ', 1, pilib.networkloglevel)
-                pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'station')
-                pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'laststationretry', '')
+                utility.log(pilib.networklog, 'Time to go back to station mode. ', 1, pilib.networkloglevel)
+                dblib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'station')
+                dblib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'laststationretry', '')
                 netconfig.runconfig()
         else:
             # If we have ap up, do nothing
 
             if netstatus['dhcpstatus']:
                 statusmsg += 'AP checked and ok. '
-                pilib.log(pilib.networklog, 'AP checked and ok. ', 1, pilib.networkloglevel)
-                pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'mode', 'ap')
-                pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'SSID', 'cupidwifi')
-                pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'offlinetime', '')
+                utility.log(pilib.networklog, 'AP checked and ok. ', 1, pilib.networkloglevel)
+                dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'mode', 'ap')
+                dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'SSID', 'cupidwifi')
+                dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'offlinetime', '')
 
             # If we don't have dhcp up, restart ap mode
             # this will currently cause reboot if we don't set onboot=True
             # We set status message in case we change our minds and reboot here.
             else:
                 statusmsg += 'Restarting AP. '
-                pilib.log(pilib.networklog, 'Restarting AP mode. ', 1, pilib.networkloglevel)
-                pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', statusmsg)
+                utility.log(pilib.networklog, 'Restarting AP mode. ', 1, pilib.networkloglevel)
+                dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', statusmsg)
                 netconfig.runconfig()
 
     #    Station Mode. Again, like above, this should be modular.
 
     elif netconfigdata['mode'] == 'station':
 
-        pilib.log(pilib.networklog, 'Station mode is set. ', 3, pilib.networkloglevel)
+        utility.log(pilib.networklog, 'Station mode is set. ', 3, pilib.networkloglevel)
 
         # Check station address (not yet implemented) and wpa status (implemented)
         stationinterface = 'wlan0'
         try:
             stationifacedata = ifacedict[stationinterface]
         except KeyError:
-            pilib.log(pilib.networklog, 'No stationiface data(' + stationinterface + ') present for mode ' + netconfigdata['mode'], 1, pilib.networkloglevel)
+            utility.log(pilib.networklog, 'No stationiface data(' + stationinterface + ') present for mode ' + netconfigdata['mode'], 1, pilib.networkloglevel)
             statusmsg += 'No stationiface data(' + stationinterface + ') present for mode ' + netconfigdata['mode']
             runconfig = True
         else:
-            wpadata = pilib.parseoptions(stationifacedata['wpastate'])
+            wpadata = datalib.parseoptions(stationifacedata['wpastate'])
             if wpadata['wpa_state'] == 'COMPLETED' and stationifacedata['address']:
-                pilib.log(pilib.networklog, 'station interface ' + stationinterface + ' wpastatus appears ok with address ' + str(stationifacedata['address']), 3, pilib.networkloglevel)
+                utility.log(pilib.networklog, 'station interface ' + stationinterface + ' wpastatus appears ok with address ' + str(stationifacedata['address']), 3, pilib.networkloglevel)
             else:
-                pilib.log(pilib.networklog, 'station interface for ' + stationinterface + ' does not appear ok judged by wpa_state: wpastate = ' + wpadata['wpa_state'] + ' address= ' + stationifacedata['address'], 1, pilib.networkloglevel)
+                utility.log(pilib.networklog, 'station interface for ' + stationinterface + ' does not appear ok judged by wpa_state: wpastate = ' + wpadata['wpa_state'] + ' address= ' + stationifacedata['address'], 1, pilib.networkloglevel)
                 statusmsg += 'station interface does not appear ok judged by wpa_state. '
                 runconfig = True
 
@@ -300,35 +319,35 @@ def watchdognetstatus(allnetstatus=None):
         try:
             wlan0ifacedata =ifacedict['wlan0']
         except KeyError:
-            pilib.log(pilib.networklog, 'No wlan0 data present in configuration of eth0wlan0bridge. ', 1, pilib.networkloglevel)
+            utility.log(pilib.networklog, 'No wlan0 data present in configuration of eth0wlan0bridge. ', 1, pilib.networkloglevel)
             statusmsg += 'wlan0 data is not present. '
             runconfig = True
         else:
-            pilib.log(pilib.networklog, 'Checking dhcp server status on wlan0. ', 4, pilib.networkloglevel)
+            utility.log(pilib.networklog, 'Checking dhcp server status on wlan0. ', 4, pilib.networkloglevel)
             try:
                 result = subprocess.check_output(['/usr/sbin/service', 'isc-dhcp-server', 'status'], stderr=subprocess.PIPE)
             except Exception, e:
                 # If not running, the subprocess call will throw an error
-                pilib.log(pilib.networklog, 'Error in reading dhcp server status. Assumed down. ', 1, pilib.networkloglevel)
+                utility.log(pilib.networklog, 'Error in reading dhcp server status. Assumed down. ', 1, pilib.networkloglevel)
                 statusmsg += 'dhcp server appears down. '
                 runconfig = True
             else:
-                pilib.log(pilib.networklog, 'DHCP server appears to be up. ', 1,  pilib.networkloglevel)
+                utility.log(pilib.networklog, 'DHCP server appears to be up. ', 1, pilib.networkloglevel)
 
             """ Check ifconfig ipaddress for wlan0
                 This should be programmable. """
 
             if wlan0ifacedata['address'] == '192.168.0.1':
-                pilib.log(pilib.networklog, 'wlan0 address is appears to be set properly:  ' + str(wlan0ifacedata['address']), 3, pilib.networkloglevel)
+                utility.log(pilib.networklog, 'wlan0 address is appears to be set properly:  ' + str(wlan0ifacedata['address']), 3, pilib.networkloglevel)
             else:
-                pilib.log(pilib.networklog, 'wlan0 address is not set properly:  ' + str(wlan0ifacedata['address']), 1, pilib.networkloglevel)
+                utility.log(pilib.networklog, 'wlan0 address is not set properly:  ' + str(wlan0ifacedata['address']), 1, pilib.networkloglevel)
                 statusmsg += 'wlan0 address does not appear ok. '
                 runconfig = True
 
             if pgrepstatus('hostapd.*wlan0')['count'] == 1:
-                pilib.log(pilib.networklog, 'hostapd on wlan0 appears to be ok. ', 3, pilib.networkloglevel)
+                utility.log(pilib.networklog, 'hostapd on wlan0 appears to be ok. ', 3, pilib.networkloglevel)
             else:
-                pilib.log(pilib.networklog, 'hostapd on wlan0 does NOT appear to be ok. ', 1, pilib.networkloglevel)
+                utility.log(pilib.networklog, 'hostapd on wlan0 does NOT appear to be ok. ', 1, pilib.networkloglevel)
                 statusmsg += 'wlan0 hostpad does not appear ok. '
                 runconfig=True
 
@@ -345,15 +364,15 @@ def watchdognetstatus(allnetstatus=None):
         try:
             stationifacedata = ifacedict[stationinterface]
         except KeyError:
-            pilib.log(pilib.networklog, 'No stationiface data(' + stationinterface + ') present for mode ' + netconfigdata['mode'], 1, pilib.networkloglevel)
+            utility.log(pilib.networklog, 'No stationiface data(' + stationinterface + ') present for mode ' + netconfigdata['mode'], 1, pilib.networkloglevel)
             statusmsg += 'No stationiface data(' + stationinterface + ') present for mode ' + netconfigdata['mode']
             runconfig = True
         else:
-            wpadata = pilib.parseoptions(stationifacedata['wpastate'])
+            wpadata = datalib.parseoptions(stationifacedata['wpastate'])
             if wpadata['wpa_state'] == 'COMPLETED':
-                pilib.log(pilib.networklog, 'station interface ' + stationinterface + ' wpastatus appears ok. ', 3, pilib.networkloglevel)
+                utility.log(pilib.networklog, 'station interface ' + stationinterface + ' wpastatus appears ok. ', 3, pilib.networkloglevel)
             else:
-                pilib.log(pilib.networklog, 'station interface for ' + stationinterface + ' does not appear ok judged by wpa_state. ', 1, pilib.networkloglevel)
+                utility.log(pilib.networklog, 'station interface for ' + stationinterface + ' does not appear ok judged by wpa_state. ', 1, pilib.networkloglevel)
                 statusmsg += 'station interface does not appear ok judged by wpa_state. '
                 runconfig = True
 
@@ -361,36 +380,36 @@ def watchdognetstatus(allnetstatus=None):
         try:
             apifacedata = ifacedict[apinterface]
         except KeyError:
-            pilib.log(pilib.networklog, 'No apiface data(' + apinterface + ') present for mode ' + netconfigdata['mode'], 1, pilib.networkloglevel)
+            utility.log(pilib.networklog, 'No apiface data(' + apinterface + ') present for mode ' + netconfigdata['mode'], 1, pilib.networkloglevel)
             runconfig = True
         else:
-            pilib.log(pilib.networklog, 'Checking dhcp server status on ' + apinterface, 4, pilib.networkloglevel)
+            utility.log(pilib.networklog, 'Checking dhcp server status on ' + apinterface, 4, pilib.networkloglevel)
             try:
                 # Note that this does not check carefully that the dhcp server is running on the correct interface.
                 # We need a check on this.
                 result = subprocess.check_output(['/usr/sbin/service', 'isc-dhcp-server', 'status'], stderr=subprocess.PIPE)
             except Exception, e:
                 # If not running, the subprocess call will throw an error
-                pilib.log(pilib.networklog, 'Error in reading dhcp server status for interface ' + apinterface + ' Assumed down. ', 1, pilib.networkloglevel)
+                utility.log(pilib.networklog, 'Error in reading dhcp server status for interface ' + apinterface + ' Assumed down. ', 1, pilib.networkloglevel)
                 statusmsg += 'Error in reading dhcp server status. Assumed down. '
                 print('SETTING TRUE')
                 runconfig = True
             else:
-                pilib.log(pilib.networklog, 'DHCP server appears to be up. ', 1,  pilib.networkloglevel)
+                utility.log(pilib.networklog, 'DHCP server appears to be up. ', 1, pilib.networkloglevel)
 
 
             # Check ifconfig ipaddress for ap
             # This should be programmable.
             if apifacedata['address'] == '192.168.0.1':
-                pilib.log(pilib.networklog, 'ap interface ' + apinterface + ' address is appears to be set properly:  ' + str(apifacedata['address']), 3, pilib.networkloglevel)
+                utility.log(pilib.networklog, 'ap interface ' + apinterface + ' address is appears to be set properly:  ' + str(apifacedata['address']), 3, pilib.networkloglevel)
             else:
-                pilib.log(pilib.networklog, 'ap interface ' + apinterface + ' address is not set properly:  ' + str(apifacedata['address']), 1, pilib.networkloglevel)
+                utility.log(pilib.networklog, 'ap interface ' + apinterface + ' address is not set properly:  ' + str(apifacedata['address']), 1, pilib.networkloglevel)
                 runconfig = True
 
             if pgrepstatus('hostapd.*' + apinterface)['count'] == 1:
-                pilib.log(pilib.networklog, 'hostapd on ' + apinterface + ' appears to be ok. ', 3, pilib.networkloglevel)
+                utility.log(pilib.networklog, 'hostapd on ' + apinterface + ' appears to be ok. ', 3, pilib.networkloglevel)
             else:
-                pilib.log(pilib.networklog, 'hostapd on ' + apinterface + ' does NOT appear to be ok. ', 1, pilib.networkloglevel)
+                utility.log(pilib.networklog, 'hostapd on ' + apinterface + ' does NOT appear to be ok. ', 1, pilib.networkloglevel)
                 statusmsg += 'hostapd on ' + apinterface + ' does NOT appear to be ok. '
                 runconfig = True
 
@@ -401,78 +420,79 @@ def watchdognetstatus(allnetstatus=None):
     # private network
 
     if netconfigdata['requireWANaccess']:
-        pilib.log(pilib.networklog, 'Requiring WAN access. Checking status and times. ', 3, pilib.networkloglevel)
-        print('NETSTATUS')
-        print(netstatus)
+        utility.log(pilib.networklog, 'Requiring WAN access. Checking status and times. ', 3, pilib.networkloglevel)
+        # print('NETSTATUS')
+        # print(netstatus)
         if not netstatus['WANaccess']:
-            pilib.log(pilib.networklog, 'No WANaccess. Checking offline time. ', 2, pilib.networkloglevel)
+            utility.log(pilib.networklog, 'No WANaccess. Checking offline time. ', 2, pilib.networkloglevel)
             try:
                 offlinetime = netstatus['offlinetime']
             except:
                 print('netstatus ERROR')
-                pilib.log(pilib.networklog, 'Error gettng offlinetime. ', 2, pilib.networkloglevel)
+                utility.log(pilib.networklog, 'Error gettng offlinetime. ', 2, pilib.networkloglevel)
 
-            offlineperiod = pilib.timestringtoseconds(pilib.gettimestring()) - pilib.timestringtoseconds(offlinetime)
-            pilib.log(pilib.networklog, 'We have been offline for ' + str(offlineperiod))
+            offlineperiod = datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(offlinetime)
+            utility.log(pilib.networklog, 'We have been offline for ' + str(offlineperiod))
 
             # When did we last restart the network config? Is it time to again?
-            timesincelastnetrestart = pilib.timestringtoseconds(pilib.gettimestring()) - pilib.timestringtoseconds(netconfigdata['lastnetreconfig'])
-            pilib.log('It has been ' + str(timesincelastnetrestart) + ' seconds since we last restarted the network configuration. ')
+            timesincelastnetrestart = datalib.timestringtoseconds(
+                datalib.gettimestring()) - datalib.timestringtoseconds(netstatus['lastnetreconfig'])
+            utility.log(pilib.networklog, 'It has been ' + str(timesincelastnetrestart) + ' seconds since we last restarted the network configuration. ')
             if timesincelastnetrestart > int(netconfigdata['WANretrytime']):
-                pilib.log(pilib.networklog, 'We are not online, and it has been long enough, exceeding retry time of ' + str(int(netconfigdata['WANretrytime'])))
-                pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'lastnetreconfig', pilib.gettimestring())
+                utility.log(pilib.networklog, 'We are not online, and it has been long enough, exceeding retry time of ' + str(int(netconfigdata['WANretrytime'])))
+                dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'lastnetreconfig', datalib.gettimestring())
 
                 # We do reset the WAN offline time in the reboot sequence, hwoever.
 
-                restarts = int(pilib.getsinglevalue(pilib.systemdatadatabase, 'netstatus','WANaccessrestarts'))
+                restarts = int(dblib.getsinglevalue(pilib.systemdatadatabase, 'netstatus', 'WANaccessrestarts'))
                 restarts += 1
-                pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'WANaccessrestarts', restarts)
+                dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'WANaccessrestarts', restarts)
 
-                pilib.log(pilib.networklog, 'Going to run netconfig to correct WAN access.')
+                utility.log(pilib.networklog, 'Going to run netconfig to correct WAN access.')
                 runconfig = True
 
             else:
-                pilib.log(pilib.networklog, 'Not yet time to run netconfig to correct WAN access. Retry time set at ' + str(netconfigdata['WANretrytime']))
+                utility.log(pilib.networklog, 'Not yet time to run netconfig to correct WAN access. Retry time set at ' + str(netconfigdata['WANretrytime']))
         else:
-            pilib.log(pilib.networklog, 'WANAccess is fine. ')
+            utility.log(pilib.networklog, 'WANAccess is fine. ')
 
     if runconfig:
         # Set bad status in netstatus
-        pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'netstate', 0)
+        dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'netstate', 0)
 
         # Set ok time to '' to trigger rewrite next time status is ok
-        lastoktime = pilib.getsinglevalue(pilib.systemdatadatabase, 'netstatus', 'netstateoktime')
+        lastoktime = dblib.getsinglevalue(pilib.systemdatadatabase, 'netstatus', 'netstateoktime')
         if not lastoktime:
-            pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'netstateoktime', pilib.gettimestring())
+            dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'netstateoktime', datalib.gettimestring())
         else:
             if netconfigdata['rebootonfail']:
-                offlinetime = pilib.timestringtoseconds(pilib.gettimestring()) - pilib.timestringtoseconds(lastoktime)
+                offlinetime = datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(lastoktime)
                 if offlinetime > int(netconfigdata['rebootonfailperiod']):
 
                     # Set to '' so we get another full fail period before rebooting again
-                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'netstateoktime', '')
+                    dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'netstateoktime', '')
 
                     # Same thing for WAN offline time
-                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'offlinetime', '')
+                    dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'offlinetime', '')
 
-                    bootcounts = int(pilib.getsinglevalue(pilib.systemdatadatabase, 'netstatus', 'netrebootcounter'))
+                    bootcounts = int(dblib.getsinglevalue(pilib.systemdatadatabase, 'netstatus', 'netrebootcounter'))
                     bootcounts += 1
-                    pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'netrebootcounter', str(bootcounts))
+                    dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'netrebootcounter', str(bootcounts))
 
                     # Set system flag to reboot
-                    pilib.log(pilib.syslog, 'REBOOTING to try to fix network', 0, pilib.sysloglevel)
-                    pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'reboot', 1)
+                    utility.log(pilib.syslog, 'REBOOTING to try to fix network', 0, pilib.sysloglevel)
+                    dblib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'reboot', 1)
 
-        pilib.log(pilib.networklog, 'Running netconfig. ', 1, pilib.networkloglevel)
+        utility.log(pilib.networklog, 'Running netconfig. ', 1, pilib.networkloglevel)
         statusmsg += 'Running netconfig to fix. '
-        pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', statusmsg)
+        dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', statusmsg)
         netconfig.runconfig()
 
     else:
         # Clear bad status in netstatus and set netoktime
-        pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', 'Mode appears to be set.')
-        pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'netstate', 1)
-        pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'netstateoktime', pilib.gettimestring())
+        dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', 'Mode appears to be set.')
+        dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'netstate', 1)
+        dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'netstateoktime', datalib.gettimestring())
 
     # if netconfigdata['mode'] in ['station', 'wlan0wlan1bridge']:
     #     pilib.writedatedlogmsg(pilib.systemstatuslog, 'Checking WPA status for mode ' + netconfigdata['mode'], 2, pilib.systemstatusloglevel)
@@ -604,30 +624,33 @@ def watchdognetstatus(allnetstatus=None):
 
 
 def updatenetstatus(lastnetstatus=None):
-    import pilib
     import time
-    import subprocess
-    from netfun import getifacestatus, getwpaclientstatus, getifconfigstatus
+    from utilities import netfun
+    from utilities import dblib
+    from cupid import pilib
+    from utilities import utility
+    from utilities import datalib
+    from utilities.netfun import getifconfigstatus, getwpaclientstatus
 
-    netconfigdata = pilib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
+    netconfigdata = dblib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
 
     """ We get last netstatus so that we can save last online times, previous online status, etc. """
 
     if not lastnetstatus:
         try:
-            lastnetstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
+            lastnetstatus = dblib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
         except:
-            pilib.log(pilib.syslog, 'Error reading netstatus. Attempting to recreate netstatus table with default values. ', 1, pilib.networkloglevel)
+            utility.log(pilib.syslog, 'Error reading netstatus. Attempting to recreate netstatus table with default values. ', 1, pilib.networkloglevel)
             try:
-                pilib.emptyandsetdefaults(pilib.systemdatadatabase, 'netstatus')
-                lastnetstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
+                dblib.emptyandsetdefaults(pilib.systemdatadatabase, 'netstatus')
+                lastnetstatus = dblib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
             except:
-                pilib.log(pilib.syslog, 'Error recreating netstatus. ', 1, pilib.networkloglevel)
+                utility.log(pilib.syslog, 'Error recreating netstatus. ', 1, pilib.networkloglevel)
 
     """ Pyiface is one way to read some iface data, but it doesn't always appear to show all interfaces(?!)
         So we wrote our own instead. A work in progress but quite functional at the moment. """
 
-    pilib.log(pilib.networklog, 'Reading ifaces with ifconfig status. ', 4, pilib.networkloglevel)
+    utility.log(pilib.networklog, 'Reading ifaces with ifconfig status. ', 4, pilib.networkloglevel)
     ifacesdictarray = getifconfigstatus()
     # ifacesdictarray = getifacestatus()
 
@@ -636,7 +659,7 @@ def updatenetstatus(lastnetstatus=None):
     updateddictarray = []
     for interface in ifacesdictarray:
         if interface['name'].find('wlan') >= 0:
-            interface['wpastate'] = pilib.dicttojson(getwpaclientstatus(interface['name']))
+            interface['wpastate'] = datalib.dicttojson(getwpaclientstatus(interface['name']))
         else:
             interface['wpastate'] = ''
         updateddictarray.append(interface)
@@ -645,25 +668,23 @@ def updatenetstatus(lastnetstatus=None):
     """ Then write it to the table """
 
     if ifacesdictarray:
-        pilib.log(pilib.networklog, 'Sending ifaces query. ', 5, pilib.networkloglevel)
+        utility.log(pilib.networklog, 'Sending ifaces query. ', 5, pilib.networkloglevel)
         # print(ifacesdictarray)
-        pilib.insertstringdicttablelist(pilib.systemdatadatabase, 'netifaces', ifacesdictarray)
+        dblib.insertstringdicttablelist(pilib.systemdatadatabase, 'netifaces', ifacesdictarray)
     else:
-        pilib.log(pilib.networklog, 'Empty ifaces query. ', 2, pilib.networkloglevel)
+        utility.log(pilib.networklog, 'Empty ifaces query. ', 2, pilib.networkloglevel)
 
-    pilib.log(pilib.networklog, 'Completed ifaces. ', 4, pilib.networkloglevel)
+    utility.log(pilib.networklog, 'Completed ifaces. ', 4, pilib.networkloglevel)
 
     """ Now we check to see if we can connect to WAN """
 
-    pilib.log(pilib.networklog, 'Checking pingtimes. ', 4, pilib.networkloglevel)
+    utility.log(pilib.networklog, 'Checking pingtimes. ', 4, pilib.networkloglevel)
     okping = float(netconfigdata['pingthreshold'])
-
-    from netfun import runping
 
     netstatusdict = {}
 
     querylist=[]
-    pingresults = runping('8.8.8.8')
+    pingresults = netfun.runping('8.8.8.8')
 
     # pingresults = [20, 20, 20]
     pingresult = sum(pingresults) / float(len(pingresults))
@@ -675,41 +696,43 @@ def updatenetstatus(lastnetstatus=None):
         latency = pingresult
         if pingresult < okping:
             wanaccess = 1
-            pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'WANaccess', 1)
+            dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'WANaccess', 1)
             if lastnetstatus['WANaccess'] == 0 or not lastnetstatus['onlinetime']:
-                pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'onlinetime', pilib.gettimestring())
+                dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'onlinetime', datalib.gettimestring())
 
         else:
             wanaccess = 0
 
     if not wanaccess:
-        pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'WANaccess', 0)
+        dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'WANaccess', 0)
         if lastnetstatus['WANaccess'] == 1 or not lastnetstatus['offlinetime']:
-            pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'offlinetime', pilib.gettimestring())
+            dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'offlinetime', datalib.gettimestring())
 
     # we set all the values here, so when we retreive it we get changed and also whatever else happens to be there.
-    pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'latency', latency)
-    updatetime = pilib.gettimestring()
-    pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'updatetime', updatetime)
-    pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'WANaccess', wanaccess)
+    dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'latency', latency)
+    updatetime = datalib.gettimestring()
+    dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'updatetime', updatetime)
+    dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'WANaccess', wanaccess)
 
-    pilib.log(pilib.networklog, 'Done checking pings. ', 4, pilib.networkloglevel)
+    utility.log(pilib.networklog, 'Done checking pings. ', 4, pilib.networkloglevel)
 
     if netconfigdata['netstatslogenabled']:
         # print('going to log stuff')
-        pilib.logtimevaluedata(pilib.logdatabase, 'system_WANping', time.time(), pingresult, 1000,
+        dblib.logtimevaluedata(pilib.logdatabase, 'system_WANping', time.time(), pingresult, 1000,
                                netconfigdata['netstatslogfreq'])
 
     #This is kinda ugly. Should be fixed.
     # netstatusdict = {'WANaccess':wanaccess, 'latency': latency, 'updatetime': updatetime}
-    netstatusdict = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
+    netstatusdict = dblib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
 
     return {'netstatusdict': netstatusdict, 'ifacesdictarray': ifacesdictarray, 'netconfigdata':netconfigdata}
 
 
 def processapoverride(pin):
-    pilib.log(pilib.networklog, "Reading GPIO override on pin " + str(pin) + '. ', 3, pilib.networkloglevel)
-    pilib.log(pilib.syslog, "Reading GPIO override on pin " + str(pin) + '. ', 2, pilib.sysloglevel)
+    from utilities import utility
+    from utilities.dblib import setsinglevalue
+    utility.log(pilib.networklog, "Reading GPIO override on pin " + str(pin) + '. ', 3, pilib.networkloglevel)
+    utility.log(pilib.syslog, "Reading GPIO override on pin " + str(pin) + '. ', 2, pilib.sysloglevel)
 
     import RPi.GPIO as GPIO
     import pilib
@@ -719,23 +742,25 @@ def processapoverride(pin):
         GPIO.setwarnings(False)
         GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     except:
-        pilib.log(pilib.networklog, "Error reading GPIO", 3, pilib.networkloglevel)
+        utility.log(pilib.networklog, "Error reading GPIO", 3, pilib.networkloglevel)
     else:
         # jumper in place = input off, --> AP mode
         if not GPIO.input(pin):
-            pilib.log(pilib.networklog, "GPIO On. Setting AP Mode.", 3, pilib.networkloglevel)
-            pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'ap')
+            utility.log(pilib.networklog, "GPIO On. Setting AP Mode.", 3, pilib.networkloglevel)
+            setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'ap')
         # else:
         #     pilib.writedatedlogmsg(pilib.networklog, "GPIO Off. Setting Station Mode.", 3, pilib.networkloglevel)
         #     pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'station')
 
 
 def processsystemflags(systemflags=None):
-    import pilib
-    from pilib import log, syslog, sysloglevel
+    from cupid import pilib
+    from utilities import dblib
+    from utilities import utility
+
 
     if not systemflags:
-        systemflags = pilib.readalldbrows(pilib.systemdatadatabase, 'systemflags')
+        systemflags = dblib.readalldbrows(pilib.systemdatadatabase, 'systemflags')
 
     flagnames = []
     flagvalues = []
@@ -747,55 +772,138 @@ def processsystemflags(systemflags=None):
     if 'reboot' in flagnames:
         if flagvalues[flagnames.index('reboot')]:
             stop = True
-            pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, "name='reboot'")
+            dblib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, "name='reboot'")
             import subprocess
 
-            log(syslog, 'Rebooting for system flag', 0, sysloglevel)
+            utility.log(pilib.syslog, 'Rebooting for system flag', 0, pilib.sysloglevel)
             subprocess.call(['/sbin/reboot'])
     if 'netconfig' in flagnames:
         if flagvalues[flagnames.index('netconfig')]:
             stop = True
-            pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, "name='netconfig'")
+            dblib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, "name='netconfig'")
             from netconfig import runconfig
 
-            log(syslog, 'Restarting network configuration', 0, sysloglevel)
+            utility.log(pilib.syslog, 'Restarting network configuration', 0, pilib.sysloglevel)
             runconfig()
     if 'updateiicontrollibs' in flagnames and not stop:
         if flagvalues[flagnames.index('updateiicontrollibs')]:
             stop = True
-            pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, 'name=\'updateiicontrollibs\'')
+            dblib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, 'name=\'updateiicontrollibs\'')
             from misc.gitupdatelib import updateiicontrollibs
 
-            log(syslog, 'Updating iicontrollibs', 0, sysloglevel)
+            utility.log(pilib.syslog, 'Updating iicontrollibs', 0, pilib.sysloglevel)
             updateiicontrollibs(True)
     if 'updatecupidweblib' in flagnames and not stop:
         if flagvalues[flagnames.index('updatecupidweblib')]:
             stop = True
-            pilib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, 'name=\'updatecupidweblib\'')
+            dblib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, 'name=\'updatecupidweblib\'')
             from misc.gitupdatelib import updatecupidweblib
 
-            log(syslog, 'Updating cupidweblib', 0, sysloglevel)
+            utility.log(pilib.syslog, 'Updating cupidweblib', 0, pilib.sysloglevel)
             updatecupidweblib(True)
+
+
+def piversiontoversionname(version):
+
+    detail = ''
+    if version == '0002':
+        versionname = 'Model B Revision 1.0'
+        memory=256
+    elif version == '0003':
+        versionname = 'Model B Revision 1.0 + ECN0001'
+        memory=256
+    elif version in ['0004', '0005', '0006']:
+        versionname = 'Model B Revision 2.0'
+        memory=256
+    elif version in ['0007', '0008', '0009']:
+        versionname = 'Model A'
+        memory=256
+    elif version in ['000d', '000e', '000f']:
+        versionname = 'Model B Revision 2.0'
+        memory=512
+    elif version == '0010':
+        versionname = 'Model B+'
+        memory=512
+    elif version == '0011':
+        versionname = 'Compute Module'
+        memory=512
+    elif version == '0012':
+        versionname = 'Model A+'
+        memory=256
+    elif version in ['a01041', 'a21041']:
+        versionname = 'Pi 2 Model B'
+        memory=1024
+    elif version == '900092':
+        versionname = 'PiZero'
+        memory=512
+    elif version in ['a02082', 'a22082']:
+        versionname = 'Pi 3 Model B'
+        memory=1024
+    else:
+        versionname = 'not found'
+        memory = 'unknown'
+
+    return {'versionname':versionname, 'memory':memory, 'detail':detail}
+
+
+
+def updatehardwareinfo(databasename='systemdatadb'):
+    from subprocess import check_output
+    from cupid import pilib
+    from utilities import datalib
+    from utilities import dblib
+
+    data = check_output(['cat','/proc/cpuinfo'])
+    items = data.split('\n')
+    dict = {}
+    for item in items:
+        try:
+            dict[item.split(':')[0].strip()] = item.split(':')[1].strip()
+        except:
+            pass
+
+    dictstring = datalib.dicttojson(dict)
+    try:
+        dbpath = pilib.dbnametopath(databasename)
+        # print(dbpath)
+    except:
+        pass
+
+    if dbpath:
+        time = datalib.gettimestring()
+        dblib.sqliteinsertsingle(dbpath,'versions',['cpuinfo', dictstring, time, ''],['item', 'version', 'updatetime', 'versiontime'],)
+
+
+    if 'Revision' in dict and dbpath:
+        versiondetail = piversiontoversionname(dict['Revision'])
+        dblib.sqliteinsertsingle(dbpath, 'versions', ['versionname', versiondetail['versionname'], time, ''],['item', 'version', 'updatetime', 'versiontime'],)
+        dblib.sqliteinsertsingle(dbpath, 'versions', ['memory', versiondetail['memory'], time, ''],['item', 'version', 'updatetime', 'versiontime'],)
+    return dictstring
 
 
 def runsystemstatus(runonce=False):
     import pilib
     import time
-    import netconfig
+    from utilities import utility
+    from utilities import dblib
+    from utilities import datalib
 
     from misc.gitupdatelib import updategitversions
 
     # This doesn't update git libraries. It checks current versions and updates the database
 
     try:
-        pilib.log(pilib.syslog, 'Checking git versions', 3, pilib.sysloglevel)
+        utility.log(pilib.syslog, 'Checking git versions', 3, pilib.sysloglevel)
         updategitversions()
     except:
-        pilib.log(pilib.syslog, 'Error in git version check', 0, pilib.sysloglevel)
+        utility.log(pilib.syslog, 'Error in git version check', 0, pilib.sysloglevel)
     else:
-        pilib.log(pilib.syslog, 'Git version check complete', 3, pilib.sysloglevel)
+        utility.log(pilib.syslog, 'Git version check complete', 3, pilib.sysloglevel)
 
-    systemstatus = pilib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
+    systemstatus = dblib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
+
+    # Get hardware info
+    updatehardwareinfo()
 
     ## Read wireless config via iwconfig
     # this is breaking systemstatus for some reason
@@ -804,11 +912,11 @@ def runsystemstatus(runonce=False):
     ## Read current netstatus
     lastnetstatus={}
     try:
-        lastnetstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
+        lastnetstatus = dblib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
     except:
-        pilib.log(pilib.networklog, 'Error reading network status. ', 1, pilib.networkloglevel)
+        utility.log(pilib.networklog, 'Error reading network status. ', 1, pilib.networkloglevel)
     else:
-        pilib.log(pilib.syslog, 'Completed network status. ', 3, pilib.networkloglevel)
+        utility.log(pilib.syslog, 'Completed network status. ', 3, pilib.networkloglevel)
 
     # Poll netstatus and return data
     allnetstatus = updatenetstatus(lastnetstatus)
@@ -817,12 +925,12 @@ def runsystemstatus(runonce=False):
     # Keep reading system status?
     while systemstatus['systemstatusenabled']:
 
-        currenttime = pilib.gettimestring()
-        pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'lastsystemstatuspoll', pilib.gettimestring())
+        currenttime = datalib.gettimestring()
+        dblib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'lastsystemstatuspoll', datalib.gettimestring())
 
         starttime = time.time()
-        pilib.log(pilib.syslog, 'System status routine is starting. ', 3,
-                               pilib.sysloglevel)
+        utility.log(pilib.syslog, 'System status routine is starting. ', 3,
+                      pilib.sysloglevel)
 
         """
         Check all network statuses. The goal here is to totally decouple status read and reconfigure
@@ -830,20 +938,20 @@ def runsystemstatus(runonce=False):
         """
 
         if systemstatus['netstatusenabled']:
-            pilib.log(pilib.syslog, 'Beginning network routines. ', 3, pilib.sysloglevel)
+            utility.log(pilib.syslog, 'Beginning network routines. ', 3, pilib.sysloglevel)
 
             # Update network interfaces statuses for all interfaces, in database tables as well
             # Check on wpa supplicant status as well. Function returns wpastatusdict
             try:
-                pilib.log(pilib.syslog, 'Running updateifacestatus. ', 4, pilib.sysloglevel)
-                pilib.log(pilib.networklog, 'Running updateifacestatus', 4, pilib.networkloglevel)
+                utility.log(pilib.syslog, 'Running updateifacestatus. ', 4, pilib.sysloglevel)
+                utility.log(pilib.networklog, 'Running updateifacestatus', 4, pilib.networkloglevel)
                 allnetstatus = updatenetstatus(lastnetstatus)
             except:
-                pilib.log(pilib.networklog, 'Exception in updateifacestatus. ')
+                utility.log(pilib.networklog, 'Exception in updateifacestatus. ')
             else:
-                pilib.log(pilib.networklog, 'Updateifacestatus completed. ')
+                utility.log(pilib.networklog, 'Updateifacestatus completed. ')
 
-            pilib.log(pilib.syslog, 'Completed net status update. ', 4, pilib.sysloglevel)
+            utility.log(pilib.syslog, 'Completed net status update. ', 4, pilib.sysloglevel)
         else:
             allnetstatus={'netstatusdict': {}, 'ifacesdictarray': {}}
 
@@ -867,62 +975,63 @@ def runsystemstatus(runonce=False):
 
             ''' Now we check network status depending on the configuration we have selected '''
             ''' Now we check network status depending on the configuration we have selected '''
-            pilib.log(pilib.syslog, 'Running interface configuration watchdog. ', 4,
-                                   pilib.sysloglevel)
-            pilib.log(pilib.networklog, 'Running interface configuration. Mode: ' + netconfigdata['mode'], 4,
-                                   pilib.networkloglevel)
+            utility.log(pilib.syslog, 'Running interface configuration watchdog. ', 4,
+                          pilib.sysloglevel)
+            utility.log(pilib.networklog, 'Running interface configuration. Mode: ' + netconfigdata['mode'], 4,
+                          pilib.networkloglevel)
 
             result = watchdognetstatus()
 
         else:
-            pilib.log(pilib.syslog, 'Netconfig disabled. ', 1, pilib.sysloglevel)
-            pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'mode', 'manual')
-            pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', 'netconfig is disabled')
+            utility.log(pilib.syslog, 'Netconfig disabled. ', 1, pilib.sysloglevel)
+            dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'mode', 'manual')
+            dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', 'netconfig is disabled')
 
         if systemstatus['checkhamachistatus']:
-            pilib.log(pilib.syslog, 'Hamachi watchdog is enabled', 3, pilib.sysloglevel)
-            pilib.log(pilib.networklog, 'Hamachi watchdog is enabled. ', 3, pilib.networkloglevel)
+            utility.log(pilib.syslog, 'Hamachi watchdog is enabled', 3, pilib.sysloglevel)
+            utility.log(pilib.networklog, 'Hamachi watchdog is enabled. ', 3, pilib.networkloglevel)
 
             # Only watchdog haamchi if we are connected to the network.
-            netstatus = pilib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
+            netstatus = dblib.readonedbrow(pilib.systemdatadatabase, 'netstatus')[0]
             if netstatus['WANaccess']:
-                pilib.log(pilib.syslog, 'We appear to be online. Checking Hamachi Status. ', 3, pilib.sysloglevel)
-                pilib.log(pilib.networklog, 'We appear to be online. Checking Hamachi Status. ', 3, pilib.networkloglevel)
+                utility.log(pilib.syslog, 'We appear to be online. Checking Hamachi Status. ', 3, pilib.sysloglevel)
+                utility.log(pilib.networklog, 'We appear to be online. Checking Hamachi Status. ', 3, pilib.networkloglevel)
                 watchdoghamachi(pingip='25.37.18.7')
+                utility.log(pilib.syslog, 'Completed checking Hamachi Status. ', 3, pilib.networkloglevel)
+                utility.log(pilib.syslog, 'Completed checking Hamachi Status. ', 3, pilib.networkloglevel)
+
             else:
-                pilib.log(pilib.syslog, 'We appear to be offline. Not checking Hamachi Status, but setting to 0. ', 3, pilib.sysloglevel)
-                pilib.log(pilib.networklog, 'We appear to be offline. Not checking Hamachi Status, but setting to 0. ', 3, pilib.networkloglevel)
-                pilib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'hamachistatus', 0)
-
-
+                utility.log(pilib.syslog, 'We appear to be offline. Not checking Hamachi Status, but setting to 0. ', 3, pilib.sysloglevel)
+                utility.log(pilib.networklog, 'We appear to be offline. Not checking Hamachi Status, but setting to 0. ', 3, pilib.networkloglevel)
+                dblib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'hamachistatus', 0)
         else:
-            pilib.log(pilib.syslog, 'Hamachi watchdog is disabled', 3, pilib.sysloglevel)
+            utility.log(pilib.syslog, 'Hamachi watchdog is disabled', 3, pilib.sysloglevel)
 
-        pilib.log(pilib.syslog, 'Finished interface configuration. ', 4,
-                               pilib.sysloglevel)
+        utility.log(pilib.syslog, 'Finished interface configuration. ', 4,
+                      pilib.sysloglevel)
         # pilib.writedatedlogmsg(pilib.networklog, statusmsg)
 
-        pilib.log(pilib.syslog, 'Running updateifacestatus. ', 4, pilib.sysloglevel)
+        utility.log(pilib.syslog, 'Running updateifacestatus. ', 4, pilib.sysloglevel)
         updatenetstatus()
-        pilib.log(pilib.syslog, 'Completed updateifacestatus. ', 4, pilib.sysloglevel)
+        utility.log(pilib.syslog, 'Completed updateifacestatus. ', 4, pilib.sysloglevel)
 
-        pilib.log(pilib.syslog, 'Network routines complete. ', 3, pilib.sysloglevel)
+        utility.log(pilib.syslog, 'Network routines complete. ', 3, pilib.sysloglevel)
 
-        pilib.log(pilib.syslog, 'Checking system flags. ', 3, pilib.sysloglevel)
+        utility.log(pilib.syslog, 'Checking system flags. ', 3, pilib.sysloglevel)
         processsystemflags()
-        pilib.log(pilib.syslog, 'System flags complete. ', 3, pilib.sysloglevel)
+        utility.log(pilib.syslog, 'System flags complete. ', 3, pilib.sysloglevel)
 
         # Get system status again
-        systemstatus = pilib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
+        systemstatus = dblib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
 
         elapsedtime = int(time.time() - starttime)
 
-        pilib.log(pilib.syslog, 'Status routines complete. Elapsed time: ' + str(elapsedtime), 3,
-                               pilib.sysloglevel)
+        utility.log(pilib.syslog, 'Status routines complete. Elapsed time: ' + str(elapsedtime), 3,
+                      pilib.sysloglevel)
 
-        pilib.log(pilib.syslog,
+        utility.log(pilib.syslog,
                                'System status is sleeping for ' + str(systemstatus['systemstatusfreq']) + '. ', 3,
-                               pilib.sysloglevel)
+                      pilib.sysloglevel)
 
         if runonce:
             break
@@ -931,8 +1040,8 @@ def runsystemstatus(runonce=False):
 
 
     else:
-        pilib.log(pilib.syslog, 'System status is disabled. Exiting. ', 0,
-                               pilib.sysloglevel)
+        utility.log(pilib.syslog, 'System status is disabled. Exiting. ', 0,
+                      pilib.sysloglevel)
 
 
 if __name__ == '__main__':

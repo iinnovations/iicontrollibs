@@ -10,16 +10,18 @@ __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
 # do this stuff to access the pilib for sqlite
-import os, sys, inspect
+import inspect
+import os
+import sys
 
 top_folder = \
     os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
-from cupid.pilib import *
 from git import *
 
+from cupid.pilib import systemdatadatabase
 
 iicontrollibsrepodir = '/usr/lib/iicontrollibs'
 cupidweblibrepodir = '/var/www'
@@ -64,6 +66,8 @@ def stashrepo(repodirectory, originname):
 
 
 def addversionentry(database, table, entrydict):
+    from utilities.dblib import sqliteinsertsingle
+    from utilities.datalib import gettimestring
     sqliteinsertsingle(database, table,
                        [entrydict['name'], entrydict['headcommithexsha'], gettimestring(entrydict['headcommitdate']),
                         gettimestring()])
