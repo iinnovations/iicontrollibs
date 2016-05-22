@@ -19,15 +19,16 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 
-def runcheck():
+def runhamachicheck():
     import cupid.netfun as netfun
+    import socket
+    hostname = socket.gethostname()
 
-    pingtime = netfun.runping('25.37.18.7')[0]
+    pingtime = netfun.runping('25.215.49.105')[0]
 
     if ( pingtime > 1000 or pingtime == 0 ):
-        print('bad things')
-        from cupid.pilib import gmail
-        message = 'Libation is restarting its Hamachi daemon. '
+        from cupid.utilities import gmail
+        message = hostname + ' is restarting its Hamachi daemon. '
         subject = 'Keeping Hamachi online!'
         email = 'colin.reese@gmail.com'
         actionmail = gmail(message=message, subject=subject, recipient=email)
@@ -35,13 +36,15 @@ def runcheck():
 
         netfun.killhamachi()
         netfun.restarthamachi()
-    else:
-        print(pingtime)
 
 
-def generatehamachipage(path=None):
+def generatehamachipage(hamachidata=None, path=None):
     from cupid.netfun import gethamachidata
-    networks, clients = gethamachidata()
+    from datalib import parseoptions
+
+    if not hamachidata:
+        hamachidata = gethamachidata()
+
     if path:
         file = open(path, 'w')
         htmlstring = (
@@ -74,23 +77,31 @@ def generatehamachipage(path=None):
                 '<div role="main" class="ui-content">')
 
         file.write(htmlstring)
-    for network, clientlist in zip(networks, clients):
+    for network in hamachidata:
         if path:
             htmlstring = ('<ul data-role="listview" data-inset="true">' +
-                    '<li data-role="list-divider">' + network['name'] + ' : ' + network['networkid'] + '</li>')
+                    '<li data-role="list-divider">' + network['name'] + ' : ' + network['id'] + '</li>')
 
-        for client in clientlist:
+        for client in network['clientlist']:
             # print(client['name'] + ' : ' + client['hamachiip'])
             if path:
                 htmlstring += '<li>'
                 htmlstring += '<fieldset class="ui-grid-a"><div class="ui-block-a" style="width:50%">'
-                #htmlstring += client['name'] + ' : ' + client['hamachiip']
-                htmlstring += '<a href="https://' +  client['hamachiip'] +'">' + client['name'] + '</a> : ' + client['hamachiip']
+                # htmlstring += client['name'] + ' : ' + client['hamachiip']
+                htmlstring += '<a href="http://' +  client['hamachiip'] +'">' + client['name'] + '</a> : ' + client['hamachiip']
 
-                if client['onlinestatus'] == 'online':
-                    htmlstring += '</div><div class="online" style="width:60px; float:right; text-align:center; border-radius:0.4em; border-width:1px; border-style:solid; border-color:#333333">Online</div>'
+                options = parseoptions(client['options'])
+
+                htmlstring+='</div>'
+
+                if client['onlinestatus']:
+                    htmlstring += '<div class="online" style="width:60px; float:right; text-align:center; border-radius:0.4em; border-width:1px; border-style:solid; border-color:#333333">Online</div>'
                 else:
-                    htmlstring += '</div><div class="offline" style="width:60px; float:right; text-align:center; border-radius:0.4em; border-width:1px; border-style:solid; border-color:#333333">Offline</div>'
+                    htmlstring += '<div class="offline" style="width:60px; float:right; text-align:center; border-radius:0.4em; border-width:1px; border-style:solid; border-color:#333333">Offline</div>'
+
+                if 'monitor' in options:
+                    if options['monitor'] == '1':
+                        htmlstring += '<div class="online" style="width:70px; float:right; text-align:center; border-radius:0.4em; border-width:1px; border-style:solid; border-color:#333333; margin-right:10px">Daemon</div>'
 
                 htmlstring += '</fieldset></li>\n'
 
@@ -102,6 +113,8 @@ def generatehamachipage(path=None):
         htmlstring = '</div></div>\n'
         file.write(htmlstring)
         file.close()
+
+
 if __name__=="__main__":
-        runcheck()
+        runhamachicheck()
 

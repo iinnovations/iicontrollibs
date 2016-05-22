@@ -26,7 +26,8 @@ elif [ "$1" = "install" ]
     apt-get -y install python-serial
     apt-get -y install python-gtk2
     apt-get -y install automake
-    pip install asteval
+    apt-get -y fping
+    pip install lal
 
     apt-get -y install apache2 php5 sqlite3 php5-sqlite libapache2-mod-wsgi libapache2-mod-php5
     a2enmod rewrite
@@ -54,6 +55,9 @@ elif [ "$1" = "install" ]
     cd ..
     rm -Rf PIGPIO
 
+    echo "installing asteval"
+    pip install asteval
+
     echo "installing spi-dev"
     wget https://github.com/Gadgetoid/py-spidev/archive/master.zip
     unzip master.zip
@@ -67,6 +71,18 @@ elif [ "$1" = "install" ]
     echo -e "${WHT}*****   STD  INSTALL  COMPLETE *****${NC}"
     echo -e "${WHT}************************************${NC}"
 
+elif [ "$1" = "camera" ]
+    apt-get update
+    apt-get install python-picamera
+fi
+
+elif [ "$1" = "labjack" ]
+    apt-get update
+    apt-get -y install libusb-1.0
+    cd ../resource/labjack/LabJackPython-5-26-2015/
+    python setup.py install
+    cd labjack-exodriver-815464f
+    ./install.sh
 fi
 
 if [ "$2" = "full" -o "$1" = "full" ]
@@ -178,26 +194,26 @@ if [ "$2" = "full" -o "$1" = "full" ]
     # wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.139-1_armhf.deb
     dpkg -i /usr/lib/iicontrollibs/resource/logmein-hamachi_2.1.0.139-1_armhf.deb
     hamachi login
-    # hamachi do-join XXX-XX-XXXX
+    # hamachi do-join 283-153-722
     #
     echo "hamachi complete"
 
-    #    echo "testing for owfs"
-    #    testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
-    #    if [ ${testresult} -ne 0 ]
-    #      then
-    #        echo "owfs 2.9p5 already installed"
-    #    else
-    #        echo "installing owfs 2.9p5"
-    #        cd /usr/lib/iicontrollibs/resource
-    #        tar -xvf owfs-2.9p5.tar.gz
-    #        cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
-    #        ./configure
-    #        make install
-    #        cd ..
-    #        rm -R owfs-2.9p5
-    #    fi
-    #    echo "owfs complete"
+    echo "testing for owfs"
+    testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
+    if [ ${testresult} -ne 0 ]
+      then
+        echo "owfs 2.9p5 already installed"
+    else
+        echo "installing owfs 2.9p5"
+        cd /usr/lib/iicontrollibs/resource
+        tar -xvf owfs-2.9p5.tar.gz
+        cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
+        ./configure
+        make install
+        cd ..
+        rm -R owfs-2.9p5
+    fi
+    echo "owfs complete"
 
     echo "installing MAX31855 library"
     cd /usr/lib/iicontrollibs/resource/Adafruit_Python_MAX31855-master
@@ -224,7 +240,7 @@ if [ "$2" = "full" -o "$1" = "full" ]
     cp /usr/lib/iicontrollibs/misc/apache/apachesslsites /etc/apache2/sites-available/default
     echo "Complete"
 
-    echo "Copying nginx config"
+    echo "Copying nginx certificates"
     cp /usr/lib/iicontrollibs/misc/nginx/nginx.ssl.conf /etc/nginx/nginx.conf
 
     # fix security limit extensions
