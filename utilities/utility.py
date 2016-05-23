@@ -18,13 +18,29 @@ top_folder = \
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
-from utilities import datalib
+
+def killprocbyname(name):
+    import subprocess
+    try:
+        result = subprocess.check_output(['pgrep','hamachi'])
+    except:
+        # Error thrown means hamachi is not running
+        print('catching error')
+    else:
+        split = result.split('\n')
+        # print(split)
+        for pid in split:
+            if pid:
+                # print(pid)
+                subprocess.call(['kill', '-9', str(pid.strip())])
+    return
 
 
 def log(logfile, message, reqloglevel=1, currloglevel=1):
+    from utilities.datalib import gettimestring
     if currloglevel >= reqloglevel:
         logfile = open(logfile, 'a')
-        logfile.writelines([datalib.gettimestring() + ' : ' + message + '\n'])
+        logfile.writelines([gettimestring() + ' : ' + message + '\n'])
         logfile.close()
 
 

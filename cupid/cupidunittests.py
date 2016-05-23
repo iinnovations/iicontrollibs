@@ -97,7 +97,7 @@ def testmodules(modulenames):
 if __name__ == "__main__":
 
     # modules = ['cupid.pilib', 'cupid.picontrol', 'cupid.controllib', 'cupid.netconfig', 'cupid.netfun', 'cupid.owfslib', 'cupid.processactions', 'cupid.sessioncontrol', 'cupid.systemstatus', 'cupid.cupiddaemon']
-    modules = ['cupid.controllib', 'cupid.pilib', 'cupid.picontrol', 'cupid.netconfig', 'cupid.systemstatus', 'cupid.updateio', 'cupid.rebuilddatabases']
+    modules = ['cupid.actions', 'cupid.controllib', 'cupid.pilib', 'cupid.picontrol', 'cupid.netconfig', 'cupid.systemstatus', 'cupid.updateio', 'cupid.rebuilddatabases']
     modules.extend(['utilities.datalib', 'utilities.dblib', 'utilities.netfun', 'utilities.owfslib', 'utilities.utility'])
     results = testmodules(modules)
     for result in results:

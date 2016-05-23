@@ -1,9 +1,7 @@
 #!/usr/bin/env python
-import utilities.utility
-from utilities import dblib
 
 __author__ = "Colin Reese"
-__copyright__ = "Copyright 2014, Interface Innovations"
+__copyright__ = "Copyright 2016, Interface Innovations"
 __credits__ = ["Colin Reese"]
 __license__ = "Apache 2.0"
 __version__ = "1.0"
@@ -11,7 +9,14 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
-import pilib
+import os
+import sys
+import inspect
+
+top_folder = \
+    os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
+if top_folder not in sys.path:
+    sys.path.insert(0, top_folder)
 
 
 class Proc(object):
@@ -147,7 +152,7 @@ def deprecatedfindprocstatuses(procstofind):
 
 def runallprocs():
     from subprocess import Popen, PIPE
-
+    from cupid import pilib
     for index, proc in enumerate(pilib.daemonprocs):
         proc = Popen([pilib.baselibdir + pilib.daemonprocs[index], '&'])
 
@@ -155,8 +160,8 @@ def runallprocs():
 def rundaemon(startall=False):
     from subprocess import Popen, PIPE
     from time import sleep
-    from pilib import daemonlog, daemonloglevel
-    from utilities.utility import log
+    from utilities import datalib, dblib, utility
+    from cupid import pilib
 
     # Set up list of enabled statuses (whether to restart if
     # we find that the process is not currently running
@@ -167,17 +172,37 @@ def rundaemon(startall=False):
     sessioncontrolenabled = dblib.sqlitedatumquery(pilib.controldatabase, 'select sessioncontrolenabled from systemstatus')
     serialhandlerenabled = dblib.sqlitedatumquery(pilib.controldatabase, 'select serialhandlerenabled from systemstatus')
 
-
     enableditemlist = [(int(updateioenabled)), (int(picontrolenabled)), int(systemstatusenabled), int(sessioncontrolenabled), int(serialhandlerenabled)]
 
     itemstatuses = findprocstatuses(pilib.daemonprocs)
+
+    if enableditemlist[2] and itemstatuses[2]:
+        # Here we check to see if things are running properly and not hung
+        lastsystemstatus =dblib.getsinglevalue(pilib.controldatabase, 'systemstatus', 'lastsystemstatuspoll')
+        currenttime = datalib.gettimestring()
+        timesincelastsystemstatus = datalib.timestringtoseconds(currenttime)- datalib.timestringtoseconds(lastsystemstatus)
+
+        timecriterion = 90
+        if timesincelastsystemstatus > timecriterion:
+            utility.log(pilib.syslog, 'Killing systemstatus because it has not run in ' + str(timesincelastsystemstatus) + 's')
+            # Queue a message indicating we had to restart the systemstatus daemon
+            message = 'Systemstatus is being killed because it has not run in ' + str(timesincelastsystemstatus) + 's with a criteria of ' +  \
+                str(timecriterion) + '. This occurred at ' + currenttime
+
+            dblib.sqliteinsertsingle(pilib.notificationsdatabase, 'queuednotifications', \
+                                     ['email', message, 'email:colin.reese@gmail.com', currenttime], \
+                                     ['type', 'message', 'options', 'queuedtime'])
+
+            utility.killprocbyname('systemstatus')
+
+
 
     # Set system message
     systemstatusmsg = ''
     for name, enabled, status in zip(pilib.daemonprocs, enableditemlist, itemstatuses):
         systemstatusmsg += name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. '
         if pilib.daemonloglevel > 0:
-            utilities.log(pilib.daemonlog, name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. ')
+            utility.log(pilib.daemonlog, name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. ')
 
     dblib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'systemmessage', systemstatusmsg)
 
@@ -192,17 +217,17 @@ def rundaemon(startall=False):
         if itemstatuses[index]:
             dblib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
             if pilib.daemonloglevel > 0:
-                utilities.log(pilib.daemonlog, 'Process is running: ' + pilib.baselibdir + pilib.daemonprocs[index])
+                utility.log(pilib.daemonlog, 'Process is running: ' + pilib.baselibdir + pilib.daemonprocs[index])
         else:
             dblib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')
             if pilib.daemonloglevel > 0:
-                utilities.log(pilib.daemonlog, 'Process is not running: ' + pilib.baselibdir + pilib.daemonprocs[index])
+                utility.log(pilib.daemonlog, 'Process is not running: ' + pilib.baselibdir + pilib.daemonprocs[index])
 
             # run if set to enable
             if enableditemlist[index]:
                 # print(pilib.baselibdir + pilib.daemonprocs[index])
                 if pilib.daemonloglevel > 0:
-                    utilities.log(pilib.daemonlog, 'Starting ' + pilib.baselibdir + pilib.daemonprocs[index])
+                    utility.log(pilib.daemonlog, 'Starting ' + pilib.baselibdir + pilib.daemonprocs[index])
                 procresult = Popen([pilib.baselibdir + pilib.daemonprocs[index]], stdout=PIPE, stderr=PIPE)
                 # if pilib.daemonloglevel > 0:
                 #     pilib.writedatedlogmsg(pilib.daemonproclog, procresult.stdout.read())
@@ -232,10 +257,11 @@ def rundaemon(startall=False):
     pilib.rotatelogs(pilib.controllog, pilib.numlogs, pilib.maxlogsize)
     pilib.rotatelogs(pilib.daemonlog, pilib.numlogs, pilib.maxlogsize)
     pilib.rotatelogs(pilib.seriallog, pilib.numlogs, pilib.maxlogsize)
+    pilib.rotatelogs(pilib.notificationslog, pilib.numlogs, pilib.maxlogsize)
 
 if __name__ == "__main__":
     from pilib import daemonlog, daemonloglevel
-    from utilities.utility import log, utilities
+    from utilities.utility import log
 
     log(daemonlog, 'Running daemon.', 1, daemonloglevel)
     rundaemon()

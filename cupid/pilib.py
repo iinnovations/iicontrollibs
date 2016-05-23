@@ -37,6 +37,7 @@ systemdatadatabase = databasedir + 'systemdata.db'
 motesdatabase = databasedir + 'motes.db'
 infodatabase = databasedir + 'deviceinfo.db'
 authsdatabase = databasedir + 'authslog.db'
+notificationsdatabase = databasedir + 'notifications.db'
 
 safedatabase = '/var/wwwsafe/safedata.db'
 usersdatabase = '/var/wwwsafe/users.db'
@@ -50,6 +51,7 @@ syslog = logdir + 'systemstatus.log'
 controllog = logdir + 'control.log'
 daemonlog = logdir + 'daemon.log'
 seriallog = logdir + 'serial.log'
+notificationslog = logdir + 'notifications.log'
 
 daemonproclog = logdir + '/daemonproc.log'
 errorlog = logdir + '/error.log'
@@ -66,12 +68,13 @@ sysloglevel = 4
 controlloglevel = 4
 daemonloglevel = 3
 serialloglevel = 2
+notificationsloglevel = 5
 
 daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py', 'mote/serialhandler.py']
 
 
 """
-## Utility Functions
+Utility Functions
 
 # This function is what keeps things sane for our database handling.
 # We moved all references to database paths out of html entirely, and we
@@ -88,9 +91,84 @@ daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systems
 """
 
 
+def processnotification(notification):
+    from cupid import pilib
+    from utilities import datalib
+    from utilities import utility
+    from utilities.netfun import pingstatus
+
+    senttime = datalib.gettimestring()
+    result = {'status':1, 'senttime':senttime}
+    if notification['type'] == 'email':
+
+        # Check to make sure we're online.
+        pingresult = pingstatus()
+        if not pingresult['status']:
+
+            utility.log(pilib.notificationslog, 'WAN access is ok, so processing notification')
+            options = datalib.parseoptions(notification['options'])
+            message = notification['message']
+            if 'subject' in options:
+                subject = options['subject']
+            else:
+                subject = 'CuPID Notification Email'
+
+            message += '\r\n\r\n'
+            message += 'Message queued:\t ' + notification['queuedtime'] + '\r\n'
+            message += 'Message sent:\t ' + senttime + '\r\n'
+
+            if 'email' in options:
+                print('i found emai')
+                try:
+                    email = options['email']
+                    actionmail = utility.gmail(message=message, subject=subject, recipient=email)
+                    actionmail.send()
+                except:
+                    pass
+                else:
+                    result['status'] = 0
+        else:
+            utility.log(pilib.notificationslog, 'WAN access does not appear to be ok. Status is: ' + str(pingstatus['status']))
+
+    return result
+
+
+def processnotificationsqueue():
+    from cupid import pilib
+    from utilities import dblib
+    from utilities.utility import log
+
+    queuednotifications = dblib.readalldbrows(notificationsdatabase, 'queuednotifications')
+    for notification in queuednotifications:
+        if notificationsloglevel >= 5:
+            log(pilib.notificationslog, 'Processing notification of type' + notification['type'] + '. Message: ' + notification['message'] + '. Options: ' + notification['options'])
+        else:
+            log(pilib.notificationslog, 'Processing notification of type' + notification['type'], pilib.notificationslog)
+
+        result = processnotification(notification)
+
+        if result['status'] == 0:
+            log(pilib.notificationslog, 'Notification appears to have been successful. Copying message to sent.')
+            sententry = notification.copy()
+            sententry['senttime'] = result['senttime']
+            dblib.insertstringdicttablelist(notificationsdatabase, 'sentnotifications', [sententry], droptable=False)
+
+            log(pilib.notificationslog, 'Removing entry from queued messages.')
+
+            # match by time and message
+            conditionnames = ['queuedtime', 'message']
+            conditionvalues = [sententry['queuedtime'],sententry['message']]
+            delquery = dblib.makedeletesinglevaluequery('queuednotifications', {'conditionnames':conditionnames, 'conditionvalues':conditionvalues})
+            dblib.sqlitequery(pilib.notificationsdatabase, delquery)
+
+
+        else:
+            log(pilib.notificationslog, 'Notification appears to have failed. Status: ' + str(result['status']))
+
+
 def dbnametopath(friendlyname):
-    friendlynames = ['controldb', 'logdatadb', 'infodb', 'systemdb', 'authdb', 'safedatadb', 'usersdb', 'motesdb', 'systemdatadb']
-    paths = [controldatabase, logdatabase, infodatabase, systemdatadatabase, authsdatabase, safedatabase, usersdatabase, motesdatabase, systemdatadatabase]
+    friendlynames = ['controldb', 'logdatadb', 'infodb', 'systemdb', 'authdb', 'safedatadb', 'usersdb', 'motesdb', 'systemdatadb', 'notificationsdb']
+    paths = [controldatabase, logdatabase, infodatabase, systemdatadatabase, authsdatabase, safedatabase, usersdatabase, motesdatabase, systemdatadatabase, notificationsdatabase]
     path = None
     if friendlyname in friendlynames:
         path = paths[friendlynames.index(friendlyname)]

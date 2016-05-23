@@ -21,9 +21,9 @@ if top_folder not in sys.path:
 
 # This script resets the control databases
 
-################################################
-# Main control database
-
+"""
+Main control database
+"""
 
 def rebuildcontroldb(tabledict):
 
@@ -290,8 +290,9 @@ def rebuildcontroldb(tabledict):
         sqlitemultquery(controldatabase, querylist)
 
 
-############################################
-# authlog
+"""
+authlog
+"""
 
 def rebuildsessiondb():
     from utilities.dblib import sqlitemultquery
@@ -350,8 +351,9 @@ def rebuildsessiondb():
     sqlitemultquery(sessiondatabase, querylist)
 
 
-############################################
-# device info 
+"""
+device info
+"""
 
 def rebuildsystemdatadb(tabledict):
     from utilities.dblib import sqlitemultquery
@@ -411,8 +413,10 @@ def rebuildsystemdatadb(tabledict):
         sqlitemultquery(systemdatadatabase, querylist)
 
 
-############################################
-# recipesdata
+"""
+recipesdata
+"""
+
 
 def rebuildrecipesdb(tabledict):
     from utilities.dblib import sqlitemultquery
@@ -440,8 +444,44 @@ def rebuildrecipesdb(tabledict):
         sqlitemultquery(recipedatabase, querylist)
 
 
-############################################
-# motes raw data
+"""
+Notifications (mail, IFFFT, etc) data
+"""
+
+
+def rebuildnotificationsdb(tabledict=['queuednotifications', 'sentnotifications']):
+    from utilities.dblib import sqlitemultquery
+    from cupid.pilib import notificationsdatabase
+
+    runquery = False
+    querylist = []
+    addentries = True
+
+    table = 'queuednotifications'
+    if table in tabledict:
+        runquery = True
+
+        querylist.append('drop table if exists ' + table)
+        querylist.append(
+            "create table " + table + " ( queuedtime text default '', type text default 'email', message text default '', options text default '')")
+
+    table = 'sentnotifications'
+    if table in tabledict:
+        runquery = True
+
+        querylist.append('drop table if exists ' + table)
+        querylist.append(
+            "create table " + table + " ( queuedtime text default '', senttime text default '', type text default 'email', message text default '', options text default '')")
+
+    if runquery:
+        print(querylist)
+
+        sqlitemultquery(notificationsdatabase, querylist)
+
+
+"""
+Motes raw data
+"""
 
 
 def rebuildmotesdb(tabledict):
@@ -480,9 +520,9 @@ def rebuildmotesdb(tabledict):
 
         sqlitemultquery(motesdatabase, querylist)
 
-############################################
-# userstabledata
-
+"""
+userstabledata
+"""
 
 def rebuildusersdata(argument=None):
     from pilib import gethashedentry, usersdatabase
@@ -546,8 +586,12 @@ def rebuildusersdata(argument=None):
         sqlitemultquery(usersdatabase, querylist)
 
 
-############################################
+
+
+"""
 # safedata
+"""
+
 
 def rebuildwirelessdata():
     from utilities.dblib import sqlitemultquery
@@ -586,6 +630,7 @@ if __name__ == "__main__":
                        'algorithms', 'algorithmtypes', 'channels', 'remotes', 'mote']
     systemdbtables = ['metadata', 'netconfig', 'netstatus', 'versions', 'systemflags', 'uisettings']
     motestables = ['readmessages', 'queuedmessages', 'sentmessages']
+    notificationstables = ['queuedmessages', 'setmessages']
 
     if len(sys.argv) > 1 and sys.argv[1] == 'DEFAULTS':
         print('making default databases')
@@ -600,7 +645,7 @@ if __name__ == "__main__":
         rebuildcontroldb(maketruetabledict(controldbtables))
         rebuildsystemdatadb(maketruetabledict(systemdbtables))
         rebuildmotesdb(maketruetabledict(motestables))
-
+        rebuildnotificationsdb()
         rebuildrecipesdb({'recipes': True})
         rebuildsessiondb()
 
@@ -614,6 +659,10 @@ if __name__ == "__main__":
         elif sys.argv[1] in motestables:
             print('running rebuild motes tables for ' + sys.argv[1])
             rebuildmotesdb(sys.argv[1])
+        elif sys.argv[1] in ['notifications', 'Notifications']:
+            print('running rebuilding notifications table')
+            rebuildnotificationsdb()
+
 
     else:
 

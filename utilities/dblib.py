@@ -183,23 +183,28 @@ def datarowtodict(database, table, datarow):
     return dict
 
 
-def insertstringdicttablelist(database, tablename, datadictarray):
+def insertstringdicttablelist(database, tablename, datadictarray, droptable=True):
     querylist = []
-    querylist.append('drop table if exists ' + tablename)
+    if droptable:
+        querylist.append('drop table if exists ' + tablename)
 
-    addquery = 'create table ' + tablename + ' ('
-    for key in datadictarray[0]:
-        addquery += '\'' + key + '\' text,'
+        addquery = 'create table ' + tablename + ' ('
+        for key in datadictarray[0]:
+            addquery += '\'' + key + '\' text,'
 
-    addquery = addquery[:-1]
-    addquery += ')'
-    querylist.append(addquery)
+        addquery = addquery[:-1]
+        addquery += ')'
+        querylist.append(addquery)
+
 
     for datadict in datadictarray:
         valuelist=[]
+        valuenames=[]
         for key in datadict:
             valuelist.append(datadict[key])
-        insertquery = makesqliteinsert(tablename, valuelist)
+            valuenames.append(key)
+        insertquery = makesqliteinsert(tablename, valuelist, valuenames)
+        print(insertquery)
         querylist.append(insertquery)
     sqlitemultquery(database, querylist)
 
@@ -374,7 +379,7 @@ def makedeletesinglevaluequery(table, condition=None):
     return query
 
 
-def readalldbrows(database, table, condition=None):
+def readalldbrows(database, table, condition=None, includerowids=True):
 
     query = 'select * from \'' + table + '\''
     if condition:

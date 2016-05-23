@@ -9,9 +9,9 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
+import inspect
 import os
 import sys
-import inspect
 
 top_folder = \
     os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
@@ -54,7 +54,7 @@ def updateiwstatus():
     iwdict['updatetime'] = gettimestring()
 
     # put into database
-    insertstringdicttablelist(systemdatadatabase, 'iwstatus', [iwdict])
+    insertstringdicttablelist(systemdatadatabase, 'iwstatus', [iwdict], droptable=True)
 
 
 def watchdoghamachi(pingip):
@@ -116,7 +116,7 @@ def updatehamachistatus():
             hamdicts[index]['updatetime'] = gettimestring()
 
         # put into database
-        insertstringdicttablelist(systemdatadatabase, 'hamachistatus', hamdicts)
+        insertstringdicttablelist(systemdatadatabase, 'hamachistatus', hamdicts, droptable=True)
 
 
 def watchdognetstatus(allnetstatus=None):
@@ -670,7 +670,7 @@ def updatenetstatus(lastnetstatus=None):
     if ifacesdictarray:
         utility.log(pilib.networklog, 'Sending ifaces query. ', 5, pilib.networkloglevel)
         # print(ifacesdictarray)
-        dblib.insertstringdicttablelist(pilib.systemdatadatabase, 'netifaces', ifacesdictarray)
+        dblib.insertstringdicttablelist(pilib.systemdatadatabase, 'netifaces', ifacesdictarray, droptable=True)
     else:
         utility.log(pilib.networklog, 'Empty ifaces query. ', 2, pilib.networkloglevel)
 
@@ -789,7 +789,7 @@ def processsystemflags(systemflags=None):
         if flagvalues[flagnames.index('updateiicontrollibs')]:
             stop = True
             dblib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, 'name=\'updateiicontrollibs\'')
-            from misc.gitupdatelib import updateiicontrollibs
+            from utilities.gitupdatelib import updateiicontrollibs
 
             utility.log(pilib.syslog, 'Updating iicontrollibs', 0, pilib.sysloglevel)
             updateiicontrollibs(True)
@@ -797,7 +797,7 @@ def processsystemflags(systemflags=None):
         if flagvalues[flagnames.index('updatecupidweblib')]:
             stop = True
             dblib.setsinglevalue(pilib.systemdatadatabase, 'systemflags', 'value', 0, 'name=\'updatecupidweblib\'')
-            from misc.gitupdatelib import updatecupidweblib
+            from utilities.gitupdatelib import updatecupidweblib
 
             utility.log(pilib.syslog, 'Updating cupidweblib', 0, pilib.sysloglevel)
             updatecupidweblib(True)
@@ -888,7 +888,7 @@ def runsystemstatus(runonce=False):
     from utilities import dblib
     from utilities import datalib
 
-    from misc.gitupdatelib import updategitversions
+    from utilities.gitupdatelib import updategitversions
 
     # This doesn't update git libraries. It checks current versions and updates the database
 
@@ -924,6 +924,9 @@ def runsystemstatus(runonce=False):
 
     # Keep reading system status?
     while systemstatus['systemstatusenabled']:
+
+        # Run notifications
+        pilib.processnotificationsqueue()
 
         currenttime = datalib.gettimestring()
         dblib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'lastsystemstatuspoll', datalib.gettimestring())

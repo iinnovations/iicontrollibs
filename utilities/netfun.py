@@ -30,9 +30,9 @@ def runping(pingAddress='8.8.8.8', numpings=1):
             # Default ping timeout is 500ms. This is about right.
             result = subprocess.Popen(['fping','-c','1', pingAddress], stdout=subprocess.PIPE)
             pingresult = result.stdout.read()
-            print(pingresult)
+            # print(pingresult)
         except:
-            print('there is problem')
+            # print('there is problem')
             pingtimes.append(-1)
         else:
             # Extract the ping time
@@ -69,12 +69,19 @@ def runping(pingAddress='8.8.8.8', numpings=1):
     return pingtimes
 
 
-def pingstatus(pingAddress='8.8.8.8', numpings=1):
-    pingtimes = runping(pingAddress, numpings=5)
+def pingstatus(pingAddress='8.8.8.8', numpings=1, threshold=2000):
+    pingtimes = runping(pingAddress, numpings)
     pingmax = max(pingtimes)
     pingmin = min(pingtimes)
     pingave = sum(pingtimes)/len(pingtimes)
-    return {'pingtimes': pingtimes, 'pingmax': pingmax, 'pingmin': pingmin, 'pingave': pingave}
+    if pingave == 0:
+        status = 2
+    elif pingave <= threshold:
+        status = 0
+    else:
+        status = 2
+
+    return {'pingtimes': pingtimes, 'pingmax': pingmax, 'pingmin': pingmin, 'pingave': pingave, 'status':status}
 
 
 def getiwstatus(interface='wlan0'):
@@ -236,7 +243,7 @@ def gethamachistatusdata():
     output = rawoutput.stdout.read()
     lines = output.split('\n')
     statusdict = {}
-    print(lines)
+    # print(lines)
     for line in lines:
         try:
             split = line.split(':')
@@ -244,7 +251,8 @@ def gethamachistatusdata():
             itemvalue = ':'.join(split[1:]).strip()
             statusdict[itemname] = itemvalue
         except:
-            print('oops')
+            # print('oops')
+            pass
     return statusdict
 
 
@@ -257,21 +265,10 @@ def restarthamachi():
     return
 
 
+# left here for compatibility
 def killhamachi():
-    import subprocess
-    try:
-        result = subprocess.check_output(['pgrep','hamachi'])
-    except:
-        # Error thrown means hamachi is not running
-        print('catching error')
-    else:
-        split = result.split('\n')
-        # print(split)
-        for pid in split:
-            if pid:
-                # print(pid)
-                subprocess.call(['kill', '-9', str(pid.strip())])
-    return
+    from utilities.utility import killprocbyname
+    killprocbyname('hamachi')
 
 
 def checksharemount(sharepath):
@@ -283,7 +280,7 @@ def checksharemount(sharepath):
     for line in mountresponse.stdout:
         linedata = linedata + line
 
-    print(linedata.find(sharepath))
+    # print(linedata.find(sharepath))
     if linedata.find(sharepath) >= 0:
         status = True
     else:
@@ -331,7 +328,7 @@ def readMBinputs(clientIP, coil, number=1):
     try:
         return result.bits[0:number]
     except AttributeError:
-        print('there are no registers!')
+        # print('there are no registers!')
         return result
 
 
@@ -344,7 +341,7 @@ def readMBcoils(clientIP, coil, number=1):
     try:
         return result.bits[0:number]
     except AttributeError:
-        print('there are no registers!')
+        # print('there are no registers!')
         return result
 
 
@@ -369,10 +366,10 @@ def readMBholdingregisters(clientIP, register, number=1):
     try:
         rawresult = client.read_holding_registers(register, number)
     except ConnectionException:
-        print('we were unable to connect to the host')
+        # print('we were unable to connect to the host')
         statuscode = 7
     else:
-        print(rawresult)
+        # print(rawresult)
         try:
             resultregisters = rawresult.registers
         except AttributeError:
@@ -392,7 +389,7 @@ def readMBinputregisters(clientIP, register, number=1):
     try:
         rawresult = client.read_input_registers(register, number)
     except ConnectionException:
-        print('we were unable to connect to the host')
+        # print('we were unable to connect to the host')
         statuscode = 7
     else:
         print(rawresult)
@@ -418,10 +415,10 @@ def writeMBholdingregisters(clientIP, register, valuelist):
     try:
         return result.registers
     except AttributeError:
-        print('there are no registers!')
+        # print('there are no registers!')
         return result
     except:
-        print('other unhandled error')
+        # print('other unhandled error')
         return result
 
 
@@ -530,8 +527,8 @@ def datamaptoblockreads(datamap):
             intaddresses = map(int, item['addresses'])
             sortedaddresses, sortedindices = zip(*sorted(zip(intaddresses, item['indices'])))
 
-            print(sortedaddresses)
-            print(sortedindices)
+            # print(sortedaddresses)
+            # print(sortedindices)
             newitems = []
             newitem = {}
             for address, index in zip(sortedaddresses, sortedindices):

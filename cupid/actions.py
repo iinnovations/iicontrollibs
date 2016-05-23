@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 __author__ = "Colin Reese"
-__copyright__ = "Copyright 2014, Interface Innovations"
+__copyright__ = "Copyright 2016, Interface Innovations"
 __credits__ = ["Colin Reese"]
 __license__ = "Apache 2.0"
 __version__ = "1.0"
@@ -9,15 +9,14 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
+import os
+import sys
+import inspect
+
 top_folder = \
     os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
-
-import pilib
-import utilities.utility as utilities
-import utilities.datalib as datalib
-import utilities.dbb as dblib
 
 
 """
@@ -56,7 +55,9 @@ import utilities.dbb as dblib
 
 
 class action:
+
     def __init__(self, actiondict):
+        from utilities.datalib import parseoptions
         for key, value in actiondict.items():
             setattr(self, key, value)
 
@@ -69,20 +70,23 @@ class action:
             would not be able to easily keep track of where to write back modified entries.
             """
 
-            self.actiondatadict = datalib.parseoptions(actiondict['actiondata'])
+            self.actiondatadict = parseoptions(actiondict['actiondata'])
 
 
             """ TODO: Set default values as a condition of alarm type to make alarm work when values are not specified.
             Publish will then insert these values into the database """
 
     def onact(self):
+        from utilities import dblib, datalib, utility
+        from cupid import pilib
+
         if self.actiontype == 'email':
             # process email action
             self.statusmsg += 'Processing email alert. '
             email = self.actiondetail
             message = 'Alert is active for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + str(self.criterion) + ' with an operator of ' + self.operator + '. This alarm status has been on since ' + self.ontime + '.'
             subject = 'CuPID Alert : Alarm On - ' + self.name
-            actionmail = utilities.gmail(message=message, subject=subject, recipient=email)
+            actionmail = utility.gmail(message=message, subject=subject, recipient=email)
             actionmail.send()
 
         elif self.actiontype == 'indicator':
@@ -101,7 +105,7 @@ class action:
             #   dbname, tablename, valuename, setmethod and either:
             #   setmethod = increment, incrementvalue=1
             #   setmethod = value
-            dbvndict = parsedbvn(self.actiondetail)
+            dbvndict = datalib.parsedbvn(self.actiondetail)
             dbpath = pilib.dbnametopath(dbvndict['dbname'])
             # Special set formula?
 
@@ -121,13 +125,15 @@ class action:
                 dblib.setsinglevalue(dbpath, dbvndict['tablename'], dbvndict['valuename'], '1', querycondition)
 
     def offact(self):
+        from utilities import dblib, datalib, utility
+        from cupid import pilib
         if self.actiontype == 'email':
             # process email action
             self.statusmsg +='Processing email alert.'
             email = self.actiondetail
             message = 'Alert has gone inactive for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + str(self.criterion) + ' with an operator of ' + self.operator + '. This alarm status has been of since ' + self.offtime + '.'
             subject = 'CuPID Alert : Alarm Off - ' + self.name
-            actionmail = utilities.gmail(message=message, subject=subject, recipient=email)
+            actionmail = utility.gmail(message=message, subject=subject, recipient=email)
             actionmail.send()
 
         elif self.actiontype == 'indicator':
@@ -146,7 +152,7 @@ class action:
             #   dbname, tablename, valuename, setmethod and either:
             #   setmethod = increment, incrementvalue=1
             #   setmethod = value
-            dbvndict = parsedbvn(self.actiondetail)
+            dbvndict = datalib.parsedbvn(self.actiondetail)
             dbpath = pilib.dbnametopath(dbvndict['dbname'])
             # Special set formula?
 
@@ -170,12 +176,15 @@ class action:
             print(str(attr) + ' : ' + str(value))
 
     def publish(self):
+        from cupid import pilib
+        from utilities import dblib
+        from utilities.datalib import dicttojson
         # reinsert updated action back into database
         valuelist=[]
         valuenames=[]
 
         # We convert our actiondatadict back into a string
-        self.actiondata = datalib.dicttojson(self.actiondatadict)
+        self.actiondata = dicttojson(self.actiondatadict)
 
         attrdict = {}
         for attr, value in self.__dict__.iteritems():
@@ -191,8 +200,7 @@ class action:
         # setsinglevalue(controldatabase, 'actions', 'ontime', gettimestring(), 'rowid=' + str(self.rowid))
 
     def process(self):
-        # print(actiondict)
-        # process condition
+        from utilities import datalib
         if self.enabled:
             self.statusmsg = datalib.gettimestring() + ' : Enabled and processing. '
             if self.conditiontype == 'temporal':
@@ -364,8 +372,10 @@ class action:
 def processactions():
 
     # Read database to get our actions
+    from utilities.dblib import readalldbrows
+    from cupid.pilib import controldatabase
 
-    actiondicts = dblib.readalldbrows(pilib.controldatabase, 'actions')
+    actiondicts = readalldbrows(controldatabase, 'actions')
 
     for actiondict in actiondicts:
         alert = False
