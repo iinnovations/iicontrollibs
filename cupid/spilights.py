@@ -23,7 +23,7 @@ from iiutilities import dblib
 
 def setrawspilights(enabledlists, CS=1, **kwargs):
 
-    from pilib import syslog, loglevels.system
+    from pilib import dirs, loglevels
     from iiutilities.utility import log
     if 'method' in kwargs:
         method = kwargs['method']
@@ -49,7 +49,7 @@ def setrawspilights(enabledlists, CS=1, **kwargs):
         try:
             import spidev
         except ImportError:
-            log(syslog, 'You have not installed the spidev python package. Exiting.', 0, loglevels.system)
+            log(dirs.logs.system, 'You have not installed the spidev python package. Exiting.', 0, loglevels.system)
             exit
         else:
             spi = spidev.SpiDev()
@@ -57,7 +57,7 @@ def setrawspilights(enabledlists, CS=1, **kwargs):
             spi.open(0, CS)  # Port 0, CS1
             spi.max_speed_hz = 50000
         except:
-            log(syslog, 'Error raised on spi open. exiting.', 0, loglevels.system)
+            log(dirs.logs.system, 'Error raised on spi open. exiting.', 0, loglevels.system)
             exit
         else:
 
@@ -198,7 +198,7 @@ def getCuPIDlightsentries(table, CS, previndicators=None):
     querylist=[]
 
     if not previndicators:
-        from pilib import dirs.dbs.control
+        from pilib import dirs
         from iiutilities.dblib import readalldbrows
         previndicators = readalldbrows(dirs.dbs.control, 'indicators')
 
@@ -236,7 +236,7 @@ def getCuPIDlightsentries(table, CS, previndicators=None):
     return querylist, setlist
 
 if __name__ == '__main__':
-    from pilib import dirs.dbs.control
+    from pilib import dirs
     # updatelightsfromdb(dirs.dbs.control, 'indicators',1)
     #twitterspilights(1)
     setspilightsoff()
