@@ -36,15 +36,17 @@ def runalltests():
     stringresult =  'Total Error Count: \t\t' + str(totalerrorcount) + '\r\n'
     stringresult += 'Function Error Count: \t\t' + str(functionerrorcount) + '\r\n'
     stringresult += 'Module Error Count: \t\t' + str(moduleerrorcount) + '\r\n'
-    stringresult += '\r\n'
-    stringresult += 'Error Modules:\r\n'
-    for errormodule in errormodules:
-        stringresult += str(errormodule)
-    stringresult += '\r\n\r\n'
-    stringresult += 'Errors:\r\n'
 
-    for error in errors:
-        stringresult += str(error)
+    if totalerrorcount > 0:
+        stringresult += '\r\n'
+        stringresult += 'Error Modules:\r\n'
+        for errormodule in errormodules:
+            stringresult += str(errormodule)
+        stringresult += '\r\n\r\n'
+        stringresult += 'Errors:\r\n'
+
+        for error in errors:
+            stringresult += str(error)
 
     return {'functions':functionresults, 'modules':moduleresults, 'functionerrorcount':functionerrorcount, \
             'moduleerrorcount':moduleerrorcount, 'totalerrorcount':totalerrorcount, 'errors':errors, 'stringresult':stringresult}
