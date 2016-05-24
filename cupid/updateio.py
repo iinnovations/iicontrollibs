@@ -262,7 +262,7 @@ def updateiodata(database, **kwargs):
                 '''
 
                 if keyvalue == '*':
-                    pass
+                    nodeentries = []
                 else:
                     condition = "\"nodeid\"='" + nodeid + "' and \"keyvalue\"='" + keyvalue + "'"
                     nodeentries = dblib.dynamicsqliteread(pilib.dirs.dbs.control, 'remotes', condition=condition)
