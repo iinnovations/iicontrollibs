@@ -27,7 +27,7 @@ import spilights
 from iiutilities import utility, dblib
 
 interfaces = dblib.readalldbrows(pilib.dirs.dbs.control, 'interfaces')
-systemstatus = dblib.readonedbrow(pilib.dirs.dbs.control, 'systemstatus')[0]
+systemstatus = dblib.readonedbrow(pilib.dirs.dbs.system, 'systemstatus')[0]
 
 # Start pigpiod
 

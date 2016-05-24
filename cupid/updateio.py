@@ -151,7 +151,7 @@ def updateiodata(database, **kwargs):
 
                     # print(valueentries)
                     if valueentries:
-                                querylist.extend(valueentries)
+                        querylist.extend(valueentries)
 
             else:
                  utility.log(pilib.dirs.logs.io, 'USB Interface ' + interface['name'] + ' disabled', 3,
@@ -167,28 +167,36 @@ def updateiodata(database, **kwargs):
                 # try:
                 options = datalib.parseoptions(interface['options'])
                 rateresult = datalib.calcinputrate(options['inputid'])
-                value = rateresult['rate']
-                readtime = rateresult['ratetime']
-                # except:
-                #
-                #     value = 'NaN'
-                #     readtime =''
-                # else:
-                print('RATE COUNTER SUCCESS')
-                if 'formula' in options:
-                    try:
-                        adjustedrate = datalib.calcastevalformula(options['formula'].replace('x', str(value)))
-                    except:
-                        pass
-                    else:
-                        value = adjustedrate
+                if rateresult:
+                    value = rateresult['rate']
+                    readtime = rateresult['ratetime']
+                    # except:
+                    #
+                    #     value = 'NaN'
+                    #     readtime =''
+                    # else:
+                    print('RATE COUNTER SUCCESS')
+                    if 'formula' in options:
+                        try:
+                            adjustedrate = datalib.calcastevalformula(options['formula'].replace('x', str(value)))
+                        except:
+                            pass
+                        else:
+                            value = adjustedrate
 
-                # This should be a structured instead of raw query here
-                querylist.append(
-                    'insert into inputs values (\'' + entryid + '\',\'' + interface['interface'] + '\',\'' +
-                    interface['type'] + '\',\'' + str(interface['address']) + '\',\'' + entryid + '\',\'' + str(
-                        value) + "','','" +
-                    str(readtime) + '\',\'' + str(defaultinputpollfreq) + "','" + '' + "','" + '' + "')")
+                    # This should be a structured instead of raw query here
+                    query = dblib.makesqliteinsert('inputs', [entryid, interface['interface'], interface['type'],
+                          interface['address'], entryid, str(value), '', str(readtime),
+                          str(defaultinputpollfreq), '', ''])
+                    # querylist.append(
+                    #     'insert into inputs values (\'' + entryid + '\',\'' + interface['interface'] + '\',\'' +
+                    #     interface['type'] + '\',\'' + str(interface['address']) + '\',\'' + entryid + '\',\'' + str(
+                    #         value) + "','','" +
+                    #     str(readtime) + '\',\'' + str(defaultinputpollfreq) + "','" + '' + "','" + '' + "')")
+                    querylist.append(query)
+                else:
+                    print('BAD RATE COUNTER VALUE')
+                    utility.log(pilib.dirs.logs.io, 'Rate data returned None. Beginning of data set?')
 
             if interface['type'] == 'value':
 
@@ -196,7 +204,7 @@ def updateiodata(database, **kwargs):
                 readtime = datalib.gettimestring()
                 try:
                     options = datalib.parseoptions(interface['options'])
-                    print(options['formula'])
+                    # print(options['formula'])
                     value = datalib.evaldbvnformula(options['formula'])
                 except:
                     print("error calculating aux value")
@@ -204,7 +212,7 @@ def updateiodata(database, **kwargs):
                     query = dblib.makesqliteinsert('inputs', [entryid, interface['interface'],
                           interface['type'], str(interface['address']), entryid, str(value), '', str(readtime),
                           str(defaultinputpollfreq), '', ''])
-                    print(query)
+                    # print(query)
                     # query = 'insert into inputs values (\'' + entryid + '\',\'' + interface['interface'] + '\',\'' +
                     # interface['type'] + '\',\'' + str(interface['address']) + '\',\'' + entryid + '\',\'' + str(
                     #     value) + "','','" +
@@ -505,7 +513,6 @@ def updateiodata(database, **kwargs):
 
     utility.log(pilib.dirs.logs.io, 'Executing query:  ' + str(querylist), 5, pilib.loglevels.io)
     try:
-        # print(querylist)
         dblib.sqlitemultquery(pilib.dirs.dbs.control, querylist)
     except:
         errorstring = traceback.format_exc()
@@ -545,7 +552,7 @@ def processlabjackentry(interface, entry):
     result = {'readtime':gettimestring()}
     options = parseoptions(entry['options'])
 
-    print(entry['mode'])
+    # print(entry['mode'])
 
     if entry['mode'] == 'AIN':
         resolutionIndex=0
@@ -587,8 +594,8 @@ def processlabjackentry(interface, entry):
             else:
                 result['status'] = 0
 
-            print(entry)
-            print(result)
+            # print(entry)
+            # print(result)
 
         if 'formula' in options:
             from iiutilities.datalib import calcastevalformula
@@ -626,7 +633,8 @@ def processlabjackentry(interface, entry):
             except:
                 # print('error in formula')
                 pass
-
+        # print("COUNTER RESULT: ")
+        # print(result)
     return result
 
 
@@ -692,7 +700,7 @@ def processlabjackinterface(interface, previnputs):
         interface['type'] + "','" + str(entry['address']) + "','" + name + "','" + str(data['value']) + "','','" + \
         str(data['readtime']) + "','" + str(pollfreq) + "','" + ontime + "','" + offtime + "')"
 
-        # print(query)
+        print(query)
 
         querylist.append(query)
     return querylist

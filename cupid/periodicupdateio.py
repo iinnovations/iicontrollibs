@@ -32,6 +32,7 @@ readtime = 10  # default, seconds
 Read from systemstatus to make sure we should be running
 """
 
+
 def runperiodicio():
 
     updateioenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'updateioenabled')
@@ -67,8 +68,9 @@ def runperiodicio():
         plotpoints = 20
         logpoints = 1000
 
-        ###################################################
-        # Update controlvalues in channels
+        """
+        Update controlvalues in channels
+        """
 
         channels = dblib.readalldbrows(pilib.dirs.dbs.control, 'channels')
         for channel in channels:
@@ -104,37 +106,47 @@ def runperiodicio():
                 #pilib.sqlitequery(dirs.dbs.control,"update channels set enabled=0 where controlinput = \'" + controlinput + "'")
 
 
-        ####################################################
-        # Log value into tabled log
+        """
+        Log value into tabled log
 
-        # Get data for all sensors online
+        Get data for all sensors online
+        """
 
         inputsdata = dblib.readalldbrows(pilib.dirs.dbs.control, 'inputs')
         for inputrow in inputsdata:
             logtablename = 'input_' + inputrow['id'] + '_log'
+            utility.log(pilib.dirs.logs.io, 'Logging: ' + logtablename, 5, pilib.loglevels.io)
+            print( 'Logging: ' + logtablename, 5, pilib.loglevels.io)
 
             if datalib.isvalidtimestring(inputrow['polltime']):
                 # Create table if it doesn't exist
-
 
                 query = 'create table if not exists \'' + logtablename + '\' ( value real, time text primary key)'
                 dblib.sqlitequery(pilib.dirs.dbs.log, query)
 
                 # Enter row
-                dblib.sqliteinsertsingle(pilib.dirs.dbs.log, logtablename,
-                                         valuelist=[inputrow['value'], inputrow['polltime']],
-                                         valuenames=['value', 'time'])
+                query = dblib.makesqliteinsert(logtablename, [inputrow['value'], inputrow['polltime']],['value', 'time'])
+                print('Making query:')
+                print(query)
+                print('into database: ')
+                print(pilib.dirs.dbs.log)
+                dblib.sqlitequery(pilib.dirs.dbs.log, query)
+                # dblib.sqliteinsertsingle(pilib.dirs.dbs.log, logtablename,
+                #                          valuelist=[inputrow['value'], inputrow['polltime']],
+                #                          valuenames=['value', 'time'])
 
                 # Clean log
                 dblib.cleanlog(pilib.dirs.dbs.log, logtablename)
 
                 # Size log based on specified size
-
                 dblib.sizesqlitetable(pilib.dirs.dbs.log, logtablename, logpoints)
+            else:
+                print('invalid poll time')
 
+        """
+        log metadata
+        """
 
-        ####################################################
-        # log metadata
         dblib.getandsetmetadata(pilib.dirs.dbs.log)
 
         utility.log(pilib.dirs.logs.io, 'Sleeping for ' + str(readtime), 1, pilib.loglevels.io)

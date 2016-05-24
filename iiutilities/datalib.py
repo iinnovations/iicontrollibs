@@ -134,17 +134,20 @@ def calcinputrate(input, numentries=2):
     entries = dblib.getlasttimerows(pilib.dirs.dbs.log, logname, numentries)
     # print(entries)
 
-    lastentry = entries[numentries-1]
-    firstentry = entries[0]
+    if len(entries) == numentries:
+        lastentry = entries[numentries-1]
+        firstentry = entries[0]
 
-    dvalue = float(lastentry['value'])-float(firstentry['value'])
-    dtime = timestringtoseconds(lastentry['time'])-timestringtoseconds(firstentry['time'])
+        dvalue = float(lastentry['value'])-float(firstentry['value'])
+        dtime = timestringtoseconds(lastentry['time'])-timestringtoseconds(firstentry['time'])
 
-    rate = dvalue/dtime
-    ratetime = (timestringtoseconds(lastentry['time'])+timestringtoseconds(firstentry['time'])) / 2
-    ratetimestring = gettimestring(ratetime)
+        rate = dvalue/dtime
+        ratetime = (timestringtoseconds(lastentry['time'])+timestringtoseconds(firstentry['time'])) / 2
+        ratetimestring = gettimestring(ratetime)
 
-    result = {'rate':rate, 'ratetime':ratetimestring}
+        result = {'rate':rate, 'ratetime':ratetimestring}
+    else:
+        result = None
     return result
 
 
