@@ -450,8 +450,14 @@ def updateiodata(database, **kwargs):
                 if address in allowedGPIOaddresses:
                     utility.log(pilib.dirs.logs.io, 'GPIO address' + str(address) + ' allowed. Processing.', 4,
                                 pilib.loglevels.io)
-                    GPIOentries = processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids,
+                    try:
+                        GPIOentries = processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids,
                                                                previnputs, previnputids, defaults, logconfig, piobject=pi)
+                    except:
+                        print("ERROR handling GPIO interface")
+                        utility.log(pilib.dirs.logs.io,
+                                           "ERROR handling GPIO interface " + str(address) + '. ', 0,  pilib.loglevels.io)
+                        GPIOentries = []
                     if GPIOentries:
                                 querylist.extend(GPIOentries)
                 else:
@@ -974,9 +980,15 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
                 else:
                     pi.set_pull_up_down(address, pigpio.PUD_OFF)
             else:
-                pi.set_pull_up_down(17, pigpio.PUD_OFF)
-
-            pi.set_mode(address, pigpio.INPUT)
+                try:
+                    pi.set_pull_up_down(17, pigpio.PUD_OFF)
+                except:
+                    pass
+            try:
+                pi.set_mode(address, pigpio.INPUT)
+            except:
+                #handle me!
+                pass
 
         if method == 'rpigpio':
             value = GPIO.input(address)
