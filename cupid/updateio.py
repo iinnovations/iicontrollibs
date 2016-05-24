@@ -31,7 +31,7 @@ def updateiodata(database, **kwargs):
     """
 
     from cupid import pilib
-    from utilities import dblib, utility, datalib
+    from iiutilities import dblib, utility, datalib
 
     import traceback
 
@@ -45,18 +45,18 @@ def updateiodata(database, **kwargs):
 
     logconfig = pilib.getlogconfig()
 
-    tables = dblib.gettablenames(pilib.controldatabase)
+    tables = dblib.gettablenames(pilib.dirs.dbs.control)
     if 'interfaces' in tables:
-        interfaces = dblib.readalldbrows(pilib.controldatabase, 'interfaces')
+        interfaces = dblib.readalldbrows(pilib.dirs.dbs.control, 'interfaces')
     else:
-        utility.log(pilib.iolog, 'interfaces table not found. Exiting', 1,
-                    logconfig['iologlevel'])
+        utility.log(pilib.dirs.logs.io, 'interfaces table not found. Exiting', 1,
+                    logconfig['loglevels.io'])
         return
 
     # TODO: Sort interfaces to put aux values at the end and prioritize reads. Maybe a priority field?
 
     if 'inputs' in tables:
-        previnputs = dblib.readalldbrows(pilib.controldatabase, 'inputs')
+        previnputs = dblib.readalldbrows(pilib.dirs.dbs.control, 'inputs')
 
         # Make list of IDs for easy indexing
         previnputids = []
@@ -67,7 +67,7 @@ def updateiodata(database, **kwargs):
         previnputids = []
 
     if 'outputs' in tables:
-        prevoutputs = dblib.readalldbrows(pilib.controldatabase, 'outputs')
+        prevoutputs = dblib.readalldbrows(pilib.dirs.dbs.control, 'outputs')
 
         # Make list of IDs for easy indexing
         prevoutputids = []
@@ -80,7 +80,7 @@ def updateiodata(database, **kwargs):
         prevoutputids = []
 
     if 'defaults' in tables:
-        defaults = dblib.readalldbrows(pilib.controldatabase, 'defaults')[0]
+        defaults = dblib.readalldbrows(pilib.dirs.dbs.control, 'defaults')[0]
         defaultinputpollfreq = defaults['inputpollfreq']
         defaultoutputpollfreq = defaults['outputpollfreq']
     else:
@@ -90,7 +90,7 @@ def updateiodata(database, **kwargs):
 
     if 'indicators' in tables:
         indicatornames = []
-        previndicators = dblib.readalldbrows(pilib.controldatabase, 'indicators')
+        previndicators = dblib.readalldbrows(pilib.dirs.dbs.control, 'indicators')
         for indicator in previndicators:
             indicatornames.append(indicator['name'])
     else:
@@ -113,7 +113,7 @@ def updateiodata(database, **kwargs):
     '''
 
     # We drop this table, so that if SP1 has been disabled, the entries do not appear as valid indicators
-    dblib.sqlitequery(pilib.controldatabase, 'delete from indicators')
+    dblib.sqlitequery(pilib.dirs.dbs.control, 'delete from indicators')
 
     owfsupdate = False
     # Unfortunately, we need to keep track of the IDs we are creating, so we don't run them over as we go
@@ -121,30 +121,30 @@ def updateiodata(database, **kwargs):
     interfaceids = []
     for interface in interfaces:
         if interface['interface'] == 'I2C':
-            utility.log(pilib.iolog, 'Processing I2C interface ' + interface['name'], 3,
-                        logconfig['iologlevel'])
+            utility.log(pilib.dirs.logs.io, 'Processing I2C interface ' + interface['name'], 3,
+                        pilib.loglevels.io)
             if interface['enabled']:
-                utility.log(pilib.iolog, 'I2C Interface ' + interface['name'] + ' enabled', 3,
-                            logconfig['iologlevel'])
+                utility.log(pilib.dirs.logs.io, 'I2C Interface ' + interface['name'] + ' enabled', 3,
+                            pilib.loglevels.io)
                 if interface['type'] == 'DS2483':
-                    utility.log(pilib.iolog, 'Interface type is DS2483', 3,
-                                logconfig['iologlevel'])
+                    utility.log(pilib.dirs.logs.io, 'Interface type is DS2483', 3,
+                                pilib.loglevels.io)
                     owfsupdate = True
             else:
-                 utility.log(pilib.iolog, 'I2C Interface ' + interface['name'] + ' disabled', 3,
-                             logconfig['iologlevel'])
+                 utility.log(pilib.dirs.logs.io, 'I2C Interface ' + interface['name'] + ' disabled', 3,
+                             pilib.loglevels.io)
         elif interface['interface'] == 'USB':
-            utility.log(pilib.iolog, 'Processing USB interface ' + interface['name'], 3,
-                        logconfig['iologlevel'])
+            utility.log(pilib.dirs.logs.io, 'Processing USB interface ' + interface['name'], 3,
+                        pilib.loglevels.io)
             if interface['enabled']:
-                utility.log(pilib.iolog, 'USB Interface ' + interface['name'] + ' enabled', 3,
-                            logconfig['iologlevel'])
+                utility.log(pilib.dirs.logs.io, 'USB Interface ' + interface['name'] + ' enabled', 3,
+                            pilib.loglevels.io)
                 if interface['type'] == 'DS9490':
-                    utility.log(pilib.iolog, 'Interface type is DS9490', 3,
-                                logconfig['iologlevel'])
+                    utility.log(pilib.dirs.logs.io, 'Interface type is DS9490', 3,
+                                pilib.loglevels.io)
                     owfsupdate = True
                 elif interface['type'] in ['U6', 'U3', 'U9', 'U12']:
-                    utility.log(pilib.iolog, 'Interface type is LabJack of type: ' + interface['type'], 3, logconfig['iologlevel'])
+                    utility.log(pilib.dirs.logs.io, 'Interface type is LabJack of type: ' + interface['type'], 3, pilib.loglevels.io)
                     # address = int(interface['address'])
 
                     valueentries = processlabjackinterface(interface, previnputs)
@@ -154,8 +154,8 @@ def updateiodata(database, **kwargs):
                                 querylist.extend(valueentries)
 
             else:
-                 utility.log(pilib.iolog, 'USB Interface ' + interface['name'] + ' disabled', 3,
-                             logconfig['iologlevel'])
+                 utility.log(pilib.dirs.logs.io, 'USB Interface ' + interface['name'] + ' disabled', 3,
+                             pilib.loglevels.io)
         elif interface['interface'] == 'AUX':
 
             # The address of the interface will be unique and determine the ID of the input.
@@ -183,12 +183,12 @@ def updateiodata(database, **kwargs):
                     else:
                         value = adjustedrate
 
+                # This should be a structured instead of raw query here
                 querylist.append(
                     'insert into inputs values (\'' + entryid + '\',\'' + interface['interface'] + '\',\'' +
                     interface['type'] + '\',\'' + str(interface['address']) + '\',\'' + entryid + '\',\'' + str(
                         value) + "','','" +
                     str(readtime) + '\',\'' + str(defaultinputpollfreq) + "','" + '' + "','" + '' + "')")
-
 
             if interface['type'] == 'value':
 
@@ -196,16 +196,20 @@ def updateiodata(database, **kwargs):
                 readtime = datalib.gettimestring()
                 try:
                     options = datalib.parseoptions(interface['options'])
-                    value = datalib.dbvntovalue(options['formula'])
+                    print(options['formula'])
+                    value = datalib.evaldbvnformula(options['formula'])
                 except:
                     print("error calculating aux value")
                 else:
-                    querylist.append(
-                    'insert into inputs values (\'' + entryid + '\',\'' + interface['interface'] + '\',\'' +
-                    interface['type'] + '\',\'' + str(entry['address']) + '\',\'' + entryid + '\',\'' + str(
-                        value) + "','','" +
-                    str(readtime) + '\',\'' + str(defaultinputpollfreq) + "','" + '' + "','" + '' + "')")
-
+                    query = dblib.makesqliteinsert('inputs', [entryid, interface['interface'],
+                          interface['type'], str(interface['address']), entryid, str(value), '', str(readtime),
+                          str(defaultinputpollfreq), '', ''])
+                    print(query)
+                    # query = 'insert into inputs values (\'' + entryid + '\',\'' + interface['interface'] + '\',\'' +
+                    # interface['type'] + '\',\'' + str(interface['address']) + '\',\'' + entryid + '\',\'' + str(
+                    #     value) + "','','" +
+                    # str(readtime) + '\',\'' + str(defaultinputpollfreq) + "','" + '' + "','" + '' + "')")
+                    querylist.append(query)
 
 
         elif interface['interface'] == 'MOTE':
@@ -217,13 +221,13 @@ def updateiodata(database, **kwargs):
             condition = '"interface"=\'' + interface['interface'] + '\' and "type"=\'' + interface['type'] + '\' and "address"=\'' + interface['address'] + '\''
 
             # print(condition)
-            dblib.setsinglevalue(pilib.controldatabase, 'interfaces', 'id', entryid, condition)
+            dblib.setsinglevalue(pilib.dirs.dbs.control, 'interfaces', 'id', entryid, condition)
 
-            utility.log(pilib.iolog, 'Processing Mote interface' + interface['name'] + ', id:' + entryid, 3,
-                        logconfig['iologlevel'])
+            utility.log(pilib.dirs.logs.io, 'Processing Mote interface' + interface['name'] + ', id:' + entryid, 3,
+                        pilib.loglevels.io)
             if interface['enabled']:
-                utility.log(pilib.iolog, 'Mote Interface ' + interface['name'] + ', id:' + entryid + ' enabled', 3,
-                            logconfig['iologlevel'])
+                utility.log(pilib.dirs.logs.io, 'Mote Interface ' + interface['name'] + ', id:' + entryid + ' enabled', 3,
+                            pilib.loglevels.io)
 
                 # TODO: put this all in a subroutine
 
@@ -258,7 +262,7 @@ def updateiodata(database, **kwargs):
                     pass
                 else:
                     condition = "\"nodeid\"='" + nodeid + "' and \"keyvalue\"='" + keyvalue + "'"
-                    nodeentries = dblib.dynamicsqliteread(pilib.controldatabase, 'remotes', condition=condition)
+                    nodeentries = dblib.dynamicsqliteread(pilib.dirs.dbs.control, 'remotes', condition=condition)
 
                 # print("WE FOUND MOTE")
                 # print(condition)
@@ -279,7 +283,7 @@ def updateiodata(database, **kwargs):
                             nodedata.pop('svcmd',None)
 
                             # Delete from remotes data by inserting entry without svcmd
-                            dblib.setsinglevalue(pilib.controldatabase, 'remotes', 'data', datalib.dicttojson(nodedata), condition=condition)
+                            dblib.setsinglevalue(pilib.dirs.dbs.control, 'remotes', 'data', datalib.dicttojson(nodedata), condition=condition)
 
                             # Nuke pending entry
                             newchanneldata['pending'] = ''
@@ -296,7 +300,7 @@ def updateiodata(database, **kwargs):
                         # TODO: Reorder starting at 1 for when things get wonky
 
                         newchannel = {}
-                        existingchannels = dblib.readalldbrows(pilib.controldatabase, 'channels')
+                        existingchannels = dblib.readalldbrows(pilib.dirs.dbs.control, 'channels')
                         for channel in existingchannels:
                             if channel['name'] == interface['name']:
                                 # print('updating')
@@ -314,7 +318,7 @@ def updateiodata(database, **kwargs):
 
                         query = dblib.makesqliteinsert('channels', values, keys)
                         # print(query)
-                        dblib.sqlitequery(pilib.controldatabase, query)
+                        dblib.sqlitequery(pilib.dirs.dbs.control, query)
                     else:
                         # print('multiple entries found for channel. not appropriate')
                         pass
@@ -334,7 +338,7 @@ def updateiodata(database, **kwargs):
 
                             entryid = 'MOTE' + str(nodeentry['nodeid']) + '_' + nodeentry['keyvaluename'] + '_' + nodeentry['keyvalue']
 
-                            entrymetareturn = dblib.dynamicsqliteread(pilib.controldatabase, 'ioinfo', condition="\"id\"='" + entryid + "'")
+                            entrymetareturn = dblib.dynamicsqliteread(pilib.dirs.dbs.control, 'ioinfo', condition="\"id\"='" + entryid + "'")
                             try:
                                 entrymeta = entrymetareturn[0]
                             except:
@@ -390,69 +394,69 @@ def updateiodata(database, **kwargs):
                     querylist.extend(moteentries)
 
             else:
-                utility.log(pilib.iolog, 'Mote Interface ' + interface['name'] + ' disnabled', 3,
-                            logconfig['iologlevel'])
+                utility.log(pilib.dirs.logs.io, 'Mote Interface ' + interface['name'] + ' disnabled', 3,
+                            pilib.loglevels.io)
         elif interface['interface'] == 'LAN':
-            utility.log(pilib.iolog, 'Processing LAN interface' + interface['name'], 3,
-                        logconfig['iologlevel'])
+            utility.log(pilib.dirs.logs.io, 'Processing LAN interface' + interface['name'], 3,
+                        pilib.loglevels.io)
             if interface['enabled']:
-                utility.log(pilib.iolog, 'LAN Interface ' + interface['name'] + ' enabled', 3,
-                            logconfig['iologlevel'])
+                utility.log(pilib.dirs.logs.io, 'LAN Interface ' + interface['name'] + ' enabled', 3,
+                            pilib.loglevels.io)
                 if interface['type'] == 'MBTCP':
-                    utility.log(pilib.iolog, 'Interface ' + interface['name'] + ' type is MBTCP',
-                                3, logconfig['iologlevel'])
+                    utility.log(pilib.dirs.logs.io, 'Interface ' + interface['name'] + ' type is MBTCP',
+                                3, pilib.loglevels.io)
 
                     try:
                         mbentries = processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previnputids, defaults, logconfig)
                     except:
-                        utility.log(pilib.iolog,
+                        utility.log(pilib.dirs.logs.io,
                                                'Error processing MBTCP interface ' + interface['name'], 0,
-                                    logconfig['iologlevel'])
+                                    pilib.loglevels.io)
                         errorstring = traceback.format_exc()
-                        utility.log(pilib.iolog,
+                        utility.log(pilib.dirs.logs.io,
                                                'Error of kind: ' + errorstring, 0,
-                                    logconfig['iologlevel'])
+                                    pilib.loglevels.io)
                     else:
-                        utility.log(pilib.iolog,
+                        utility.log(pilib.dirs.logs.io,
                                                'Done processing MBTCP interface ' + interface['name'], 3,
-                                    logconfig['iologlevel'])
+                                    pilib.loglevels.io)
                         querylist.extend(mbentries)
             else:
-                utility.log(pilib.iolog, 'LAN Interface ' + interface['name'] + ' disabled', 3,
-                            logconfig['iologlevel'])
+                utility.log(pilib.dirs.logs.io, 'LAN Interface ' + interface['name'] + ' disabled', 3,
+                            pilib.loglevels.io)
         elif interface['interface'] == 'GPIO':
             try:
                 address = int(interface['address'])
             except KeyError:
-                utility.log(pilib.iolog, 'GPIO address key not found for ' + interface['name'], 1,
-                            logconfig['iologlevel'])
+                utility.log(pilib.dirs.logs.io, 'GPIO address key not found for ' + interface['name'], 1,
+                            pilib.loglevels.io)
                 continue
             if interface['enabled']:
 
-                utility.log(pilib.iolog, 'Processing GPIO interface ' + str(interface['address']), 3,
-                            logconfig['iologlevel'])
+                utility.log(pilib.dirs.logs.io, 'Processing GPIO interface ' + str(interface['address']), 3,
+                            pilib.loglevels.io)
 
                 if address in allowedGPIOaddresses:
-                    utility.log(pilib.iolog, 'GPIO address' + str(address) + ' allowed. Processing.', 4,
-                                logconfig['iologlevel'])
+                    utility.log(pilib.dirs.logs.io, 'GPIO address' + str(address) + ' allowed. Processing.', 4,
+                                pilib.loglevels.io)
                     GPIOentries = processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids,
                                                                previnputs, previnputids, defaults, logconfig, piobject=pi)
                     if GPIOentries:
                                 querylist.extend(GPIOentries)
                 else:
-                    utility.log(pilib.iolog,
+                    utility.log(pilib.dirs.logs.io,
                                            'GPIO address' + str(address) + ' not allowed. Bad things can happen. ', 4,
-                                logconfig['iologlevel'])
+                                pilib.loglevels.io)
 
             else:
-                utility.log(pilib.iolog, 'GPIO address' + str(address) + ' disabled. Doing nothing.', 4,
-                            logconfig['iologlevel'])
+                utility.log(pilib.dirs.logs.io, 'GPIO address' + str(address) + ' disabled. Doing nothing.', 4,
+                            pilib.loglevels.io)
         elif interface['interface'] == 'SPI0':
-            utility.log(pilib.iolog, 'Processing SPI0', 1, logconfig['iologlevel'])
+            utility.log(pilib.dirs.logs.io, 'Processing SPI0', 1, pilib.loglevels.io)
             if interface['enabled']:
-                utility.log(pilib.iolog, 'SPI0 enabled', 1, logconfig['iologlevel'])
+                utility.log(pilib.dirs.logs.io, 'SPI0 enabled', 1, pilib.loglevels.io)
                 if interface['type'] == 'SPITC':
-                    utility.log(pilib.iolog, 'Processing SPITC on SPI0', 3, logconfig['iologlevel'])
+                    utility.log(pilib.dirs.logs.io, 'Processing SPITC on SPI0', 3, pilib.loglevels.io)
                     import readspi
 
                     tcdict = readspi.getpigpioMAX31855temp(0,0)
@@ -466,51 +470,51 @@ def updateiodata(database, **kwargs):
 
                     spilightsentries, setlist = spilights.getCuPIDlightsentries('indicators', 0, previndicators)
                     querylist.extend(spilightsentries)
-                    spilights.updatelightsfromdb(pilib.controldatabase, 'indicators', 0)
+                    spilights.updatelightsfromdb(pilib.dirs.dbs.control, 'indicators', 0)
                     spilights.setspilights(setlist, 0)
             else:
-                utility.log(pilib.iolog, 'SPI0 not enabled', 1, logconfig['iologlevel'])
+                utility.log(pilib.dirs.logs.io, 'SPI0 not enabled', 1, pilib.loglevels.io)
 
         elif interface['interface'] == 'SPI1':
-            utility.log(pilib.iolog, 'Processing SPI1', 1, logconfig['iologlevel'])
+            utility.log(pilib.dirs.logs.io, 'Processing SPI1', 1, pilib.loglevels.io)
             if interface['enabled']:
-                utility.log(pilib.iolog, 'SPI1 enabled', 1, logconfig['iologlevel'])
+                utility.log(pilib.dirs.logs.io, 'SPI1 enabled', 1, pilib.loglevels.io)
                 if interface['type'] == 'CuPIDlights':
-                    utility.log(pilib.iolog, 'Processing CuPID Lights on SPI1', 1, logconfig['iologlevel'])
+                    utility.log(pilib.dirs.logs.io, 'Processing CuPID Lights on SPI1', 1, pilib.loglevels.io)
                     import spilights
 
                     spilightsentries, setlist = spilights.getCuPIDlightsentries('indicators', 1, previndicators)
                     querylist.extend(spilightsentries)
                     spilights.setspilights(setlist, 1)
             else:
-                utility.log(pilib.iolog, 'SPI1 disaabled', 1, logconfig['iologlevel'])
+                utility.log(pilib.dirs.logs.io, 'SPI1 disaabled', 1, pilib.loglevels.io)
 
     # Set tables
-    querylist.append(dblib.makesinglevaluequery('systemstatus', 'lastiopoll', datalib.gettimestring()))
+    dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'lastiopoll', datalib.gettimestring())
 
     if owfsupdate:
-        from utilities.owfslib import runowfsupdate
-        utility.log(pilib.iolog, 'Running owfsupdate', 1, logconfig['iologlevel'])
+        from iiutilities.owfslib import runowfsupdate
+        utility.log(pilib.dirs.logs.io, 'Running owfsupdate', 1, pilib.loglevels.io)
         devices, owfsentries = runowfsupdate(execute=False)
         querylist.extend(owfsentries)
     else:
-        utility.log(pilib.iolog, 'owfsupdate disabled', 3, logconfig['iologlevel'])
+        utility.log(pilib.dirs.logs.io, 'owfsupdate disabled', 3, pilib.loglevels.io)
 
-    utility.log(pilib.iolog, 'Executing query:  ' + str(querylist), 5, logconfig['iologlevel'])
+    utility.log(pilib.dirs.logs.io, 'Executing query:  ' + str(querylist), 5, pilib.loglevels.io)
     try:
         # print(querylist)
-        dblib.sqlitemultquery(pilib.controldatabase, querylist)
+        dblib.sqlitemultquery(pilib.dirs.dbs.control, querylist)
     except:
         errorstring = traceback.format_exc()
-        utility.log(pilib.iolog, 'Error executing query, message:  ' + errorstring, 0, logconfig['iologlevel'])
-        utility.log(pilib.errorlog, 'Error executing updateio query, message:  ' + errorstring)
-        utility.log(pilib.errorlog, 'Query:  ' + str(querylist))
+        utility.log(pilib.dirs.logs.io, 'Error executing query, message:  ' + errorstring, 0, pilib.loglevels.io)
+        utility.log(pilib.dirs.logs.error, 'Error executing updateio query, message:  ' + errorstring)
+        utility.log(pilib.dirs.logs.error, 'Query:  ' + str(querylist))
 
 
 def updateioinfo(database, table):
-    from utilities.dblib import readalldbrows
-    from utilities.dblib import sqlitedatumquery
-    from utilities.dblib import sqlitemultquery
+    from iiutilities.dblib import readalldbrows
+    from iiutilities.dblib import sqlitedatumquery
+    from iiutilities.dblib import sqlitemultquery
 
     tabledata = readalldbrows(database, table)
     querylist = []
@@ -523,15 +527,15 @@ def updateioinfo(database, table):
 
 
 def testupdateio(times):
-    from pilib import controldatabase
+    from pilib import dirs
 
     for i in range(times):
-        updateiodata(controldatabase)
+        updateiodata(dirs.dbs.control)
 
 
 def processlabjackentry(interface, entry):
-    from utilities.datalib import parseoptions, gettimestring
-    from utilities import utility
+    from iiutilities.datalib import parseoptions, gettimestring
+    from iiutilities import utility
     import labjack
     from cupid import pilib
 
@@ -543,7 +547,7 @@ def processlabjackentry(interface, entry):
     if entry['mode'] == 'AIN':
         resolutionIndex=0
         gainIndex=0
-        settlingFactor=0
+        # settlingFactor=0
         differential=False
 
         if 'resolution' in options:
@@ -569,19 +573,22 @@ def processlabjackentry(interface, entry):
             try:
                 # Do we error handle in readAnalog function?
                 # Or are we trying to catch it out here? TBD.
-                readresult = labjack.readU6Analog(entry['address'], resolutionIndex, gainIndex, settlingFactor, differential)
+                readresult = labjack.readU6Analog(entry['address'], resolutionIndex, gainIndex, differential=differential)
                 result['value'] = readresult['value']
                 result['readtime'] = readresult['readtime']
             except:
                 result['status'] = 1
                 result['value'] = 'NaN'
                 result['readtime'] = ''
-                utility.log(pilib.iolog, 'Error reading U6 AIN, ID: ' + entry['interfaceid'])
+                utility.log(pilib.dirs.logs.io, 'Error reading U6 AIN, ID: ' + entry['interfaceid'])
             else:
                 result['status'] = 0
 
+            print(entry)
+            print(result)
+
         if 'formula' in options:
-            from utilities.utility import calcastevalformula
+            from iiutilities.datalib import calcastevalformula
             try:
                 # print('translating ' + str(result['value']))
                 formula = options['formula'].replace('x', str(result['value']))
@@ -607,7 +614,7 @@ def processlabjackentry(interface, entry):
                 result['status'] = 0
 
         if 'formula' in options:
-            from utilities.utility import calcastevalformula
+            from iiutilities.utility import calcastevalformula
             try:
                 # print('translating ' + str(result['value']))
                 formula = options['formula'].replace('x', result['value'])
@@ -627,7 +634,7 @@ def processlabjackinterface(interface, previnputs):
      incompatibly.
     '''
 
-    from utilities.dblib import readalldbrows
+    from iiutilities.dblib import readalldbrows
     from cupid import pilib
 
     '''
@@ -635,7 +642,7 @@ def processlabjackinterface(interface, previnputs):
      name, ontime, offtime. If name is empty, we just make it the same as the ID
     '''
     querylist = []
-    labjackentries = readalldbrows(pilib.controldatabase, 'labjack', 'interfaceid=\'' + interface['id'] + '\'')
+    labjackentries = readalldbrows(pilib.dirs.dbs.control, 'labjack', 'interfaceid=\'' + interface['id'] + '\'')
     # print(labjackentries)
     for entry in labjackentries:
         usbid = entry['interfaceid'] + '_' + str(entry['address']) + '_' + str(entry['mode'])
@@ -678,27 +685,28 @@ def processlabjackinterface(interface, previnputs):
             if preventry['pollfreq']:
                 offtime = preventry['pollfreq']
 
-        querylist.append(
-        'insert into inputs values (\'' + usbid + '\',\'' + interface['interface'] + '\',\'' +
-        interface['type'] + '\',\'' + str(entry['address']) + '\',\'' + name + '\',\'' + str(
-            data['value']) + "','','" +
-        str(data['readtime']) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
+        query = "insert into inputs values ('" + usbid + "','" + interface['interface'] + "','" + \
+        interface['type'] + "','" + str(entry['address']) + "','" + name + "','" + str(data['value']) + "','','" + \
+        str(data['readtime']) + "','" + str(pollfreq) + "','" + ontime + "','" + offtime + "')"
 
+        # print(query)
+
+        querylist.append(query)
     return querylist
 
 
 def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previnputids, defaults, logconfig):
-    from utilities.netfun import readMBcodedaddresses, MBFCfromaddress
-    from utilities import dblib, utility, datalib
+    from iiutilities.netfun import readMBcodedaddresses, MBFCfromaddress
+    from iiutilities import dblib, utility, datalib
 
     import pilib
     # get all modbus reads that have the same address from the modbus table
     try:
-        modbustable = dblib.readalldbrows(pilib.controldatabase, 'modbustcp')
+        modbustable = dblib.readalldbrows(pilib.dirs.dbs.control, 'modbustcp')
     except:
-        utility.log(pilib.iolog, 'Error reading modbus table', 0, logconfig['iologlevel'])
+        utility.log(pilib.dirs.logs.io, 'Error reading modbus table', 0, pilib.loglevels.io)
     else:
-        utility.log(pilib.iolog, 'Read modbus table', 4, logconfig['iologlevel'])
+        utility.log(pilib.dirs.logs.io, 'Read modbus table', 4, pilib.loglevels.io)
 
     querylist = []
     for entry in modbustable:
@@ -712,16 +720,16 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
         elif entry['mode'] == 'readwrite':
             shortmode = 'RW'
         else:
-            utility.log(pilib.iolog, 'modbus mode error', 1, logconfig['iologlevel'])
+            utility.log(pilib.dirs.logs.io, 'modbus mode error', 1, pilib.loglevels.io)
         try:
             mbid = entry['interfaceid'] + '_' + str(entry['register']) + '_' + str(entry['length']) + '_' + shortmode
         except KeyError:
-            utility.log(pilib.iolog, 'Cannot form mbid due to key error', 0, logconfig['iologlevel'])
+            utility.log(pilib.dirs.logs.io, 'Cannot form mbid due to key error', 0, pilib.loglevels.io)
             return
 
-        utility.log(pilib.iolog, 'Modbus ID: ' + mbid, 4, logconfig['iologlevel'])
+        utility.log(pilib.dirs.logs.io, 'Modbus ID: ' + mbid, 4, pilib.loglevels.io)
 
-        mbname = dblib.sqlitedatumquery(pilib.controldatabase, "select name from ioinfo where id='" + mbid + "'")
+        mbname = dblib.sqlitedatumquery(pilib.dirs.dbs.control, "select name from ioinfo where id='" + mbid + "'")
         polltime = datalib.gettimestring()
         if entry['interfaceid'] == interface['id']:
             # For now, we're going to read them one by one. We'll assemble these into block reads
@@ -738,10 +746,10 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
                     prevvalue = previnputs[previnputids.index(mbid)]['offtime']
                     prevpolltime = previnputs[previnputids.index(mbid)]['offtime']
 
-                    utility.log(pilib.iolog,
+                    utility.log(pilib.dirs.logs.io,
                                            'Restoring values from previous inputids: pollfreq = ' + str(
                                                pollfreq) + ' ontime = ' + str(ontime) + ' offtime = ' + str(
-                                               offtime), 3, logconfig['iologlevel'])
+                                               offtime), 3, pilib.loglevels.io)
 
                 else:
                     # set values to defaults if it did not previously exist
@@ -753,31 +761,31 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
                     offtime = ''
                     prevvalue = ''
                     prevpolltime = ''
-                    utility.log(pilib.iolog,
-                                           'Setting values to defaults, defaultinputpollfreq = ' + str(pollfreq), 3, logconfig['iologlevel'])
+                    utility.log(pilib.dirs.logs.io,
+                                           'Setting values to defaults, defaultinputpollfreq = ' + str(pollfreq), 3, pilib.loglevels.io)
 
                 # Read data
                 try:
                     readresult = readMBcodedaddresses(interface['address'], entry['register'], entry['length'])
                 except:
-                    utility.log(pilib.iolog, 'Uncaught reror reading modbus value', 0, logconfig['iologlevel'])
+                    utility.log(pilib.dirs.logs.io, 'Uncaught reror reading modbus value', 0, pilib.loglevels.io)
                 else:
                     if readresult['statuscode'] == 0:
                         values = readresult['values']
                         try:
                             FC = MBFCfromaddress(int(entry['register']))
                         except ValueError:
-                            utility.log(pilib.iolog, 'Malformed address for FC determination : ' + str(entry['address']), 0, logconfig['iologlevel'])
+                            utility.log(pilib.dirs.logs.io, 'Malformed address for FC determination : ' + str(entry['address']), 0, pilib.loglevels.io)
                         else:
-                            utility.log(pilib.iolog, 'Function code : ' + str(FC), 4, logconfig['iologlevel'])
+                            utility.log(pilib.dirs.logs.io, 'Function code : ' + str(FC), 4, pilib.loglevels.io)
                         returnvalue = 0
                         if len(values) > 0:
-                            utility.log(pilib.iolog, 'Multiple values returned', 4, logconfig['iologlevel'])
+                            utility.log(pilib.dirs.logs.io, 'Multiple values returned', 4, pilib.loglevels.io)
                             if not entry['bigendian']:
                                 try:
                                     values.reverse()
                                 except AttributeError:
-                                    utility.log(pilib.iolog, 'Error on reverse of MB values: ' + str(values), 0, logconfig['iologlevel'])
+                                    utility.log(pilib.dirs.logs.io, 'Error on reverse of MB values: ' + str(values), 0, pilib.loglevels.io)
                             if entry['format'] == 'float32':
                                 import struct
                                 byte2 = values[0] % 256
@@ -799,7 +807,7 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
                                     elif FC in [3, 4]:
                                         returnvalue += val * 256 ** index
                                     else:
-                                         utility.log(pilib.iolog, 'Invalid function code', 0, logconfig['iologlevel'])
+                                         utility.log(pilib.dirs.logs.io, 'Invalid function code', 0, pilib.loglevels.io)
                         else:
                             returnvalue = values[0]
                         if entry['options'] != '':
@@ -808,16 +816,16 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
                                 # try:
                                     returnvalue = returnvalue * float(options['scale'])
                                 # except:
-                                #     pilib.writedatedlogmsg(pilib.iolog, 'Error on scale operation', 0, logconfig['iologlevel'])
+                                #     pilib.writedatedlogmsg(pilib.dirs.logs.io, 'Error on scale operation', 0, pilib.loglevels.io)
                             if 'precision' in options:
                                 # try:
                                     returnvalue = round(returnvalue, int(options['precision']))
                                 # except:
-                                #     pilib.writedatedlogmsg(pilib.iolog, 'Error on precision operation', 0, logconfig['iologlevel'])
+                                #     pilib.writedatedlogmsg(pilib.dirs.logs.io, 'Error on precision operation', 0, pilib.loglevels.io)
 
 
-                        utility.log(pilib.iolog, 'Values read: ' + str(values), 4, logconfig['iologlevel'])
-                        utility.log(pilib.iolog, 'Value returned: ' + str(returnvalue), 4, logconfig['iologlevel'])
+                        utility.log(pilib.dirs.logs.io, 'Values read: ' + str(values), 4, pilib.loglevels.io)
+                        utility.log(pilib.dirs.logs.io, 'Value returned: ' + str(returnvalue), 4, pilib.loglevels.io)
 
 
                         # Contruct entry for newly acquired data
@@ -826,14 +834,14 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
                             returnvalue) + "','','" + str(polltime) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
 
                     else:
-                        utility.log(pilib.iolog, 'Statuscode ' + str(readresult['statuscode']) + ' on MB read : ' + readresult['message'], 0, logconfig['iologlevel'])
+                        utility.log(pilib.dirs.logs.io, 'Statuscode ' + str(readresult['statuscode']) + ' on MB read : ' + readresult['message'], 0, pilib.loglevels.io)
 
                         # restore previous value and construct entry if it existed (or not)
                         querylist.append('insert into inputs values (\'' + mbid + '\',\'' + interface['interface'] + '\',\'' +
                             interface['type'] + '\',\'' + str(entry['register']) + '\',\'' + mbname + '\',\'' + str(prevvalue) + "','','" + str(prevpolltime) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
 
 
-    utility.log(pilib.iolog, 'Querylist: ' + str(querylist), 4, logconfig['iologlevel'])
+    utility.log(pilib.dirs.logs.io, 'Querylist: ' + str(querylist), 4, pilib.loglevels.io)
 
     return querylist
 
@@ -841,7 +849,7 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
 def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids, previnputs, previnputids, defaults, logconfig, **kwargs):
 
     import pilib
-    from utilities import utility, datalib, dblib
+    from iiutilities import utility, datalib, dblib
 
     if 'method' in kwargs:
         method = kwargs['method']
@@ -859,32 +867,32 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
             GPIO.setwarnings(False)
         elif method == 'pigpio':
             if 'piobject' in kwargs:
-                utility.log(pilib.iolog,
-                       'Pigpio object already exists. ', 4, logconfig['iologlevel'])
+                utility.log(pilib.dirs.logs.io,
+                       'Pigpio object already exists. ', 4, pilib.loglevels.io)
                 pi = kwargs['piobject']
             else:
-                utility.log(pilib.iolog,
-                       'Instantiating pigpio. ', 4, logconfig['iologlevel'])
+                utility.log(pilib.dirs.logs.io,
+                       'Instantiating pigpio. ', 4, pilib.loglevels.io)
                 pi = pigpio.pi()
     except:
-        utility.log(pilib.iolog,
-                       'Error setting up GPIO. ', 1, logconfig['iologlevel'])
+        utility.log(pilib.dirs.logs.io,
+                       'Error setting up GPIO. ', 1, pilib.loglevels.io)
     else:
-        utility.log(pilib.iolog,
-                       'Done setting up GPIO. ', 4, logconfig['iologlevel'])
+        utility.log(pilib.dirs.logs.io,
+                       'Done setting up GPIO. ', 4, pilib.loglevels.io)
 
     options = datalib.parseoptions(interface['options'])
     address = int(interface['address'])
 
-    utility.log(pilib.iolog, 'GPIO address' + str(address) + ' enabled', 4, logconfig['iologlevel'])
+    utility.log(pilib.dirs.logs.io, 'GPIO address' + str(address) + ' enabled', 4, pilib.loglevels.io)
     # Get name from ioinfo table to give it a colloquial name
-    gpioname = dblib.sqlitedatumquery(pilib.controldatabase, 'select name from ioinfo where id=\'' + interface['id'] + '\'')
+    gpioname = dblib.sqlitedatumquery(pilib.dirs.dbs.control, 'select name from ioinfo where id=\'' + interface['id'] + '\'')
     polltime = datalib.gettimestring()
 
     querylist = []
     # Append to inputs and update name, even if it's an output (can read status as input)
     if options['mode'] == 'output':
-        utility.log(pilib.iolog, 'Setting output mode for GPIO address' + str(address), 3, logconfig['iologlevel'])
+        utility.log(pilib.dirs.logs.io, 'Setting output mode for GPIO address' + str(address), 3, pilib.loglevels.io)
         try:
             if method == 'rpigpio':
                 GPIO.setup(address, GPIO.OUT)
@@ -892,14 +900,14 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
                 pi.set_mode(address, pigpio.OUTPUT)
 
         except TypeError:
-            utility.log(pilib.iolog, 'You are trying to set a GPIO with the wrong variable type : ' +
-                        str(type(address)), 0, logconfig['iologlevel'])
-            utility.log(pilib.iolog, 'Exiting interface routine for  ' + interface['id'], 0, logconfig['iologlevel'])
+            utility.log(pilib.dirs.logs.io, 'You are trying to set a GPIO with the wrong variable type : ' +
+                        str(type(address)), 0, pilib.loglevels.io)
+            utility.log(pilib.dirs.logs.io, 'Exiting interface routine for  ' + interface['id'], 0, pilib.loglevels.io)
             return
         except:
-            utility.log(pilib.iolog, 'Error setting GPIO : ' +
-                        str(address), 1, logconfig['iologlevel'])
-            utility.log(pilib.iolog, 'Exiting interface routine for  ' + interface['id'], 0, logconfig['iologlevel'])
+            utility.log(pilib.dirs.logs.io, 'Error setting GPIO : ' +
+                        str(address), 1, pilib.loglevels.io)
+            utility.log(pilib.dirs.logs.io, 'Exiting interface routine for  ' + interface['id'], 0, pilib.loglevels.io)
             return
 
         # Set the value of the gpio.
@@ -914,15 +922,15 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
                 GPIO.output(address, True)
             elif method == 'pigpio':
                 pi.write(address, 1)
-            utility.log(pilib.iolog, 'Setting output ON for GPIO address' + str(address), 3,
-                        logconfig['iologlevel'])
+            utility.log(pilib.dirs.logs.io, 'Setting output ON for GPIO address' + str(address), 3,
+                        pilib.loglevels.io)
         else:
             if method == 'rpigpio':
                 GPIO.output(address, False)
             elif method == 'pigpio':
                 pi.write(address,0)
-            utility.log(pilib.iolog, 'Setting output OFF for GPIO address' + str(address), 3,
-                        logconfig['iologlevel'])
+            utility.log(pilib.dirs.logs.io, 'Setting output OFF for GPIO address' + str(address), 3,
+                        pilib.loglevels.io)
 
         # Get output settings and keep them if the GPIO previously existed
         if interface['id'] in prevoutputids:
@@ -972,18 +980,18 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
                         from systemstatus import processsystemflags
                         processsystemflags()
 
-        utility.log(pilib.iolog, 'Setting input mode for GPIO address' + str(address), 3,
-                    logconfig['iologlevel'])
+        utility.log(pilib.dirs.logs.io, 'Setting input mode for GPIO address' + str(address), 3,
+                    pilib.loglevels.io)
 
         # Get input settings and keep them if the GPIO previously existed
         if interface['id'] in previnputids:
             pollfreq = previnputs[previnputids.index(interface['id'])]['pollfreq']
             ontime = previnputs[previnputids.index(interface['id'])]['ontime']
             offtime = previnputs[previnputids.index(interface['id'])]['offtime']
-            utility.log(pilib.iolog,
+            utility.log(pilib.dirs.logs.io,
                                    'Restoring values from previous inputids: pollfreq = ' + str(
                                        pollfreq) + ' ontime = ' + str(ontime) + ' offtime = ' + str(
-                                       offtime), 3, logconfig['iologlevel'])
+                                       offtime), 3, pilib.loglevels.io)
 
         else:
             try:
@@ -992,9 +1000,9 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
                 pollfreq = 60
             ontime = ''
             offtime = ''
-            utility.log(pilib.iolog,
+            utility.log(pilib.dirs.logs.io,
                                    'Setting values to defaults, defaultinputpollfreq = ' + str(
-                                       pollfreq), 3, logconfig['iologlevel'])
+                                       pollfreq), 3, pilib.loglevels.io)
     querylist.append(
         'insert into inputs values (\'' + interface['id'] + '\',\'' + interface['interface'] + '\',\'' +
         interface['type'] + '\',\'' + str(address) + '\',\'' + gpioname + '\',\'' + str(
@@ -1008,6 +1016,6 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
 
 
 if __name__ == '__main__':
-    from pilib import controldatabase
-    updateiodata(controldatabase)
+    from pilib import dirs
+    updateiodata(dirs.dbs.control)
 

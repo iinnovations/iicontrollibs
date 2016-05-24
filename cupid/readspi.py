@@ -1,9 +1,7 @@
 #!/usr/bin/env python
-from utilities import dblib
-from utilities.utility import datalib
 
 __author__ = "Colin Reese"
-__copyright__ = "Copyright 2014, Interface Innovations"
+__copyright__ = "Copyright 2016, Interface Innovations"
 __credits__ = ["Colin Reese"]
 __license__ = "Apache 2.0"
 __version__ = "1.0"
@@ -11,14 +9,15 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
-
-# This script handles spi read functions 
-# We use SPIdev0, because this is what is physically
-# connected on the cupid control
-
+import inspect
 import os
-import time
-import pilib
+import sys
+
+top_folder = \
+    os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
+if top_folder not in sys.path:
+    sys.path.insert(0, top_folder)
+
 
 querylist = [];
 
@@ -29,6 +28,7 @@ querylist = [];
 
 
 def recordspidata(database, valuedict, execute=False):
+    from iiutilities import dblib
     # This is incomplete and hardcoded partially
     querylist = []
     for key, value in valuedict.iteritems():
@@ -144,7 +144,7 @@ def getpigpioMAX31855temp(CS=0,device=0,**kwargs):
     return resultdict
 
 if __name__ == "__main__":
-    from pilib import controldatabase
+    from pilib import dirs
     valuedict = getpigpioMAX31855temp()
-    # recordspidata(controldatabase, valuedict)
+    # recordspidata(dirs.dbs.control, valuedict)
     print(valuedict)

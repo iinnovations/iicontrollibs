@@ -27,8 +27,8 @@ Main control database
 
 def rebuildcontroldb(tabledict):
 
-    from utilities.dblib import sqlitemultquery
-    from cupid.pilib import controldatabase
+    from iiutilities.dblib import sqlitemultquery
+    from cupid.pilib import dirs
 
     # Create databases entries or leave them empty?
     addentries = True
@@ -54,27 +54,6 @@ def rebuildcontroldb(tabledict):
         #     "create table " + table + " (actionindex integer primary key, valuerowid integer default 1, name text unique default 'myaction', enabled boolean default 0, actiontype text default 'email', actiondetail text default 'info@interfaceinnovations.org', conditiontype text default 'dbvalue',database text default 'controldata',tablename text default 'channels', variablename text default 'controlvalue', variablevalue text default '', operator text default 'equal',criterion text default '25',offdelay real default 0,ondelay real default 0,active boolean default 0, activereset boolean default 1, status boolean default 0,ontime text,offtime text,actionfrequency real default 60, lastactiontime text default '', statusmsg text default 'default msg')")
              "create table " + table + " (actionindex integer primary key, name text unique default 'myaction', enabled boolean default 0, actiontype text default 'email', actiondetail text default 'info@interfaceinnovations.org', conditiontype text default 'logical', actiondata text default '', value text default '', offdelay real default 0, ondelay real default 0, active boolean default 0, activereset boolean default 1, status boolean default 0,ontime text,offtime text,actionfrequency real default 60, lastactiontime text default '', statusmsg text default 'default msg')")
         # querylist.append("create table " + table + " (actionindex integer primary key, actiondata text default '')")
-
-    ### SystemStatus table
-    if 'systemstatus' in tabledict:
-        runquery = True
-        table = 'systemstatus'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text default '', updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 15, lastiopoll text default '', enableoutputs boolean default 0, sessioncontrolenabled boolean default 0, sessioncontrolstatus boolean default 0, systemstatusenabled boolean default 1, netstatusenabled boolean default 1, netconfigenabled default 0, checkhamachistatus boolean default 0, hamachistatus boolean default 0, systemstatusstatus boolean default 0, systemstatusfreq real default 15, lastsystemstatuspoll text default '', systemmessage text default '', serialhandlerenabled boolean default 0, serialhandlerstatus boolean default 0, webserver text default 'nginx')")
-        if addentries:
-            querylist.append("insert into " + table + " default values")
-
-    ### logconfig Table
-    if 'logconfig' in tabledict:
-        runquery = True
-        table = 'logconfig'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " (networkloglevel integer, iologlevel integer, systemstatusloglevel integer, controlloglevel integer, daemonloglevel integer)")
-        if addentries:
-            querylist.append(
-                "insert into " + table + " values (4,4,4,4,4)")
 
 
     ### Indicators table
@@ -287,7 +266,7 @@ def rebuildcontroldb(tabledict):
 
     if runquery:
         print(querylist)
-        sqlitemultquery(controldatabase, querylist)
+        sqlitemultquery(dirs.dbs.control, querylist)
 
 
 """
@@ -295,8 +274,8 @@ authlog
 """
 
 def rebuildsessiondb():
-    from utilities.dblib import sqlitemultquery
-    from cupid.pilib import sessiondatabase
+    from iiutilities.dblib import sqlitemultquery
+    from cupid.pilib import dirs
 
     querylist = []
 
@@ -348,16 +327,17 @@ def rebuildsessiondb():
 
 
     # print(querylist)
-    sqlitemultquery(sessiondatabase, querylist)
+    sqlitemultquery(dirs.dbs.session, querylist)
 
 
 """
-device info
+System control and information
 """
 
-def rebuildsystemdatadb(tabledict):
-    from utilities.dblib import sqlitemultquery
-    from cupid.pilib import systemdatadatabase
+
+def rebuildsystemdb(tabledict):
+    from iiutilities.dblib import sqlitemultquery
+    from cupid.pilib import dirs
     runquery = "False"
     querylist = []
     if 'netstatus' in tabledict:
@@ -393,12 +373,38 @@ def rebuildsystemdatadb(tabledict):
         querylist.append("create table " + table + " (  devicename text, groupname text)")
         querylist.append("insert into " + table + " values ( 'My CuPID', 'None' )")
 
+    if 'systemstatus' in tabledict:
+        runquery = True
+        table = 'systemstatus'
+        querylist.append('drop table if exists ' + table)
+        querylist.append(
+            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text default '', updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 15, lastiopoll text default '', enableoutputs boolean default 0, sessioncontrolenabled boolean default 0, sessioncontrolstatus boolean default 0, systemstatusenabled boolean default 1, netstatusenabled boolean default 1, netconfigenabled default 0, checkhamachistatus boolean default 0, hamachistatus boolean default 0, systemstatusstatus boolean default 0, systemstatusfreq real default 15, lastsystemstatuspoll text default '', systemmessage text default '', serialhandlerenabled boolean default 0, serialhandlerstatus boolean default 0, webserver text default 'nginx')")
+        querylist.append("insert into " + table + " default values")
+
+    if 'logconfig' in tabledict:
+        runquery = True
+        table = 'logconfig'
+        querylist.append('drop table if exists ' + table)
+        querylist.append(
+            "create table " + table + " (network integer, io integer, system integer, control integer, daemon integer, remote integer, serial integer, notifications integer, daemonproc integer, error integer)")
+        querylist.append(
+                "insert into " + table + " values (4,4,4,4,4,4,4,4,4,4)")
+
+    if 'notifications' in tabledict:
+        runquery = True
+        table = 'notifications'
+        querylist.append('drop table if exists ' + table)
+        querylist.append(
+            "create table " + table + " (item text, enabled boolean default 0, options text, lastnotification text)")
+        querylist.append("insert into " + table + " values ('unittests', 1, 'type:email,email:notificatios@interfaceinnovations.org','')")
+        querylist.append("insert into " + table + " values ('daemonkillproc', 1, 'type:email,email:notificatios@interfaceinnovations.org','')")
+
     if 'uisettings' in tabledict:
         runquery = True
         table = 'uisettings'
         querylist.append('drop table if exists ' + table)
         querylist.append("create table " + table + " (  'setting' text, 'group' text, 'value' text)")
-        querylist.append("insert into " + table + " values ( 'showinputgpiologs', 'dataviewer', '1' )")
+        querylist.append("insert into " + table + " values ( 'showinputgpdirs.logs.ios', 'dataviewer', '1' )")
         querylist.append("insert into " + table + " values ( 'showinput1wirelogs', 'dataviewer', '1' )")
         querylist.append("insert into " + table + " values ( 'showchannellogs', 'dataviewer', '1' )")
 
@@ -410,7 +416,7 @@ def rebuildsystemdatadb(tabledict):
             "create table " + table + " ( item text primary key,  version text, versiontime text, updatetime text)")
     if runquery:
         print(querylist)
-        sqlitemultquery(systemdatadatabase, querylist)
+        sqlitemultquery(dirs.dbs.system, querylist)
 
 
 """
@@ -419,8 +425,8 @@ recipesdata
 
 
 def rebuildrecipesdb(tabledict):
-    from utilities.dblib import sqlitemultquery
-    from cupid.pilib import recipedatabase
+    from iiutilities.dblib import sqlitemultquery
+    from cupid.pilib import dirs
 
     runquery = False
     querylist = []
@@ -441,7 +447,7 @@ def rebuildrecipesdb(tabledict):
     if runquery:
         print(querylist)
 
-        sqlitemultquery(recipedatabase, querylist)
+        sqlitemultquery(dirs.dbs.session, querylist)
 
 
 """
@@ -450,8 +456,8 @@ Notifications (mail, IFFFT, etc) data
 
 
 def rebuildnotificationsdb(tabledict=['queuednotifications', 'sentnotifications']):
-    from utilities.dblib import sqlitemultquery
-    from cupid.pilib import notificationsdatabase
+    from iiutilities.dblib import sqlitemultquery
+    from cupid.pilib import dirs
 
     runquery = False
     querylist = []
@@ -476,7 +482,7 @@ def rebuildnotificationsdb(tabledict=['queuednotifications', 'sentnotifications'
     if runquery:
         print(querylist)
 
-        sqlitemultquery(notificationsdatabase, querylist)
+        sqlitemultquery(dirs.dbs.notifications, querylist)
 
 
 """
@@ -485,8 +491,8 @@ Motes raw data
 
 
 def rebuildmotesdb(tabledict):
-    from cupid.pilib import motesdatabase
-    from utilities.dblib import sqlitemultquery
+    from cupid.pilib import dirs
+    from iiutilities.dblib import sqlitemultquery
 
     runquery = False
     querylist = []
@@ -518,15 +524,15 @@ def rebuildmotesdb(tabledict):
     if runquery:
         print(querylist)
 
-        sqlitemultquery(motesdatabase, querylist)
+        sqlitemultquery(dirs.dbs.motes, querylist)
 
 """
 userstabledata
 """
 
 def rebuildusersdata(argument=None):
-    from pilib import gethashedentry, usersdatabase
-    from utilities.dblib import sqlitemultquery
+    from pilib import gethashedentry, dirs
+    from iiutilities.dblib import sqlitemultquery
 
     querylist = []
     runquery = True
@@ -583,7 +589,7 @@ def rebuildusersdata(argument=None):
 
     if runquery:
         print(querylist)
-        sqlitemultquery(usersdatabase, querylist)
+        sqlitemultquery(dirs.dbs.users, querylist)
 
 
 
@@ -594,24 +600,24 @@ def rebuildusersdata(argument=None):
 
 
 def rebuildwirelessdata():
-    from utilities.dblib import sqlitemultquery
-    from cupid.pilib import safedatabase
+    from iiutilities.dblib import sqlitemultquery
+    from cupid.pilib import dirs
     querylist = []
     querylist.append('drop table if exists wireless')
     querylist.append('create table wireless (SSID text, password text)')
 
-    sqlitemultquery(safedatabase, querylist)
+    sqlitemultquery(dirs.dbs.safe, querylist)
 
 
 def rebuildapdata(SSID='cupidwifi', password='cupidpassword'):
-    from utilities.dblib import sqlitemultquery
-    from cupid.pilib import safedatabase
+    from iiutilities.dblib import sqlitemultquery
+    from cupid.pilib import dirs
     querylist = []
     querylist.append('drop table if exists apsettings')
     querylist.append("create table apsettings (SSID text default 'cupidwifi', password text default 'cupidpassword')")
     querylist.append(
                 "insert into apsettings values('" + SSID + "','" + password + "')")
-    sqlitemultquery(safedatabase, querylist)
+    sqlitemultquery(dirs.dbs.safe, querylist)
 
 
 def maketruetabledict(namelist):
@@ -626,9 +632,9 @@ if __name__ == "__main__":
 
     # Check for DEFAULTS argument
 
-    controldbtables = ['actions', 'modbustcp', 'labjack', 'logconfig', 'defaults', 'systemstatus', 'indicators', 'inputs', 'outputs', 'owfs', 'ioinfo', 'interfaces',
+    controldbtables = ['actions', 'modbustcp', 'labjack', 'defaults', 'indicators', 'inputs', 'outputs', 'owfs', 'ioinfo', 'interfaces',
                        'algorithms', 'algorithmtypes', 'channels', 'remotes', 'mote']
-    systemdbtables = ['metadata', 'netconfig', 'netstatus', 'versions', 'systemflags', 'uisettings']
+    systemdbtables = ['systemstatus', 'logconfig', 'metadata', 'netconfig', 'netstatus', 'versions', 'systemflags', 'uisettings', 'notifications']
     motestables = ['readmessages', 'queuedmessages', 'sentmessages']
     notificationstables = ['queuedmessages', 'setmessages']
 
@@ -643,7 +649,7 @@ if __name__ == "__main__":
         rebuildusersdata('defaults')
 
         rebuildcontroldb(maketruetabledict(controldbtables))
-        rebuildsystemdatadb(maketruetabledict(systemdbtables))
+        rebuildsystemdb(maketruetabledict(systemdbtables))
         rebuildmotesdb(maketruetabledict(motestables))
         rebuildnotificationsdb()
         rebuildrecipesdb({'recipes': True})
@@ -655,7 +661,7 @@ if __name__ == "__main__":
             rebuildcontroldb(sys.argv[1])
         elif sys.argv[1] in systemdbtables:
             print('running rebuild system tables for ' + sys.argv[1])
-            rebuildsystemdatadb(sys.argv[1])
+            rebuildsystemdb(sys.argv[1])
         elif sys.argv[1] in motestables:
             print('running rebuild motes tables for ' + sys.argv[1])
             rebuildmotesdb(sys.argv[1])
@@ -697,7 +703,7 @@ if __name__ == "__main__":
                 execute = True
                 tablestorebuild.append(table)
         if execute:
-            rebuildsystemdatadb(maketruetabledict(tablestorebuild))
+            rebuildsystemdb(maketruetabledict(tablestorebuild))
 
         answer = raw_input('Rebuild wireless table (y/N)?')
         if answer == 'y':

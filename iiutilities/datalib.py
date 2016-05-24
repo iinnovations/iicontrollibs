@@ -126,12 +126,12 @@ def calcastevalformula(formula):
 
 def calcinputrate(input, numentries=2):
 
-    from utilities import dblib
+    from iiutilities import dblib
     from cupid import pilib
 
     # just grab last entries of log, create point averaged around
     logname = 'input_' + input + '_log'
-    entries = dblib.getlasttimerows(pilib.logdatabase, logname, numentries)
+    entries = dblib.getlasttimerows(pilib.dirs.dbs.log, logname, numentries)
     # print(entries)
 
     lastentry = entries[numentries-1]
@@ -148,12 +148,13 @@ def calcinputrate(input, numentries=2):
     return result
 
 
-def evalactionformula(formula, type='value'):
+def evaldbvnformula(formula, type='value'):
 
-    from utilities.dblib import dbvntovalue
+    from iiutilities.dblib import dbvntovalue
 
     #if type == 'value':
     # first we need to get all the values that are provided as db-coded entries.
+    # We put the dbvn inside of brackets, e.g. [dbnmae:dbtable:dbvaluename:condition]
 
     split = formula.split('[')
 
@@ -173,10 +174,11 @@ def evalactionformula(formula, type='value'):
     # print('EQN Text:')
     # print('"' + textform + '"')
     result = calcastevalformula(textform)
+    return result
 
 
 def getvartype(dbpath, tablename, valuename):
-    from utilities import dblib
+    from iiutilities import dblib
     variablestypedict = dblib.getpragmanametypedict(dbpath, tablename)
     vartype = variablestypedict[valuename]
     return vartype

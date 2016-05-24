@@ -22,53 +22,72 @@ if top_folder not in sys.path:
 # This library is for use by all other pi
 # functions
 
-# Global declarations of file locations
+"""
+Global declarations of useful variables. We are transitioning to bunches of definitions, which make
+things a bit easier to move around, and mainly simpler to iteratively assign without having to use hacks for
+variable names
 
-baselibdir = '/usr/lib/iicontrollibs/'
-databasedir = '/var/www/data/'
-onewiredir = '/var/1wire/'
-outputdir = '/var/www/data/'
+Question:   Which things are hard-coded here? Why would everything just not be in the database?
+Answer:     Only things which may need to be changed at run-time by the user/admin are in the database. \
+            Log locations, for example, don't have a practical reason to be assigned in this instance.
+            Log levels, on the other hand, may need to be regularly changed from the web UI
+            We have hybrids (as above) where we set a default level here and then set attempt to get updated values
+            from the database. We try to do this in as error-tolerant a fashion as we can.
+"""
 
-controldatabase = databasedir + 'controldata.db'
-logdatabase = databasedir + 'logdata.db'
-sessiondatabase = databasedir + 'authlog.db'
-recipedatabase = databasedir + 'recipedata.db'
-systemdatadatabase = databasedir + 'systemdata.db'
-motesdatabase = databasedir + 'motes.db'
-infodatabase = databasedir + 'deviceinfo.db'
-authsdatabase = databasedir + 'authslog.db'
-notificationsdatabase = databasedir + 'notifications.db'
+from iiutilities.utility import Bunch
 
-safedatabase = '/var/wwwsafe/safedata.db'
-usersdatabase = '/var/wwwsafe/users.db'
+dirs = Bunch()
 
-logdir = '/var/log/cupid/'
+dirs.baselib = '/usr/lib/iicontrollibs/'
+dirs.database = '/var/www/data/'
+dirs.onewire = '/var/1wire/'
+dirs.output = '/var/www/data/'
+dirs.log = '/var/log/cupid/'
 
-networklog = logdir + 'network.log'
-iolog = logdir + 'io.log'
-remotelog = logdir + 'remotes.log'
-syslog = logdir + 'systemstatus.log'
-controllog = logdir + 'control.log'
-daemonlog = logdir + 'daemon.log'
-seriallog = logdir + 'serial.log'
-notificationslog = logdir + 'notifications.log'
+dirs.dbs = Bunch()
 
-daemonproclog = logdir + '/daemonproc.log'
-errorlog = logdir + '/error.log'
+dirs.dbs.control = dirs.database + 'control.db'
+dirs.dbs.log = dirs.database + 'logdata.db'
+dirs.dbs.session = dirs.database + 'authlog.db'
+dirs.dbs.recipe = dirs.database + 'recipedata.db'
+dirs.dbs.system = dirs.database + 'system.db'
+dirs.dbs.motes = dirs.database + 'motes.db'
+dirs.dbs.info = dirs.database + 'deviceinfo.db'
+dirs.dbs.auths = dirs.database + 'authslog.db'
+dirs.dbs.notifications = dirs.database + 'notifications.db'
+dirs.dbs.safe = '/var/wwwsafe/safedata.db'
+dirs.dbs.users = '/var/wwwsafe/users.db'
+
+dirs.logs = Bunch()
+
+dirs.logs.network = dirs.log + 'network.log'
+dirs.logs.io = dirs.log + 'io.log'
+dirs.logs.remote = dirs.log + 'remotes.log'
+dirs.logs.system = dirs.log + 'systemstatus.log'
+dirs.logs.control = dirs.log + 'control.log'
+dirs.logs.daemon = dirs.log + 'daemon.log'
+dirs.logs.serial = dirs.log + 'serial.log'
+dirs.logs.notifications = dirs.log + 'notifications.log'
+dirs.logs.daemonproc = dirs.log + 'daemonproc.log'
+dirs.logs.error = dirs.log + 'error.log'
 
 salt = 'a bunch of random characters and symbols for security'
 
 maxlogsize = 1024  # kB
 numlogs = 5
 
+loglevels = Bunch()
 
-networkloglevel = 5
-iologlevel = 3
-sysloglevel = 4
-controlloglevel = 4
-daemonloglevel = 3
-serialloglevel = 2
-notificationsloglevel = 5
+# These just really serve as defaults. We pick them up later from the db.
+
+loglevels.network = 5
+loglevels.io = 3
+loglevels.system = 4
+loglevels.control = 4
+loglevels.daemon = 3
+loglevels.serial = 2
+loglevels.notifications = 5
 
 daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py', 'mote/serialhandler.py']
 
@@ -91,11 +110,21 @@ Utility Functions
 """
 
 
+
+def dbnametopath(friendlyname):
+    friendlynames = ['controldb', 'logdatadb', 'infodb', 'systemdb', 'authdb', 'safedatadb', 'usersdb', 'motesdb', 'systemdatadb', 'notificationsdb']
+    paths = [dirs.dbs.control, dirs.dbs.log, dirs.dbs.info, dirs.dbs.system, dirs.dbs.auths, dirs.dbs.safe, dirs.dbs.users, dirs.dbs.motes, dirs.dbs.system, dirs.dbs.notifications]
+    path = None
+    if friendlyname in friendlynames:
+        path = paths[friendlynames.index(friendlyname)]
+    return path
+
+
 def processnotification(notification):
     from cupid import pilib
-    from utilities import datalib
-    from utilities import utility
-    from utilities.netfun import pingstatus
+    from iiutilities import datalib
+    from iiutilities import utility
+    from iiutilities.netfun import pingstatus
 
     senttime = datalib.gettimestring()
     result = {'status':1, 'senttime':senttime}
@@ -105,7 +134,7 @@ def processnotification(notification):
         pingresult = pingstatus()
         if not pingresult['status']:
 
-            utility.log(pilib.notificationslog, 'WAN access is ok, so processing notification')
+            utility.log(pilib.dirs.logs.notifications, 'WAN access is ok, so processing notification')
             options = datalib.parseoptions(notification['options'])
             message = notification['message']
             if 'subject' in options:
@@ -128,51 +157,41 @@ def processnotification(notification):
                 else:
                     result['status'] = 0
         else:
-            utility.log(pilib.notificationslog, 'WAN access does not appear to be ok. Status is: ' + str(pingstatus['status']))
+            utility.log(pilib.dirs.logs.notifications, 'WAN access does not appear to be ok. Status is: ' + str(pingstatus['status']))
 
     return result
 
 
 def processnotificationsqueue():
     from cupid import pilib
-    from utilities import dblib
-    from utilities.utility import log
+    from iiutilities import dblib
+    from iiutilities.utility import log
 
-    queuednotifications = dblib.readalldbrows(notificationsdatabase, 'queuednotifications')
+    queuednotifications = dblib.readalldbrows(dirs.dbs.notifications, 'queuednotifications')
     for notification in queuednotifications:
-        if notificationsloglevel >= 5:
-            log(pilib.notificationslog, 'Processing notification of type' + notification['type'] + '. Message: ' + notification['message'] + '. Options: ' + notification['options'])
+        if loglevels.notifications >= 5:
+            log(pilib.dirs.logs.notifications, 'Processing notification of type' + notification['type'] + '. Message: ' + notification['message'] + '. Options: ' + notification['options'])
         else:
-            log(pilib.notificationslog, 'Processing notification of type' + notification['type'], pilib.notificationslog)
+            log(pilib.dirs.logs.notifications, 'Processing notification of type' + notification['type'], pilib.dirs.logs.notifications)
 
         result = processnotification(notification)
 
         if result['status'] == 0:
-            log(pilib.notificationslog, 'Notification appears to have been successful. Copying message to sent.')
+            log(pilib.dirs.logs.notifications, 'Notification appears to have been successful. Copying message to sent.')
             sententry = notification.copy()
             sententry['senttime'] = result['senttime']
-            dblib.insertstringdicttablelist(notificationsdatabase, 'sentnotifications', [sententry], droptable=False)
+            dblib.insertstringdicttablelist(dirs.dbs.notifications, 'sentnotifications', [sententry], droptable=False)
 
-            log(pilib.notificationslog, 'Removing entry from queued messages.')
+            log(pilib.dirs.logs.notifications, 'Removing entry from queued messages.')
 
             # match by time and message
             conditionnames = ['queuedtime', 'message']
-            conditionvalues = [sententry['queuedtime'],sententry['message']]
+            conditionvalues = [sententry['queuedtime'], sententry['message']]
             delquery = dblib.makedeletesinglevaluequery('queuednotifications', {'conditionnames':conditionnames, 'conditionvalues':conditionvalues})
-            dblib.sqlitequery(pilib.notificationsdatabase, delquery)
-
+            dblib.sqlitequery(pilib.dirs.dbs.notifications, delquery)
 
         else:
-            log(pilib.notificationslog, 'Notification appears to have failed. Status: ' + str(result['status']))
-
-
-def dbnametopath(friendlyname):
-    friendlynames = ['controldb', 'logdatadb', 'infodb', 'systemdb', 'authdb', 'safedatadb', 'usersdb', 'motesdb', 'systemdatadb', 'notificationsdb']
-    paths = [controldatabase, logdatabase, infodatabase, systemdatadatabase, authsdatabase, safedatabase, usersdatabase, motesdatabase, systemdatadatabase, notificationsdatabase]
-    path = None
-    if friendlyname in friendlynames:
-        path = paths[friendlynames.index(friendlyname)]
-    return path
+            log(pilib.dirs.logs.notifications, 'Notification appears to have failed. Status: ' + str(result['status']))
 
 
 def getgpiostatus():
@@ -265,8 +284,8 @@ def rotatelogs(logname, numlogs=5, logsize=1024):
 
 def checklivesessions(authdb, user, expiry):
     import time
-    from utilities.datalib import timestringtoseconds
-    from utilities.dblib import readalldbrows
+    from iiutilities.datalib import timestringtoseconds
+    from iiutilities.dblib import readalldbrows
     activesessions = 0
     sessions = readalldbrows(authdb, 'sessions')
     for session in sessions:
@@ -281,33 +300,33 @@ def checklivesessions(authdb, user, expiry):
 # this is an auxiliary function that will carry out additional actions depending on
 # table values. For example, setting a 'pending' value when modifying setpoints
 def setsinglecontrolvalue(database, table, valuename, value, condition=None):
-    from utilities.datalib import gettimestring
-    from utilities import dblib
-    from utilities import utility
+    from iiutilities.datalib import gettimestring
+    from iiutilities import dblib
+    from iiutilities import utility
 
     if table == 'channels':
-        utility.log(controllog, "Table: " + table + " found in keywords", 4, controlloglevel)
+        utility.log(dirs.logs.control, "Table: " + table + " found in keywords", 4, loglevels.control)
 
         if valuename in ['setpointvalue']:
-            utility.log(controllog, "Set value: " + valuename + " found in keywords", 4, controlloglevel)
+            utility.log(dirs.logs.control, "Set value: " + valuename + " found in keywords", 4, loglevels.control)
 
             # Get the channel data
             try:
-                channeldata = dblib.readonedbrow(controldatabase, 'channels', condition=condition)[0]
+                channeldata = dblib.readonedbrow(dirs.dbs.control, 'channels', condition=condition)[0]
             except:
-                utility.log(controllog, "error retrieving channel with condition " + condition, 1, controlloglevel)
+                utility.log(dirs.logs.control, "error retrieving channel with condition " + condition, 1, loglevels.control)
             else:
-                utility.log(controllog, "Channel retrieval went ok with " + condition, 1, controlloglevel)
+                utility.log(dirs.logs.control, "Channel retrieval went ok with " + condition, 1, loglevels.control)
 
                 if channeldata['type'] == 'remote' and channeldata['enabled']:
                     # Process setpointvalue send for remote here to make it as fast as possible.
                     # First we need to identify the node and channel by retrieving the interface
 
                     channelname = channeldata['name']
-                    utility.log(controllog, "Processing remote setpoint for channel " + channelname, 1, iologlevel)
+                    utility.log(dirs.logs.control, "Processing remote setpoint for channel " + channelname, 1, loglevels.io)
                     # Then go to the interfaces table to get the node and channel addresses
-                    address = dblib.getsinglevalue(controldatabase, 'interfaces', 'address', "name='" + channelname + "'")
-                    utility.log(controllog, "Channel has address " + address, 1, iologlevel)
+                    address = dblib.getsinglevalue(dirs.dbs.control, 'interfaces', 'address', "name='" + channelname + "'")
+                    utility.log(dirs.logs.control, "Channel has address " + address, 1, loglevels.io)
 
                     node = address.split(':')[0]
                     channel = address.split(':')[1]
@@ -320,12 +339,12 @@ def setsinglecontrolvalue(database, table, valuename, value, condition=None):
                     else:
                         message = '~sendmsg;' + node + ';;~setsv;' + channel + ';' + str(value)
 
-                    utility.log(controllog, "Sending message: " + message, 1, iologlevel)
+                    utility.log(dirs.logs.control, "Sending message: " + message, 1, loglevels.io)
 
 
                     # Then queue up the message for dispatch
 
-                    dblib.sqliteinsertsingle(motesdatabase, 'queuedmessages', [gettimestring(), message])
+                    dblib.sqliteinsertsingle(dirs.dbs.motes, 'queuedmessages', [gettimestring(), message])
 
                 # get existing pending entry
                 pendingvaluelist = []
@@ -346,7 +365,7 @@ def setsinglecontrolvalue(database, table, valuename, value, condition=None):
 
                 dblib.setsinglevalue(database, table, 'pending', pendinglistentry, condition)
         else:
-            utility.log(controllog, "Set value: " + valuename + " not found in keywords", 4, controlloglevel)
+            utility.log(dirs.logs.control, "Set value: " + valuename + " not found in keywords", 4, loglevels.control)
 
     # carry out original query no matter what
     response = dblib.setsinglevalue(database, table, valuename, value, condition)
@@ -354,7 +373,22 @@ def setsinglecontrolvalue(database, table, valuename, value, condition=None):
 
 
 def getlogconfig():
-    logconfigdata = dblib.readonedbrow(controldatabase, 'logconfig')[0]
+    from iiutilities.dblib import readonedbrow
+    logconfigdata = readonedbrow(dirs.dbs.system, 'logconfig')[0]
+
     return logconfigdata
 
+
+# Attempt to update from database. If we are unsuccessful, the above are defaults
+
+try:
+    logconfig = getlogconfig()
+except:
+    pass
+else:
+    for key in logconfig:
+        try:
+            setattr(loglevels, key, logconfig[key])
+        except:
+            print ('Set attribute for "' + key + '" did not work')
 

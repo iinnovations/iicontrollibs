@@ -34,30 +34,29 @@ from time import sleep
 
 
 def runpicontrol(runonce=False):
-    from utilities import dblib
-    from utilities import utility
+    from iiutilities import dblib
+    from iiutilities import utility
     from cupid import pilib
-    from utilities import datalib
+    from iiutilities import datalib
     from cupid import controllib
 
-    systemstatus = dblib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
+    systemstatus = dblib.readalldbrows(pilib.dirs.dbs.system, 'systemstatus')[0]
 
     while systemstatus['picontrolenabled']:
 
-        utility.log(pilib.syslog, 'Running picontrol', 3, pilib.sysloglevel)
-        utility.log(pilib.controllog, 'Running picontrol', 3, pilib.controlloglevel)
+        utility.log(pilib.dirs.logs.system, 'Running picontrol', 3, pilib.loglevels.system)
+        utility.log(pilib.dirs.logs.control, 'Running picontrol', 3, pilib.loglevels.control)
 
         # Set poll date. While intuitively we might want to set this
         # after the poll is complete, if we error below, we will know
         # from this stamp when it barfed. This is arguably more valuable
         # then 'last time we didn't barf'
 
-        dblib.sqlitequery(pilib.controldatabase,
-                          "update systemstatus set lastpicontrolpoll='" + datalib.gettimestring() + "'")
+        dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'lastpicontrolpoll', datalib.gettimestring())
 
-        channels = dblib.readalldbrows(pilib.controldatabase, 'channels')
-        outputs = dblib.readalldbrows(pilib.controldatabase, 'outputs')
-        controlalgorithms = dblib.readalldbrows(pilib.controldatabase, 'controlalgorithms')
+        channels = dblib.readalldbrows(pilib.dirs.dbs.control, 'channels')
+        outputs = dblib.readalldbrows(pilib.dirs.dbs.control, 'outputs')
+        controlalgorithms = dblib.readalldbrows(pilib.dirs.dbs.control, 'controlalgorithms')
         algorithmnames=[]
         for algorithm in controlalgorithms:
             algorithmnames.append(algorithm['name'])
@@ -78,7 +77,7 @@ def runpicontrol(runonce=False):
             if channel['enabled']:
                 # Create log if it doesn't exist
                 query = 'create table if not exists \'' + logtablename + '\' (time text, controlinput text, controlvalue real, setpointvalue real, action real, algorithm text, enabled real, statusmsg text)'
-                dblib.sqlitequery(pilib.logdatabase, query)
+                dblib.sqlitequery(pilib.dirs.dbs.log, query)
 
                 statusmsg = ''
                 if 'setpointvalue' in channel:
@@ -92,7 +91,7 @@ def runpicontrol(runonce=False):
                         controlvalue = float(channel['controlvalue'])
                     except (ValueError, TypeError) as e:
                         statusmsg += 'Invalid control value. '
-                        controllib.setcontrolvalue(pilib.controldatabase, channelname, 0)
+                        controllib.setcontrolvalue(pilib.dirs.dbs.control, channelname, 0)
                 else:
                     statusmsg += 'No controlvalue. '
 
@@ -121,7 +120,7 @@ def runpicontrol(runonce=False):
 
                         # run algorithm on channel
 
-                        response = controllib.runalgorithm(pilib.controldatabase, pilib.recipedatabase, channelname)
+                        response = controllib.runalgorithm(pilib.dirs.dbs.control, pilib.dirs.dbs.session, channelname)
                         action = response[0]
                         message = response[1]
 
@@ -130,12 +129,12 @@ def runpicontrol(runonce=False):
 
                         # Set action in channel
 
-                        controllib.setaction(pilib.controldatabase, channelname, action)
+                        controllib.setaction(pilib.dirs.dbs.control, channelname, action)
 
                     elif mode == 'manual':
                         #print('manual mode')
                         statusmsg += 'Mode:Manual. '
-                        action = controllib.getaction(pilib.controldatabase, channelname)
+                        action = controllib.getaction(pilib.dirs.dbs.control, channelname)
                     else:
                         #print('error, mode= ' + mode)
                         statusmsg += 'Mode:Error. '
@@ -176,7 +175,7 @@ def runpicontrol(runonce=False):
                             outputstoset=[]
                             for outputname in outputsetnames:
                                 if channelalgorithmname in algorithmnames:
-                                    offtime = dblib.sqlitedatumquery(pilib.controldatabase, "select offtime from outputs where name='" + outputname + "'")
+                                    offtime = dblib.sqlitedatumquery(pilib.dirs.dbs.control, "select offtime from outputs where name='" + outputname + "'")
                                     if datalib.timestringtoseconds(
                                             datalib.gettimestring()) - datalib.timestringtoseconds(offtime) > controlalgorithms[algorithmnames.index(channelalgorithmname)]['minofftime']:
                                         outputstoset.append(outputname)
@@ -188,7 +187,7 @@ def runpicontrol(runonce=False):
                             outputstoreset=[]
                             for outputname in outputresetnames:
                                 if channelalgorithmname in algorithmnames:
-                                    ontime = dblib.sqlitedatumquery(pilib.controldatabase, "select ontime from outputs where name='" + outputname + "'")
+                                    ontime = dblib.sqlitedatumquery(pilib.dirs.dbs.control, "select ontime from outputs where name='" + outputname + "'")
                                     if datalib.timestringtoseconds(
                                             datalib.gettimestring()) - datalib.timestringtoseconds(ontime) > controlalgorithms[algorithmnames.index(channelalgorithmname)]['minontime']:
                                         outputstoreset.append(outputname)
@@ -237,13 +236,13 @@ def runpicontrol(runonce=False):
                         action = 0
 
                     # Insert entry into control log
-                    dblib.makesqliteinsert(pilib.logdatabase, logtablename, [time, controlinput, controlvalue, setpointvalue, action, channelalgorithmname, channel['enabled'], statusmsg])
-                    dblib.sqliteinsertsingle(pilib.logdatabase, logtablename,
+                    dblib.makesqliteinsert(pilib.dirs.dbs.log, logtablename, [time, controlinput, controlvalue, setpointvalue, action, channelalgorithmname, channel['enabled'], statusmsg])
+                    dblib.sqliteinsertsingle(pilib.dirs.dbs.log, logtablename,
                                              [time, controlinput, controlvalue, setpointvalue, action, channelalgorithmname,
                                               channel['enabled'], statusmsg])
 
                     # Size log
-                    dblib.sizesqlitetable(pilib.logdatabase, logtablename, logpoints)
+                    dblib.sizesqlitetable(pilib.dirs.dbs.log, logtablename, logpoints)
                     # print(statusmsg)
 
             else:
@@ -270,25 +269,25 @@ def runpicontrol(runonce=False):
             querylist.append('update channels set controlupdatetime=\'' + time + '\'' + 'where channelindex=' + channelindex)
             # Execute query
 
-            dblib.sqlitemultquery(pilib.controldatabase, querylist)
+            dblib.sqlitemultquery(pilib.dirs.dbs.control, querylist)
 
         # We do this system status again to refresh settings
-        systemstatus = dblib.readalldbrows(pilib.controldatabase, 'systemstatus')[0]
+        systemstatus = dblib.readalldbrows(pilib.dirs.dbs.systemstatus, 'systemstatus')[0]
 
         from actions import processactions
         processactions()
 
         # Wait for delay time
         #print('sleeping')
-        # spilights.updatelightsfromdb(pilib.controldatabase, 'indicators')
+        # spilights.updatelightsfromdb(pilib.dirs.dbs.control, 'indicators')
         if runonce:
             break
 
-        utility.log(pilib.syslog, 'Picontrol Sleeping for ' + str(systemstatus['picontrolfreq']), 2, pilib.sysloglevel)
-        utility.log(pilib.controllog, 'Picontrol Sleeping for ' + str(systemstatus['picontrolfreq']), 2, pilib.sysloglevel)
+        utility.log(pilib.dirs.logs.system, 'Picontrol Sleeping for ' + str(systemstatus['picontrolfreq']), 2, pilib.loglevels.system)
+        utility.log(pilib.dirs.logs.control, 'Picontrol Sleeping for ' + str(systemstatus['picontrolfreq']), 2, pilib.loglevels.system)
         sleep(systemstatus['picontrolfreq'])
 
-    utility.log(pilib.syslog, 'picontrol not enabled. exiting.', 1, pilib.sysloglevel)
+    utility.log(pilib.dirs.logs.system, 'picontrol not enabled. exiting.', 1, pilib.loglevels.system)
 
 if __name__ == "__main__":
     runpicontrol()

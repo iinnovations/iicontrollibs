@@ -20,15 +20,15 @@ if top_folder not in sys.path:
 
 
 def updatedhcpd(path='/etc/dhcp/dhcpd.conf', interface='wlan0', gateway='192.168.0.1', dhcpstart='192.168.0.70', dhcpend='192.168.0.99'):
-    from utilities import dblib
+    from iiutilities import dblib
     from cupid import pilib
     try:
-        netconfigdata = dblib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
+        netconfigdata = dblib.readonedbrow(pilib.dirs.dbs.system, 'netconfig')[0]
         dhcpstart = netconfigdata['dhcpstart']
         dhcpend = netconfigdata['dhcpend']
         gateway = netconfigdata['gateway']
     except:
-        print('we had an error')
+        # print('we had an error')
         pass
 
 
@@ -52,7 +52,7 @@ def updatedhcpd(path='/etc/dhcp/dhcpd.conf', interface='wlan0', gateway='192.168
 
 def updatehostapd(path='/etc/hostapd/hostapd.conf', interface='wlan0'):
     try:
-        apsettings = dblib.readonedbrow(pilib.safedatabase, 'apsettings')[0]
+        apsettings = dblib.readonedbrow(pilib.dirs.dbs.safe, 'apsettings')[0]
         SSID = apsettings['SSID']
         password = apsettings['password']
     except:
@@ -86,7 +86,7 @@ def setdefaultapsettings():
 
 # This have no use anymore
 def getwpasupplicantconfig(conffile='/etc/wpa_supplicant/wpa_supplicant.conf'):
-    from utilities import utility
+    from iiutilities import utility
     from cupid import pilib
     class data():
         pass
@@ -103,7 +103,7 @@ def getwpasupplicantconfig(conffile='/etc/wpa_supplicant/wpa_supplicant.conf'):
         if readheader:
             header = header + line
         if '}' in line:
-            utility.log(pilib.networklog, 'Ending supplicant parse. ', 5, pilib.networkloglevel)
+            utility.log(pilib.dirs.logs.network, 'Ending supplicant parse. ', 5, pilib.loglevels.network)
             readbody = False
             readtail = True
         if readbody:
@@ -111,7 +111,7 @@ def getwpasupplicantconfig(conffile='/etc/wpa_supplicant/wpa_supplicant.conf'):
         if readtail:
             tail = tail + line
         if '{' in line:
-            utility.log(pilib.networklog, 'Beginning supplicant parse. ', 5, pilib.networkloglevel)
+            utility.log(pilib.dirs.logs.network, 'Beginning supplicant parse. ', 5, pilib.loglevels.network)
             readheader = False
             readbody = True
 
@@ -129,34 +129,34 @@ def getwpasupplicantconfig(conffile='/etc/wpa_supplicant/wpa_supplicant.conf'):
 
 def updatesupplicantdata(configdata):
     from cupid import pilib
-    from utilities.dblib import readalldbrows
-    from utilities import utility
+    from iiutilities.dblib import readalldbrows
+    from iiutilities import utility
 
     netconfig = []
     try:
-        netconfig = readalldbrows(pilib.systemdatadatabase, 'netconfig')[0]
+        netconfig = readalldbrows(pilib.dirs.dbs.system, 'netconfig')[0]
     except:
-         utility.log(pilib.networklog, 'Error reading netconfig data. ', 0, pilib.networkloglevel)
+         utility.log(pilib.dirs.logs.network, 'Error reading netconfig data. ', 0, pilib.loglevels.network)
     else:
-         utility.log(pilib.networklog, 'Read netconfig data. ', 4, pilib.networkloglevel)
+         utility.log(pilib.dirs.logs.network, 'Read netconfig data. ', 4, pilib.loglevels.network)
 
     try:
-        wirelessauths = readalldbrows(pilib.safedatabase, 'wireless')
+        wirelessauths = readalldbrows(pilib.dirs.dbs.safe, 'wireless')
     except:
-         utility.log(pilib.networklog, 'Error reading wireless data. ', 0, pilib.networkloglevel)
+         utility.log(pilib.dirs.logs.network, 'Error reading wireless data. ', 0, pilib.loglevels.network)
     else:
-         utility.log(pilib.networklog, 'Read wireless data. ', 4, pilib.networkloglevel)
+         utility.log(pilib.dirs.logs.network, 'Read wireless data. ', 4, pilib.loglevels.network)
 
     password = ''
 
-    utility.log(pilib.networklog, 'Netconfig data: ' + str(netconfig), 2, pilib.networkloglevel)
+    utility.log(pilib.dirs.logs.network, 'Netconfig data: ' + str(netconfig), 2, pilib.loglevels.network)
 
     # we only update if we find the credentials
     for auth in wirelessauths:
         if auth['SSID'] == netconfig['SSID']:
             password = '"' + auth['password'] + '"'
             ssid = '"' + auth['SSID'] + '"'
-            utility.log(pilib.networklog, 'SSID ' + auth['SSID'] + 'found. ', 1, pilib.networkloglevel)
+            utility.log(pilib.dirs.logs.network, 'SSID ' + auth['SSID'] + 'found. ', 1, pilib.loglevels.network)
             configdata.data['psk'] = password
             configdata.data['ssid'] = ssid
     return configdata
@@ -164,7 +164,7 @@ def updatesupplicantdata(configdata):
 
 def writesupplicantfile(filedata, filepath='/etc/wpa_supplicant/wpa_supplicant.conf'):
     import subprocess.call
-    from utilities import utility
+    from iiutilities import utility
     from cupid import pilib
     writestring = ''
 
@@ -201,54 +201,54 @@ def writesupplicantfile(filedata, filepath='/etc/wpa_supplicant/wpa_supplicant.c
         else:
             writestring += line
 
-    utility.log(pilib.networklog, 'Writing supplicant file. ', 1, pilib.networkloglevel)
+    utility.log(pilib.dirs.logs.network, 'Writing supplicant file. ', 1, pilib.loglevels.network)
     try:
         myfile = open(filepath, 'w')
         myfile.write(writestring)
     except:
-        utility.log(pilib.networklog, 'Error writing supplicant file. ', 1, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Error writing supplicant file. ', 1, pilib.loglevels.network)
     else:
-        utility.log(pilib.networklog, 'Supplicant file written. ', 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Supplicant file written. ', 3, pilib.loglevels.network)
 
 
 def updatewpasupplicantOLD(interface='wlan0'):
-    from utilities import utility
+    from iiutilities import utility
     from cupid import pilib
     # print('I AM UPDATING SUPPLICANT DATA')
     try:
         suppdata = getwpasupplicantconfig()
     except:
-        utility.log(pilib.networklog, 'Error getting supplicant data. ', 0, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Error getting supplicant data. ', 0, pilib.loglevels.network)
     else:
-        utility.log(pilib.networklog, 'Supplicant data retrieved successfully. ', 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Supplicant data retrieved successfully. ', 3, pilib.loglevels.network)
 
     try:
         updateddata = updatesupplicantdata(suppdata)
     except:
-        utility.log(pilib.networklog, 'Error updating supplicant data. ', 0, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Error updating supplicant data. ', 0, pilib.loglevels.network)
     else:
-        utility.log(pilib.networklog, 'Supplicant data retrieved successfully. ', 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Supplicant data retrieved successfully. ', 3, pilib.loglevels.network)
 
     try:
         writesupplicantfile(updateddata)
     except:
-        utility.log(pilib.networklog, 'Error writing supplicant data. ', 0, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Error writing supplicant data. ', 0, pilib.loglevels.network)
     else:
-        utility.log(pilib.networklog, 'Supplicant data written successfully. ', 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Supplicant data written successfully. ', 3, pilib.loglevels.network)
 
 
 def updatewpasupplicant(path='/etc/wpa_supplicant/wpa_supplicant.conf'):
     from cupid import pilib
-    from utilities import dblib
-    from utilities import utility
-    netconfig = dblib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
+    from iiutilities import dblib
+    from iiutilities import utility
+    netconfig = dblib.readonedbrow(pilib.dirs.dbs.system, 'netconfig')[0]
 
     try:
-        wirelessauths = dblib.readalldbrows(pilib.safedatabase, 'wireless')
+        wirelessauths = dblib.readalldbrows(pilib.dirs.dbs.safe, 'wireless')
     except:
-         utility.log(pilib.networklog, 'Error reading wireless data. ', 0, pilib.networkloglevel)
+         utility.log(pilib.dirs.logs.network, 'Error reading wireless data. ', 0, pilib.loglevels.network)
     else:
-         utility.log(pilib.networklog, 'Read wireless data. ', 4, pilib.networkloglevel)
+         utility.log(pilib.dirs.logs.network, 'Read wireless data. ', 4, pilib.loglevels.network)
 
     psk = ''
     ssid = ''
@@ -257,25 +257,25 @@ def updatewpasupplicant(path='/etc/wpa_supplicant/wpa_supplicant.conf'):
     try:
         ssid = netconfig['SSID']
     except KeyError:
-        utility.log(pilib.networklog, 'No SSID found in netconfig. Finding first in wireless', 1, pilib.sysloglevel)
+        utility.log(pilib.dirs.logs.network, 'No SSID found in netconfig. Finding first in wireless', 1, pilib.loglevels.system)
         # try to attach to first network by setting SSID to first network in wireless auths
         # this can help alleviate some headaches down the line, hopefully. What should really be done is a
         # network scan to see which are available
 
-        wirelessauths = dblib.readalldbrows(pilib.safedatabase, 'wireless')
+        wirelessauths = dblib.readalldbrows(pilib.dirs.dbs.safe, 'wireless')
 
         try:
             defaultauths = wirelessauths[0]
             currssid = defaultauths['SSID']
         except:
-            utility.log(pilib.syslog, 'No SSID in wireless table to default to. ', 1, pilib.sysloglevel)
+            utility.log(pilib.dirs.logs.system, 'No SSID in wireless table to default to. ', 1, pilib.loglevels.system)
 
     if ssid:
         for auth in wirelessauths:
             if auth['SSID'] == netconfig['SSID']:
                 password = auth['password']
                 ssid = auth['SSID']
-                utility.log(pilib.networklog, 'SSID ' + auth['SSID'] + 'found. ', 1, pilib.networkloglevel)
+                utility.log(pilib.dirs.logs.network, 'SSID ' + auth['SSID'] + 'found. ', 1, pilib.loglevels.network)
                 psk = password
                 ssid = ssid
 
@@ -292,13 +292,13 @@ def updatewpasupplicant(path='/etc/wpa_supplicant/wpa_supplicant.conf'):
             myfile.write(filestring)
 
         else:
-            utility.log(pilib.networklog, 'No auths recovered for SSID, so not writing wpa_supplicant', 1, pilib.networkloglevel)
+            utility.log(pilib.dirs.logs.network, 'No auths recovered for SSID, so not writing wpa_supplicant', 1, pilib.loglevels.network)
     else:
-        utility.log(pilib.networklog, 'No SSID found to write, so not writing wpa_supplicant', 1, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'No SSID found to write, so not writing wpa_supplicant', 1, pilib.loglevels.network)
 
 
 def replaceifaceparameters(iffilein, iffileout, iface, parameternames, parametervalues):
-    from utilities import utility
+    from iiutilities import utility
     from cupid import pilib
 
     file = open(iffilein)
@@ -327,74 +327,74 @@ def replaceifaceparameters(iffilein, iffileout, iface, parameternames, parameter
     try:
         myfile = open(iffileout, 'w')
     except:
-        utility.log(pilib.networklog, 'Error opening interface file. ', 0, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Error opening interface file. ', 0, pilib.loglevels.network)
     else:
-        utility.log(pilib.networklog, 'Interface file read successfully. ', 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Interface file read successfully. ', 3, pilib.loglevels.network)
 
     try:
         myfile.write(writestring)
     except:
-        utility.log(pilib.networklog, 'Error writing interface file. ', 0, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Error writing interface file. ', 0, pilib.loglevels.network)
     else:
-        utility.log(pilib.networklog, 'Interface file written successfully. ', 3, pilib.networkloglevel)
-        utility.log(pilib.networklog, 'Write string: ' + writestring, 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Interface file written successfully. ', 3, pilib.loglevels.network)
+        utility.log(pilib.dirs.logs.network, 'Write string: ' + writestring, 3, pilib.loglevels.network)
 
 
 def setstationmode(netconfigdata=None):
     import subprocess
-    from utilities import utility
+    from iiutilities import utility
     from cupid import pilib
-    from utilities import dblib
+    from iiutilities import dblib
 
-    utility.log(pilib.networklog, 'Setting station mode. ', 3, pilib.networkloglevel)
+    utility.log(pilib.dirs.logs.network, 'Setting station mode. ', 3, pilib.loglevels.network)
 
     from time import sleep
     if not netconfigdata:
-        utility.log(pilib.networklog, 'Retrieving unfound netconfig data. ', 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Retrieving unfound netconfig data. ', 3, pilib.loglevels.network)
         try:
-            netconfigdata = dblib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
+            netconfigdata = dblib.readonedbrow(pilib.dirs.dbs.system, 'netconfig')[0]
         except:
-            utility.log(pilib.networklog, 'Error reading netconfig data. ', 0, pilib.networkloglevel)
+            utility.log(pilib.dirs.logs.network, 'Error reading netconfig data. ', 0, pilib.loglevels.network)
         else:
-            utility.log(pilib.networklog, 'Read netconfig data. ', 4, pilib.networkloglevel)
+            utility.log(pilib.dirs.logs.network, 'Read netconfig data. ', 4, pilib.loglevels.network)
 
     killapservices()
     if netconfigdata['addtype'] == 'static':
-        utility.log(pilib.networklog, 'Configuring static address. ', 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Configuring static address. ', 3, pilib.loglevels.network)
 
         subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.static', '/etc/network/interfaces'])
 
         # update IP from netconfig
-        utility.log(pilib.networklog, 'Updating netconfig with ip ' + netconfigdata['address'], 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Updating netconfig with ip ' + netconfigdata['address'], 3, pilib.loglevels.network)
         replaceifaceparameters('/etc/network/interfaces', '/etc/network/interfaces', 'wlan0', ['address', 'gateway'],
                                [netconfigdata['address'], netconfigdata['gateway']])
     elif netconfigdata['addtype'] == 'dhcp':
-        utility.log(pilib.networklog, 'Configuring dhcp. ', 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Configuring dhcp. ', 3, pilib.loglevels.network)
         subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.dhcp', '/etc/network/interfaces'])
 
-    utility.log(pilib.networklog, 'Resetting wlan. ', 3, pilib.networkloglevel)
+    utility.log(pilib.dirs.logs.network, 'Resetting wlan. ', 3, pilib.loglevels.network)
     resetwlan()
     sleep(1)
     resetwlan()
 
 
 def killapservices():
-    from utilities import utility
+    from iiutilities import utility
     from cupid import pilib
-    utility.log(pilib.networklog, 'Killing AP Services. ', 1, pilib.networkloglevel)
+    utility.log(pilib.dirs.logs.network, 'Killing AP Services. ', 1, pilib.loglevels.network)
     try:
         killhostapd()
     except:
-        utility.log(pilib.networklog, 'Error killing hostapd. ', 0, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Error killing hostapd. ', 0, pilib.loglevels.network)
     else:
-        utility.log(pilib.networklog, 'Killed hostapd. ', 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Killed hostapd. ', 3, pilib.loglevels.network)
 
     try:
         killdhcpserver()
     except:
-        utility.log(pilib.networklog, 'Error killing dhcp server. ', 0, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Error killing dhcp server. ', 0, pilib.loglevels.network)
     else:
-        utility.log(pilib.networklog, 'Successfully killed dhcp server. ', 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Successfully killed dhcp server. ', 3, pilib.loglevels.network)
 
 
 def killhostapd():
@@ -415,7 +415,7 @@ def startapservices(interface='wlan0'):
     from time import sleep
     import subprocess
     from cupid import pilib
-    from utilities import utility
+    from iiutilities import utility
 
     try:
         # We name the file by the interfae. This way when we pgrep, we know we're running AP on the right interface
@@ -423,9 +423,9 @@ def startapservices(interface='wlan0'):
         updatehostapd(path=hostapdfilename, interface=interface)
         subprocess.call(['/usr/sbin/hostapd', '-B', hostapdfilename])
     except:
-        utility.log(pilib.networklog, 'Error starting hostapd. ', 0, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Error starting hostapd. ', 0, pilib.loglevels.network)
     else:
-        utility.log(pilib.networklog, 'Started hostapd without error. ', 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Started hostapd without error. ', 3, pilib.loglevels.network)
 
     sleep(1)
 
@@ -433,16 +433,16 @@ def startapservices(interface='wlan0'):
         updatedhcpd(path='/etc/dhcp/dhcpd.conf', interface=interface)
         subprocess.call(['/usr/sbin/service', 'isc-dhcp-server', 'start'])
     except:
-        utility.log(pilib.networklog, 'Error starting dhcp server. ', 0, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Error starting dhcp server. ', 0, pilib.loglevels.network)
     else:
-        utility.log(pilib.networklog, 'Started dhcp server without error. ', 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Started dhcp server without error. ', 3, pilib.loglevels.network)
 
 
 def setapmode(interface='wlan0', netconfig=None):
-    from utilities import utility
+    from iiutilities import utility
     import subprocess
 
-    utility.log(pilib.networklog, 'Setting ap mode for interface ' + interface, 1, pilib.networkloglevel)
+    utility.log(pilib.dirs.logs.network, 'Setting ap mode for interface ' + interface, 1, pilib.loglevels.network)
     try:
         if interface == 'wlan0':
             subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.ap', '/etc/network/interfaces'])
@@ -451,9 +451,9 @@ def setapmode(interface='wlan0', netconfig=None):
         elif interface == 'wlan1wlan0':
             subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.wlan1dhcp.wlan0cupidwifi', '/etc/network/interfaces'])
     except:
-        utility.log(pilib.networklog, 'Error copying network configuration file. ', 0, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Error copying network configuration file. ', 0, pilib.loglevels.network)
     else:
-        utility.log(pilib.networklog, 'Copied network configuration file successfully. ', 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Copied network configuration file successfully. ', 3, pilib.loglevels.network)
 
     killapservices()
     resetwlan()
@@ -461,41 +461,41 @@ def setapmode(interface='wlan0', netconfig=None):
 
 
 def resetwlan(interface='wlan0'):
-    from utilities import utility
+    from iiutilities import utility
     import subprocess
     from cupid import pilib
 
-    utility.log(pilib.networklog, 'Resetting ' + interface + ' . ', 3, pilib.networkloglevel)
+    utility.log(pilib.dirs.logs.network, 'Resetting ' + interface + ' . ', 3, pilib.loglevels.network)
     try:
         subprocess.check_output(['/sbin/ifdown', '--force', interface], stderr=subprocess.PIPE)
         subprocess.call(['/sbin/ifup', interface], stderr=subprocess.PIPE)
     except Exception, e:
-        utility.log(pilib.networklog, 'Error resetting ' + interface + ' : ' + str(e), 0, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Error resetting ' + interface + ' : ' + str(e), 0, pilib.loglevels.network)
     else:
-        utility.log(pilib.networklog, 'Completed resetting ' + interface + '. ', 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Completed resetting ' + interface + '. ', 3, pilib.loglevels.network)
 
 
 def runconfig(onboot=False):
     import subprocess
-    from utilities import utility
+    from iiutilities import utility
     from cupid import pilib
-    from utilities.datalib import gettimestring
-    from utilities import dblib
+    from iiutilities.datalib import gettimestring
+    from iiutilities import dblib
 
-    utility.log(pilib.networklog, 'Running network reconfig (setting lastnetreconfig). ', 0, pilib.networkloglevel)
-    dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'lastnetreconfig', gettimestring())
+    utility.log(pilib.dirs.logs.network, 'Running network reconfig (setting lastnetreconfig). ', 0, pilib.loglevels.network)
+    dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'lastnetreconfig', gettimestring())
 
     try:
-        netconfigdata = dblib.readonedbrow(pilib.systemdatadatabase, 'netconfig')[0]
+        netconfigdata = dblib.readonedbrow(pilib.dirs.dbs.system, 'netconfig')[0]
         # print(netconfigdata)
     except:
-        utility.log(pilib.networklog, 'Error reading netconfig data. ', 0, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Error reading netconfig data. ', 0, pilib.loglevels.network)
     else:
-        utility.log(pilib.networklog, 'Successfully read netconfig data', 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Successfully read netconfig data', 3, pilib.loglevels.network)
 
-        dblib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'mode', netconfigdata['mode'])
+        dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'mode', netconfigdata['mode'])
 
-        utility.log(pilib.networklog, 'Netconfig is enabled', 3, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Netconfig is enabled', 3, pilib.loglevels.network)
 
         # This will grab the specified SSID and the credentials and update
         # the wpa_supplicant file
@@ -505,7 +505,7 @@ def runconfig(onboot=False):
         if netconfigdata['mode'] == 'station':
             setstationmode(netconfigdata)
         elif netconfigdata['mode'] in ['ap', 'tempap', 'eth0wlan0bridge']:
-            utility.log(pilib.networklog, 'Setting eth0wlan0 bridge (or bare ap mode). ', 0, pilib.networkloglevel)
+            utility.log(pilib.dirs.logs.network, 'Setting eth0wlan0 bridge (or bare ap mode). ', 0, pilib.loglevels.network)
             subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.ap', '/etc/network/interfaces'])
             killapservices()
             resetwlan()
@@ -514,7 +514,7 @@ def runconfig(onboot=False):
         # All of these require ipv4 being enabled in /etc/sysctl.conf
         # First interface is DHCP, second is CuPIDwifi
         elif netconfigdata['mode'] == 'wlan0wlan1bridge':
-            utility.log(pilib.networklog, 'Setting wlan0wlan1 bridge', 0, pilib.networkloglevel)
+            utility.log(pilib.dirs.logs.network, 'Setting wlan0wlan1 bridge', 0, pilib.loglevels.network)
             subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.wlan0dhcp.wlan1cupidwifi', '/etc/network/interfaces'])
             killapservices()
             resetwlan('wlan0')
@@ -522,7 +522,7 @@ def runconfig(onboot=False):
             startapservices('wlan1')
 
         elif netconfigdata['mode'] == 'wlan1wlan0bridge':
-            utility.log(pilib.networklog, 'Setting wlan1wlan0 bridge', 0, pilib.networkloglevel)
+            utility.log(pilib.dirs.logs.network, 'Setting wlan1wlan0 bridge', 0, pilib.loglevels.network)
             subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.wlan1dhcp.wlan0cupidwifi', '/etc/network/interfaces'])
             killapservices()
             resetwlan('wlan0')
@@ -534,18 +534,18 @@ def runconfig(onboot=False):
 
 def runIPTables(mode, flush=True):
     import pilib
-    from utilities import utility
+    from iiutilities import utility
     if flush:
-        utility.log(pilib.networklog, 'Flushing IPTables', 2, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Flushing IPTables', 2, pilib.loglevels.network)
         flushIPTables()
     if mode == 'eth0wlan0bridge':
-        utility.log(pilib.networklog, 'Running eth0wlan0 bridge IPTables', 2, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Running eth0wlan0 bridge IPTables', 2, pilib.loglevels.network)
         runeth0wlan0bridgeIPTables()
     elif mode == 'wlan0wlan1bridge':
-        utility.log(pilib.networklog, 'Running wlan0wlan1 bridge IPTables', 2, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Running wlan0wlan1 bridge IPTables', 2, pilib.loglevels.network)
         runwlan0wlan1bridgeIPTables()
     elif mode == 'wlan1wlan0bridge':
-        utility.log(pilib.networklog, 'Running wlan1wlan0 bridge IPTables', 2, pilib.networkloglevel)
+        utility.log(pilib.dirs.logs.network, 'Running wlan1wlan0 bridge IPTables', 2, pilib.loglevels.network)
         runwlan1wlan0bridgeIPTables()
 
 

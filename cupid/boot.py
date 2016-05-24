@@ -1,21 +1,39 @@
 #!/usr/bin/env python
 
+__author__ = "Colin Reese"
+__copyright__ = "Copyright 2016, Interface Innovations"
+__credits__ = ["Colin Reese"]
+__license__ = "Apache 2.0"
+__version__ = "1.0"
+__maintainer__ = "Colin Reese"
+__email__ = "support@interfaceinnovations.org"
+__status__ = "Development"
+
+import inspect
+import os
+import sys
+
+top_folder = \
+    os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
+if top_folder not in sys.path:
+    sys.path.insert(0, top_folder)
+
+
 import subprocess
 from time import sleep
 
 import pilib
 import spilights
-import utilities.dblib
-from utilities import utility, dblib
+from iiutilities import utility, dblib
 
-interfaces = dblib.readalldbrows(pilib.controldatabase, 'interfaces')
-systemstatus = dblib.readonedbrow(pilib.controldatabase, 'systemstatus')[0]
+interfaces = dblib.readalldbrows(pilib.dirs.dbs.control, 'interfaces')
+systemstatus = dblib.readonedbrow(pilib.dirs.dbs.control, 'systemstatus')[0]
 
 # Start pigpiod
 
 subprocess.call(['killall','pigpiod'])
 sleep(1)
-utility.log(pilib.syslog, 'boot: starting pigpio daemon', 3, pilib.sysloglevel)
+utility.log(pilib.dirs.logs.system, 'boot: starting pigpio daemon', 3, pilib.loglevels.system)
 subprocess.call(['/usr/local/bin/pigpiod'])
 
 # Start webserver
@@ -25,10 +43,10 @@ subprocess.call(['killall','uwsgi'])
 subprocess.call(['killall','apache2'])
 
 if systemstatus['webserver'] == 'apache':
-    utility.log(pilib.syslog, 'boot: starting apache', 3, pilib.sysloglevel)
+    utility.log(pilib.dirs.logs.system, 'boot: starting apache', 3, pilib.loglevels.system)
     subprocess.call(['service', 'apache2', 'start'])
 elif systemstatus['webserver'] == 'nginx':
-    utility.log(pilib.syslog, 'boot: starting nginx', 3, pilib.sysloglevel)
+    utility.log(pilib.dirs.logs.system, 'boot: starting nginx', 3, pilib.loglevels.system)
     subprocess.call(['service', 'nginx', 'start'])
 
 # Run uwsgi daemon if nginx is running
@@ -41,7 +59,7 @@ except subprocess.CalledProcessError as e:
     # print e.output
 
 if result:
-    utility.log(pilib.syslog, 'boot: starting uwsgi based on nginx call', 0)
+    utility.log(pilib.dirs.logs.system, 'boot: starting uwsgi based on nginx call', 0)
     subprocess.call(['uwsgi', '--emperor', '/usr/lib/iicontrollibs/wsgi/', '--daemonize', '/var/log/cupid/uwsgi.log'])
 else:
     # print(' I KNOW NGINX IS NOT RUNNING')
@@ -68,43 +86,43 @@ for interface in interfaces:
             runusbowfs = True
 
         if interface['interface'] == 'SPI1' and type == 'CuPIDlights':
-            spilights.updatelightsfromdb(pilib.controldatabase, 'indicators', 1)
+            spilights.updatelightsfromdb(pilib.dirs.dbs.control, 'indicators', 1)
         if interface['interface'] == 'SPI0' and type == 'CuPIDlights':
-            spilights.updatelightsfromdb(pilib.controldatabase, 'indicators', 0)
+            spilights.updatelightsfromdb(pilib.dirs.dbs.control, 'indicators', 0)
 
 if runi2cowfs or runusbowfs:
     if runi2cowfs:
-        utility.log(pilib.syslog, 'boot: Running i2c owserver', 3, pilib.sysloglevel)
+        utility.log(pilib.dirs.logs.system, 'boot: Running i2c owserver', 3, pilib.loglevels.system)
         try:
             subprocess.call(['/opt/owfs/bin/owserver', '-F', '--i2c=/dev/i2c-1:ALL', '-p', '4304'])
         except:
-            utility.log(pilib.syslog, 'boot: error running i2c owserver', 1, pilib.sysloglevel)
+            utility.log(pilib.dirs.logs.system, 'boot: error running i2c owserver', 1, pilib.loglevels.system)
     if runusbowfs:
-        utility.log(pilib.syslog, 'boot: Running usb owserver', 3, pilib.sysloglevel)
+        utility.log(pilib.dirs.logs.system, 'boot: Running usb owserver', 3, pilib.loglevels.system)
         try:
             subprocess.call(['/opt/owfs/bin/owserver', '-F', '-u', '-p', '4304'])
         except:
-            utility.log(pilib.syslog, 'error running usb owserver', 1, pilib.sysloglevel)
+            utility.log(pilib.dirs.logs.system, 'error running usb owserver', 1, pilib.loglevels.system)
 
-    utility.log(pilib.syslog, 'boot: Running owfs/owserver mount', 3, pilib.sysloglevel)
+    utility.log(pilib.dirs.logs.system, 'boot: Running owfs/owserver mount', 3, pilib.loglevels.system)
     try:
         subprocess.call(['/opt/owfs/bin/owfs', '-F', '-s', '4304', '/var/1wire/'])
     except:
-        utility.log(pilib.syslog, 'boot: error running owfs', 1, pilib.sysloglevel)
+        utility.log(pilib.dirs.logs.system, 'boot: error running owfs', 1, pilib.loglevels.system)
 
-    utility.log(pilib.syslog, 'boot: Running owhttpd/owserver mount', 3, pilib.sysloglevel)
+    utility.log(pilib.dirs.logs.system, 'boot: Running owhttpd/owserver mount', 3, pilib.loglevels.system)
     try:
         subprocess.call(['/opt/owfs/bin/owhttpd', '-F', '-s', '4304', '-p', '4305'])
     except:
-        utility.log(pilib.syslog, 'boot: error running owhttpd', 1, pilib.sysloglevel)
+        utility.log(pilib.dirs.logs.system, 'boot: error running owhttpd', 1, pilib.loglevels.system)
 
 else:
-    utility.log(pilib.syslog, 'boot: not running owfs', 3, pilib.sysloglevel)
+    utility.log(pilib.dirs.logs.system, 'boot: not running owfs', 3, pilib.loglevels.system)
 
 # Run netstart script if enabled
 if systemstatus['netconfigenabled']:
     from netconfig import runconfig
-    utility.log(pilib.syslog, 'boot: running boot netconfig', 2, pilib.sysloglevel)
+    utility.log(pilib.dirs.logs.system, 'boot: running boot netconfig', 2, pilib.loglevels.system)
     runconfig(onboot=True)
 
 # Run daemon

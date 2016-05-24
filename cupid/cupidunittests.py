@@ -11,7 +11,43 @@ import importlib
 
 
 def runalltests():
-    unittest.main()
+    errors = []
+    errormodules = []
+    totalerrorcount = 0
+    functionerrorcount = 0
+    moduleerrorcount = 0
+
+    moduleresults = teststdmodules()
+    for result in moduleresults:
+        if result['errorcount'] != 0:
+            errors.append(result)
+            errormodules.append(['module'])
+            moduleerrorcount += 1
+            totalerrorcount += 1
+
+    functionresults = teststdfunctions()
+    for result in functionresults:
+        if result['errorcount'] != 0:
+            errors.append(result)
+            errormodules.append(result['module'])
+            functionerrorcount += 1
+            totalerrorcount += 1
+
+    stringresult =  'Total Error Count: \t\t' + str(totalerrorcount) + '\r\n'
+    stringresult += 'Function Error Count: \t\t' + str(functionerrorcount) + '\r\n'
+    stringresult += 'Module Error Count: \t\t' + str(moduleerrorcount) + '\r\n'
+    stringresult += '\r\n'
+    stringresult += 'Error Modules:\r\n'
+    for errormodule in errormodules:
+        stringresult += str(errormodule)
+    stringresult += '\r\n\r\n'
+    stringresult += 'Errors:\r\n'
+
+    for error in errors:
+        stringresult += str(error)
+
+    return {'functions':functionresults, 'modules':moduleresults, 'functionerrorcount':functionerrorcount, \
+            'moduleerrorcount':moduleerrorcount, 'totalerrorcount':totalerrorcount, 'errors':errors, 'stringresult':stringresult}
 
 
 class TestFunction(unittest.TestCase):
@@ -21,9 +57,9 @@ class TestFunction(unittest.TestCase):
         self.assertTrue(True)
 
     def updateio(self):
-        from updateio import updateiodata
-        from pilib import controldatabase
-        updateiodata(controldatabase)
+        from cupid.updateio import updateiodata
+        from cupid.pilib import dirs
+        updateiodata(dirs.dbs.control)
 
     def netconfig(self):
         from netconfig import runconfig
@@ -57,17 +93,18 @@ class ImportTester(TestImport):
 def testmodule(modulename):
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(ImportTester(methodname='test', modulename=modulename))
+    errorcount = len(result.errors)
     stringfailures=[]
     for failure in result.failures:
         stringfailures.append(str(failure))
-    resultdict = {'module':modulename, 'testsrun':result.testsRun, 'errors':result.errors, 'failuremessages': 'blurg', 'failurecount': len(result.failures)}
+    resultdict = {'module':modulename, 'testsrun':result.testsRun, 'errorcount':errorcount, 'errors':result.errors, 'failuremessages': 'blurg', 'failurecount': len(result.failures)}
     return resultdict
 
 
 def testfunction(functionname):
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(TestFunction(functionname))
-
+    print(result)
     errorcount = len(result.errors)
     if errorcount > 0:
         testelement = result.errors[0][0]
@@ -94,12 +131,29 @@ def testmodules(modulenames):
     return resultdictarray
 
 
+def testfunctions(functionnames):
+    resultdictarray=[]
+    for function in functionnames:
+        resultdictarray.append(testfunction(function))
+    return resultdictarray
+
+
+def teststdmodules():
+    modules = ['cupid.actions', 'cupid.boot', 'cupid.camera', 'cupid.controllib', 'cupid.cupiddaemon',
+               'cupid.netconfig', 'cupid.periodicupdateio', 'cupid.pilib', 'cupid.picontrol', 'cupid.rebuilddatabases',
+               'cupid.sessioncontrol', 'cupid.systemstatus', 'cupid.updateio']
+    modules.extend(['iiutilities.datalib', 'iiutilities.dblib', 'iiutilities.gitupdatelib', 'iiutilities.netfun',
+                    'iiutilities.owfslib', 'iiutilities.utility'])
+    results = testmodules(modules)
+    return results
+
+
+def teststdfunctions():
+    functions = ['updateio']
+    results = testfunctions(functions)
+    return results
+
 if __name__ == "__main__":
 
-    # modules = ['cupid.pilib', 'cupid.picontrol', 'cupid.controllib', 'cupid.netconfig', 'cupid.netfun', 'cupid.owfslib', 'cupid.processactions', 'cupid.sessioncontrol', 'cupid.systemstatus', 'cupid.cupiddaemon']
-    modules = ['cupid.actions', 'cupid.controllib', 'cupid.pilib', 'cupid.picontrol', 'cupid.netconfig', 'cupid.systemstatus', 'cupid.updateio', 'cupid.rebuilddatabases']
-    modules.extend(['utilities.datalib', 'utilities.dblib', 'utilities.netfun', 'utilities.owfslib', 'utilities.utility'])
-    results = testmodules(modules)
-    for result in results:
-        print(result)
-    # testfunction('systemstatus')
+    results = runalltests()
+    print(results['stringresult'])

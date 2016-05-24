@@ -1,8 +1,3 @@
-import datalib
-import dblib
-import utilities
-
-
 def application(environ, start_response):
 
     import cgi
@@ -18,6 +13,7 @@ def application(environ, start_response):
 
     import cupid.pilib as pilib
     import cupid.controllib as controllib
+    from iiutilities import dblib, utility, datalib
 
     post_env = environ.copy()
     post_env['QUERY_STRING'] = ''
@@ -231,7 +227,7 @@ def application(environ, start_response):
                 except KeyError:
                     output['message'] += 'Sufficient keys do not exist for the command. Requires clientIP, register, and length. '
                 else:
-                    from cupid.netfun import readMBcodedaddresses
+                    from iiutilities.netfun import readMBcodedaddresses
                     # try:
                     output['response'] = readMBcodedaddresses(clientIP, int(register), int(length))
             elif action == 'queuemessage':
@@ -253,7 +249,7 @@ def application(environ, start_response):
                 rundaemon()
 
             elif action == 'setvalue':
-                utilities.log(pilib.controllog, "Setting value in wsgi", 1, 1)
+                utility.log(pilib.controllog, "Setting value in wsgi", 1, 1)
                 # we use the auxiliary 'setsinglecontrolvalue' to add additional actions to update
                 if all(k in d for k in ('database', 'table', 'valuename', 'value')):
                     dbpath = pilib.dbnametopath(d['database'])

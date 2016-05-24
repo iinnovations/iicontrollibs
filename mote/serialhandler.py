@@ -1,8 +1,17 @@
 #!/usr/bin/env python
 
-# do this stuff to access the pilib for sqlite
-import os, sys, inspect
+__author__ = "Colin Reese"
+__copyright__ = "Copyright 2016, Interface Innovations"
+__credits__ = ["Colin Reese"]
+__license__ = "Apache 2.0"
+__version__ = "1.0"
+__maintainer__ = "Colin Reese"
+__email__ = "support@interfaceinnovations.org"
+__status__ = "Development"
 
+import os
+import sys
+import inspect
 
 top_folder = \
     os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
@@ -21,27 +30,29 @@ def write(message, port='/dev/ttyAMA0', baudrate=115200, timeout=1):
 def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, printmessages=False):
     import serial
     import cupid.pilib as pilib
+    from iiutilities import datalib, dblib
+    from iiutilities import utility
     from time import mktime, localtime
     from time import sleep
 
     data = []
 
     stringmessage = ''
-    rawseriallog = True
-    if rawseriallog:
+    seriallog = True
+    if seriallog:
         print('serial logging is enabled.')
-        logfile = open(pilib.seriallog, 'a', 1)
-        logfile.write('\n' + pilib.gettimestring() + ": Initializing serial log\n")
+        logfile = open(pilib.dirs.logs.log, 'a', 1)
+        logfile.write('\n' + datalib.gettimestring() + ": Initializing serial log\n")
 
     if checkstatus:
-        systemstatus = pilib.readonedbrow(pilib.controldatabase, 'systemstatus')[0]
+        systemstatus = dblib.readonedbrow(pilib.dirs.dbs.control, 'systemstatus')[0]
         runhandler = systemstatus['serialhandlerenabled']
         checktime = mktime(localtime())
         checkfrequency = 15  # seconds
         if runhandler:
-           pilib.log(pilib.iolog, "Starting monitoring of serial port", 1, pilib.iologlevel)
+           utility.log(pilib.dirs.logs.io, "Starting monitoring of serial port", 1, pilib.loglevels.io)
         else:
-            pilib.log(pilib.iolog, "Not starting monitoring of serial port. How did I get here?", 1, pilib.iologlevel)
+            utility.log(pilib.dirs.logs.io, "Not starting monitoring of serial port. How did I get here?", 1, pilib.loglevels.io)
     else:
         runhandler = True
 
@@ -110,7 +121,7 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
                                         print(message)
                                     statusresult = lograwmessages(message)
 
-                                pilib.sizesqlitetable(pilib.motesdatabase, 'readmessages', 1000)
+                                dblib.sizesqlitetable(pilib.dirs.dbs.motes, 'readmessages', 1000)
 
                                 statusresult = processremotedata(datadict, message)
                             else:
@@ -119,9 +130,9 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
                                     print(message)
 
                             # Log message
-                            if rawseriallog:
+                            if seriallog:
                                 try:
-                                    logfile.write(pilib.gettimestring() + ' : ' + message + '\n')
+                                    logfile.write(datalib.gettimestring() + ' : ' + message + '\n')
                                 except Exception as e:
                                     template = "An exception of type {0} occured. Arguments:\n{1!r}"
                                     message = template.format(type(ex).__name__, ex.args)
@@ -132,17 +143,17 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
                     # print('no data, try sending')
                     pass
 
-                pilib.log(pilib.seriallog, "Attempting send routine", 4, pilib.serialloglevel)
+                utility.log(pilib.dirs.logs.log, "Attempting send routine", 4, pilib.loglevels.serial)
 
                 # See if there are messages to send.
                 try:
                     runsendhandler(ser)
                 except Exception as e:
-                    pilib.log(pilib.seriallog, "Error in send routine", 1, 1)
+                    utility.log(pilib.dirs.logs.log, "Error in send routine", 1, 1)
                 #
                 #     template = "An exception of type {0} occured. Arguments:\n{1!r}"
                 #     message = template.format(type(ex).__name__, ex.args)
-                #     pilib.log(pilib.seriallog, message, 1, 1)
+                #     pilib.log(pilib.dirs.logs.log, message, 1, 1)
                 #     print message
                 data = []
 
@@ -158,14 +169,14 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
                 thetime = mktime(localtime())
                 if thetime-checktime > checkfrequency:
                     print('checking control status')
-                    systemstatus = pilib.readonedbrow(pilib.controldatabase, 'systemstatus')[0]
+                    systemstatus = dblib.readonedbrow(pilib.dirs.dbs.control, 'systemstatus')[0]
                     runserialhandler = systemstatus['serialhandlerenabled']
                     if runserialhandler:
                         checktime = thetime
-                        pilib.log(pilib.iolog, 'Continuing serialhandler based on status check',3,pilib.iologlevel)
+                        utility.log(pilib.dirs.logs.io, 'Continuing serialhandler based on status check', 3, pilib.loglevels.io)
                     else:
                         runhandler=False
-                        pilib.log(pilib.iolog, 'Aborting serialhandler based on status check',3,pilib.iologlevel)
+                        utility.log(pilib.dirs.logs.io, 'Aborting serialhandler based on status check', 3, pilib.loglevels.io)
         except KeyboardInterrupt:
             print('\n Exiting on keyboard interrupt\n')
             logfile.close()
@@ -182,30 +193,33 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
 
 
 def runsendhandler(ser):
+    from iiutilities import dblib, datalib
+    from iiutilities import utility
+
     # print('looking for message to send')
     try:
-        lastqueuedmessage = pilib.getfirsttimerow(pilib.motesdatabase, 'queuedmessages', 'queuedtime')[0]
+        lastqueuedmessage = dblib.getfirsttimerow(pilib.dirs.dbs.motes, 'queuedmessages', 'queuedtime')[0]
     except IndexError:
         # no rows
         # print('we have an error getting a queued message. Could be just no message.')
         pass
     else:
-        pilib.log(pilib.seriallog, 'Sending serial message: ' + lastqueuedmessage['message'], 1, 1)
+        utility.log(pilib.dirs.logs.log, 'Sending serial message: ' + lastqueuedmessage['message'], 1, 1)
         try:
             # print('going to send message:')
             # print(lastqueuedmessage['message'])
             ser.write(lastqueuedmessage['message'].encode())
             # sendserialmessage(ser, lastqueuedmessage['message'])
         except:
-             pilib.log(pilib.seriallog, 'Error sending message', 1, 1)
+             utility.log(pilib.dirs.logs.log, 'Error sending message', 1, 1)
         else:
-            pilib.log(pilib.seriallog, 'Success sending message', 1, 1)
+            utility.log(pilib.dirs.logs.log, 'Success sending message', 1, 1)
 
             conditionnames = ['queuedtime', 'message']
             conditionvalues = [lastqueuedmessage['queuedtime'], lastqueuedmessage['message']]
-            delquery = pilib.makedeletesinglevaluequery('queuedmessages', {'conditionnames':conditionnames, 'conditionvalues':conditionvalues})
-            pilib.sqlitequery(pilib.motesdatabase, delquery)
-            pilib.sqliteinsertsingle(pilib.motesdatabase, 'sentmessages', [lastqueuedmessage['queuedtime'], pilib.gettimestring(), lastqueuedmessage['message']])
+            delquery = dblib.makedeletesinglevaluequery('queuedmessages', {'conditionnames':conditionnames, 'conditionvalues':conditionvalues})
+            dblib.sqlitequery(pilib.dirs.dbs.motes, delquery)
+            dblib.sqliteinsertsingle(pilib.dirs.dbs.motes, 'sentmessages', [lastqueuedmessage['queuedtime'], datalib.gettimestring(), lastqueuedmessage['message']])
     return
 
 
@@ -214,7 +228,7 @@ def sendserialmessage(serobject, message):
 
 
 def processserialdata(data):
-    from cupid.pilib import parseoptions
+    from iiutilities.datalib import parseoptions
     datadicts = []
     messages = []
     # try:
@@ -257,12 +271,14 @@ def processserialdata(data):
 
 
 def lograwmessages(message):
-    from cupid.pilib import sqliteinsertsingle, motesdatabase, gettimestring
+    from cupid.pilib import dirs
+    from iiutilities.datalib import gettimestring
+    from iiutilities.dblib import sqliteinsertsingle
     # try:
     strmessage = str(message).replace('\x00','').strip()
     # print(repr(strmessage))
-    sqliteinsertsingle(motesdatabase, 'readmessages', [gettimestring(), strmessage])
-    # sqliteinsertsingle(motesdatabase, 'readmessages', [gettimestring(), 'nodeid:2,chan:02,sv:070.000,pv:071.000,RX_RSSI:_57'])
+    sqliteinsertsingle(dirs.dbs.motes, 'readmessages', [gettimestring(), strmessage])
+    # sqliteinsertsingle(dirs.dbs.motes, 'readmessages', [gettimestring(), 'nodeid:2,chan:02,sv:070.000,pv:071.000,RX_RSSI:_57'])
     # except:
     #     print('it did not go ok')
     #     return {'status':1, 'message':'query error'}
@@ -278,6 +294,7 @@ def lograwmessages(message):
 
 def processremotedata(datadict, stringmessage):
     import cupid.pilib as pilib
+    from iiutilities import dblib, datalib
     if 'nodeid' in datadict:
 
         # We are going to search for keywords. Message type will not be explicitly declared so
@@ -305,10 +322,10 @@ def processremotedata(datadict, stringmessage):
 
                 # Create table if it doesn't exist
                 query = 'create table if not exists \'' + motetablename + '\' ( time text, message text primary key, value text)'
-                pilib.sqlitequery(pilib.motesdatabase, query)
+                dblib.sqlitequery(pilib.dirs.dbs.motes, query)
 
                 for key in datadict:
-                    thetime = pilib.gettimestring()
+                    thetime = datalib.gettimestring()
                     if key in ['iov', 'iov2', 'iov3', 'pv', 'pv2', 'sv', 'sv2', 'iomd', 'ioen', 'iordf', 'iorpf', 'chen', 'chmd', 'chnf', 'chpf', 'chdb', 'chsv', 'chsv2', 'chpv', 'chpv2']:
                         # We need to process these specially, going back to the original message
                         values = datadict[key]
@@ -334,14 +351,14 @@ def processremotedata(datadict, stringmessage):
 
                         querylist = []
                         for value in valuelist:
-                            querylist.append(pilib.makesqliteinsert(motetablename, [thetime, base + str(index), value]))
+                            querylist.append(dblib.makesqliteinsert(motetablename, [thetime, base + str(index), value]))
                             index += 1
-                        pilib.sqlitemultquery(pilib.motesdatabase, querylist)
+                        dblib.sqlitemultquery(pilib.dirs.dbs.motes, querylist)
 
                     # Update table entry. Each entry has a unique key
                     # updatetime, keyname, data
                     else:
-                        pilib.sqliteinsertsingle(pilib.motesdatabase, motetablename, [thetime, key, datadict[key]])
+                        dblib.sqliteinsertsingle(pilib.dirs.dbs.motes, motetablename, [thetime, key, datadict[key]])
                         print('inserted ' + thetime + ' ' + key + ' ' + datadict[key])
 
         # This is for values that are reported by the node
@@ -388,7 +405,7 @@ def processremotedata(datadict, stringmessage):
 
             # Here, get all remote entries for the specific node id
             conditions = '"nodeid"=\''+ datadict['nodeid'] + '\' and "msgtype"=\'channel\''
-            chanentries = pilib.readalldbrows(pilib.controldatabase, 'remotes', conditions)
+            chanentries = dblib.readalldbrows(pilib.dirs.dbs.control, 'remotes', conditions)
 
             # parse through to get data from newdata
             newdata = {}
@@ -407,7 +424,7 @@ def processremotedata(datadict, stringmessage):
                     # print('I FOUND')
 
                     # newdata  = {'fakedatatype':'fakedata', 'anotherfakedatatype':'morefakedata'}
-                    olddata = pilib.parseoptions(chanentry['data'])
+                    olddata = datalib.parseoptions(chanentry['data'])
 
                     olddata.update(updateddata)
                     updateddata = olddata.copy()
@@ -418,28 +435,28 @@ def processremotedata(datadict, stringmessage):
             # Ok, so here we are. We have either added new data to old data, or we have the new data alone.
             # We take our dictionary and convert it back to json and put it in the text entry
 
-            updatedjsonentry = pilib.dicttojson(updateddata)
+            updatedjsonentry = datalib.dicttojson(updateddata)
 
             conditions += 'and "keyvalue"=\'' + keyvalue +'\''
-            deletequery = pilib.makedeletesinglevaluequery('remotes',conditions)
+            deletequery = dblib.makedeletesinglevaluequery('remotes', conditions)
 
             # hardcode this for now, should supply valuename list.
-            addquery = pilib.makesqliteinsert('remotes',[datadict['nodeid'],'channel',keyvalue,'channel',updatedjsonentry,pilib.gettimestring()])
+            addquery = dblib.makesqliteinsert('remotes', [datadict['nodeid'], 'channel', keyvalue, 'channel', updatedjsonentry, datalib.gettimestring()])
 
-            pilib.sqlitemultquery(pilib.controldatabase, [deletequery, addquery])
+            dblib.sqlitemultquery(pilib.dirs.dbs.control, [deletequery, addquery])
 
 
         elif 'scalevalue' in datadict:
             querylist.append('create table if not exists scalevalues (value float, time string)')
-            querylist.append(pilib.makesqliteinsert('scalevalues',[datadict['scalevalue'], pilib.gettimestring()],['value','time']))
-            pilib.sqlitemultquery(pilib.logdatabase, querylist)
+            querylist.append(dblib.makesqliteinsert('scalevalues', [datadict['scalevalue'], datalib.gettimestring()], ['value', 'time']))
+            dblib.sqlitemultquery(pilib.dirs.dbs.log, querylist)
 
         if runquery:
-            deletequery = pilib.makedeletesinglevaluequery('remotes', {'conditionnames': ['nodeid', 'keyvalue', 'keyvaluename'], 'conditionvalues': [nodeid ,keyvalue, keyvaluename]})
-            insertquery = pilib.makesqliteinsert('remotes',  [nodeid, msgtype, keyvaluename, keyvalue, stringmessage.replace('\x00', ''), pilib.gettimestring()], ['nodeid', 'msgtype', 'keyvaluename', 'keyvalue', 'data', 'time'])
+            deletequery = dblib.makedeletesinglevaluequery('remotes', {'conditionnames': ['nodeid', 'keyvalue', 'keyvaluename'], 'conditionvalues': [nodeid , keyvalue, keyvaluename]})
+            insertquery = dblib.makesqliteinsert('remotes', [nodeid, msgtype, keyvaluename, keyvalue, stringmessage.replace('\x00', ''), datalib.gettimestring()], ['nodeid', 'msgtype', 'keyvaluename', 'keyvalue', 'data', 'time'])
             querylist.append(deletequery)
             querylist.append(insertquery)
-            pilib.sqlitemultquery(pilib.controldatabase, querylist)
+            dblib.sqlitemultquery(pilib.dirs.dbs.control, querylist)
 
             return
         else:

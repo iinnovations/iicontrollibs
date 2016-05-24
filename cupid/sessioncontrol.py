@@ -19,8 +19,8 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 
-from utilities import dblib
-from utilities.utility import datalib
+from iiutilities import dblib
+from iiutilities.utility import datalib
 
 from cupid import pilib
 import time
@@ -39,14 +39,14 @@ limit the number of sessions per user
 
 # Determine whether this process is enabled:
 
-enabled = dblib.sqlitedatumquery(pilib.controldatabase, 'select sessioncontrolenabled from \'systemstatus\'')
+enabled = dblib.sqlitedatumquery(pilib.dirs.dbs.control, 'select sessioncontrolenabled from \'systemstatus\'')
 
 while enabled:
     #print('enabled')
-    polltime = dblib.sqlitedatumquery(pilib.sessiondatabase, 'select updatefrequency from \'settings\'')
+    polltime = dblib.sqlitedatumquery(pilib.dirs.dbs.session, 'select updatefrequency from \'settings\'')
 
     # Go through sessions and delete expired ones
-    sessions = dblib.readalldbrows(pilib.sessiondatabase, 'sessions')
+    sessions = dblib.readalldbrows(pilib.dirs.dbs.session, 'sessions')
     arrayquery = []
     for session in sessions:
         sessionstart = datalib.timestringtoseconds(session['timecreated'])
@@ -55,10 +55,10 @@ while enabled:
             arrayquery.append('delete from sessions where sessionid=\'' + session['sessionid'] + '\'')
 
     # Delete offensive sessions 
-    dblib.sqlitemultquery(pilib.sessiondatabase, arrayquery)
+    dblib.sqlitemultquery(pilib.dirs.dbs.session, arrayquery)
 
     # Reload surviving sessions and summarize
-    sessions = dblib.readalldbrows(pilib.sessiondatabase, 'sessions')
+    sessions = dblib.readalldbrows(pilib.dirs.dbs.session, 'sessions')
     sessiondictarray = []
     for session in sessions:
         found = 0
@@ -78,10 +78,10 @@ while enabled:
     for dict in sessiondictarray:
         queryarray.append(
             'insert into sessionsummary values (\'' + dict['username'] + '\',\'' + str(dict['sessions']) + '\')')
-    dblib.sqlitemultquery(pilib.sessiondatabase, queryarray)
+    dblib.sqlitemultquery(pilib.dirs.dbs.session, queryarray)
 
-    polltime = dblib.sqlitedatumquery(pilib.sessiondatabase, 'select updatefrequency from \'settings\'')
+    polltime = dblib.sqlitedatumquery(pilib.dirs.dbs.session, 'select updatefrequency from \'settings\'')
 
     time.sleep(polltime)
-    enabled = dblib.sqlitedatumquery(pilib.controldatabase, 'select sessioncontrolenabled from \'systemstatus\'')
+    enabled = dblib.sqlitedatumquery(pilib.dirs.dbs.control, 'select sessioncontrolenabled from \'systemstatus\'')
 

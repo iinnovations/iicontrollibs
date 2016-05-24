@@ -14,8 +14,8 @@ def takesnap(path='/var/www/webcam/images/', filename='current.jpg', quality=75,
     # import picamera
     import subprocess
     import os
-    from utilities.utility import timestringtoseconds
-    from utilities.utility import gettimestring
+    from iiutilities.datalib import timestringtoseconds
+    from iiutilities.datalib import gettimestring
     # camera = picamera.PiCamera()
 
     imagepath = path + filename

@@ -103,12 +103,12 @@ def getiwstatus(interface='wlan0'):
 
 # This was great, but does nto seem to function properly. We are going to have to manually parse
 def getifacestatus():
-    from pilib import networklog, networkloglevel
-    from utilities.utility import log
+    from pilib import dirs, loglevels
+    from iiutilities.utility import log
     import resource.pyiface.iface as pyiface
 
     allIfaces = pyiface.getIfaces()
-    log(networklog, 'Got ifaces data. ', 5, networkloglevel)
+    log(dirs.logs.network, 'Got ifaces data. ', 5, loglevels.network)
     ifacesdictarray=[]
     for iface in allIfaces:
         ifacedict = {}
@@ -127,7 +127,7 @@ def getifacestatus():
 def getifconfigstatus():
     import subprocess
     import pilib
-    from utilities import utility
+    from iiutilities import utility
 
     ifconfigdata = subprocess.check_output(['/sbin/ifconfig']).split('\n')
     interfaces = []
@@ -144,7 +144,7 @@ def getifconfigstatus():
                 interfaces[ifaceindex]['hwaddress'] = line.split('HWaddr')[1].strip()
             except:
                 # print('error parsing interface - ' + )
-                utility.log(pilib.networklog, 'Error parsing hwaddress in ifconfig for interface' + interfaces[ifaceindex]['name'], 4, pilib.networkloglevel)
+                utility.log(pilib.dirs.logs.network, 'Error parsing hwaddress in ifconfig for interface' + interfaces[ifaceindex]['name'], 4, pilib.loglevels.network)
 
         else:
             if line.find('addr') >= 0:
@@ -173,18 +173,18 @@ def getifconfigstatus():
 
 def getwpaclientstatus(interface='wlan0'):
     import subprocess
-    from pilib import networklog, networkloglevel
-    from utilities.utility import log
+    from pilib import dirs, loglevels
+    from iiutilities.utility import log
 
     resultdict = {}
     try:
-        log(networklog, 'Attempting WPA client status read for interface ' + interface, 4, networkloglevel)
+        log(dirs.logs.network, 'Attempting WPA client status read for interface ' + interface, 4, loglevels.network)
         result = subprocess.check_output(['/sbin/wpa_cli', 'status', '-i', interface], stderr=subprocess.PIPE)
     except:
-        log(networklog, 'Error reading wpa client status. Setting error status for systemstatus to catch.', 0, networkloglevel)
+        log(dirs.logs.network, 'Error reading wpa client status. Setting error status for systemstatus to catch.', 0, loglevels.network)
         resultdict['wpa_state'] = 'ERROR'
     else:
-        log(networklog, 'Completed WPA client status read. ', 4, networkloglevel)
+        log(dirs.logs.network, 'Completed WPA client status read. ', 4, loglevels.network)
 
         # prune interface ID
         resultitems = result.split('\n')
@@ -267,7 +267,7 @@ def restarthamachi():
 
 # left here for compatibility
 def killhamachi():
-    from utilities.utility import killprocbyname
+    from iiutilities.utility import killprocbyname
     killprocbyname('hamachi')
 
 
@@ -392,7 +392,7 @@ def readMBinputregisters(clientIP, register, number=1):
         # print('we were unable to connect to the host')
         statuscode = 7
     else:
-        print(rawresult)
+        # print(rawresult)
         try:
             resultregisters = rawresult.registers
         except AttributeError:

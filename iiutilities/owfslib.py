@@ -18,8 +18,8 @@ top_folder = \
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
-from utilities import dblib
-from utilities import datalib
+from iiutilities import dblib
+from iiutilities import datalib
 
 
 # Using fuse / owfs
@@ -184,10 +184,10 @@ def updateowfsdevices(busdevices, myProxy=None):
     import pilib
 
     # get defaults
-    defaults = dblib.readalldbrows(pilib.controldatabase, 'defaults')[0]
+    defaults = dblib.readalldbrows(pilib.dirs.dbs.control, 'defaults')[0]
 
     # get current entries
-    previnputs = dblib.readalldbrows(pilib.controldatabase, 'inputs')
+    previnputs = dblib.readalldbrows(pilib.dirs.dbs.control, 'inputs')
 
     # Make list of IDs for easy indexing
     previnputids = []
@@ -228,7 +228,7 @@ def updateowfsdevices(busdevices, myProxy=None):
 
 
             # Get name if one exists
-            name = dblib.sqlitedatumquery(pilib.controldatabase, 'select name from ioinfo where id=\'' + device.sensorid + '\'')
+            name = dblib.sqlitedatumquery(pilib.dirs.dbs.control, 'select name from ioinfo where id=\'' + device.sensorid + '\'')
 
             # If doesn't exist, check to see if proposed name exists. If it doesn't, add it.
             # If it does, keep trying.
@@ -238,12 +238,12 @@ def updateowfsdevices(busdevices, myProxy=None):
                     # check to see if name exists
                     name = device.type + '-' + str(int(index + 1))
                     # print(name)
-                    foundid = dblib.sqlitedatumquery(pilib.controldatabase, 'select id from ioinfo where name=\'' + name + '\'')
+                    foundid = dblib.sqlitedatumquery(pilib.dirs.dbs.control, 'select id from ioinfo where name=\'' + name + '\'')
                     # print('foundid' + foundid)
                     if foundid:
                         pass
                     else:
-                        dblib.sqlitequery(pilib.controldatabase, dblib.makesqliteinsert('ioinfo', valuelist=[device.sensorid, name],
+                        dblib.sqlitequery(pilib.dirs.dbs.control, dblib.makesqliteinsert('ioinfo', valuelist=[device.sensorid, name],
                                                                                         valuenames=['id', 'name']))
                         break
             device.name = name
@@ -266,7 +266,7 @@ def updateowfsdevices(busdevices, myProxy=None):
 
 
 def updateowfsinputentries(database, tablename, devices, execute=True):
-    from pilib import controldatabase
+    from pilib import dirs
     from dblib import readalldbrows
     from dblib import sqlitemultquery
     querylist = []
@@ -279,7 +279,7 @@ def updateowfsinputentries(database, tablename, devices, execute=True):
 
     # print(querylist)
     if execute:
-        sqlitemultquery(controldatabase, querylist)
+        sqlitemultquery(dirs.dbs.control, querylist)
 
     return querylist
 
@@ -291,13 +291,13 @@ def runowfsupdate(debug=False, execute=True):
     import time
 
     queries = []
-    from pilib import onewiredir, controldatabase
+    from pilib import dirs, dirs
     from dblib import sqlitemultquery
 
     if debug:
         print('getting buses')
         starttime = time.time()
-    busdevices = owfsgetbusdevices(onewiredir)
+    busdevices = owfsgetbusdevices(dirs.onewire)
 
     if debug:
         print('done getting devices, took ' + str(time.time() - starttime))
@@ -313,16 +313,16 @@ def runowfsupdate(debug=False, execute=True):
         print('updating entries in owfstable')
         starttime = time.time()
 
-    owfstableentries = updateowfstable(controldatabase, 'owfs', updateddevices, execute=execute)
+    owfstableentries = updateowfstable(dirs.dbs.control, 'owfs', updateddevices, execute=execute)
     if debug:
         print('done updating owfstable, took ' + str(time.time() - starttime))
 
-    owfsinputentries = updateowfsinputentries(controldatabase, 'inputs', updateddevices, execute=execute)
+    owfsinputentries = updateowfsinputentries(dirs.dbs.control, 'inputs', updateddevices, execute=execute)
 
     queries.extend(owfstableentries)
     queries.extend(owfsinputentries)
     if execute:
-        sqlitemultquery(controldatabase, queries)
+        sqlitemultquery(dirs.dbs.control, queries)
     return busdevices, queries
 
 

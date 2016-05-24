@@ -154,44 +154,107 @@ def runallprocs():
     from subprocess import Popen, PIPE
     from cupid import pilib
     for index, proc in enumerate(pilib.daemonprocs):
-        proc = Popen([pilib.baselibdir + pilib.daemonprocs[index], '&'])
+        proc = Popen([pilib.dirs.baselib + pilib.daemonprocs[index], '&'])
 
 
 def rundaemon(startall=False):
+
+    """
+    First thing we are going to do is check to see if code is working. We do this first to minimize what we have to
+    import to test this -- the script should not crash out before we do this.
+
+    So we need dblib to function to read from the database to see whether we are going to email someone if things are
+    broken.
+    We need datalib to parse options on the notifications
+    We also need utility to send an email
+    """
+
+    import socket
+    hostname = socket.gethostname()
+
+    from iiutilities import dblib, utility, datalib
+    from cupid import pilib
+    import cupidunittests
+
+    # Get notifications so we know when to notify
+    notifications = dblib.readalldbrows(pilib.dirs.dbs.system, 'notifications')
+
+    unittestresults = cupidunittests.runalltests()
+    if unittestresults['totalerrorcount'] > 0:
+
+        unitnotify = next((item for item in notifications if item['item'] == 'unittests' and int(item['enabled'])), None)
+
+        if unitnotify:
+            options = datalib.parseoptions(unitnotify['options'])
+            if 'type' in options:
+                if options['type'] == 'email' and 'email' in options:
+                    currenttime = datalib.gettimestring()
+                    lastnotificationtime = unitnotify['lastnotification']
+                    frequency = 900
+                    if 'frequency' in options:
+                        try:
+                            frequency = float(options['frequency'])
+                        except:
+                            pass
+                    if datalib.timestringtoseconds(currenttime) - datalib.timestringtoseconds(lastnotificationtime) > frequency:
+
+                        # Queue a message indicating we had to restart the systemstatus daemon
+                        message = 'CuPID has failed unittests. Details follow:\r\n\r\n'
+                        message += unittestresults['stringresult'].replace('\'','"')
+                        # message += '\r\n\r\n'
+                        # message +=
+
+                        subject = 'CuPID : ' + hostname + ' : unittests'
+                        dblib.sqliteinsertsingle(pilib.dirs.dbs.notifications, 'queuednotifications',
+                             ['email', message, 'email:' + options['email'] + ',subject:' + subject, currenttime],
+                             ['type', 'message', 'options', 'queuedtime'])
+                        dblib.setsinglevalue(pilib.dirs.dbs.system, 'notifications', 'lastnotification', currenttime, "item='unittests'")
+
+
     from subprocess import Popen, PIPE
     from time import sleep
-    from utilities import datalib, dblib, utility
-    from cupid import pilib
 
     # Set up list of enabled statuses (whether to restart if
     # we find that the process is not currently running
+    # from iiutilities import dblib, utility, datalib
 
-    picontrolenabled = dblib.sqlitedatumquery(pilib.controldatabase, 'select picontrolenabled from systemstatus')
-    updateioenabled = dblib.sqlitedatumquery(pilib.controldatabase, 'select updateioenabled from systemstatus')
-    systemstatusenabled = dblib.sqlitedatumquery(pilib.controldatabase, 'select systemstatusenabled from systemstatus')
-    sessioncontrolenabled = dblib.sqlitedatumquery(pilib.controldatabase, 'select sessioncontrolenabled from systemstatus')
-    serialhandlerenabled = dblib.sqlitedatumquery(pilib.controldatabase, 'select serialhandlerenabled from systemstatus')
+    picontrolenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'picontrolenabled')
+    updateioenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'updateioenabled')
+    systemstatusenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'systemstatusenabled')
+    sessioncontrolenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'sessioncontrolenabled')
+    serialhandlerenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'serialhandlerenabled')
 
     enableditemlist = [(int(updateioenabled)), (int(picontrolenabled)), int(systemstatusenabled), int(sessioncontrolenabled), int(serialhandlerenabled)]
 
     itemstatuses = findprocstatuses(pilib.daemonprocs)
 
+    """
+    Here we check to see if things are running properly and not hung. First here is systemstatus
+    """
+
     if enableditemlist[2] and itemstatuses[2]:
-        # Here we check to see if things are running properly and not hung
-        lastsystemstatus =dblib.getsinglevalue(pilib.controldatabase, 'systemstatus', 'lastsystemstatuspoll')
+        lastsystemstatus =dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'lastsystemstatuspoll')
         currenttime = datalib.gettimestring()
         timesincelastsystemstatus = datalib.timestringtoseconds(currenttime)- datalib.timestringtoseconds(lastsystemstatus)
 
         timecriterion = 90
         if timesincelastsystemstatus > timecriterion:
-            utility.log(pilib.syslog, 'Killing systemstatus because it has not run in ' + str(timesincelastsystemstatus) + 's')
-            # Queue a message indicating we had to restart the systemstatus daemon
-            message = 'Systemstatus is being killed because it has not run in ' + str(timesincelastsystemstatus) + 's with a criteria of ' +  \
-                str(timecriterion) + '. This occurred at ' + currenttime
+            utility.log(pilib.dirs.logs.system, 'Killing systemstatus because it has not run in ' + str(timesincelastsystemstatus) + 's')
 
-            dblib.sqliteinsertsingle(pilib.notificationsdatabase, 'queuednotifications', \
-                                     ['email', message, 'email:colin.reese@gmail.com', currenttime], \
-                                     ['type', 'message', 'options', 'queuedtime'])
+
+            killnotify = next((item for item in notifications if item['item'] == 'daemonkillproc' and int(item['enabled'])), None)
+            if killnotify:
+                options = datalib.parseoptions(killnotify['options'])
+                if 'type' in options:
+                    if 'type' == 'email' and 'email' in options:
+                        # Queue a message indicating we had to restart the systemstatus daemon
+                        message = 'Systemstatus is being killed because it has not run in ' + \
+                            str(timesincelastsystemstatus) + 's with a criteria of ' +  \
+                            str(timecriterion) + '. This occurred at ' + currenttime
+                        subject = 'CuPID : ' + hostname + ' : killnotify'
+                        dblib.sqliteinsertsingle(pilib.dirs.dbs.notifications, 'queuednotifications',
+                             ['email', message, 'email:' + options['email'] + ',subject:' + subject, currenttime],
+                             ['type', 'message', 'options', 'queuedtime'])
 
             utility.killprocbyname('systemstatus')
 
@@ -201,10 +264,10 @@ def rundaemon(startall=False):
     systemstatusmsg = ''
     for name, enabled, status in zip(pilib.daemonprocs, enableditemlist, itemstatuses):
         systemstatusmsg += name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. '
-        if pilib.daemonloglevel > 0:
-            utility.log(pilib.daemonlog, name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. ')
+        if pilib.loglevels.daemon > 0:
+            utility.log(pilib.dirs.logs.daemon, name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. ')
 
-    dblib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'systemmessage', systemstatusmsg)
+    dblib.setsinglevalue(pilib.dirs.dbs.control, 'systemstatus', 'systemmessage', systemstatusmsg)
 
     # Set up list of itemnames in the systemstatus table that
     # we assign the values to when we detect if the process
@@ -215,22 +278,22 @@ def rundaemon(startall=False):
     for index, item in enumerate(pilib.daemonprocs):
         # set status
         if itemstatuses[index]:
-            dblib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
-            if pilib.daemonloglevel > 0:
-                utility.log(pilib.daemonlog, 'Process is running: ' + pilib.baselibdir + pilib.daemonprocs[index])
+            dblib.sqlitequery(pilib.dirs.dbs.control, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
+            if pilib.loglevels.daemon > 0:
+                utility.log(pilib.dirs.logs.daemon, 'Process is running: ' + pilib.dirs.baselib + pilib.daemonprocs[index])
         else:
-            dblib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')
-            if pilib.daemonloglevel > 0:
-                utility.log(pilib.daemonlog, 'Process is not running: ' + pilib.baselibdir + pilib.daemonprocs[index])
+            dblib.sqlitequery(pilib.dirs.dbs.control, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')
+            if pilib.loglevels.daemon > 0:
+                utility.log(pilib.dirs.logs.daemon, 'Process is not running: ' + pilib.dirs.baselib + pilib.daemonprocs[index])
 
             # run if set to enable
             if enableditemlist[index]:
-                # print(pilib.baselibdir + pilib.daemonprocs[index])
-                if pilib.daemonloglevel > 0:
-                    utility.log(pilib.daemonlog, 'Starting ' + pilib.baselibdir + pilib.daemonprocs[index])
-                procresult = Popen([pilib.baselibdir + pilib.daemonprocs[index]], stdout=PIPE, stderr=PIPE)
-                # if pilib.daemonloglevel > 0:
-                #     pilib.writedatedlogmsg(pilib.daemonproclog, procresult.stdout.read())
+                # print(pilib.dirs.baselib + pilib.daemonprocs[index])
+                if pilib.loglevels.daemon > 0:
+                    utility.log(pilib.dirs.logs.daemon, 'Starting ' + pilib.dirs.baselib + pilib.daemonprocs[index])
+                procresult = Popen([pilib.dirs.baselib + pilib.daemonprocs[index]], stdout=PIPE, stderr=PIPE)
+                # if pilib.loglevels.daemon > 0:
+                #     pilib.writedatedlogmsg(pilib.dirs.logs.daemonproc, procresult.stdout.read())
 
     sleep(1)
 
@@ -240,29 +303,24 @@ def rundaemon(startall=False):
         index = pilib.daemonprocs.index(item)
         # set status
         if itemstatuses[index]:
-            dblib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
+            dblib.sqlitequery(pilib.dirs.dbs.control, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
         else:
-            dblib.sqlitequery(pilib.controldatabase, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')
+            dblib.sqlitequery(pilib.dirs.dbs.control, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')
 
     # Set system message
     systemstatusmsg = ''
     for name, enabled, status in zip(pilib.daemonprocs, enableditemlist, itemstatuses):
         systemstatusmsg += name + ' - Enabled: ' + str(bool(enabled)) + ' Status: ' + str(status) + '. '
-    dblib.setsinglevalue(pilib.controldatabase, 'systemstatus', 'systemmessage', systemstatusmsg)
+    dblib.setsinglevalue(pilib.dirs.dbs.control, 'systemstatus', 'systemmessage', systemstatusmsg)
 
     # Rotate all logs
-    pilib.rotatelogs(pilib.networklog, pilib.numlogs, pilib.maxlogsize)
-    pilib.rotatelogs(pilib.syslog, pilib.numlogs, pilib.maxlogsize)
-    pilib.rotatelogs(pilib.iolog, pilib.numlogs, pilib.maxlogsize)
-    pilib.rotatelogs(pilib.controllog, pilib.numlogs, pilib.maxlogsize)
-    pilib.rotatelogs(pilib.daemonlog, pilib.numlogs, pilib.maxlogsize)
-    pilib.rotatelogs(pilib.seriallog, pilib.numlogs, pilib.maxlogsize)
-    pilib.rotatelogs(pilib.notificationslog, pilib.numlogs, pilib.maxlogsize)
+    for attr, value in pilib.dirs.logs.__dict__.iteritems():
+        pilib.rotatelogs(value, pilib.numlogs, pilib.maxlogsize)
 
 if __name__ == "__main__":
-    from pilib import daemonlog, daemonloglevel
-    from utilities.utility import log
+    from cupid.pilib import dirs, loglevels
+    from iiutilities.utility import log
 
-    log(daemonlog, 'Running daemon.', 1, daemonloglevel)
+    log(dirs.logs.daemon, 'Running daemon.', 1, loglevels.daemon)
     rundaemon()
-    log(daemonlog, 'Daemon complete.',1,daemonloglevel)
+    log(dirs.logs.daemon, 'Daemon complete.',1,loglevels.daemon)

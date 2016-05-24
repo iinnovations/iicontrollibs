@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 __author__ = "Colin Reese"
-__copyright__ = "Copyright 2014, Interface Innovations"
+__copyright__ = "Copyright 2016, Interface Innovations"
 __credits__ = ["Colin Reese"]
 __license__ = "Apache 2.0"
 __version__ = "1.0"
@@ -9,24 +9,32 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
+import inspect
+import os
+import sys
+
+top_folder = \
+    os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
+if top_folder not in sys.path:
+    sys.path.insert(0, top_folder)
+
+
 # This library is for control functions 
 
 #######################################################
 ## Control Functions
 #######################################################
 
-def runalgorithm(controldatabase, recipedatabase, channelname):
-    from utilities.utility import timestringtoseconds
-    from utilities.utility import gettimestring
-    from utilities.dblib import sqlitequery
-    from utilities.dblib import datarowtodict
+def runalgorithm(controldbpath, recipedbpath, channelname):
+    from iiutilities.datalib import timestringtoseconds, gettimestring
+    from iiutilities.dblib import sqlitequery, datarowtodict
     import time
 
     message = ''
 
     # get our details of our channel
-    channeldata = sqlitequery(controldatabase, 'select * from channels where name=' + "'" + channelname + "'")[0]
-    channeldict = datarowtodict(controldatabase, 'channels', channeldata)
+    channeldata = sqlitequery(controldbpath, 'select * from channels where name=' + "'" + channelname + "'")[0]
+    channeldict = datarowtodict(controldbpath, 'channels', channeldata)
     # check to see if we are running a recipe
 
     controlrecipename = channeldict['controlrecipe']
@@ -38,13 +46,13 @@ def runalgorithm(controldatabase, recipedatabase, channelname):
         # dictionary array
 
         #print('we are in recipe ' + controlrecipename)
-        #print(recipedatabase)
+        #print(dirs.dbs.session)
 
-        recipedata = sqlitequery(recipedatabase, 'select * from \'' + controlrecipename + '\'')
+        recipedata = sqlitequery(recipedbpath, 'select * from \'' + controlrecipename + '\'')
         recipedictarray = []
 
         for stage in recipedata:
-            recipedict = datarowtodict(recipedatabase, controlrecipename, stage)
+            recipedict = datarowtodict(recipedbpath, controlrecipename, stage)
             recipedictarray.append(recipedict)
 
         # get current stage
@@ -95,33 +103,33 @@ def runalgorithm(controldatabase, recipedatabase, channelname):
                     print("Stagenumber is 0. Setting recipe start time. ")
 
                     # Set recipe start time 
-                    sqlitequery(controldatabase, 'update channels set recipestarttime=\'' + gettimestring(
+                    sqlitequery(controldbpath, 'update channels set recipestarttime=\'' + gettimestring(
                         currenttime) + '\' where name=\'' + channelname + '\'')
 
                 # Set stage to new stage number
-                sqlitequery(controldatabase, 'update channels set recipestage=\'' + str(
+                sqlitequery(controldbpath, 'update channels set recipestage=\'' + str(
                     nextstagenumber) + '\' where name=\'' + channelname + '\'')
 
                 # Set setpointvalue
-                sqlitequery(controldatabase, 'update channels set setpointvalue=\'' + str(
+                sqlitequery(controldbpath, 'update channels set setpointvalue=\'' + str(
                     nextstage['setpointvalue']) + '\' where name=\'' + channelname + '\'')
 
                 # Set stage start time to now 
-                sqlitequery(controldatabase, 'update channels set recipestagestarttime=\'' + gettimestring(
+                sqlitequery(controldbpath, 'update channels set recipestagestarttime=\'' + gettimestring(
                     currenttime) + '\' where name=\'' + channelname + '\'')
 
                 # Set new controlalgorithm 
-                sqlitequery(controldatabase, 'update channels set controlalgorithm=\'' + nextstage[
+                sqlitequery(controldbpath, 'update channels set controlalgorithm=\'' + nextstage[
                     'controlalgorithm'] + '\' where name=\'' + channelname + '\'')
 
             else:
 
                 # Take channel off recipe
-                sqlitequery(controldatabase,
+                sqlitequery(controldbpath,
                             'update channels set controlrecipe=\'none\' where name=\'' + channelname + '\'')
-                sqlitequery(controldatabase, 'update channels set recipestate=\'0\' where name=\'' + channelname + '\'')
+                sqlitequery(controldbpath, 'update channels set recipestate=\'0\' where name=\'' + channelname + '\'')
 
-                sqlitequery(controldatabase,
+                sqlitequery(controldbpath,
                             'update channels set recipestage=\'0\' where name=\'' + channelname + '\'')
 
 
@@ -140,23 +148,23 @@ def runalgorithm(controldatabase, recipedatabase, channelname):
 
     else:
         # make sure we're not on recipe and on stage 0
-        sqlitequery(controldatabase,
+        sqlitequery(controldbpath,
                     'update channels set controlrecipe=\'none\' where name=\'' + channelname + '\'')
-        sqlitequery(controldatabase, 'update channels set recipestate=\'0\' where name=\'' + channelname + '\'')
+        sqlitequery(controldbpath, 'update channels set recipestate=\'0\' where name=\'' + channelname + '\'')
 
-        sqlitequery(controldatabase,
+        sqlitequery(controldbpath,
                     'update channels set recipestage=\'0\' where name=\'' + channelname + '\'')
 
     algorithm = channeldict['controlalgorithm']
     setpointvalue = float(channeldict['setpointvalue'])
     controlvalue = float(channeldict['controlvalue'])
 
-    algorithmrows = sqlitequery(controldatabase, 'select * from controlalgorithms where name=' + "'" + algorithm + "'")
+    algorithmrows = sqlitequery(controldbpath, 'select * from controlalgorithms where name=' + "'" + algorithm + "'")
     algorithmrow = algorithmrows[0]
-    algorithm = datarowtodict(controldatabase, 'controlalgorithms', algorithmrow)
-    type = algorithm['type']
+    algorithm = datarowtodict(controldbpath, 'controlalgorithms', algorithmrow)
+    algtype = algorithm['type']
 
-    if type == 'on/off with deadband':
+    if algtype == 'on/off with deadband':
         #print(type) 
         deadbandhigh = algorithm['deadbandhigh']
         deadbandlow = algorithm['deadbandlow']
@@ -181,31 +189,31 @@ class channel:
             setattr(self,key,value)
 
     def setsetpoint(self,setpointvalue):
-        from pilib import controldatabase
-        from utilities.dblib import sqlitequery
-        sqlitequery(controldatabase, 'update channels set setpointvalue=\'' + str(setpointvalue) + '\' where name=\'' + channel.name + '\'')
+        from pilib import dirs
+        from iiutilities.dblib import sqlitequery
+        sqlitequery(dirs.dbs.control, 'update channels set setpointvalue=\'' + str(setpointvalue) + '\' where name=\'' + channel.name + '\'')
 
     def setaction(self,action):
-         from pilib import controldatabase
-         from utilities.dblib import sqlitequery
-         sqlitequery(controldatabase,
+         from pilib import dirs
+         from iiutilities.dblib import sqlitequery
+         sqlitequery(dirs.dbs.control,
             'update channels set action = \'' + str(action) + '\' where name = \'' + channel.name + '\'')
 
     def setcontrolinput(self,inputid):
-        from pilib import controldatabase
-        from utilities.dblib import sqlitequery
-        sqlitequery(controldatabase,
+        from pilib import dirs
+        from iiutilities.dblib import sqlitequery
+        sqlitequery(dirs.dbs.control,
                 'update channels set controlinput = \'' + inputid + '\' where name = \'' + channel.name + '\'')
 
     def getaction(self):
-        from pilib import controldatabase
-        from utilities.dblib import sqlitedatumquery
-        self.action = sqlitedatumquery(controldatabase,'select action from channels where name=\'' + channel.name + '\'')
+        from pilib import dirs
+        from iiutilities.dblib import sqlitedatumquery
+        self.action = sqlitedatumquery(dirs.dbs.control,'select action from channels where name=\'' + channel.name + '\'')
 
     def getsetpointvalue(self):
-        from pilib import controldatabase
-        from utilities.dblib import sqlitedatumquery
-        self.setpointvalue = sqlitedatumquery(controldatabase, 'select setpointvalue from channels where name=\'' + channel.name + '\'')
+        from pilib import dirs
+        from iiutilities.dblib import sqlitedatumquery
+        self.setpointvalue = sqlitedatumquery(dirs.dbs.control, 'select setpointvalue from channels where name=\'' + channel.name + '\'')
 
     def incsetpoint(self):
         self.getsetpointvalue()
@@ -216,18 +224,18 @@ class channel:
         self.setsetpoint(self.setpointvalue-1)
 
     def getmode(self):
-        from pilib import controldatabase
-        from utilities.dblib import sqlitedatumquery
-        self.mode = sqlitedatumquery(controldatabase, 'select mode from channels where name=\'' + channel.name + '\'')
+        from pilib import dirs
+        from iiutilities.dblib import sqlitedatumquery
+        self.mode = sqlitedatumquery(dirs.dbs.control, 'select mode from channels where name=\'' + channel.name + '\'')
 
     def setmode(self,mode):
-        from pilib import controldatabase
-        from utilities.dblib import sqlitequery
-        sqlitequery(controldatabase, 'update channels set mode=\'' + str(mode) + '\' where name=\'' + channel.name + '\'')
+        from pilib import dirs
+        from iiutilities.dblib import sqlitequery
+        sqlitequery(dirs.dbs.control, 'update channels set mode=\'' + str(mode) + '\' where name=\'' + channel.name + '\'')
 
     def togglemode(self,mode):
-        from pilib import controldatabase
-        from utilities.dblib import sqlitedatumquery
+        from pilib import dirs
+        from iiutilities.dblib import sqlitedatumquery
         self.getmode()
         if self.mode == 'manual':
             self.mode = 'auto'
@@ -236,95 +244,95 @@ class channel:
 
 # This works fine, for now.
 
-def setsetpoint(controldatabase, channelname, setpointvalue):
-    from utilities.dblib import sqlitequery
+def setsetpoint(controldbpath, channelname, setpointvalue):
+    from iiutilities.dblib import sqlitequery
 
-    sqlitequery(controldatabase, 'update channels set setpointvalue=\'' + str(
+    sqlitequery(controldbpath, 'update channels set setpointvalue=\'' + str(
         setpointvalue) + '\' where name=\'' + channelname + '\'')
 
 
-def setaction(controldatabase, channelname, action):
-    from utilities.dblib import sqlitequery
+def setaction(controldbpath, channelname, action):
+    from iiutilities.dblib import sqlitequery
 
-    sqlitequery(controldatabase,
+    sqlitequery(controldbpath,
                 'update channels set action = \'' + str(action) + '\' where name = \'' + channelname + '\'')
 
 
-def setcontrolinput(controldatabase, channelname, inputid):
-    from utilities.dblib import sqlitequery
+def setcontrolinput(controldbpath, channelname, inputid):
+    from iiutilities.dblib import sqlitequery
 
-    sqlitequery(controldatabase,
+    sqlitequery(controldbpath,
                 'update channels set controlinput = \'' + inputid + '\' where name = \'' + channelname + '\'')
 
 
-def setcontrolvalue(controldatabase, channelname, controlvalue):
-    from utilities.dblib import sqlitequery
+def setcontrolvalue(controldbpath, channelname, controlvalue):
+    from iiutilities.dblib import sqlitequery
 
-    sqlitequery(controldatabase,
+    sqlitequery(controldbpath,
                 'update channels set controlvalue = \'' + str(controlvalue) + '\' where name = \'' + channelname + '\'')
 
 
-def getaction(controldatabase, channelname):
-    from utilities.dblib import sqlitequery
+def getaction(controldbpath, channelname):
+    from iiutilities.dblib import sqlitequery
 
-    action = sqlitequery(controldatabase, 'select action from channels where name=\'' + channelname + '\'')[0][0]
+    action = sqlitequery(controldbpath, 'select action from channels where name=\'' + channelname + '\'')[0][0]
     return action
 
 
-def getsetpoint(controldatabase, channelname):
-    from utilities.dblib import sqlitequery
+def getsetpoint(controldbpath, channelname):
+    from iiutilities.dblib import sqlitequery
 
     currentsetpoint = \
-        sqlitequery(controldatabase, 'select setpointvalue from channels where name=\'' + channelname + '\'')[0][0]
+        sqlitequery(controldbpath, 'select setpointvalue from channels where name=\'' + channelname + '\'')[0][0]
     return currentsetpoint
 
 
-def decsetpoint(controldatabase, channelname):
-    currentsetpoint = getsetpoint(controldatabase, channelname)
+def decsetpoint(controldbpath, channelname):
+    currentsetpoint = getsetpoint(controldbpath, channelname)
     newsetpoint = currentsetpoint - 1
-    setsetpoint(controldatabase, channelname, newsetpoint)
+    setsetpoint(controldbpath, channelname, newsetpoint)
 
 
-def incsetpoint(controldatabase, channelname):
-    currentsetpoint = getsetpoint(controldatabase, channelname)
+def incsetpoint(controldbpath, channelname):
+    currentsetpoint = getsetpoint(controldbpath, channelname)
     newsetpoint = currentsetpoint + 1
-    setsetpoint(controldatabase, channelname, newsetpoint)
+    setsetpoint(controldbpath, channelname, newsetpoint)
 
 
-def setmode(controldatabase, channelname, mode):
-    from utilities.dblib import sqlitequery
+def setmode(controldbpath, channelname, mode):
+    from iiutilities.dblib import sqlitequery
 
-    sqlitequery(controldatabase, 'update channels set mode=\'' + mode + '\' where name=\'' + channelname + '\'')
+    sqlitequery(controldbpath, 'update channels set mode=\'' + mode + '\' where name=\'' + channelname + '\'')
 
     # set action to 0 if we switch to manual
     if mode == 'manual':
-        setaction(controldatabase, channelname, 0)
+        setaction(controldbpath, channelname, 0)
 
 
-def getmode(controldatabase, channelname):
-    from utilities.dblib import sqlitequery
+def getmode(controldbpath, channelname):
+    from iiutilities.dblib import sqlitequery
 
-    mode = sqlitequery(controldatabase, 'select mode from channels where name=\'' + channelname + '\'')[0][0]
+    mode = sqlitequery(controldbpath, 'select mode from channels where name=\'' + channelname + '\'')[0][0]
     return mode
 
 
-def togglemode(controldatabase, channelname):
-    from utilities.dblib import sqlitequery
+def togglemode(controldbpath, channelname):
+    from iiutilities.dblib import sqlitequery
     from controllib import setaction
 
-    curmode = getmode(controldatabase, channelname)
+    curmode = getmode(controldbpath, channelname)
     if curmode == 'manual':
         newmode = 'auto'
     else:
         newmode = 'manual'
-        setaction(controldatabase, channelname, 0)
+        setaction(controldbpath, channelname, 0)
 
-    setmode(controldatabase, channelname, newmode)
+    setmode(controldbpath, channelname, newmode)
 
 
 def checkifenableready(outputname, outputs):
     from time import time
-    from utilities.utility import timestringtoseconds
+    from iiutilities.datalib import timestringtoseconds
 
     # Find the variables we want
     for output in outputs:
@@ -340,7 +348,7 @@ def checkifenableready(outputname, outputs):
 
 def checkifdisableready(outputname, outputs):
     from time import time
-    from utilities.utility import timestringtoseconds
+    from iiutilities.datalib import timestringtoseconds
 
     # Find the variables we want
     for output in outputs:
@@ -354,54 +362,54 @@ def checkifdisableready(outputname, outputs):
         return False
 
 
-def setposout(controldatabase, channelname, outputname):
-    from utilities.dblib import sqlitequery
+def setposout(controldbpath, channelname, outputname):
+    from iiutilities.dblib import sqlitequery
 
-    sqlitequery(controldatabase,
+    sqlitequery(controldbpath,
                 'update channels set positiveoutput=\'' + outputname + '\' where name=\'' + channelname + '\'')
 
 
-def setnegout(controldatabase, channelname, outputname):
-    from utilities.dblib import sqlitequery
+def setnegout(controldbpath, channelname, outputname):
+    from iiutilities.dblib import sqlitequery
 
-    sqlitequery(controldatabase,
+    sqlitequery(controldbpath,
                 'update channels set negativeoutput=\'' + outputname + '\' where name=\'' + channelname + '\'')
 
 
-def setalgorithm(controldatabase, channelname, algorithm):
-    from utilities.dblib import sqlitequery
+def setalgorithm(controldbpath, channelname, algorithm):
+    from iiutilities.dblib import sqlitequery
 
-    sqlitequery(controldatabase,
+    sqlitequery(controldbpath,
                 'update channels set controlalgorithm=\'' + algorithm + '\' where name=\'' + channelname + '\'')
 
 
-def setrecipe(controldatabase, channelname, recipe, startstage=0):
-    from utilities.dblib import sqlitequery
+def setrecipe(controldbpath, channelname, recipe, startstage=0):
+    from iiutilities.dblib import sqlitequery
 
-    sqlitequery(controldatabase,
+    sqlitequery(controldbpath,
                 'update channels set controlrecipe=\'' + recipe + '\' where name=\'' + channelname + '\'')
-    sqlitequery(controldatabase,
+    sqlitequery(controldbpath,
                 'update channels set recipestage=\'' + str(startstage) + '\' where name=\'' + channelname + '\'')
 
 
-def setchannelenabled(controldatabase, channelname, newstatus):
-    from utilities.dblib import sqlitequery
+def setchannelenabled(controldbpath, channelname, newstatus):
+    from iiutilities.dblib import sqlitequery
 
-    sqlitequery(controldatabase, 'update channels set enabled=\'' + newstatus + '\' where name=\'' + channelname + '\'')
+    sqlitequery(controldbpath, 'update channels set enabled=\'' + newstatus + '\' where name=\'' + channelname + '\'')
 
 
-def setchanneloutputsenabled(controldatabase, channelname, newstatus):
-    from utilities.dblib import sqlitequery
+def setchanneloutputsenabled(controldbpath, channelname, newstatus):
+    from iiutilities.dblib import sqlitequery
 
-    sqlitequery(controldatabase,
+    sqlitequery(controldbpath,
                 'update channels set outputsenabled=\'' + newstatus + '\' where name=\'' + channelname + '\'')
 
 
 def disablealloutputs():
-    from pilib import controldatabase
-    from utilities.dblib import readalldbrows
+    from pilib import dirs
+    from iiutilities.dblib import readalldbrows
 
-    outputs = readalldbrows(controldatabase,'outputs')
+    outputs = readalldbrows(dirs.dbs.control,'outputs')
 
     querylist=[]
     for output in outputs:

@@ -57,7 +57,7 @@ if top_folder not in sys.path:
 class action:
 
     def __init__(self, actiondict):
-        from utilities.datalib import parseoptions
+        from iiutilities.datalib import parseoptions
         for key, value in actiondict.items():
             setattr(self, key, value)
 
@@ -77,7 +77,7 @@ class action:
             Publish will then insert these values into the database """
 
     def onact(self):
-        from utilities import dblib, datalib, utility
+        from iiutilities import dblib, datalib, utility
         from cupid import pilib
 
         if self.actiontype == 'email':
@@ -93,11 +93,11 @@ class action:
             # process indicator action
             self.statusmsg += 'Processing indicator on action. '
             indicatorname = self.actiondetail
-            dblib.sqlitequery(pilib.controldatabase, 'update indicators set status=1 where name = \'' + indicatorname + '\'')
+            dblib.sqlitequery(pilib.dirs.dbs.control, 'update indicators set status=1 where name = \'' + indicatorname + '\'')
 
         elif self.actiontype == 'output':
             self.statusmsg += 'Processing output on action. '
-            dblib.setsinglevalue(pilib.controldatabase, 'outputs', 'value', '1', condition='"id"=\'' + self.actiondetail + "'")
+            dblib.setsinglevalue(pilib.dirs.dbs.control, 'outputs', 'value', '1', condition='"id"=\'' + self.actiondetail + "'")
 
         # This should be the generic handler that we migrate to
         elif self.actiontype == 'setvalue':
@@ -125,7 +125,7 @@ class action:
                 dblib.setsinglevalue(dbpath, dbvndict['tablename'], dbvndict['valuename'], '1', querycondition)
 
     def offact(self):
-        from utilities import dblib, datalib, utility
+        from iiutilities import dblib, datalib, utility
         from cupid import pilib
         if self.actiontype == 'email':
             # process email action
@@ -140,11 +140,11 @@ class action:
             # process indicator action
             self.status +='Processing indicator off action.'
             indicatorname = self.actiondetail
-            dblib.sqlitequery(pilib.controldatabase, 'update indicators set status=0 where name = ' + indicatorname)
+            dblib.sqlitequery(pilib.dirs.dbs.control, 'update indicators set status=0 where name = ' + indicatorname)
 
         elif self.actiontype == 'output':
             self.statusmsg += 'Processing output off action. '
-            dblib.setsinglevalue(pilib.controldatabase, 'outputs', 'value', '0', condition='"id"=\'' + self.actiondetail + "'")
+            dblib.setsinglevalue(pilib.dirs.dbs.control, 'outputs', 'value', '0', condition='"id"=\'' + self.actiondetail + "'")
 
         # This should be the generic handler that we migrate to
         elif self.actiontype == 'setvalue':
@@ -177,8 +177,8 @@ class action:
 
     def publish(self):
         from cupid import pilib
-        from utilities import dblib
-        from utilities.datalib import dicttojson
+        from iiutilities import dblib
+        from iiutilities.datalib import dicttojson
         # reinsert updated action back into database
         valuelist=[]
         valuenames=[]
@@ -196,11 +196,11 @@ class action:
         # print(valuenames)
         # print(valuelist)
 
-        dblib.sqliteinsertsingle(pilib.controldatabase, 'actions', valuelist, valuenames)
-        # setsinglevalue(controldatabase, 'actions', 'ontime', gettimestring(), 'rowid=' + str(self.rowid))
+        dblib.sqliteinsertsingle(pilib.dirs.dbs.control, 'actions', valuelist, valuenames)
+        # setsinglevalue(dirs.dbs.control, 'actions', 'ontime', gettimestring(), 'rowid=' + str(self.rowid))
 
     def process(self):
-        from utilities import datalib
+        from iiutilities import datalib
         if self.enabled:
             self.statusmsg = datalib.gettimestring() + ' : Enabled and processing. '
             if self.conditiontype == 'temporal':
@@ -236,7 +236,7 @@ class action:
                 # else:
                 #     self.variablevalue = pilib.getsinglevalue(self.database, self.tablename, self.variablename)
 
-                currstatus = datalib.evalactionformula(self.actiondatadict['condition'])
+                currstatus = datalib.evaldbvnformula(self.actiondatadict['condition'])
 
                 # get variable type to handle
                 # variablestypedict = pilib.getpragmanametypedict(dbpath, self.tablename)
@@ -372,10 +372,10 @@ class action:
 def processactions():
 
     # Read database to get our actions
-    from utilities.dblib import readalldbrows
-    from cupid.pilib import controldatabase
+    from iiutilities.dblib import readalldbrows
+    from cupid.pilib import dirs
 
-    actiondicts = readalldbrows(controldatabase, 'actions')
+    actiondicts = readalldbrows(dirs.dbs.control, 'actions')
 
     for actiondict in actiondicts:
         alert = False

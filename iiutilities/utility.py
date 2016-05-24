@@ -19,6 +19,11 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 
+class Bunch:
+    def __init__(self, **kwds):
+        self.__dict__.update(kwds)
+
+
 def killprocbyname(name):
     import subprocess
     try:
@@ -37,7 +42,7 @@ def killprocbyname(name):
 
 
 def log(logfile, message, reqloglevel=1, currloglevel=1):
-    from utilities.datalib import gettimestring
+    from iiutilities.datalib import gettimestring
     if currloglevel >= reqloglevel:
         logfile = open(logfile, 'a')
         logfile.writelines([gettimestring() + ' : ' + message + '\n'])

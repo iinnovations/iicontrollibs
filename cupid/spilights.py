@@ -18,13 +18,13 @@ top_folder = \
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
-from utilities import dblib
+from iiutilities import dblib
 
 
 def setrawspilights(enabledlists, CS=1, **kwargs):
 
-    from pilib import syslog, sysloglevel
-    from utilities.utility import log
+    from pilib import syslog, loglevels.system
+    from iiutilities.utility import log
     if 'method' in kwargs:
         method = kwargs['method']
     else:
@@ -49,7 +49,7 @@ def setrawspilights(enabledlists, CS=1, **kwargs):
         try:
             import spidev
         except ImportError:
-            log(syslog, 'You have not installed the spidev python package. Exiting.', 0, sysloglevel)
+            log(syslog, 'You have not installed the spidev python package. Exiting.', 0, loglevels.system)
             exit
         else:
             spi = spidev.SpiDev()
@@ -57,7 +57,7 @@ def setrawspilights(enabledlists, CS=1, **kwargs):
             spi.open(0, CS)  # Port 0, CS1
             spi.max_speed_hz = 50000
         except:
-            log(syslog, 'Error raised on spi open. exiting.', 0, sysloglevel)
+            log(syslog, 'Error raised on spi open. exiting.', 0, loglevels.system)
             exit
         else:
 
@@ -198,9 +198,9 @@ def getCuPIDlightsentries(table, CS, previndicators=None):
     querylist=[]
 
     if not previndicators:
-        from pilib import controldatabase
-        from utilities.dblib import readalldbrows
-        previndicators = readalldbrows(controldatabase, 'indicators')
+        from pilib import dirs.dbs.control
+        from iiutilities.dblib import readalldbrows
+        previndicators = readalldbrows(dirs.dbs.control, 'indicators')
 
     previndicatornames = []
     previndicatorvalues = []
@@ -236,7 +236,7 @@ def getCuPIDlightsentries(table, CS, previndicators=None):
     return querylist, setlist
 
 if __name__ == '__main__':
-    from pilib import controldatabase
-    # updatelightsfromdb(controldatabase, 'indicators',1)
+    from pilib import dirs.dbs.control
+    # updatelightsfromdb(dirs.dbs.control, 'indicators',1)
     #twitterspilights(1)
     setspilightsoff()

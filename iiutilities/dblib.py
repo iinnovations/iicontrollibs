@@ -70,7 +70,7 @@ def ordertableindices(databasename, tablename, indicestoorder, uniqueindex):
 
 
 def logtimevaluedata(database, tablename, timeinseconds, value, logsize=5000, logfrequency=0):
-    from utilities.datalib import gettimestring, isvalidtimestring, timestringtoseconds
+    from iiutilities.datalib import gettimestring, isvalidtimestring, timestringtoseconds
     timestring= gettimestring(timeinseconds)
     if isvalidtimestring(timestring):
 
@@ -204,7 +204,7 @@ def insertstringdicttablelist(database, tablename, datadictarray, droptable=True
             valuelist.append(datadict[key])
             valuenames.append(key)
         insertquery = makesqliteinsert(tablename, valuelist, valuenames)
-        print(insertquery)
+        # print(insertquery)
         querylist.append(insertquery)
     sqlitemultquery(database, querylist)
 
@@ -642,8 +642,7 @@ def readsomedbrows(database, table, start, length, condition=None):
 
 def dbvntovalue(dbvn, interprettype=False):
 
-    from utilities.datalib import parsedbvn, getvartype
-    from utilities.dblib import getsinglevalue
+    from iiutilities.datalib import parsedbvn, getvartype
     dbvndict = parsedbvn(dbvn)
 
     # try:

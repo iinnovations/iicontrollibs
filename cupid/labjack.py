@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -9,11 +9,20 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
+import os
+import sys
+import inspect
+
+top_folder = \
+    os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
+if top_folder not in sys.path:
+    sys.path.insert(0, top_folder)
+
 
 def readU6(registers):
 
     import u6
-    from utilities.utility import gettimestring
+    from iiutilities.datalib import gettimestring
     device = u6.U6()
 
     resultslist = []
@@ -22,10 +31,11 @@ def readU6(registers):
             value = device.readRegister(register)
             status = 0
         except:
-            value = NaN
+            value = ''
             status = 1
 
         resultslist.append({'register':register, 'value':value, 'status':status, 'time': gettimestring()})
+        print(resultslist)
 
     return resultslist
 
@@ -53,7 +63,7 @@ def readU6Analog(positiveChannel, resolutionIndex=0, gainIndex=0, settlingFactor
     strRanges = ["+/- 10", "+/- 1", "+/- 0.1", "+/- 0.01"]
 
     """
-    from utilities.utility import gettimestring
+    from iiutilities.datalib import gettimestring
     import u6
     result = {}
     device = u6.U6()
@@ -79,7 +89,7 @@ def readU6Counter(counternumber=0):
     """
 
     import u6
-    from utilities.utility import gettimestring
+    from iiutilities.datalib import gettimestring
     device = u6.U6()
 
     result = {'readtime':gettimestring()}
