@@ -163,7 +163,7 @@ def updatesupplicantdata(configdata):
 
 
 def writesupplicantfile(filedata, filepath='/etc/wpa_supplicant/wpa_supplicant.conf'):
-    import subprocess.call
+    import subprocess
     from iiutilities import utility
     from cupid import pilib
     writestring = ''
@@ -550,7 +550,7 @@ def runIPTables(mode, flush=True):
 
 
 def runeth0wlan0bridgeIPTables():
-    import subprocess.call
+    import subprocess
     # eth0 has ethernet connectivity. wlan0 is AP
     subprocess.call(['iptables','-t','nat','-A','POSTROUTING','-o','eth0','-j','MASQUERADE'])
     subprocess.call(['iptables','-A','FORWARD','-i','eth0','-o','wlan0','-m','state','--state','RELATED,ESTABLISHED','-j','ACCEPT'])
@@ -558,7 +558,7 @@ def runeth0wlan0bridgeIPTables():
 
 
 def runwlan0wlan1bridgeIPTables():
-    import subprocess.call
+    import subprocess
     # wlan0 has ethernet connectivity. wlan1 is AP
     subprocess.call(['iptables', '-t', 'nat', '-A', 'POSTROUTING','-o', 'wlan0', '-j', 'MASQUERADE'])
     subprocess.call(['iptables', '-A', 'FORWARD', '-i', 'wlan0', '-o', 'wlan1', '-m', 'state', '--state', 'RELATED,ESTABLISHED', '-j', 'ACCEPT'])
@@ -566,7 +566,7 @@ def runwlan0wlan1bridgeIPTables():
 
 
 def runwlan1wlan0bridgeIPTables():
-    import subprocess.call
+    import subprocess
     # wlan1 has ethernet connectivity. wlan0 is AP
     subprocess.call(['iptables','-t','nat','-A','POSTROUTING','-o','wlan1','-j','MASQUERADE'])
     subprocess.call(['iptables','-A','FORWARD','-i','wlan1','-o','wlan0','-m','state','--state','RELATED,ESTABLISHED','-j','ACCEPT'])
@@ -574,7 +574,7 @@ def runwlan1wlan0bridgeIPTables():
 
 
 def flushIPTables():
-    import subprocess.call
+    import subprocess
     subprocess.call(['iptables', '-F'])
     subprocess.call(['iptables', '-X'])
     subprocess.call(['iptables', '-t', 'nat', '-F'])

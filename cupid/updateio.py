@@ -424,17 +424,14 @@ def updateiodata(database, **kwargs):
                                                'Error processing MBTCP interface ' + interface['name'], 0,
                                     pilib.loglevels.io)
                         errorstring = traceback.format_exc()
-                        utility.log(pilib.dirs.logs.io,
-                                               'Error of kind: ' + errorstring, 0,
+                        utility.log(pilib.dirs.logs.io, 'Error of kind: ' + errorstring, 0,
                                     pilib.loglevels.io)
                     else:
-                        utility.log(pilib.dirs.logs.io,
-                                               'Done processing MBTCP interface ' + interface['name'], 3,
+                        utility.log(pilib.dirs.logs.io,'Done processing MBTCP interface ' + interface['name'], 3,
                                     pilib.loglevels.io)
                         querylist.extend(mbentries)
             else:
-                utility.log(pilib.dirs.logs.io, 'LAN Interface ' + interface['name'] + ' disabled', 3,
-                            pilib.loglevels.io)
+                utility.log(pilib.dirs.logs.io, 'LAN Interface ' + interface['name'] + ' disabled', 3, pilib.loglevels.io)
         elif interface['interface'] == 'GPIO':
             try:
                 address = int(interface['address'])
@@ -454,7 +451,6 @@ def updateiodata(database, **kwargs):
                         GPIOentries = processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids,
                                                                previnputs, previnputids, defaults, logconfig, piobject=pi)
                     except:
-                        print("ERROR handling GPIO interface")
                         utility.log(pilib.dirs.logs.io,
                                            "ERROR handling GPIO interface " + str(address) + '. ', 0,  pilib.loglevels.io)
                         GPIOentries = []
