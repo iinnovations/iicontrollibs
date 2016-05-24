@@ -248,7 +248,7 @@ def rundaemon(startall=False):
                 if 'type' in options:
                     if 'type' == 'email' and 'email' in options:
                         # Queue a message indicating we had to restart the systemstatus daemon
-                        message = 'Systemstatus is being killed because it has not run in ' + \
+                        message = 'Systemstatus is being killed on ' + hostname + ' because it has not run in ' + \
                             str(timesincelastsystemstatus) + 's with a criteria of ' +  \
                             str(timecriterion) + '. This occurred at ' + currenttime
                         subject = 'CuPID : ' + hostname + ' : killnotify'
