@@ -246,7 +246,10 @@ def updateiodata(database, **kwargs):
 
                 split = interface['address'].split(':')
                 nodeid = split[0]
-                keyvalue = split[1]
+                if len(split) > 1:
+                    keyvalue = split[1]
+                else:
+                    keyvalue = '*'
 
                 '''
                 so we used to enable an interface and then take all entries from a node
