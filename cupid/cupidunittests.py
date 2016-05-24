@@ -53,6 +53,7 @@ def runalltests():
 class TestFunction(unittest.TestCase):
     def systemstatus(self):
         from systemstatus import runsystemstatus
+        print('testing system status ...')
         runsystemstatus(True)
         self.assertTrue(True)
 
@@ -91,6 +92,7 @@ class ImportTester(TestImport):
 
 
 def testmodule(modulename):
+    print('Testing Module : ' + modulename)
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(ImportTester(methodname='test', modulename=modulename))
     errorcount = len(result.errors)
