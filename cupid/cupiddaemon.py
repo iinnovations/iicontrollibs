@@ -93,16 +93,22 @@ def findprocstatuses(procstofind):
     import subprocess
     statuses = []
     for proc in procstofind:
+        print(proc)
         status = False
         try:
             result = subprocess.check_output(['pgrep','-fc',proc])
-            print(result)
+            # print(result)
         except:
+            print('ERROR')
             pass
         else:
             if int(result) > 0:
+                print("FOUND")
                 status = True
+            else:
+                print("NOT FOUND")
         statuses.append(status)
+    print(statuses)
     return statuses
 
 
@@ -119,13 +125,13 @@ def deprecatedfindprocstatuses(procstofind):
     for proc in proc_list:
         strproc = proc.to_str()
         # stdout.write('t' + strproc + 'n')
-        print(strproc + '\n')
+        # print(strproc + '\n')
         procslist = procslist + strproc
         for proc in procstofind:
             if strproc.count(proc) > 0:
-                print('** found **')
-                print(proc + ' in ')
-                print(strproc)
+                # print('** found **')
+                # print(proc + ' in ')
+                # print(strproc)
                 pass
 
     #Build &amp; print a list of processes that are owned by root
@@ -143,7 +149,7 @@ def deprecatedfindprocstatuses(procstofind):
     for item in procstofind:
         index = procstofind.index(item)
         #print(index)
-        if procslist.count(item) > 0:  # Item was found
+        if procslist.count(index) > 0:  # Item was found
             foundstatuses.append(True)
         else:
             foundstatuses.append(False)
@@ -262,12 +268,16 @@ def rundaemon(startall=False):
 
 
     # Set system message
+    print('ITEM STATUSES: ')
+    print(itemstatuses)
     systemstatusmsg = ''
     for name, enabled, status in zip(pilib.daemonprocs, enableditemlist, itemstatuses):
+
         systemstatusmsg += name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. '
         if pilib.loglevels.daemon > 0:
             utility.log(pilib.dirs.logs.daemon, name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. ')
 
+    print(systemstatusmsg)
     dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'systemmessage', systemstatusmsg)
 
     # Set up list of itemnames in the systemstatus table that
@@ -296,7 +306,7 @@ def rundaemon(startall=False):
                 # if pilib.loglevels.daemon > 0:
                 #     pilib.writedatedlogmsg(pilib.dirs.logs.daemonproc, procresult.stdout.read())
 
-    sleep(1)
+    sleep(3)
 
     # Refresh after set
     itemstatuses = findprocstatuses(pilib.daemonprocs)
@@ -312,6 +322,8 @@ def rundaemon(startall=False):
     systemstatusmsg = ''
     for name, enabled, status in zip(pilib.daemonprocs, enableditemlist, itemstatuses):
         systemstatusmsg += name + ' - Enabled: ' + str(bool(enabled)) + ' Status: ' + str(status) + '. '
+
+    print(systemstatusmsg)
     dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'systemmessage', systemstatusmsg)
 
     # Rotate all logs

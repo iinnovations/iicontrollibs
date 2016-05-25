@@ -153,7 +153,7 @@ def teststdmodules():
 
 
 def teststdfunctions():
-    functions = ['updateio']
+    functions = []
     results = testfunctions(functions)
     return results
 

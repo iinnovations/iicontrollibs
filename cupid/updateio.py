@@ -175,7 +175,7 @@ def updateiodata(database, **kwargs):
                     #     value = 'NaN'
                     #     readtime =''
                     # else:
-                    print('RATE COUNTER SUCCESS')
+                    # print('RATE COUNTER SUCCESS')
                     if 'formula' in options:
                         try:
                             adjustedrate = datalib.calcastevalformula(options['formula'].replace('x', str(value)))
@@ -195,7 +195,7 @@ def updateiodata(database, **kwargs):
                     #     str(readtime) + '\',\'' + str(defaultinputpollfreq) + "','" + '' + "','" + '' + "')")
                     querylist.append(query)
                 else:
-                    print('BAD RATE COUNTER VALUE')
+                    # print('BAD RATE COUNTER VALUE')
                     utility.log(pilib.dirs.logs.io, 'Rate data returned None. Beginning of data set?')
 
             if interface['type'] == 'value':
@@ -207,7 +207,8 @@ def updateiodata(database, **kwargs):
                     # print(options['formula'])
                     value = datalib.evaldbvnformula(options['formula'])
                 except:
-                    print("error calculating aux value")
+                    pass
+                    # print("error calculating aux value")
                 else:
                     query = dblib.makesqliteinsert('inputs', [entryid, interface['interface'],
                           interface['type'], str(interface['address']), entryid, str(value), '', str(readtime),
@@ -702,7 +703,7 @@ def processlabjackinterface(interface, previnputs):
         interface['type'] + "','" + str(entry['address']) + "','" + name + "','" + str(data['value']) + "','','" + \
         str(data['readtime']) + "','" + str(pollfreq) + "','" + ontime + "','" + offtime + "')"
 
-        print(query)
+        # print(query)
 
         querylist.append(query)
     return querylist
