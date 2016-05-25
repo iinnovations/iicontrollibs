@@ -19,9 +19,6 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 
-from time import sleep
-
-
 # Run the script periodically based on systemstatus
 
 # This script does the following:
@@ -34,6 +31,7 @@ from time import sleep
 
 
 def runpicontrol(runonce=False):
+    from time import sleep
     from iiutilities import dblib
     from iiutilities import utility
     from cupid import pilib
@@ -272,7 +270,7 @@ def runpicontrol(runonce=False):
             dblib.sqlitemultquery(pilib.dirs.dbs.control, querylist)
 
         # We do this system status again to refresh settings
-        systemstatus = dblib.readalldbrows(pilib.dirs.dbs.systemstatus, 'systemstatus')[0]
+        systemstatus = dblib.readalldbrows(pilib.dirs.dbs.system, 'systemstatus')[0]
 
         from actions import processactions
         processactions()
