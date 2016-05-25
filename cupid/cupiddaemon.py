@@ -105,6 +105,7 @@ def findprocstatuses(procstofind):
         statuses.append(status)
     return statuses
 
+
 # This thing sucks. See above for trivially simple way to do this.
 def deprecatedfindprocstatuses(procstofind):
     proc_list = get_proc_list()
@@ -267,7 +268,7 @@ def rundaemon(startall=False):
         if pilib.loglevels.daemon > 0:
             utility.log(pilib.dirs.logs.daemon, name + ' - Enabled: ' + str(enabled) + ' Status: ' + str(status) + '. ')
 
-    dblib.setsinglevalue(pilib.dirs.dbs.control, 'systemstatus', 'systemmessage', systemstatusmsg)
+    dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'systemmessage', systemstatusmsg)
 
     # Set up list of itemnames in the systemstatus table that
     # we assign the values to when we detect if the process
@@ -278,11 +279,11 @@ def rundaemon(startall=False):
     for index, item in enumerate(pilib.daemonprocs):
         # set status
         if itemstatuses[index]:
-            dblib.sqlitequery(pilib.dirs.dbs.control, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
+            dblib.sqlitequery(pilib.dirs.dbs.system, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
             if pilib.loglevels.daemon > 0:
                 utility.log(pilib.dirs.logs.daemon, 'Process is running: ' + pilib.dirs.baselib + pilib.daemonprocs[index])
         else:
-            dblib.sqlitequery(pilib.dirs.dbs.control, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')
+            dblib.sqlitequery(pilib.dirs.dbs.system, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')
             if pilib.loglevels.daemon > 0:
                 utility.log(pilib.dirs.logs.daemon, 'Process is not running: ' + pilib.dirs.baselib + pilib.daemonprocs[index])
 
@@ -303,15 +304,15 @@ def rundaemon(startall=False):
         index = pilib.daemonprocs.index(item)
         # set status
         if itemstatuses[index]:
-            dblib.sqlitequery(pilib.dirs.dbs.control, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
+            dblib.sqlitequery(pilib.dirs.dbs.system, 'update systemstatus set ' + statustableitemnames[index] + ' = 1')
         else:
-            dblib.sqlitequery(pilib.dirs.dbs.control, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')
+            dblib.sqlitequery(pilib.dirs.dbs.system, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')
 
     # Set system message
     systemstatusmsg = ''
     for name, enabled, status in zip(pilib.daemonprocs, enableditemlist, itemstatuses):
         systemstatusmsg += name + ' - Enabled: ' + str(bool(enabled)) + ' Status: ' + str(status) + '. '
-    dblib.setsinglevalue(pilib.dirs.dbs.control, 'systemstatus', 'systemmessage', systemstatusmsg)
+    dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'systemmessage', systemstatusmsg)
 
     # Rotate all logs
     for attr, value in pilib.dirs.logs.__dict__.iteritems():
