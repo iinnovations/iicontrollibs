@@ -41,7 +41,7 @@ def application(environ, start_response):
         from pilib import salt
 
         try:
-            userdata = dblib.datarowtodict(pilib.usersdatabase, 'users', dblib.sqlitequery(pilib.usersdatabase, "select * from users where name='" + d['sessionuser'] + "'")[0])
+            userdata = dblib.datarowtodict(pilib.dirs.dbs.users, 'users', dblib.sqlitequery(pilib.dirs.dbs.users, "select * from users where name='" + d['sessionuser'] + "'")[0])
         except:
             output['message'] += 'error in user sqlite query. '
             # unsuccessful authentication
@@ -126,7 +126,7 @@ def application(environ, start_response):
                     output['message'] += 'User selected has sufficient authorizations. '
                     if action == 'userdelete':
                         try:
-                            dblib.sqlitequery(pilib.usersdatabase, "delete from users where name='" + d['usertodelete'] + "'")
+                            dblib.sqlitequery(pilib.dirs.dbs.users, "delete from users where name='" + d['usertodelete'] + "'")
                         except:
                             output['message'] += 'Error in delete query. '
                         else:
@@ -150,7 +150,7 @@ def application(environ, start_response):
                                 querylist.append("update users set authlevel='" + d['newauthlevel'] + "' where name='" + d['usertomodify'] + "'")
 
                             try:
-                                dblib.sqlitemultquery(pilib.usersdatabase, querylist)
+                                dblib.sqlitemultquery(pilib.dirs.dbs.users, querylist)
                             except:
                                 output['message'] += 'Error in modify/add query: ' + ",".join(querylist)
                             else:
@@ -172,7 +172,7 @@ def application(environ, start_response):
                             newauthlevel = 0
                             query = "insert into users values(NULL,'" + username + "','','" + newemail + "',''," + str(newauthlevel) + ")"
                         try:
-                            dblib.sqlitequery(pilib.usersdatabase, query)
+                            dblib.sqlitequery(pilib.dirs.dbs.users, query)
                         except:
                             output['message'] += "Error in useradd sqlite query: " + query + ' . '
                         else:
@@ -234,7 +234,7 @@ def application(environ, start_response):
                 output['message'] += 'Queue message. '
                 if 'message' in d:
                     try:
-                        dblib.sqliteinsertsingle(pilib.motesdatabase, 'queuedmessages', [datalib.gettimestring(), d['message']])
+                        dblib.sqliteinsertsingle(pilib.dirs.dbs.motes, 'queuedmessages', [datalib.gettimestring(), d['message']])
                     except Exception, e:
                         output['message'] += 'Error in queue insert query: ' + str(e)
                     else:
@@ -242,14 +242,14 @@ def application(environ, start_response):
                 else:
                     output['message'] += 'No message present. '
             elif action == 'setsystemflag' and 'systemflag' in d:
-                database = pilib.systemdatadatabase
+                database = pilib.dirs.dbs.system
                 dblib.setsinglevalue(database, 'systemflags', 'value', 1, "name=\'" + d['systemflag'] + "'")
             elif action == 'rundaemon':
                 from cupiddaemon import rundaemon
                 rundaemon()
 
             elif action == 'setvalue':
-                utility.log(pilib.controllog, "Setting value in wsgi", 1, 1)
+                utility.log(pilib.dirs.logs.control, "Setting value in wsgi", 1, 1)
                 # we use the auxiliary 'setsinglecontrolvalue' to add additional actions to update
                 if all(k in d for k in ('database', 'table', 'valuename', 'value')):
                     dbpath = pilib.dbnametopath(d['database'])
@@ -270,9 +270,9 @@ def application(environ, start_response):
                 if all(k in d for k in ['database', 'ioid', 'value']):
                     query = dblib.makesqliteinsert('ioinfo', [d['ioid'], d['value']], ['id', 'name'])
                     try:
-                        dblib.sqliteinsertsingle(pilib.controldatabase, 'ioinfo', [d['ioid'], d['value']], ['id', 'name'])
+                        dblib.sqlitequery(pilib.dirs.dbs.control, query)
                     except:
-                        output['message'] += 'Error in updateioinfo query execution: ' + query +'. '
+                        output['message'] += 'Error in updateioinfo query execution: ' + query +'. into database: ' + pilib.dirs.dbs.control
                         output['message'] += 'ioid: ' + d['ioid'] + ' . '
                     else:
                         output['message'] += 'Executed updateioinfo query. '

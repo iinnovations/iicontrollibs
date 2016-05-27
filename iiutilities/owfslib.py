@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 __author__ = 'Colin Reese'
-__copyright__ = 'Copyright 2014, Interface Innovations'
+__copyright__ = 'Copyright 2016, Interface Innovations'
 __credits__ = ['Colin Reese']
 __license__ = 'Apache 2.0'
 __version__ = '1.0'
@@ -18,16 +18,13 @@ top_folder = \
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
-from iiutilities import dblib
-from iiutilities import datalib
-
 
 # Using fuse / owfs
 def owfsbuslist(owdir):
     from os import walk
 
     # Should get this from somewhere for recognized types
-    families = ['28']
+    families = ['28', '3B']
 
     d = []
     for (dirpath, dirnames, filenames) in walk(owdir):
@@ -59,6 +56,7 @@ def owfsgetbusdevices(owdir):
         for (dirpath, dirnames, filenames) in walk(devicepath):
             propsavailable = filenames
             break
+        print(propsavailable)
         for propavailable in propsavailable:
             if propavailable in initprops:
                 propvalue = open(devicepath + '/' + propavailable).read().strip()
@@ -165,8 +163,8 @@ def getowbusdevices(host='localhost'):
 
 
 def updateowfstable(database, tablename, busdevices, execute=True):
-    from dblib import sqlitemultquery
-    from dblib import makesqliteinsert
+    from iiutilities.dblib import sqlitemultquery
+    from iiutilities.dblib import makesqliteinsert
 
     querylist = []
     for device in busdevices:
@@ -181,7 +179,9 @@ def updateowfstable(database, tablename, busdevices, execute=True):
 
 
 def updateowfsdevices(busdevices, myProxy=None):
-    import pilib
+    from cupid import pilib
+    from iiutilities import dblib
+    from iiutilities import datalib
 
     # get defaults
     defaults = dblib.readalldbrows(pilib.dirs.dbs.control, 'defaults')[0]
@@ -220,12 +220,15 @@ def updateowfsdevices(busdevices, myProxy=None):
             device.polltime = ''
             device.value = ''
 
-        # We're going to set a name because calling things by their ids is getting
-        # a bit ridiculous, but we can't have empty name fields if we rely on them
-        # being there. They need to be unique, so we'll name them by type and increment them
+        """
+        We're going to set a name because calling things by their ids is getting
+        a bit ridiculous, but we can't have empty name fields if we rely on them
+        being there. They need to be unique, so we'll name them by type and increment them
 
-        if device.type == 'DS18B20':
+        Not really sure why this is conditional?
+        """
 
+        if device.type in ['DS18B20', 'DS1825']:
 
             # Get name if one exists
             name = dblib.sqlitedatumquery(pilib.dirs.dbs.control, 'select name from ioinfo where id=\'' + device.sensorid + '\'')
@@ -248,16 +251,16 @@ def updateowfsdevices(busdevices, myProxy=None):
                         break
             device.name = name
 
-        # Is it time to read temperature?
-        if datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(device.polltime) > device.pollfreq:
-            device.readprop('temperature', myProxy)
-            device.polltime = datalib.gettimestring()
-            device.value = device.temperature
-        else:
-            pass
-            # print('not time to poll')
+            # Is it time to read temperature?
+            if datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(device.polltime) > device.pollfreq:
+                device.readprop('temperature', myProxy)
+                device.polltime = datalib.gettimestring()
+                device.value = device.temperature
+            else:
+                pass
+                # print('not time to poll')
 
-        device.unit = 'F'
+            device.unit = 'F'
 
         # We update the device and send them back for other purposes.
         busdevices[index] = device
@@ -266,9 +269,8 @@ def updateowfsdevices(busdevices, myProxy=None):
 
 
 def updateowfsinputentries(database, tablename, devices, execute=True):
-    from pilib import dirs
-    from dblib import readalldbrows
-    from dblib import sqlitemultquery
+    from cupid.pilib import dirs
+    from iiutilities.dblib import sqlitemultquery
     querylist = []
     querylist.append("delete from '" + tablename + "' where interface='1wire'")
 
@@ -291,8 +293,8 @@ def runowfsupdate(debug=False, execute=True):
     import time
 
     queries = []
-    from pilib import dirs, dirs
-    from dblib import sqlitemultquery
+    from cupid.pilib import dirs
+    from iiutilities.dblib import sqlitemultquery
 
     if debug:
         print('getting buses')

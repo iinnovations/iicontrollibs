@@ -158,8 +158,19 @@ def updateiodata(database, **kwargs):
                              pilib.loglevels.io)
         elif interface['interface'] == 'AUX':
 
+            # For aux variables, need to decide how to do polltime. For a single value translation, this is easy.
+            # For multiple values, we need to somehow annotate the time difference, average times together ... something
             # The address of the interface will be unique and determine the ID of the input.
             entryid = interface['interface'] + '_' + interface['type'] + '_' + interface['address']
+
+            condition = '"interface"=\'' + interface['interface'] + '\' and "type"=\'' + interface['type'] + '\' and "address"=\'' + interface['address'] + '\''
+
+            # print(condition)
+            dblib.setsinglevalue(pilib.dirs.dbs.control, 'interfaces', 'id', entryid, condition)
+
+            # Does this entry already exist in inputs?
+            if entryid in previnputids:
+                preventry = previnputs[previnputids.index(entryid)]
 
             if interface['type'] == 'ratecounter':
 
@@ -184,40 +195,57 @@ def updateiodata(database, **kwargs):
                         else:
                             value = adjustedrate
 
-                    # This should be a structured instead of raw query here
                     query = dblib.makesqliteinsert('inputs', [entryid, interface['interface'], interface['type'],
-                          interface['address'], entryid, str(value), '', str(readtime),
+                          interface['address'], preventry['name'], str(value), '', str(readtime),
                           str(defaultinputpollfreq), '', ''])
-                    # querylist.append(
-                    #     'insert into inputs values (\'' + entryid + '\',\'' + interface['interface'] + '\',\'' +
-                    #     interface['type'] + '\',\'' + str(interface['address']) + '\',\'' + entryid + '\',\'' + str(
-                    #         value) + "','','" +
-                    #     str(readtime) + '\',\'' + str(defaultinputpollfreq) + "','" + '' + "','" + '' + "')")
                     querylist.append(query)
                 else:
                     # print('BAD RATE COUNTER VALUE')
                     utility.log(pilib.dirs.logs.io, 'Rate data returned None. Beginning of data set?')
 
-            if interface['type'] == 'value':
+            if interface['type'] in  ['value', 'formula']:
+                """
+                At the moment, both single value and complex formula translation are done here. These may fork as
+                necessary.
 
-                # TODO: correct time somehow on aux value
+                By default, the formula or value is assigned a readtime of NOW. This is principally bad: the value is
+                guaranteed to be wrong. Best case scenario, and one we hope to fall back to by putting the aux value
+                processing last, is that these values are calculated IMMEDIATELY after data is read. Still, these read
+                operations take time. The worst case scenario is when we have a poll time that is significant, and we
+                do not post-process an aux value until next time the poll is run. In this case, the aux value's time
+                stamp will be systemically offset by the polling period.
+
+                To mitigate this, we allow pulling a timestamp from an arbitrary location using the 'timestamp' keyword
+                in the options field. If this fails, we will fall back gracefully to NOW. Note that the function
+                'dbvntovalue' is used rather than the formula, which only returns float values and will barf on a
+                timestamp.
+                """
+
                 readtime = datalib.gettimestring()
+                options = []
                 try:
                     options = datalib.parseoptions(interface['options'])
                     # print(options['formula'])
                     value = datalib.evaldbvnformula(options['formula'])
+                    if 'readtime' in options:
+                        try:
+                            # we grab a string time from where we are told
+                            exttime = dblib.dbvntovalue(options['readtime'])
+                        except:
+                            pass
+                            # print('Fail with time entry: ' + options['readtime'])
+                        else:
+                            if datalib.isvalidtimestring(exttime):
+                                # print('SUCCESS ON EXT TIME, yielded: ' + exttime)
+                                readtime = exttime
+
                 except:
                     pass
                     # print("error calculating aux value")
                 else:
                     query = dblib.makesqliteinsert('inputs', [entryid, interface['interface'],
-                          interface['type'], str(interface['address']), entryid, str(value), '', str(readtime),
+                          interface['type'], str(interface['address']), preventry['name'], str(value), '', str(readtime),
                           str(defaultinputpollfreq), '', ''])
-                    # print(query)
-                    # query = 'insert into inputs values (\'' + entryid + '\',\'' + interface['interface'] + '\',\'' +
-                    # interface['type'] + '\',\'' + str(interface['address']) + '\',\'' + entryid + '\',\'' + str(
-                    #     value) + "','','" +
-                    # str(readtime) + '\',\'' + str(defaultinputpollfreq) + "','" + '' + "','" + '' + "')")
                     querylist.append(query)
 
 

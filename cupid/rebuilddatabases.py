@@ -404,9 +404,10 @@ def rebuildsystemdb(tabledict):
         table = 'uisettings'
         querylist.append('drop table if exists ' + table)
         querylist.append("create table " + table + " (  'setting' text, 'group' text, 'value' text)")
-        querylist.append("insert into " + table + " values ( 'showinputgpdirs.logs.ios', 'dataviewer', '1' )")
+        querylist.append("insert into " + table + " values ( 'showinputgpiologs', 'dataviewer', '0' )")
         querylist.append("insert into " + table + " values ( 'showinput1wirelogs', 'dataviewer', '1' )")
         querylist.append("insert into " + table + " values ( 'showchannellogs', 'dataviewer', '1' )")
+        querylist.append("insert into " + table + " values ( 'showotherlogs', 'dataviewer', '1' )")
 
     if 'versions' in tabledict:
         runquery = True

@@ -158,8 +158,10 @@ def evaldbvnformula(formula, type='value'):
     #if type == 'value':
     # first we need to get all the values that are provided as db-coded entries.
     # We put the dbvn inside of brackets, e.g. [dbnmae:dbtable:dbvaluename:condition]
-
-    split = formula.split('[')
+    try:
+        split = formula.split('[')
+    except:
+        return None
 
     textform = ''
     for index, splitlet in enumerate(split):
@@ -170,7 +172,10 @@ def evaldbvnformula(formula, type='value'):
             splitletsplit = splitlet.split(']')
             dbvn = splitletsplit[0]
             # print('dbvn: ' + dbvn)
-            value = dbvntovalue(dbvn)
+            try:
+                value = dbvntovalue(dbvn)
+            except:
+                return None
             # print('value: ' + str(value))
             textform += str(value) + splitletsplit[1]
 
