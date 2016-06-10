@@ -28,7 +28,13 @@ def runboot():
     from iiutilities import utility, dblib
 
     interfaces = dblib.readalldbrows(pilib.dirs.dbs.control, 'interfaces')
+
+    # Clear out status bits, if for no other reason to see the LEDs come on
+    for statusvalue in ['systemstatusstus', 'hamachistatus', 'picontrolstatus', 'updateiostatus', 'serialhandlerstatus' ]:
+        dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', statusvalue, 0)
+
     systemstatus = dblib.readonedbrow(pilib.dirs.dbs.system, 'systemstatus')[0]
+
 
     # Start pigpiod
 

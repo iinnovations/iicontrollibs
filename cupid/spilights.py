@@ -78,7 +78,7 @@ def setrawspilights(enabledlists, CS=1, **kwargs):
         handle = pi.spi_open(0, 50000, 0)
 
         resp = pi.spi_write(handle, array.array(spiassignments).tostring())
-        print(resp)
+        # print(resp)
 
     if method == 'pigpio' and 'piobject' not in kwargs:
         pi.stop()
@@ -172,10 +172,12 @@ def updatelightsfromdb(database, table, CS):
     query = 'select status from \'' + table + '\' where interface=\'SPI' + str(CS) + '\''
     query2 = 'select name from \'' + table + '\' where interface=\'SPI' + str(CS) + '\''
 
+    print(query)
+    print(query2)
     statuses = dblib.sqlitequery(database, query)
     names = dblib.sqlitequery(database, query2)
-    # print(statuses)
-    # print(names)
+    print(statuses)
+    print(names)
     d = {}
     for status, name in zip(statuses, names):
         d[name[0]] = status[0]
@@ -188,6 +190,7 @@ def updatelightsfromdb(database, table, CS):
                     [d['SPI_RGB4_R'], d['SPI_RGB4_G'], d['SPI_RGB4_B']],
                     d['SPI_SC_R'], d['SPI_SC_G'], d['SPI_SC_B'],
                     d['SPI_SC_Y']]
+        print(setarray)
     except KeyError:
         print('key error on indicator keys')
     else:
@@ -230,8 +233,8 @@ def getCuPIDlightsentries(table, CS, previndicators=None):
     setlist = [[valuelist[0], valuelist[1], valuelist[2]],
                [valuelist[3], valuelist[4], valuelist[5]],
                [valuelist[6], valuelist[7], valuelist[8]],
-               [valuelist[7], valuelist[8], valuelist[9]],
-               valuelist[10], valuelist[11], valuelist[12], valuelist[13]]
+               [valuelist[9], valuelist[10], valuelist[11]],
+               valuelist[12], valuelist[13], valuelist[14], valuelist[15]]
 
     return querylist, setlist
 
@@ -239,4 +242,5 @@ if __name__ == '__main__':
     from pilib import dirs
     # updatelightsfromdb(dirs.dbs.control, 'indicators',1)
     #twitterspilights(1)
-    setspilightsoff()
+    # setspilightsoff()
+    updatelightsfromdb(dirs.dbs.control, 'indicators',1)

@@ -93,20 +93,21 @@ def findprocstatuses(procstofind):
     import subprocess
     statuses = []
     for proc in procstofind:
-        print(proc)
+        # print(proc)
         status = False
         try:
             result = subprocess.check_output(['pgrep','-fc',proc])
             # print(result)
         except:
-            print('ERROR')
+            # print('ERROR')
             pass
         else:
             if int(result) > 0:
-                print("FOUND")
+                # print("FOUND")
                 status = True
             else:
-                print("NOT FOUND")
+                pass
+                # print("NOT FOUND")
         statuses.append(status)
     print(statuses)
     return statuses
@@ -225,8 +226,8 @@ def rundaemon(startall=False):
     # we find that the process is not currently running
     # from iiutilities import dblib, utility, datalib
 
-    picontrolenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'picontrolenabled')
     updateioenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'updateioenabled')
+    picontrolenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'picontrolenabled')
     systemstatusenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'systemstatusenabled')
     sessioncontrolenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'sessioncontrolenabled')
     serialhandlerenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'serialhandlerenabled')
@@ -268,8 +269,8 @@ def rundaemon(startall=False):
 
 
     # Set system message
-    print('ITEM STATUSES: ')
-    print(itemstatuses)
+    # print('ITEM STATUSES: ')
+    # print(itemstatuses)
     systemstatusmsg = ''
     for name, enabled, status in zip(pilib.daemonprocs, enableditemlist, itemstatuses):
 
@@ -318,6 +319,17 @@ def rundaemon(startall=False):
         else:
             dblib.sqlitequery(pilib.dirs.dbs.system, 'update systemstatus set ' + statustableitemnames[index] + ' = 0')
 
+    """
+    Process Actions.
+    Careful here. This does not carry out things like indicators, which are set from picontrol. A bit wonky, as we
+    would like the indicators to update immediately. On the other hand, we want picontrol to be the master controller
+    of IO.
+    """
+
+    from cupid.actions import processactions
+    processactions()
+
+
     # Set system message
     systemstatusmsg = ''
     for name, enabled, status in zip(pilib.daemonprocs, enableditemlist, itemstatuses):
@@ -337,3 +349,4 @@ if __name__ == "__main__":
     log(dirs.logs.daemon, 'Running daemon.', 1, loglevels.daemon)
     rundaemon()
     log(dirs.logs.daemon, 'Daemon complete.',1,loglevels.daemon)
+

@@ -24,7 +24,7 @@ def takesnap(path='/var/www/webcam/images/', filename='current.jpg', quality=75,
 
     time1 = gettimestring()
     if width:
-        height = int(float(width) * 1.33333)
+        height = int(float(width) / 1.33333)
         subprocess.call(['raspistill','-q', str(quality), '--width', str(width), '--height', str(height), '-t', str(timeout), '-o', imagepath])
     else:
         width =  2592

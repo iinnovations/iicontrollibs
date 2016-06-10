@@ -100,7 +100,7 @@ def readU6Counter(counternumber=0):
         device.getCalibrationData()
         if currentconfig['Counter0Enabled'] or currentconfig['NumberTimersEnabled'] != 1:
             device.configIO(EnableCounter0=True, NumberTimersEnabled=1)
-            d.getFeedback( u6.Timer0Config(TimerMode = 6, Value = 1) )
+            device.getFeedback( u6.Timer0Config(TimerMode = 6, Value = 1) )
 
         result['value'] = device.getFeedback(u6.Timer0())[0]
 

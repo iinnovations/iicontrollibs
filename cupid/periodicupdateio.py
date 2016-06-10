@@ -64,7 +64,14 @@ def runperiodicio():
         #print(systemsdict)
         readtime = systemsdict['updateiofreq']
 
-        # defaults
+        """
+        Defaults.
+        TODO: We need to get these from a db entry that the user can set on the main control panel. These will live in
+        the 'defaults' table. Imagine that.
+
+        Then, we can set the logpoints for each input and channel. We'll store them in the ioinfo table
+        """
+
         plotpoints = 20
         logpoints = 1000
 

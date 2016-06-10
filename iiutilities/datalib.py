@@ -130,6 +130,8 @@ def calcinputrate(input, numentries=2):
     from cupid import pilib
 
     # just grab last entries of log, create point averaged around
+    # also average time
+
     logname = 'input_' + input + '_log'
     entries = dblib.getlasttimerows(pilib.dirs.dbs.log, logname, numentries)
     # print(entries)
