@@ -18,6 +18,47 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 
+# File operations
+
+def csvfiletoarray(filename):
+    import csv
+
+    with open(filename, 'rU') as csvfile:
+        data = csv.reader(csvfile, delimiter=',')
+        array = []
+        try:
+            for row in data:
+                # print(row)
+                try:
+                    array.append(row)
+                except:
+                    print('error in row')
+        except:
+            print('uncaught row error')
+    return array
+
+
+def datawithheaderstodictarray(dataarray, headerrows=1, strip=True, keystolowercase=False):
+    # we assume the first row is full of dict keys
+
+    dictarray = []
+    for i in range(headerrows, len(dataarray)):
+        dict = {}
+        for j in range(0, len(dataarray[0])):
+            if strip:
+                dataarray[i][j]=dataarray[i][j].strip()
+            if keystolowercase:
+                dict[dataarray[0][j].lower()] = dataarray[i][j]
+            else:
+                dataarray[i][j]=dataarray[i][j].lower()
+
+        dictarray.append(dict)
+
+    return dictarray
+
+
+# Data functions
+
 def parseoptions(optionstring):
     optionsdict = {}
     if optionstring:
@@ -130,6 +171,8 @@ def calcinputrate(input, numentries=2):
     from cupid import pilib
 
     # just grab last entries of log, create point averaged around
+    # also average time
+
     logname = 'input_' + input + '_log'
     entries = dblib.getlasttimerows(pilib.dirs.dbs.log, logname, numentries)
     # print(entries)
@@ -216,3 +259,21 @@ def parsedbvn(dbvn):
         condition = None
 
     return {'dbname':dbname,'dbpath':dbpath,'tablename':tablename,'valuename':valuename,'condition':condition}
+
+
+# Auth functions
+
+def gethashedentry(user, password, salt='randomsalt'):
+
+    import hashlib
+     # Create hashed, salted password entry
+    hpass = hashlib.new('sha1')
+    hpass.update(password)
+    hashedpassword = hpass.hexdigest()
+    hname = hashlib.new('sha1')
+    hname.update(user)
+    hashedname = hname.hexdigest()
+    hentry = hashlib.new('md5')
+    hentry.update(hashedname + salt + hashedpassword)
+    hashedentry = hentry.hexdigest()
+    return hashedentry

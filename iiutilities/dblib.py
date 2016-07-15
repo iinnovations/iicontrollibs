@@ -183,19 +183,18 @@ def datarowtodict(database, table, datarow):
     return dict
 
 
-def insertstringdicttablelist(database, tablename, datadictarray, droptable=True):
+def insertstringdicttablelist(database, tablename, datadictarray, droptable=False):
     querylist = []
     if droptable:
-        querylist.append('drop table if exists ' + tablename)
+        querylist.append('drop table if exists "' + tablename + '"')
 
-        addquery = 'create table ' + tablename + ' ('
+        addquery = 'create table "' + tablename + '" ('
         for key in datadictarray[0]:
             addquery += '\'' + key + '\' text,'
 
         addquery = addquery[:-1]
         addquery += ')'
         querylist.append(addquery)
-
 
     for datadict in datadictarray:
         valuelist=[]
@@ -206,13 +205,68 @@ def insertstringdicttablelist(database, tablename, datadictarray, droptable=True
         insertquery = makesqliteinsert(tablename, valuelist, valuenames)
         # print(insertquery)
         querylist.append(insertquery)
+
+    result = {'query': querylist}
+
+    # try:
     sqlitemultquery(database, querylist)
+    # except:
+    #     import sys, traceback
+    #     result['tb'] = traceback.format_exc()
+    #     result['status'] = 1
+    # else:
+    #     result['status'] = 0
+
+    return result
+
+
+def sqlitecreateemptytable(database, tablename, valuenames, valuetypes, valueoptions=None, dropexisting=True,
+                           removequotes=True, removeslashes=True):
+    if len(valuenames) != len(valuetypes):
+        print('Names and types are not of same length. Cannot continue. ')
+        return None
+    else:
+        if valueoptions:
+            if len(valuenames) != len(valueoptions):
+                print('Valueoptions were delivered but do not appear to be the correct length. Cannot continue. ')
+                return None
+
+    existingtablenames = gettablenames(database)
+    if tablename in existingtablenames:
+        if dropexisting:
+            sqlitedroptable(database, tablename)
+        else:
+            # Check to see if this will work out? Match fields, etc.
+            pass
+
+    constructor = ''
+    for index, valuename in enumerate(valuenames):
+        try:
+            if removequotes:
+                valuename = valuename.replace("'", '').replace('"', '')
+            if removeslashes:
+                valuename = valuename.replace("\\", '').replace("/", "")
+        except:
+            print('error replacing in key ' + str(valuename))
+
+        constructor += "'" + valuename + "' " + valuetypes[index]
+
+        # limited. multiple options in the future.
+        if 'primary' == valueoptions[index]:
+            constructor += ' primary key'
+        elif 'unique' == valueoptions[index]:
+            constructor += ' unique'
+
+        constructor += ","
+
+    constructorquery = "create table '" + tablename + "' (" + constructor[:-1] + ")"
+    sqlitequery(database, constructorquery)
 
 
 def dropcreatetexttablefromdict(databasename, tablename, dictordictarray, removequotes=True, removeslashes=True, primarykey=None):
     querylist = []
     constructor = ''
-    querylist.append('drop table if exists \"' + tablename + '\"')
+    querylist.append('drop table if exists "' + tablename + '"')
 
     # just make it an array if not so we can handle the array
     if isinstance(dictordictarray, dict):
@@ -271,7 +325,8 @@ def makesqliteinsert(table, valuelist, valuenames=None, replace=True):
     query += ' values ('
 
     for value in valuelist:
-        query += '\'' + str(value) + '\','
+        strvalue = str(value).replace("'","''")
+        query += '\'' + strvalue + '\','
     query = query[:-1] + ')'
     return query
 
@@ -357,6 +412,10 @@ def makegetsinglevaluequery(table, valuename, condition=None):
     elif isinstance(condition, basestring):
         query += ' where ' + condition
     return query
+
+
+def sqlitedeleteitem(database, table, condition):
+    sqlitequery(database, makedeletesinglevaluequery(table, condition))
 
 
 def makedeletesinglevaluequery(table, condition=None):
@@ -492,6 +551,49 @@ def cleanlog(databasename, logname):
     sqlitequery(databasename, "delete from '" + logname + "' where time =''")
 
 
+def sqliteduplicatetable(database, oldname, newname):
+    # Get pragma to create table
+    oldcreatequery = sqlitequery(database, "SELECT sql FROM sqlite_master WHERE type='table' AND name='" + oldname + "'")[0][0]
+    # print(oldcreatequery)
+
+    # Check to see if it was created with quotes or not
+    # Gotta use quotes on new name for safety
+    index = oldcreatequery.find('"' + oldname + '"')
+    if index >= 0:
+        newcreatequery = oldcreatequery.replace('"' + oldname + '"', '"' + newname + '"')
+    else:
+        newcreatequery = oldcreatequery.replace(oldname, '"' + newname + '"')
+
+    # print(newcreatequery)
+    sqlitequery(database, newcreatequery)
+
+    # Now get all the old data and insert it
+    data=readalldbrows(database, oldname)
+
+    # We have to drop all records and insert string without the droptable, just in case it already exists.
+    # This way we retain the table structure
+    sqlitedeleteallrecords(database, newname)
+    insertstringdicttablelist(database, newname, data, droptable=False)
+
+
+def sqlitemovetable(database, oldname, newname):
+    sqliteduplicatetable(database, oldname, newname=newname)
+    sqlitedroptable(database, oldname)
+
+
+def sqlitedeleteallrecords(database, table):
+    sqlitequery(database, 'delete from "' + table + '"')
+
+
+def sqlitedroptable(database, table):
+    sqlitequery(database, 'drop table "' + table + '"')
+
+
+def gettablesize(databasename, tablename):
+    logsize = sqlitedatumquery(databasename, 'select count(*) from \'' + tablename + '\'')
+    return logsize
+
+
 def sizesqlitetable(databasename, tablename, size):
     logsize = sqlitedatumquery(databasename, 'select count(*) from \'' + tablename + '\'')
 
@@ -588,7 +690,7 @@ def makesinglevaluequery(table, valuename, value, condition=None):
 
 
 def readonedbrow(database, table, rownumber=0, condition=None):
-    query = 'select * from \'' + table + '\''
+    query = "select * from '" + table + "'"
     if condition:
         query += ' where ' + condition
     data = sqlitequery(database, query)
