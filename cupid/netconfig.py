@@ -51,8 +51,13 @@ def updatedhcpd(path='/etc/dhcp/dhcpd.conf', interface='wlan0', gateway='192.168
 
 
 def updatehostapd(path='/etc/hostapd/hostapd.conf', interface='wlan0'):
+
+    from iiutilities import dblib
+    from cupid import pilib
+
     try:
         apsettings = dblib.readonedbrow(pilib.dirs.dbs.safe, 'apsettings')[0]
+        print(apsettings)
         SSID = apsettings['SSID']
         password = apsettings['password']
     except:
@@ -140,6 +145,7 @@ def updatesupplicantdata(configdata):
     else:
          utility.log(pilib.dirs.logs.network, 'Read netconfig data. ', 4, pilib.loglevels.network)
 
+    wirelessauths = []
     try:
         wirelessauths = readalldbrows(pilib.dirs.dbs.safe, 'wireless')
     except:
@@ -215,10 +221,12 @@ def updatewpasupplicantOLD(interface='wlan0'):
     from iiutilities import utility
     from cupid import pilib
     # print('I AM UPDATING SUPPLICANT DATA')
+    suppdata = None
     try:
         suppdata = getwpasupplicantconfig()
     except:
         utility.log(pilib.dirs.logs.network, 'Error getting supplicant data. ', 0, pilib.loglevels.network)
+        return
     else:
         utility.log(pilib.dirs.logs.network, 'Supplicant data retrieved successfully. ', 3, pilib.loglevels.network)
 
@@ -226,6 +234,7 @@ def updatewpasupplicantOLD(interface='wlan0'):
         updateddata = updatesupplicantdata(suppdata)
     except:
         utility.log(pilib.dirs.logs.network, 'Error updating supplicant data. ', 0, pilib.loglevels.network)
+        return
     else:
         utility.log(pilib.dirs.logs.network, 'Supplicant data retrieved successfully. ', 3, pilib.loglevels.network)
 
@@ -235,6 +244,8 @@ def updatewpasupplicantOLD(interface='wlan0'):
         utility.log(pilib.dirs.logs.network, 'Error writing supplicant data. ', 0, pilib.loglevels.network)
     else:
         utility.log(pilib.dirs.logs.network, 'Supplicant data written successfully. ', 3, pilib.loglevels.network)
+
+    return
 
 
 def updatewpasupplicant(path='/etc/wpa_supplicant/wpa_supplicant.conf'):
@@ -441,6 +452,7 @@ def startapservices(interface='wlan0'):
 def setapmode(interface='wlan0', netconfig=None):
     from iiutilities import utility
     import subprocess
+    from cupid import pilib
 
     utility.log(pilib.dirs.logs.network, 'Setting ap mode for interface ' + interface, 1, pilib.loglevels.network)
     try:

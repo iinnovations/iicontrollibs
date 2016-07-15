@@ -272,6 +272,7 @@ def runpicontrol(runonce=False):
         # We do this system status again to refresh settings
         systemstatus = dblib.readalldbrows(pilib.dirs.dbs.system, 'systemstatus')[0]
 
+        # Note that these are also processed in cupiddaemon to catch things like whether this script is running
         from actions import processactions
         processactions()
 

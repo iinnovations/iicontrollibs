@@ -9,9 +9,9 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
+import inspect
 import os
 import sys
-import inspect
 
 top_folder = \
     os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
@@ -171,6 +171,10 @@ def updateiodata(database, **kwargs):
             # Does this entry already exist in inputs?
             if entryid in previnputids:
                 preventry = previnputs[previnputids.index(entryid)]
+                name = preventry['name']
+            else:
+                preventry = {}
+                name = entryid
 
             if interface['type'] == 'ratecounter':
 
@@ -196,14 +200,14 @@ def updateiodata(database, **kwargs):
                             value = adjustedrate
 
                     query = dblib.makesqliteinsert('inputs', [entryid, interface['interface'], interface['type'],
-                          interface['address'], preventry['name'], str(value), '', str(readtime),
+                          interface['address'], name, str(value), '', str(readtime),
                           str(defaultinputpollfreq), '', ''])
                     querylist.append(query)
                 else:
                     # print('BAD RATE COUNTER VALUE')
                     utility.log(pilib.dirs.logs.io, 'Rate data returned None. Beginning of data set?')
 
-            if interface['type'] in  ['value', 'formula']:
+            if interface['type'] in ['value', 'formula']:
                 """
                 At the moment, both single value and complex formula translation are done here. These may fork as
                 necessary.
@@ -244,7 +248,7 @@ def updateiodata(database, **kwargs):
                     # print("error calculating aux value")
                 else:
                     query = dblib.makesqliteinsert('inputs', [entryid, interface['interface'],
-                          interface['type'], str(interface['address']), preventry['name'], str(value), '', str(readtime),
+                          interface['type'], str(interface['address']), name, str(value), '', str(readtime),
                           str(defaultinputpollfreq), '', ''])
                     querylist.append(query)
 
@@ -509,7 +513,7 @@ def updateiodata(database, **kwargs):
 
                 if interface['type'] == 'CuPIDlights':
                     import spilights
-
+                    print('TOTALLY ENABLED')
                     spilightsentries, setlist = spilights.getCuPIDlightsentries('indicators', 0, previndicators)
                     querylist.extend(spilightsentries)
                     spilights.updatelightsfromdb(pilib.dirs.dbs.control, 'indicators', 0)
@@ -527,6 +531,7 @@ def updateiodata(database, **kwargs):
 
                     spilightsentries, setlist = spilights.getCuPIDlightsentries('indicators', 1, previndicators)
                     querylist.extend(spilightsentries)
+                    print(setlist)
                     spilights.setspilights(setlist, 1)
             else:
                 utility.log(pilib.dirs.logs.io, 'SPI1 disaabled', 1, pilib.loglevels.io)
@@ -577,7 +582,7 @@ def testupdateio(times):
 def processlabjackentry(interface, entry):
     from iiutilities.datalib import parseoptions, gettimestring
     from iiutilities import utility
-    import labjack
+    from iiutilities import labjack
     from cupid import pilib
 
     result = {'readtime':gettimestring()}

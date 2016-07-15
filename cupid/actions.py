@@ -138,9 +138,11 @@ class action:
 
         elif self.actiontype == 'indicator':
             # process indicator action
-            self.status +='Processing indicator off action.'
+            self.statusmsg +='Processing indicator off action.'
             indicatorname = self.actiondetail
-            dblib.sqlitequery(pilib.dirs.dbs.control, 'update indicators set status=0 where name = ' + indicatorname)
+            dblib.setsinglevalue(pilib.dirs.dbs.control, 'indicators', 'status', 0, 'name=\'' + indicatorname+ '\'')
+            print('INDICATORNAME = "' + indicatorname + '"')
+            # dblib.sqlitequery(pilib.dirs.dbs.control, 'update indicators set status=0 where name = ' + indicatorname)
 
         elif self.actiontype == 'output':
             self.statusmsg += 'Processing output off action. '
@@ -225,7 +227,6 @@ class action:
                 else:
                     self.statusmsg += 'Not time yet for action scheduled for ' + str(self.actiontime) + '. '
 
-
             elif self.conditiontype == 'logical':
 
                 # dbpath = pilib.dbnametopath(self.database)
@@ -284,7 +285,7 @@ class action:
                 if self.status:
                     self.statusmsg += 'Last status is true. Currstatus is ' + str(currstatus) + '. '
                 else:
-                    self.statusmsg += 'Last status is not true. Currstatus is ' + str(currstatus) + '. '
+                    self.statusmsg += 'Last status is false. Currstatus is ' + str(currstatus) + '. '
 
                 currenttime = datalib.gettimestring()
 
