@@ -13,7 +13,8 @@ def application(environ, start_response):
         sys.path.insert(0, top_folder)
 
     import inventorylib
-    from iiutilities import dblib
+    from iiutilities import dblib, datalib
+    from iiutilities.utility import unmangleAPIdata
     from time import time
 
     post_env = environ.copy()
@@ -37,8 +38,11 @@ def application(environ, start_response):
     output['data'] = []
     output['message'] = ''
 
-    d = inventorylib.unmangleAPIdata(d)
-
+    print('original')
+    print(d)
+    d = unmangleAPIdata(d)
+    print('unmanged')
+    print(d)
 
     # Here we verify credentials of session data against those in the database.
     # While we authenticate in the browser, this does not stop POST queries to the API without the page provided
@@ -58,7 +62,6 @@ def application(environ, start_response):
         # Verfiy that session login information is legit: hashed password, with salt and username, match
         # hash stored in database.
         import hashlib
-        from iiutilities import datalib, dblib
 
         if 'sessionuser' in d:
             output['message'] += 'Session user is ' + d['sessionuser'] + '. '
@@ -155,6 +158,16 @@ def application(environ, start_response):
             elif action == 'addeditorderpart':
                 output['message'] += 'addeditorderpart keyword found. '
                 output = inventorylib.addeditpartlist(d, output)
+                inventorylib.makeordermetadata()
+                inventorylib.calcstockfromall()
+            elif action == 'addeditorderparts':
+                output['message'] += 'addeditorderparts keyword found. '
+                if 'partsdata' in d:
+                    print(d)
+                    # Just send through once for each additional part
+                    for partdata in d['partsdata']:
+                        d['partdata'] = partdata
+                        output = inventorylib.addeditpartlist(d, output)
                 inventorylib.makeordermetadata()
                 inventorylib.calcstockfromall()
             elif action == 'deletepartsfromorder':

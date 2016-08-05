@@ -9,9 +9,9 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
+import inspect
 import os
 import sys
-import inspect
 
 top_folder = os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
 if top_folder not in sys.path:
@@ -20,11 +20,11 @@ if top_folder not in sys.path:
 
 # File operations
 
-def csvfiletoarray(filename):
+def delimitedfiletoarray(filename, delimiter=','):
     import csv
 
-    with open(filename, 'rU') as csvfile:
-        data = csv.reader(csvfile, delimiter=',')
+    with open(filename, 'rU') as delimitedfile:
+        data = csv.reader(delimitedfile, delimiter=delimiter)
         array = []
         try:
             for row in data:
@@ -43,16 +43,17 @@ def datawithheaderstodictarray(dataarray, headerrows=1, strip=True, keystolowerc
 
     dictarray = []
     for i in range(headerrows, len(dataarray)):
-        dict = {}
+        datadict = {}
         for j in range(0, len(dataarray[0])):
             if strip:
                 dataarray[i][j]=dataarray[i][j].strip()
-            if keystolowercase:
-                dict[dataarray[0][j].lower()] = dataarray[i][j]
-            else:
-                dataarray[i][j]=dataarray[i][j].lower()
 
-        dictarray.append(dict)
+            if keystolowercase:
+                datadict[dataarray[0][j].lower()] = dataarray[i][j]
+            else:
+                datadict[dataarray[0][j]] = dataarray[i][j]
+
+        dictarray.append(datadict)
 
     return dictarray
 
@@ -74,14 +75,6 @@ def parseoptions(optionstring):
         except:
             pass
     return optionsdict
-
-
-def dicttojson(dict):
-    jsonentry = ''
-    for key, value in dict.iteritems():
-        jsonentry += key + ':' + str(value).replace('\x00','') + ','
-    jsonentry = jsonentry[:-1]
-    return jsonentry
 
 
 def gettimestring(timeinseconds=None):

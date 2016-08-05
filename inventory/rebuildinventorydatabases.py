@@ -48,7 +48,7 @@ def rebuildsafedb(tabledict={'usermeta':True, 'users':True, 'pathaliases':True})
         if createentries:
             querylist.append("insert into " + table + " values('creese','pathalias:iiinventory')")
             querylist.append("insert into " + table + " values('demo','pathalias:demo')")
-            querylist.append("insert into " + table + " values('iwalker','pathalias:demo')")
+            querylist.append("insert into " + table + " values('iwalker','pathalias:isaac')")
             querylist.append("insert into " + table + " values('mbertram','pathalias:demo')")
 
         try:
@@ -163,31 +163,31 @@ def rebuildstockdb(tablelist=None):
             "description text default '', qtyunit text default 'each', qtystock real default 0, qtyonorder real default 0," +
             "qtyreserved real default 0, qtyavailable real default 0, qtystatus text default '', cost real default 0," +
             "stockcost real default 0, onordercost real default 0, totalcost real default 0," +
-            "stockprice real default 0, onorderprice default 0, totalprice real default 0," +
+            "stockprice real default 0, onorderprice real default 0, totalprice real default 0," +
             "costqty real default 1, costqtyunit text default 'each', supplier text default '', " +
             "supplierpart text default '', manufacturer text default '', manufacturerpart text default '', " +
             "notes text default '', partdata text default '', datasheet text default '', inuse integer default 1, datecreated text default '', " +
             "createdby text default '', inventory integer text default 'std', minqty text default 0, type text default parts," +
-            "marginmethod text default 'type', margin real default 0 )")
+            "marginmethod text default 'type', margin real default 0, price real default 0 )")
 
         if addentries:
             querylist.append("insert into " + table + " values ('A001', 'active', 'WIEGMANN 12x12x6', 'each', 1, 1, 1, \
             0, '', 149.97, 0,0,0,0,0,0,1, 'each', \
             'Cascade Controls', 'N412121206C', 'Wiegmann', 'N412121206C', '', '', '', 1, '" + thetime + "', 'CCR', \
-            'std', 0, 'parts', 'type', 0)")
+            'std', 0, 'parts', 'type', 0, 0)")
             querylist.append("insert into " + table + " values ('A002', 'active', 'WIEGMANN 16x16x6', 'each', 1, 1, 2, \
             0, '', 172, 0,0,0,0,0,0,1, 'each', \
             'Cascade Controls', 'N412121206C', 'Wiegmann', 'N412121206C', '', '', '', 1, '" + thetime + "', 'CCR', \
-            'std', 0, 'parts', 'type', 0)")
+            'std', 0, 'parts', 'type', 0, 0)")
             querylist.append("insert into " + table + " values ('A003', 'active', 'WIEGMANN 20x20x6', 'each', 1, 1, 2, \
             0, '', 204, 0,0,0,0,0,0,1, 'each', \
-            'Cascade Controls', 'N412121206C', 'Wiegmann', 'N412121206C', '', '', '', 1, '" + thetime + "', 'CCR', 'std', 0, 'parts', 'type', 0)")
+            'Cascade Controls', 'N412121206C', 'Wiegmann', 'N412121206C', '', '', '', 1, '" + thetime + "', 'CCR', 'std', 0, 'parts', 'type', 0, 0)")
             querylist.append("insert into " + table + " values ('A004', 'active', 'WIEGMANN 20x24x6', 'each', 1, 1, 2,\
              0,'',  233, 0,0,0,0,0,0,1, 'each', \
-            'Cascade Controls', 'N412121206C', 'Wiegmann', 'N412121206C', '', '', '', 1, '" + thetime + "', 'CCR', 'std', 0, 'parts', 'type', 0)")
+            'Cascade Controls', 'N412121206C', 'Wiegmann', 'N412121206C', '', '', '', 1, '" + thetime + "', 'CCR', 'std', 0, 'parts', 'type', 0, 0)")
             querylist.append("insert into " + table + " values ('L001', 'active', 'Shop Labor', 'hour', 1, 1, 2,\
              0, '', 42, 0,0,0,0,0,0,1, 'hour', \
-            '', '', '', '', '', '', '', 1, '" + thetime + "', 'CCR', 'std', 0, 'labor', 'type', 0)")
+            '', '', '', '', '', '', '', 1, '" + thetime + "', 'CCR', 'std', 0, 'labor', 'type', 0, 0)")
 
     print(querylist)
     print(dbpath)
@@ -261,25 +261,21 @@ We will also have a metadata \table
 """
 Inventories
 
-Tablename will be timestring format date
-
-Table will be partid text, qty real
+<< see inventorylib for table structures >>
 
 """
 
 """
 Orders
 
-Tablename will be timestring + '_' + name
-
-Table will be partid, qty real, price real, vendor text
+<< see inventorylib for table structures >>
 
 """
 
 """
 Assemblies
 
-Same as BOMS, but with an 'executed' field in the metadata, maybe 'executedtime'
+<< see inventorylib for table structures >>
 
 """
 

@@ -40,6 +40,8 @@ sysvars.dirs.dbs.authlog = sysvars.dirs.safedataroot + 'authlog.db'
 sysvars.dirs.defaultdataroot = '/var/www/html/inventory/data/iiinventory/'
 
 sysvars.dirs.dataroot = sysvars.dirs.defaultdataroot
+sysvars.dirs.download = sysvars.dirs.dataroot + 'download/'
+
 sysvars.dirs.dbs.system = sysvars.dirs.dataroot + 'system.db'
 sysvars.dirs.dbs.stock = sysvars.dirs.dataroot + 'stock.db'
 sysvars.dirs.dbs.boms = sysvars.dirs.dataroot + 'boms.db'
@@ -170,45 +172,31 @@ def dbnametopath(friendlyname):
     return path
 
 
-def unmangleAPIdata(d):
+def exportbomtopdf(**kwargs):
+    output = {'message':'', 'status':0}
+    if 'bomname' not in kwargs:
+        output['message'] += 'No bomname in arguments. Exiting. '
+        return output
 
-    """
-    Objects come through as arrays with string indices
-    myobject = {propertyone:'value1', propertytwo:'value2'}
-
-    will come through as:
-
-    {myobject[propertyone]:'value1', myobject[propertytwo]:'value2'}
-
-    Arrays also come in a bit funny. An array such as:
-
-    myarray = ['stuff', 'things', 'otherthings'] comes through as:
-    myarray[] = ['stuff','things','otherthings']
-
-    Strangely, if an array only has one element, it comes through as myarray, not myarray[]. So if we must use arrays,
-    we typically push a sacrificial element to ensure they come through correctly. Now, however, because we are going
-    to prune off the '[]', we can test for type. If we don't find an array, we can put it into one.
-    """
-
-    unmangled = {}
-    for key, value in d.iteritems():
-        # print(key) + ': ' + str(value)
-        if key.find('[]') > 0:
-            # prune off '[]'
-            if isinstance(value,list):
-                unmangled[key[:-2]]=value
-            else:
-                unmangled[key[:-2]]=[value]
-        elif key.find('[') > 0 and key.find(']') > 0:
-            objname = key.split('[')[0]
-            objkey = key.split('[')[1].split(']')[0]
-            if objname in unmangled:
-                unmangled[objname][objkey] = value
-            else:
-                unmangled[objname] = {objkey:value}
+    fields = ['partid','qty','description']
+    if 'fields' in kwargs:
+        fields = kwargs['fields']
+    from iiutilities import utility
+    try:
+        pdfreturn = utility.writetabletopdf(**{'database':sysvars.dirs.dbs.boms, 'tablename':kwargs['bomname'],
+                                               'outputfile':sysvars.dirs.download + kwargs['bomname'] + '.pdf', 'fields':fields})
+    except:
+        output['message'] += 'Uncaught error in make pdf routine. '
+        output['status'] = 1
+        return output
+    else:
+        if pdfreturn['status']:
+            output['message'] += 'Caught error in write pdf: "' + pdfreturn['message'] + '". '
+            return output
         else:
-            unmangled[key]=value
-    return unmangled
+            output['message'] += 'That seemed to work out. '
+
+    return output
 
 
 """
@@ -517,6 +505,7 @@ def addeditpartlist(d, output={'message':''}):
         try:
             stockpart = dblib.readonedbrow(stockdb, 'stock', condition="partid='" + d['partdata']['partid'] + "'")[0]
         except:
+            stockpart = None
             pass
             # print('error in stockpart result')
 
@@ -1093,93 +1082,96 @@ def calcstockfromall(inventoriesdatabase=sysvars.dirs.dbs.inventories,
 
     allitems = []
 
-    print('** Inventories')
+    # print('** Inventories')
     inventorytables.sort()
     for inventorytable in inventorytables:
         # Date is in metadata table
         if inventorytable == 'metadata':
             continue
 
-        print(inventorytable)
+        # print(inventorytable)
 
         try:
             metaentry = dblib.readonedbrow(inventoriesdatabase, 'metadata', condition="name='" + inventorytable + "'")[0]
         except:
-            print('NO METAENTRY. OOPS')
+            # print('NO METAENTRY. OOPS')
+            pass
         else:
             # inventory has been executed and should be reviewed
             if metaentry['executed']:
-                print('executed')
+                # print('executed')
                 inventoryitems = dblib.readalldbrows(inventoriesdatabase, inventorytable)
 
                 for inventoryitem in inventoryitems:
-                    print('received: ' + inventoryitem['partid'])
+                    # print('received: ' + inventoryitem['partid'])
                     summaryitem = {'date':metaentry['executed'], 'partid':inventoryitem['partid'], 'qtystock': inventoryitem['qtystock'], 'mode':'inventory'}
                     allitems.append(summaryitem)
 
-    print('** Orders')
+    # print('** Orders')
     orderstables.sort()
     for orderstable in orderstables:
         # Date is in metadata table
         if orderstable == 'metadata':
             continue
 
-        print(orderstable)
+        # print(orderstable)
 
         try:
             metaentry = dblib.readonedbrow(ordersdatabase, 'metadata', condition="name='" + orderstable + "'")[0]
         except:
-            print('NO METAENTRY. OOPS')
+            pass
+            # print('NO METAENTRY. OOPS')
         else:
             # order has been executed and should be reviewed
             if metaentry['executed']:
-                print('executed')
+                # print('executed')
                 orderitems = dblib.readalldbrows(ordersdatabase, orderstable)
 
                 for orderitem in orderitems:
                     if orderitem['received']:
                         # Denote as received into stock
-                        print('received: ' + orderitem['partid'])
+                        # print('received: ' + orderitem['partid'])
                         summaryitem = {'date':orderitem['received'], 'partid':orderitem['partid'], 'qtystock': orderitem['qty'], 'mode':'change'}
                         allitems.append(summaryitem)
                     else:
                         # Denote as on order
-                        print('reservedd: ' + orderitem['partid'])
+                        # print('reserved: ' + orderitem['partid'])
                         summaryitem = {'date':orderitem['received'], 'partid':orderitem['partid'], 'qtyonorder': orderitem['qty'], 'mode':'change'}
                         allitems.append(summaryitem)
     
     
-    print('** Assemblies')
+    # print('** Assemblies')
     assembliestables.sort()
     for assembliestable in assembliestables:
         # Date is in metadata table
         if assembliestable == 'metadata':
             continue
 
-        print(assembliestable)
+        # print(assembliestable)
 
         try:
             metaentry = dblib.readonedbrow(assembliesdatabase, 'metadata', condition="name='" + assembliestable + "'")[0]
         except:
-            print('NO METAENTRY. OOPS')
+            pass
+            # print('NO METAENTRY. OOPS')
         else:
             # order has been executed and should be reviewed
             if metaentry['executed']:
-                print('executed')
+                # print('executed')
                 orderitems = dblib.readalldbrows(assembliesdatabase, assembliestable)
 
                 for orderitem in orderitems:
                     # Denote as taking out of stock
-                    print('executed: ' + orderitem['partid'])
-                    summaryitem = {'date':metaentry['executed'], 'partid':orderitem['partid'], 'qtystock': -1 * float(orderitem['qty']), 'mode':'change'}
+                    # print('executed: ' + orderitem['partid'])
+                    # summaryitem = {'date':metaentry['executed'], 'partid':orderitem['partid'], 'qtystock': -1 * float(orderitem['qty']), 'mode':'change'}
                     allitems.append(summaryitem)
             elif metaentry['reserved']:
-                print('reserved')
+                # print('reserved')
                 orderitems = dblib.readalldbrows(assembliesdatabase, assembliestable)
 
                 for orderitem in orderitems:
                     # Denote as taking out of stock
-                    print('reserved: ' + orderitem['partid'])
+                    # print('reserved: ' + orderitem['partid'])
                     summaryitem = {'date':metaentry['reserved'], 'partid':orderitem['partid'], 'qtyreserved': orderitem['qty'], 'mode':'change'}
                     allitems.append(summaryitem)
 
@@ -1214,7 +1206,8 @@ def calcstockfromall(inventoriesdatabase=sysvars.dirs.dbs.inventories,
 
                 if not partexists:
                     if element['mode'] == 'change':
-                        print('warning: assigning part qty from change before inventory')
+                        pass
+                        # print('warning: assigning part qty from change before inventory')
 
                     # This will be the typical new item inventory add here.
                     newstockparts.append({'valuename':elementtype,'partid':element['partid'],'value':element[elementtype]})
@@ -1223,7 +1216,7 @@ def calcstockfromall(inventoriesdatabase=sysvars.dirs.dbs.inventories,
                 else:
                     if not valueexists:
                         # This will be for adding a new vaue to an existing part, e.g. onorder to a qtystock item
-                        print('part exists but value does not. Setting new value. ')
+                        # print('part exists but value does not. Setting new value. ')
                         newstockparts[existingindex][elementtype] = element[elementtype]
 
                     else:
@@ -1247,7 +1240,7 @@ def calcstockfromall(inventoriesdatabase=sysvars.dirs.dbs.inventories,
     dblib.sqlitemultquery(stockdatabase, queries)
 
     elapsedtime = datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(starttime)
-    print('Elapsed time: ' + str(elapsedtime))
+    # print('Elapsed time: ' + str(elapsedtime))
     recalcpartdata(**{'stock':''})
 
     return queries
@@ -2238,7 +2231,8 @@ def createneworder(d, output={'message':''}):
             # metadata was not in there (?!)
 
     if existingorders:
-        existingorders.sort()
+        existingorders.sort(key=float)
+        print(existingorders)
         newordername = int(existingorders[-1])+1
     else:
         newordername=1
