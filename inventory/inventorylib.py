@@ -552,7 +552,7 @@ def addeditpartlist(d, output={'message':''}):
         newpart = {'partid': orderpart['partid']}
         matchpart = False
         if orderpart['partid'] == d['partdata']['partid']:
-            output['message'] += 'Part ' + orderpart['partid'] + ' / ' + d['partdata']['partid'] + ' was found in Order. '
+            output['message'] += 'Part ' + orderpart['partid'] + ' / ' + d['partdata']['partid'] + ' was found. '
             matchpart = True
             partexists = True
 
@@ -1140,14 +1140,12 @@ def calcstockfromall(inventoriesdatabase=sysvars.dirs.dbs.inventories,
                         allitems.append(summaryitem)
     
     
-    # print('** Assemblies')
+    print('** Assemblies')
     assembliestables.sort()
     for assembliestable in assembliestables:
         # Date is in metadata table
         if assembliestable == 'metadata':
             continue
-
-        # print(assembliestable)
 
         try:
             metaentry = dblib.readonedbrow(assembliesdatabase, 'metadata', condition="name='" + assembliestable + "'")[0]
@@ -1157,13 +1155,13 @@ def calcstockfromall(inventoriesdatabase=sysvars.dirs.dbs.inventories,
         else:
             # order has been executed and should be reviewed
             if metaentry['executed']:
-                # print('executed')
+                print('executed')
                 orderitems = dblib.readalldbrows(assembliesdatabase, assembliestable)
 
                 for orderitem in orderitems:
                     # Denote as taking out of stock
                     # print('executed: ' + orderitem['partid'])
-                    # summaryitem = {'date':metaentry['executed'], 'partid':orderitem['partid'], 'qtystock': -1 * float(orderitem['qty']), 'mode':'change'}
+                    summaryitem = {'date':metaentry['executed'], 'partid':orderitem['partid'], 'qtystock': -1 * float(orderitem['qty']), 'mode':'change'}
                     allitems.append(summaryitem)
             elif metaentry['reserved']:
                 # print('reserved')
@@ -1187,43 +1185,50 @@ def calcstockfromall(inventoriesdatabase=sysvars.dirs.dbs.inventories,
 
     # keep an index handy
     newstockpartids = []
-    elementtypes =  ['qtystock', 'qtyreserved', 'qtyonorder']
+    elementtypes = ['qtystock', 'qtyreserved', 'qtyonorder']
     for element in orderedlist:
         for elementtype in elementtypes:
             if elementtype in element:
                 # print(elementtype)
                 # print(element)
-                if element['partid'] not in newstockpartids:
-                    # If not already exists, set to value of change (assume previous quantity was zero)
-                    valueexists = False
-                    partexists = False
-                    if element['partid'] in newstockpartids:
-                        partexists = True
-                        existingindex = newstockpartids.index(element['partid'])
-                        existingelement = newstockparts[existingindex]
-                        if elementtype in existingelement:
-                            valueexists = True
+                valueexists = False
+                partexists = False
+                if element['partid'] in newstockpartids:
+                    partexists = True
+                    # print('part exists')
+                    existingindex = newstockpartids.index(element['partid'])
+                    existingelement = newstockparts[existingindex]
+                    # print(existingelement)
+
+                    # So we can have an element exist without the value type we are attempting to modify here.
+                    if elementtype in existingelement:
+                        valueexists = True
 
                 if not partexists:
                     if element['mode'] == 'change':
                         pass
-                        # print('warning: assigning part qty from change before inventory')
+                        # print('warning: assigning part qty from change before inventory on item ' + element['partid'])
 
                     # This will be the typical new item inventory add here.
-                    newstockparts.append({'valuename':elementtype,'partid':element['partid'],'value':element[elementtype]})
+                    newstockparts.append({'partid':element['partid'], elementtype:element[elementtype]})
                     newstockpartids.append(element['partid'])
 
                 else:
-                    if not valueexists:
+                    if valueexists:
+                        if element['mode'] == 'change':
+                            # print('changing existing value for part ' + element['partid'])
+                            # print('old value: ' + str(newstockparts[existingindex][elementtype]))
+                            newstockparts[existingindex][elementtype] = float(newstockparts[existingindex][elementtype]) + float(element[elementtype])
+                            # print('new value: ' + str(newstockparts[existingindex][elementtype]))
+
+                        elif element['mode'] == 'inventory':
+                            newstockparts[existingindex][elementtype] = float(element[elementtype])
+
+                    else:
+                        print('value does not exist for part ' + element['partid'])
                         # This will be for adding a new vaue to an existing part, e.g. onorder to a qtystock item
                         # print('part exists but value does not. Setting new value. ')
                         newstockparts[existingindex][elementtype] = element[elementtype]
-
-                    else:
-                        if element['mode'] == 'change':
-                            newstockparts[existingindex][elementtype] = float(newstockparts[existingindex][elementtype]) + float(element[elementtype])
-                        elif element['mode'] == 'inventory':
-                            newstockparts[existingindex][elementtype] = float(element[elementtype])
 
 
     # print(newstockparts)
@@ -1235,7 +1240,9 @@ def calcstockfromall(inventoriesdatabase=sysvars.dirs.dbs.inventories,
     queries.append('update stock set qtystock=0')
     queries.append('update stock set qtyonorder=0')
     for part in newstockparts:
-        queries.append(dblib.makesinglevaluequery('stock', part['valuename'], str(part['value']), condition="partid='" + part['partid'] + "'"))
+        for elementtype in elementtypes:
+            if elementtype in part:
+                queries.append(dblib.makesinglevaluequery('stock', elementtype, str(part[elementtype]), condition="partid='" + part['partid'] + "'"))
 
     dblib.sqlitemultquery(stockdatabase, queries)
 
@@ -1305,7 +1312,7 @@ def importstockfromcsv(filename, database=sysvars.dirs.dbs.stock):
         return None
 
     # Read csv datamap file
-    datamapdictarray = datalib.datawithheaderstodictarray(datalib.csvfiletoarray(filename), 1, keystolowercase=True)
+    datamapdictarray = datalib.datawithheaderstodictarray(datalib.delimitedfiletoarray(filename), 1, keystolowercase=True)
 
     requiredkeys = ['partid', 'description']
     # iterate over header to make sure key quantities are found
@@ -1341,12 +1348,128 @@ def importstockfromcsv(filename, database=sysvars.dirs.dbs.stock):
     print(str(len(insertarray)) + ' items prepared for insertion from ' + str(len(datamapdictarray)))
 
     for insert in insertarray:
-        result = dblib.insertstringdicttablelist(sysvars.dirs.dbs.stock, 'stock', [insert], droptable=False)
+        result = dblib.insertstringdicttablelist(database, 'stock', [insert], droptable=False)
         if result['status']:
             # print('error on entry: ' + str(insertarray.index(insert)))
             # print(result['query'])
             # print(result['tb'])
             return
+
+
+def updatepartnumbersfromcsv(filename, database=sysvars.dirs.dbs.stock):
+
+    from iiutilities import datalib, dblib
+    if not filename:
+        # print('no file selected')
+        return None
+
+    # Read csv datamap file
+    datamapdictarray = datalib.datawithheaderstodictarray(datalib.delimitedfiletoarray(filename), 1, keystolowercase=True)
+
+    if 'partid' in datamapdictarray[0] and 'manufacturerpart' in datamapdictarray[0]:
+        print('fields found')
+    else:
+        return None
+
+    subarray = []
+    for dict in datamapdictarray:
+        if dict['partid'] and dict['manufacturerpart']:
+            subarray.append({'partid':dict['partid'], 'manufacturerpart':dict['manufacturerpart']})
+
+    print(subarray)
+    print(database)
+
+    querylist=[]
+    for sub in subarray:
+        condition = "partid='" + sub['partid'] +"'"
+        print(condition)
+        print(sub['manufacturerpart'])
+        query = dblib.makesinglevaluequery('stock', 'manufacturerpart', sub['manufacturerpart'], condition=condition)
+        try:
+            dblib.sqlitequery(database, query)
+            print(query)
+        except:
+            print('Error with query:')
+            print(query)
+
+    for sub in subarray:
+        condition = "partid='" + sub['partid'] +"'"
+        print(condition)
+        print(sub['manufacturerpart'])
+        query = dblib.makesinglevaluequery('stock', 'supplierpart', sub['manufacturerpart'], condition=condition)
+        try:
+            dblib.sqlitequery(database, query)
+            print(query)
+        except:
+            print('Error with query:')
+            print(query)
+
+    print('*** BOMS')
+    bomnames=dblib.gettablenames(sysvars.dirs.dbs.boms)
+    for bomname in bomnames:
+        for sub in subarray:
+            condition = "partid='" + sub['partid'] +"'"
+            print(condition)
+            print(sub['manufacturerpart'])
+            query = dblib.makesinglevaluequery(bomname, 'manufacturerpart', sub['manufacturerpart'], condition=condition)
+            try:
+                dblib.sqlitequery(sysvars.dirs.dbs.boms, query)
+                print(query)
+            except:
+                print('Error with query:')
+                print(query)
+
+            query = dblib.makesinglevaluequery(bomname, 'supplierpart', sub['manufacturerpart'], condition=condition)
+            try:
+                dblib.sqlitequery(sysvars.dirs.dbs.boms, query)
+                print(query)
+            except:
+                print('Error with query:')
+                print(query)
+
+    print('*** ASSEMBLIES')
+    assemblynames=dblib.gettablenames(sysvars.dirs.dbs.assemblies)
+    for assemblyname in assemblynames:
+        for sub in subarray:
+            condition = "partid='" + sub['partid'] +"'"
+            print(condition)
+            print(sub['manufacturerpart'])
+            query = dblib.makesinglevaluequery(assemblyname, 'manufacturerpart', sub['manufacturerpart'], condition=condition)
+            try:
+                dblib.sqlitequery(sysvars.dirs.dbs.assemblies, query)
+                print(query)
+            except:
+                print('Error with query:')
+                print(query)
+            query = dblib.makesinglevaluequery(assemblyname, 'supplierpart', sub['manufacturerpart'], condition=condition)
+            try:
+                dblib.sqlitequery(sysvars.dirs.dbs.assemblies, query)
+                print(query)
+            except:
+                print('Error with query:')
+                print(query)
+
+    print('*** ORDERS')
+    ordernames=dblib.gettablenames(sysvars.dirs.dbs.orders)
+    for ordername in ordernames:
+        for sub in subarray:
+            condition = "partid='" + sub['partid'] +"'"
+            print(condition)
+            print(sub['manufacturerpart'])
+            query = dblib.makesinglevaluequery(ordername, 'manufacturerpart', sub['manufacturerpart'], condition=condition)
+            try:
+                dblib.sqlitequery(sysvars.dirs.dbs.orders, query)
+                print(query)
+            except:
+                print('Error with query:')
+                print(query)
+            query = dblib.makesinglevaluequery(ordername, 'supplierpart', sub['manufacturerpart'], condition=condition)
+            try:
+                dblib.sqlitequery(sysvars.dirs.dbs.orders, query)
+                print(query)
+            except:
+                print('Error with query:')
+                print(query)
 
 
 def createinventoryfromcsv(filename, database=sysvars.dirs.dbs.inventories):
@@ -1357,7 +1480,7 @@ def createinventoryfromcsv(filename, database=sysvars.dirs.dbs.inventories):
         return None
 
     # Read csv datamap file
-    datamapdictarray = datalib.datawithheaderstodictarray(datalib.csvfiletoarray(filename), 1, keystolowercase=True)
+    datamapdictarray = datalib.datawithheaderstodictarray(datalib.delimitedfiletoarray(filename), 1, keystolowercase=True)
 
     requiredkeys = ['partid', 'qtystock']
     # iterate over header to make sure key quantities are found
@@ -2010,7 +2133,51 @@ def copyassembly(d, output={'message': ''}):
 
     # Update metadata
     condition = "name='"+ d['assemblyname'] + "'"
-    dblib.setsinglevalue(database, 'metadata', 'modifieddata', datalib.gettimestring(), condition)
+    dblib.setsinglevalue(database, 'metadata', 'modifieddate', datalib.gettimestring(), condition)
+
+    return output
+
+
+def copybomintoassembly(d, output={'message': ''}):
+
+    from iiutilities import dblib, datalib
+
+    # In here we should test to see if the request is valid. First, let us make sure we have all the required
+    # fields we need:
+    # partid, description, manufacturer, manufacturerpart
+
+    bomsdatabase = sysvars.dirs.dbs.boms
+    assembliesdatabase = sysvars.dirs.dbs.assemblies
+
+    if 'assemblyname' in d:
+        output['message'] += 'assemblyname ' + d['assemblyname'] + ' found. '
+    else:
+        output['message'] += 'No bomname found in copy request dictionary. '
+        return output
+
+    if 'bomname' in d:
+        output['message'] += 'bomname ' + d['bomname'] + ' found. '
+    else:
+        output['message'] += 'No bomname found in copy request dictionary. '
+        return output
+
+    # Get items and then use our generic insert function
+    bomitems = dblib.readalldbrows(bomsdatabase, d['bomname'])
+    # try:
+    print(bomitems)
+    for item in bomitems:
+        # This needs to be sped up. Simplest way is to make the function below accept a list of parts.
+        # Also, too much error-handling in function below makes it very slow.
+
+        output = addeditpartlist({'assemblyname':d['assemblyname'], 'partdata':item }, output)
+    # except:
+    #     output['message'] += 'Error inserting part data. '
+    # else:
+    #     output['message'] += 'Query appears to have been successful. '
+
+    # Update metadata
+    condition = "name='"+ d['assemblyname'] + "'"
+    dblib.setsinglevalue(assembliesdatabase, 'metadata', 'modifieddate', datalib.gettimestring(), condition)
 
     return output
 

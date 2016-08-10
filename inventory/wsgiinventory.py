@@ -206,6 +206,10 @@ def application(environ, start_response):
                 output['message'] += 'copyassembly keyword found. '
                 output = inventorylib.copyassembly(d, output)
                 inventorylib.makeassemblymetadata()
+            elif action == 'copybomintoassembly':
+                output['message'] += 'copybomintoassembly keyword found. '
+                output = inventorylib.copybomintoassembly(d, output)
+                inventorylib.makeassemblymetadata()
             elif action == 'addeditassembly':
                 output['message'] += 'addeditassembly keyword found. '
                 output = inventorylib.addeditassembly(d, output)
