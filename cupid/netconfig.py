@@ -89,6 +89,22 @@ def setdefaultapsettings():
     rebuildapdata(SSID=networkname, password=networkpassword)
 
 
+def updatewirelessnetworks(interface='wlan0'):
+    from iiutilities.netfun import getwirelessnetworks
+    from iiutilities.utility import dicttojson
+    from iiutilities.dblib import dropcreatetexttablefromdict
+    from pilib import dirs
+
+    networks = getwirelessnetworks(interface)
+    netinsert = []
+    for network in networks:
+        print(network)
+        netinsert.append({'ssid':network['ssid'],'strength':network['signallevel'], 'data':dicttojson(network)})
+
+    dropcreatetexttablefromdict(dirs.dbs.system, 'wirelessnetworks', netinsert)
+    return networks
+
+
 # This have no use anymore
 def getwpasupplicantconfig(conffile='/etc/wpa_supplicant/wpa_supplicant.conf'):
     from iiutilities import utility
@@ -248,11 +264,37 @@ def updatewpasupplicantOLD(interface='wlan0'):
     return
 
 
-def updatewpasupplicant(path='/etc/wpa_supplicant/wpa_supplicant.conf'):
+# This function should be renamed or refactored. Update wpasupplicant should just write the file.
+# This function does so much more.
+
+def updatewpasupplicant(path='/etc/wpa_supplicant/wpa_supplicant.conf', netconfig=None):
     from cupid import pilib
     from iiutilities import dblib
     from iiutilities import utility
-    netconfig = dblib.readonedbrow(pilib.dirs.dbs.system, 'netconfig')[0]
+
+    if not netconfig:
+        netconfig = dblib.readonedbrow(pilib.dirs.dbs.system, 'netconfig')[0]
+
+    if netconfig['mode'] in ['wlan1wlan0bridge']:
+        stationinterface = 'wlan1'
+    else:
+        stationinterface = 'wlan0'
+
+
+    # Update networks to see what is available to attach to
+
+    networks = updatewirelessnetworks(stationinterface)
+    availablessids = []
+    for network in networks:
+        availablessids.append(network['ssid'])
+
+
+    # Check to see if netconfig wireless network is in existing networks. If not, switch to one with either highest
+    # priority (with minimum signal strength, or to the one with the best signal.
+
+    # TODO : make provision for moving on to the next network if we have multiple options and one isn't working out
+    # At first pass, this could be as simple as checking the last SSID and trying the other one
+
 
     try:
         wirelessauths = dblib.readalldbrows(pilib.dirs.dbs.safe, 'wireless')
@@ -261,35 +303,67 @@ def updatewpasupplicant(path='/etc/wpa_supplicant/wpa_supplicant.conf'):
     else:
          utility.log(pilib.dirs.logs.network, 'Read wireless data. ', 4, pilib.loglevels.network)
 
+    authssids = []
+    for auth in wirelessauths:
+        authssids.append(auth['SSID'])
+
+    # Get paired lists of networks and auths that match
+    matchnetworks = []
+    matchauths = []
+    for ssid in availablessids:
+        if ssid in authssids:
+            availablessidsindex = availablessids.index(ssid)
+            matchnetworks.append(networks[availablessidsindex])
+
+            authindex = authssids.index(ssid)
+            matchauths.append(wirelessauths[authindex])
+
+    # So now the matchnetworks are available and we have credentials for them
+    print('*** AVAILABLE NETWORKS ***')
+    print(matchnetworks)
+
     psk = ''
     ssid = ''
+    if len(matchnetworks) > 0:
+        utility.log(pilib.dirs.logs.network, str(len(matchnetworks)) + ' matching networks found. ', 1, pilib.loglevels.network)
 
-    # we only update if we find the credentials
-    try:
-        ssid = netconfig['SSID']
-    except KeyError:
-        utility.log(pilib.dirs.logs.network, 'No SSID found in netconfig. Finding first in wireless', 1, pilib.loglevels.system)
-        # try to attach to first network by setting SSID to first network in wireless auths
-        # this can help alleviate some headaches down the line, hopefully. What should really be done is a
-        # network scan to see which are available
+        if len(matchnetworks) > 1:
+            # TODO: Choosing network algorithm
+            newnetwork = matchnetworks[0]
+            newauth = matchauths[0]
+        else:
+            newnetwork = matchnetworks[0]
+            newauth = matchauths[0]
 
-        wirelessauths = dblib.readalldbrows(pilib.dirs.dbs.safe, 'wireless')
+        utility.log(pilib.dirs.logs.network, 'Network "' + newnetwork['ssid'] + '" selected', 1, pilib.loglevels.network)
 
-        try:
-            defaultauths = wirelessauths[0]
-            currssid = defaultauths['SSID']
-        except:
-            utility.log(pilib.dirs.logs.system, 'No SSID in wireless table to default to. ', 1, pilib.loglevels.system)
+        netconfig['SSID'] = newnetwork['ssid']
+        ssid = newnetwork['ssid']
+        psk = newauth['password']
+
+        dblib.setsinglevalue(pilib.dirs.dbs.system, 'netconfig', 'SSID', newnetwork['ssid'])
+
+        # print(' Chosen SSID: ' + ssid)
+        # print(' Chosen PSK: ' + psk)
+
+    # # we only update if we find the credentials
+    # try:
+    #     ssid = netconfig['SSID']
+    # except KeyError:
+    #     utility.log(pilib.dirs.logs.network, 'No SSID found in netconfig', 1, pilib.loglevels.system)
+    #     # try to attach to first network by setting SSID to first network in wireless auths
+    #     # this can help alleviate some headaches down the line, hopefully. What should really be done is a
+    #     # network scan to see which are available
+    #
+    #     wirelessauths = dblib.readalldbrows(pilib.dirs.dbs.safe, 'wireless')
+    #
+    #     try:
+    #         defaultauths = wirelessauths[0]
+    #         currssid = defaultauths['SSID']
+    #     except:
+    #         utility.log(pilib.dirs.logs.system, 'No SSID in wireless table to default to. ', 1, pilib.loglevels.system)
 
     if ssid:
-        for auth in wirelessauths:
-            if auth['SSID'] == netconfig['SSID']:
-                password = auth['password']
-                ssid = auth['SSID']
-                utility.log(pilib.dirs.logs.network, 'SSID ' + auth['SSID'] + 'found. ', 1, pilib.loglevels.network)
-                psk = password
-                ssid = ssid
-
         if psk:
 
             myfile = open(path, 'w')
@@ -510,7 +584,9 @@ def runconfig(onboot=False):
         utility.log(pilib.dirs.logs.network, 'Netconfig is enabled', 3, pilib.loglevels.network)
 
         # This will grab the specified SSID and the credentials and update
-        # the wpa_supplicant file
+        # the wpa_supplicant file. At the moment, it also looks to see if the network is available.
+        # This functionality should be present elsewhere.
+
         updatewpasupplicant()
 
         # Copy the correct interfaces file

@@ -75,6 +75,15 @@ def runperiodicio():
         plotpoints = 20
         logpoints = 1000
 
+        try:
+            logsettings = dblib.readalldbrows(pilib.dirs.dbs.log, 'logsettings')
+            for setting in logsettings:
+                if setting['item'] == 'defaultlogpoints':
+                    logpoints = int(setting['value'])
+                    print('logpoints found and set to ' + str(logpoints))
+        except:
+            print('not found or other error. oops. ')
+
         """
         Update controlvalues in channels
         """

@@ -231,6 +231,19 @@ def updateiodata(database, **kwargs):
                     options = datalib.parseoptions(interface['options'])
                     # print(options['formula'])
                     value = datalib.evaldbvnformula(options['formula'])
+
+                    if 'minvalue' in options:
+                        try:
+                            if value < float(options['minvalue']):
+                                value = float(options['minvalue'])
+                        except:
+                            pass
+                    if 'maxvalue' in options:
+                        try:
+                            if value > float(options['maxvalue']):
+                                value = float(options['maxvalue'])
+                        except:
+                            pass
                     if 'readtime' in options:
                         try:
                             # we grab a string time from where we are told
@@ -251,7 +264,6 @@ def updateiodata(database, **kwargs):
                           interface['type'], str(interface['address']), name, str(value), '', str(readtime),
                           str(defaultinputpollfreq), '', ''])
                     querylist.append(query)
-
 
         elif interface['interface'] == 'MOTE':
 

@@ -180,7 +180,7 @@ class action:
     def publish(self):
         from cupid import pilib
         from iiutilities import dblib
-        from iiutilities.datalib import dicttojson
+        from iiutilities.utility import dicttojson
         # reinsert updated action back into database
         valuelist=[]
         valuenames=[]
