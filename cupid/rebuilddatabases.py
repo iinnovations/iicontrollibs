@@ -622,15 +622,25 @@ def rebuildusersdata(argument=None):
 """
 
 
-def rebuildwirelessdata():
-    from iiutilities.dblib import sqlitemultquery
+def rebuildwirelessdata(preserve=True):
+    from iiutilities.dblib import sqlitemultquery, gettablenames, readalldbrows
     from cupid.pilib import dirs
+
     querylist = []
     querylist.append('drop table if exists wireless')
     querylist.append('create table wireless (SSID text, password text, auto integer default 1, priority integer default 1)')
 
-    sqlitemultquery(dirs.dbs.safe, querylist)
+    safetables = gettablenames(dirs.dbs.safe)
+    print('tables : ')
+    print(safetables)
+    if 'wireless' in safetables:
+        print("wireless table found")
+        wirelessentries = readalldbrows(dirs.dbs.safe, 'wireless')
+        for index,entry in enumerate(wirelessentries):
+            querylist.append("insert into wireless values('" + entry['SSID'] + "','" + entry['password'] + "',1," + str(index+1) + ')')
 
+    print(querylist)
+    sqlitemultquery(dirs.dbs.safe, querylist)
 
 def rebuildapdata(SSID='cupidwifi', password='cupidpassword'):
     from iiutilities.dblib import sqlitemultquery
@@ -659,6 +669,7 @@ if __name__ == "__main__":
                        'algorithms', 'algorithmtypes', 'channels', 'remotes', 'mote']
     systemdbtables = ['systemstatus', 'logconfig', 'metadata', 'netconfig', 'netstatus', 'wirelessnetworks', 'versions', 'systemflags', 'uisettings', 'notifications']
     motestables = ['readmessages', 'queuedmessages', 'sentmessages']
+    safetables = ['wirelessdata', 'apdata']
     notificationstables = ['queuedmessages', 'setmessages']
 
     if len(sys.argv) > 1 and sys.argv[1] == 'DEFAULTS':
@@ -692,6 +703,9 @@ if __name__ == "__main__":
         elif sys.argv[1] in ['notifications', 'Notifications']:
             print('running rebuilding notifications table')
             rebuildnotificationsdb()
+        elif sys.argv[1] in ['wirelessdata']:
+            print('running rebuild wireless safedata')
+            rebuildwirelessdata()
         elif sys.argv[1] in 'logsettings':
             rebuildlogsettings()
 

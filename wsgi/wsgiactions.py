@@ -366,8 +366,12 @@ def application(environ, start_response):
             elif action == 'updatecameraimage':
                 output['message'] += 'Take camera image keyword. '
                 import cupid.camera
+                if 'width' in d:
+                    width = d['width']
+                else:
+                    width = 800
                 try:
-                    values = cupid.camera.takesnap()
+                    values = cupid.camera.takesnap(width=width)
                 except:
                     output['message'] += 'Error taking image. '
                 else:

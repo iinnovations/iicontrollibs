@@ -77,7 +77,7 @@ def watchdoghamachi(pingip):
         pingave = sum(pingtimes)/len(pingtimes)
 
         # if hamachistatusdata['status'] not in ['logged in']:
-        if pingave == 0 or pingave > 3000:
+        if pingave <= 0 or pingave > 3000:
             utility.log(pilib.dirs.logs.network, 'Pingtime unacceptable: ' + str(pingave) + '. ', 1, pilib.loglevels.network)
             dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'hamachistatus', 0)
             utility.log(pilib.dirs.logs.network, 'Restarting Hamachi. ', 1, pilib.loglevels.network)

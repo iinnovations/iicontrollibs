@@ -210,7 +210,7 @@ def rundaemon(startall=False):
 
     enableditemlist = [(int(updateioenabled)), (int(picontrolenabled)), int(systemstatusenabled), int(sessioncontrolenabled), int(serialhandlerenabled)]
 
-    itemstatuses = findprocstatuses(pilib.daemonprocs)
+    itemstatuses = utility.findprocstatuses(pilib.daemonprocs)
 
     """
     Here we check to see if things are running properly and not hung. First here is systemstatus
@@ -286,7 +286,7 @@ def rundaemon(startall=False):
     sleep(3)
 
     # Refresh after set
-    itemstatuses = findprocstatuses(pilib.daemonprocs)
+    itemstatuses = utility.findprocstatuses(pilib.daemonprocs)
     for item in pilib.daemonprocs:
         index = pilib.daemonprocs.index(item)
         # set status

@@ -1,5 +1,5 @@
-import datalib
-import dblib
+from iiutilities import dblib
+from iiutilities.utility import datalib
 
 
 def application(environ, start_response):
@@ -35,8 +35,8 @@ def application(environ, start_response):
 
     gpiolist = [18,23,24,25,4,17,21,22]
     import cupid.pilib as pilib
-    inputs = dblib.readalldbrows(pilib.controldatabase, 'inputs')
-    interfaces = dblib.readalldbrows(pilib.controldatabase, 'interfaces')
+    inputs = dblib.readalldbrows(pilib.dirs.dbs.control, 'inputs')
+    interfaces = dblib.readalldbrows(pilib.dirs.dbs.control, 'interfaces')
 
     statusdict={}
     for input in inputs:
@@ -52,7 +52,7 @@ def application(environ, start_response):
         if d['action'] == 'toggleGPIOmode':
             print('stuff')
         elif d['action'] == 'toggleGPIOvalue':
-            outputs = dblib.readalldbrows(pilib.controldatabase, 'outputs')
+            outputs = dblib.readalldbrows(pilib.dirs.dbs.control, 'outputs')
             for output in outputs:
                 if output['id'] == d['GPIOid']:
                     curval = output['value']

@@ -12,10 +12,18 @@ import importlib
 
 def runalltests():
     errors = []
+    failures = []
     errormodules = []
+    failuremodules = []
+
+    totalfailurecount = 0
     totalerrorcount = 0
+
     functionerrorcount = 0
     moduleerrorcount = 0
+
+    functionfailurecount = 0
+    modulefailurecount = 0
 
     moduleresults = teststdmodules()
     for result in moduleresults:
@@ -24,6 +32,11 @@ def runalltests():
             errormodules.append(['module'])
             moduleerrorcount += 1
             totalerrorcount += 1
+        if result['failurecount'] != 0:
+            failures.append(result)
+            failuremodules.append(['module'])
+            modulefailurecount += 1
+            totalfailurecount += 1
 
     functionresults = teststdfunctions()
     for result in functionresults:
@@ -32,10 +45,19 @@ def runalltests():
             errormodules.append(result['module'])
             functionerrorcount += 1
             totalerrorcount += 1
+        if result['failurecount'] != 0:
+            failures.append(result)
+            failuremodules.append(result['module'])
+            functionfailurecount += 1
+            totalfailurecount += 1
 
     stringresult =  'Total Error Count: \t\t' + str(totalerrorcount) + '\r\n'
     stringresult += 'Function Error Count: \t\t' + str(functionerrorcount) + '\r\n'
     stringresult += 'Module Error Count: \t\t' + str(moduleerrorcount) + '\r\n'
+
+    stringresult =  'Total Falure Count: \t\t' + str(totalfailurecount) + '\r\n'
+    stringresult += 'Function Falure Count: \t\t' + str(functionfailurecount) + '\r\n'
+    stringresult += 'Module Faliure Count: \t\t' + str(modulefailurecount) + '\r\n'
 
     if totalerrorcount > 0:
         stringresult += '\r\n'
@@ -48,8 +70,21 @@ def runalltests():
         for error in errors:
             stringresult += str(error)
 
-    return {'functions':functionresults, 'modules':moduleresults, 'functionerrorcount':functionerrorcount, \
-            'moduleerrorcount':moduleerrorcount, 'totalerrorcount':totalerrorcount, 'errors':errors, 'stringresult':stringresult}
+    if totalfailurecount > 0:
+        stringresult += '\r\n'
+        stringresult += 'Failure Modules:\r\n'
+        for failuremodule in failuremodules:
+            stringresult += str(failuremodule)
+        stringresult += '\r\n\r\n'
+        stringresult += 'Falures:\r\n'
+
+        for failure in failures:
+            stringresult += str(failure)
+
+    return {'functions':functionresults, 'modules':moduleresults, 'functionerrorcount':functionerrorcount,
+            'moduleerrorcount':moduleerrorcount, 'totalerrorcount':totalerrorcount, 'errors':errors,
+            'modulefailurecount':modulefailurecount, 'totalfailurecount':totalfailurecount, 'failures':failures,
+            'stringresult':stringresult}
 
 
 class TestFunction(unittest.TestCase):

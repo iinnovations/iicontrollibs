@@ -282,8 +282,11 @@ def updatewpasupplicant(path='/etc/wpa_supplicant/wpa_supplicant.conf', netconfi
 
 
     # Update networks to see what is available to attach to
+    try:
+        networks = updatewirelessnetworks(stationinterface)
+    except:
+        utility.log(pilib.dirs.logs.network, 'Error finding network interface. Is interface down?', 0, pilib.loglevels.network)
 
-    networks = updatewirelessnetworks(stationinterface)
     availablessids = []
     for network in networks:
         availablessids.append(network['ssid'])
