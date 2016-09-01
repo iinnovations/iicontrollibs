@@ -72,11 +72,12 @@ elif [ "$1" = "install" ]
     echo -e "${WHT}************************************${NC}"
 
 elif [ "$1" = "camera" ]
+  then
     apt-get update
     apt-get install python-picamera
-fi
 
 elif [ "$1" = "labjack" ]
+  then
     apt-get update
     apt-get -y install libusb-1.0
     cd ../resource/labjack/LabJackPython-5-26-2015/
