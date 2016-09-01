@@ -55,6 +55,7 @@ def updatehostapd(path='/etc/hostapd/hostapd.conf', interface='wlan0'):
     from iiutilities import dblib
     from cupid import pilib
 
+    piversion = dblib.getsinglevalue(pilib.dirs.dbs.system, 'versions', 'versionname')
     try:
         apsettings = dblib.readonedbrow(pilib.dirs.dbs.safe, 'apsettings')[0]
         print(apsettings)
@@ -67,7 +68,15 @@ def updatehostapd(path='/etc/hostapd/hostapd.conf', interface='wlan0'):
     # print(SSID)
     myfile = open(path, 'w')
     filestring = 'interface=' + interface + '\n'
-    filestring += 'driver=rtl871xdrv\nssid='
+
+    # In these versions, we had to use an alternate driver. No more!! Built-in RPi 3 fixes this garbage.
+    # Hostapd works out of the box. About time.
+
+    if piversion in ['Pi 2 Model B', 'Model B Revision 2.0', 'Model B+']:
+        filestring += 'driver=rtl871xdrv\nssid='
+    else:
+        filestring += 'driver=nl80211\nssid='
+
     filestring += SSID
     filestring += '\nchannel=6\nwmm_enabled=1\nwpa=1\nwpa_passphrase=' + password + '\nwpa_key_mgmt=WPA-PSK\n'
     filestring += 'wpa_pairwise=TKIP\nrsn_pairwise=CCMP\nauth_algs=1\nmacaddr_acl=0'

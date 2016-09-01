@@ -72,6 +72,7 @@ def watchdoghamachi(pingip):
         # online
 
         pingtimes = runping(pingip, numpings=5)
+        print(pingtimes)
         pingmax = max(pingtimes)
         pingmin = min(pingtimes)
         pingave = sum(pingtimes)/len(pingtimes)
@@ -585,6 +586,7 @@ def updatenetstatus(lastnetstatus=None):
 
     netconfigdata = dblib.readonedbrow(pilib.dirs.dbs.system, 'netconfig')[0]
 
+
     """ We get last netstatus so that we can save last online times, previous online status, etc. """
 
     if not lastnetstatus:
@@ -605,15 +607,25 @@ def updatenetstatus(lastnetstatus=None):
     ifacesdictarray = getifconfigstatus()
     # ifacesdictarray = getifacestatus()
 
-    """ We supplement with wpa status on the wlan interfaces """
+    """ We supplement with wpa status on the wlan interfaces if station mode should be set """
+    """ Here, we need to decide which interfaces should have a proper wpa status """
+
+    if netconfigdata['mode'] in ['station', 'wlan0wlan1bridge' ,'eth0wlan0bridge']:
+        wpainterfaces = ['wlan0']
+    elif netconfigdata['mode'] in ['wlan1wlan0bridge']:
+        wpainterfaces = ['wlan1']
+
+    utility.log(pilib.dirs.logs.network, 'Mode is ' + netconfigdata['mode'] + '. Need to check interfaces: ' + str(wpainterfaces) + '.', 3, pilib.loglevels.network)
+
 
     updateddictarray = []
     for interface in ifacesdictarray:
-        if interface['name'].find('wlan') >= 0:
+        if interface['name'] in wpainterfaces:
             interface['wpastate'] = utility.dicttojson(getwpaclientstatus(interface['name']))
         else:
             interface['wpastate'] = ''
         updateddictarray.append(interface)
+
     ifacesdictarray = updateddictarray
 
     """ Then write it to the table """
@@ -796,7 +808,6 @@ def piversiontoversionname(version):
         memory = 'unknown'
 
     return {'versionname':versionname, 'memory':memory, 'detail':detail}
-
 
 
 def updatehardwareinfo(databasename='systemdatadb'):
