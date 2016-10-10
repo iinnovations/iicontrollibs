@@ -72,12 +72,13 @@ def watchdoghamachi(pingip):
         # online
 
         pingtimes = runping(pingip, numpings=5)
+        print(pingtimes)
         pingmax = max(pingtimes)
         pingmin = min(pingtimes)
         pingave = sum(pingtimes)/len(pingtimes)
 
         # if hamachistatusdata['status'] not in ['logged in']:
-        if pingave == 0 or pingave > 3000:
+        if pingave <= 0 or pingave > 3000:
             utility.log(pilib.dirs.logs.network, 'Pingtime unacceptable: ' + str(pingave) + '. ', 1, pilib.loglevels.network)
             dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'hamachistatus', 0)
             utility.log(pilib.dirs.logs.network, 'Restarting Hamachi. ', 1, pilib.loglevels.network)
@@ -234,81 +235,21 @@ def watchdognetstatus(allnetstatus=None):
             wpadata = datalib.parseoptions(stationifacedata['wpastate'])
             if wpadata['wpa_state'] == 'COMPLETED' and stationifacedata['address']:
                 utility.log(pilib.dirs.logs.network, 'station interface ' + stationinterface + ' wpastatus appears ok with address ' + str(stationifacedata['address']), 3, pilib.loglevels.network)
+
+                # Update netstatus
+                try:
+                    wpastatedata = utility.jsontodict(stationifacedata['wpastate'])
+                    ssid = wpastatedata['ssid']
+                except:
+                    print('oops')
+                    ssid = 'oops'
+                dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'SSID', ssid)
+
             else:
+                dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'SSID', '')
                 utility.log(pilib.dirs.logs.network, 'station interface for ' + stationinterface + ' does not appear ok judged by wpa_state: wpastate = ' + wpadata['wpa_state'] + ' address= ' + stationifacedata['address'], 1, pilib.loglevels.network)
                 statusmsg += 'station interface does not appear ok judged by wpa_state. '
                 runconfig = True
-
-        # Should do special handling in here to verify address for static mode.
-
-        # # If we have wpa up, do nothing
-        # if int(netstatus['connected']):
-        #     statusmsg += 'Station wpamode appears ok. '
-        #     pilib.log(pilib.dirs.logs.network, 'wpamode appears ok. ', 1, pilib.loglevels.network)
-        #
-        # # If wpa is not connected
-        # else:
-        #     statusmsg += 'Station wpamode appears disconnected. '
-        #     pilib.log(pilib.dirs.logs.network, 'wpamode appears disconnected. ', 1, pilib.loglevels.network)
-        #
-        #     if netstatus['offlinetime'] == '':
-        #         pilib.log(pilib.dirs.logs.network, 'Setting offline time for empty value. ', 4,
-        #                                pilib.loglevels.network)
-        #         pilib.setsinglevalue('netstatus', 'offlinetime', pilib.gettimestring())
-        #         offlinetime = 0
-        #     else:
-        #         pilib.log(pilib.dirs.logs.network, 'Calculating offline time. ', 4, pilib.loglevels.network)
-        #         offlinetime = pilib.timestringtoseconds(currenttime) - pilib.timestringtoseconds(
-        #             netstatus['offlinetime'])
-        #
-        #     pilib.log(pilib.dirs.logs.network, 'wpa has been offline for ' + str(offlinetime) + '. ', 3,
-        #                            pilib.loglevels.network)
-        #     statusmsg += 'We have been offline for ' + str(offlinetime) + '. '
-        #
-        #     # If aprevert is aprevert or temprevert and we've been offline long enough, flip over to ap
-        #     # then set offline time to now (otherwise this keeps happening)
-        #     if netconfigdata['aprevert'] in ['temprevert', 'aprevert'] and offlinetime > netconfigdata[
-        #         'apreverttime']:
-        #
-        #         # set laststationretry to currenttime. This marks when we flipped over to ap
-        #         statusmsg += 'Setting last station retry time. '
-        #         pilib.log(pilib.dirs.logs.network, 'Reverting to AP mode', 3, pilib.loglevels.network)
-        #         pilib.log(pilib.dirs.logs.network,
-        #                                'Setting last station retry time to ' + str(currenttime), 0,
-        #                                pilib.loglevels.network)
-        #         pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'laststationretry', currenttime)
-        #         pilib.setsinglevalue('netstatus', 'offlinetime', currenttime)
-        #
-        #         if netconfigdata['aprevert'] == 'aprevert':
-        #             # set mode to ap
-        #             statusmsg += 'Setting mode to ap. '
-        #             pilib.log(pilib.dirs.logs.network, 'Setting mode to ap ' + str(currenttime), 3,
-        #                                    pilib.loglevels.network)
-        #             pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'ap')
-        #         elif netconfigdata['aprevert'] == 'temprevert':
-        #             # set mode to tempap
-        #             statusmsg += 'Setting mode to tempap. '
-        #             pilib.log(pilib.dirs.logs.network, 'Setting mode to tempap ' + str(currenttime), 3,
-        #                                    pilib.loglevels.network)
-        #             pilib.setsinglevalue(pilib.systemdatadatabase, 'netconfig', 'mode', 'tempap')
-        #
-        #         # Unfortunately, to revert to ap mode successfully, we currently have to reboot
-        #         # this is built into the netconfig script - any time you set ap mode except at boot, it reboots
-        #         pilib.setsinglevalue(pilib.systemdatadatabase, 'netstatus', 'statusmsg', statusmsg)
-        #         pilib.log(pilib.dirs.logs.system, 'Running netconfig . ', 4,
-        #                                pilib.loglevels.system)
-        #         netconfig.runconfig()
-        #     elif offlinetime > 15:
-        #         pilib.log(pilib.dirs.logs.system, 'Restarting netconfig on bad wpastatus', 1,
-        #                                pilib.loglevels.system)
-        #         runconfig = True
-        #
-        #     # Here, we need to check the ifaces address. Netstatus address is ambiguous
-        #     if netstatus['ip_address'] != netconfigdata['address']:
-        #         pilib.log(pilib.dirs.logs.network, 'IP address mismatch ( Configured for ' + netconfigdata['address'] + '. Reporting' + netstatus['ip_address'] + ' ). Running config.', 1, pilib.loglevels.network)
-        #         runconfig = True
-        #     else:
-        #         pilib.log(pilib.dirs.logs.network, 'IP address match for ' + netconfigdata['address'] + '. ', 3, pilib.loglevels.network)
 
     elif netconfigdata['mode'] == 'eth0wlan0bridge':
 
@@ -371,7 +312,18 @@ def watchdognetstatus(allnetstatus=None):
             wpadata = datalib.parseoptions(stationifacedata['wpastate'])
             if wpadata['wpa_state'] == 'COMPLETED':
                 utility.log(pilib.dirs.logs.network, 'station interface ' + stationinterface + ' wpastatus appears ok. ', 3, pilib.loglevels.network)
+
+                # Update netstatus
+                try:
+                    wpastatedata = utility.jsontodict(stationifacedata['wpastate'])
+                    ssid = wpastatedata['ssid']
+                except:
+                    print('oops')
+                    ssid = 'oops'
+                dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'SSID', ssid)
+
             else:
+                dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'SSID', '')
                 utility.log(pilib.dirs.logs.network, 'station interface for ' + stationinterface + ' does not appear ok judged by wpa_state. ', 1, pilib.loglevels.network)
                 statusmsg += 'station interface does not appear ok judged by wpa_state. '
                 runconfig = True
@@ -634,6 +586,7 @@ def updatenetstatus(lastnetstatus=None):
 
     netconfigdata = dblib.readonedbrow(pilib.dirs.dbs.system, 'netconfig')[0]
 
+
     """ We get last netstatus so that we can save last online times, previous online status, etc. """
 
     if not lastnetstatus:
@@ -654,15 +607,25 @@ def updatenetstatus(lastnetstatus=None):
     ifacesdictarray = getifconfigstatus()
     # ifacesdictarray = getifacestatus()
 
-    """ We supplement with wpa status on the wlan interfaces """
+    """ We supplement with wpa status on the wlan interfaces if station mode should be set """
+    """ Here, we need to decide which interfaces should have a proper wpa status """
+
+    if netconfigdata['mode'] in ['station', 'wlan0wlan1bridge' ,'eth0wlan0bridge']:
+        wpainterfaces = ['wlan0']
+    elif netconfigdata['mode'] in ['wlan1wlan0bridge']:
+        wpainterfaces = ['wlan1']
+
+    utility.log(pilib.dirs.logs.network, 'Mode is ' + netconfigdata['mode'] + '. Need to check interfaces: ' + str(wpainterfaces) + '.', 3, pilib.loglevels.network)
+
 
     updateddictarray = []
     for interface in ifacesdictarray:
-        if interface['name'].find('wlan') >= 0:
-            interface['wpastate'] = datalib.dicttojson(getwpaclientstatus(interface['name']))
+        if interface['name'] in wpainterfaces:
+            interface['wpastate'] = utility.dicttojson(getwpaclientstatus(interface['name']))
         else:
             interface['wpastate'] = ''
         updateddictarray.append(interface)
+
     ifacesdictarray = updateddictarray
 
     """ Then write it to the table """
@@ -731,6 +694,7 @@ def updatenetstatus(lastnetstatus=None):
 def processapoverride(pin):
     from iiutilities import utility
     from iiutilities.dblib import setsinglevalue
+    import pilib
     utility.log(pilib.dirs.logs.network, "Reading GPIO override on pin " + str(pin) + '. ', 3, pilib.loglevels.network)
     utility.log(pilib.dirs.logs.system, "Reading GPIO override on pin " + str(pin) + '. ', 2, pilib.loglevels.system)
 
@@ -846,12 +810,12 @@ def piversiontoversionname(version):
     return {'versionname':versionname, 'memory':memory, 'detail':detail}
 
 
-
 def updatehardwareinfo(databasename='systemdatadb'):
     from subprocess import check_output
     from cupid import pilib
     from iiutilities import datalib
     from iiutilities import dblib
+    from iiutilities import utility
 
     data = check_output(['cat','/proc/cpuinfo'])
     items = data.split('\n')
@@ -862,7 +826,7 @@ def updatehardwareinfo(databasename='systemdatadb'):
         except:
             pass
 
-    dictstring = datalib.dicttojson(dict)
+    dictstring = utility.dicttojson(dict)
     dbpath = None
     try:
         dbpath = pilib.dbnametopath(databasename)

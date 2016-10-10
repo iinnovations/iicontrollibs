@@ -348,9 +348,15 @@ def rebuildsystemdb(tabledict):
             "create table " + table + " ( WANaccess boolean default 0, WANaccessrestarts integer default 0, latency real default 0, mode text default 'eth0wlan0bridge', onlinetime text, offlinetime text default '', lastnetreconfig text default '', netstate integer default 0, netstateoktime text default '', updatetime text '', statusmsg text default '', netrebootcounter integer default 0, addresses text default '')")
         querylist.append("insert into " + table + "  default values")
 
-    if 'netconfig' in tabledict:
+    table = 'wirelessnetworks'
+    if table in tabledict:
         runquery = True
-        table = 'netconfig'
+        querylist.append('drop table if exists ' + table)
+        querylist.append('create table ' + table + "(ssid text, strength integer, data text)")
+
+    table = 'netconfig'
+    if table in tabledict:
+        runquery = True
         querylist.append('drop table if exists ' + table)
         querylist.append(
             "create table " + table + " (requireWANaccess integer default 1, WANretrytime integer default 30, mode text default eth0wlan0bridge, SSID text default '', aprevert text default '', addtype text default 'dhcp', address text default '192.168.1.30', gateway text default '192.168.0.1', dhcpstart text default '192.168.0.70', dhcpend text default '192.168.0.99', apreverttime integer default 60, stationretrytime integer default 300, laststationretry text default '', pingthreshold integer default 2000, netstatslogenabled boolean default 0, netstatslogfreq integer default 60, apoverride boolean default 0, apoverridepin integer default 21, rebootonfail integer default 0, rebootonfailperiod default 900)")
@@ -418,6 +424,23 @@ def rebuildsystemdb(tabledict):
     if runquery:
         print(querylist)
         sqlitemultquery(dirs.dbs.system, querylist)
+
+"""
+logsettings
+"""
+
+
+def rebuildlogsettings():
+    from iiutilities.dblib import sqlitemultquery
+    from cupid.pilib import dirs
+
+    querylist = []
+    table = 'logsettings'
+    querylist.append('drop table if exists ' + table)
+    querylist.append(
+        "create table " + table + " ( item text primary key,  value text)")
+    querylist.append("insert into " + table + " values ( 'defaultlogpoints', '1000')")
+    sqlitemultquery(dirs.dbs.log, querylist)
 
 
 """
@@ -531,6 +554,7 @@ def rebuildmotesdb(tabledict):
 userstabledata
 """
 
+
 def rebuildusersdata(argument=None):
     from pilib import gethashedentry, dirs
     from iiutilities.dblib import sqlitemultquery
@@ -593,22 +617,30 @@ def rebuildusersdata(argument=None):
         sqlitemultquery(dirs.dbs.users, querylist)
 
 
-
-
 """
 # safedata
 """
 
 
-def rebuildwirelessdata():
-    from iiutilities.dblib import sqlitemultquery
+def rebuildwirelessdata(preserve=True):
+    from iiutilities.dblib import sqlitemultquery, gettablenames, readalldbrows
     from cupid.pilib import dirs
+
     querylist = []
     querylist.append('drop table if exists wireless')
-    querylist.append('create table wireless (SSID text, password text)')
+    querylist.append('create table wireless (SSID text, password text, auto integer default 1, priority integer default 1)')
 
+    safetables = gettablenames(dirs.dbs.safe)
+    print('tables : ')
+    print(safetables)
+    if 'wireless' in safetables:
+        print("wireless table found")
+        wirelessentries = readalldbrows(dirs.dbs.safe, 'wireless')
+        for index,entry in enumerate(wirelessentries):
+            querylist.append("insert into wireless values('" + entry['SSID'] + "','" + entry['password'] + "',1," + str(index+1) + ')')
+
+    print(querylist)
     sqlitemultquery(dirs.dbs.safe, querylist)
-
 
 def rebuildapdata(SSID='cupidwifi', password='cupidpassword'):
     from iiutilities.dblib import sqlitemultquery
@@ -635,8 +667,9 @@ if __name__ == "__main__":
 
     controldbtables = ['actions', 'modbustcp', 'labjack', 'defaults', 'indicators', 'inputs', 'outputs', 'owfs', 'ioinfo', 'interfaces',
                        'algorithms', 'algorithmtypes', 'channels', 'remotes', 'mote']
-    systemdbtables = ['systemstatus', 'logconfig', 'metadata', 'netconfig', 'netstatus', 'versions', 'systemflags', 'uisettings', 'notifications']
+    systemdbtables = ['systemstatus', 'logconfig', 'metadata', 'netconfig', 'netstatus', 'wirelessnetworks', 'versions', 'systemflags', 'uisettings', 'notifications']
     motestables = ['readmessages', 'queuedmessages', 'sentmessages']
+    safetables = ['wirelessdata', 'apdata']
     notificationstables = ['queuedmessages', 'setmessages']
 
     if len(sys.argv) > 1 and sys.argv[1] == 'DEFAULTS':
@@ -655,6 +688,7 @@ if __name__ == "__main__":
         rebuildnotificationsdb()
         rebuildrecipesdb({'recipes': True})
         rebuildsessiondb()
+        rebuildlogsettings()
 
     elif len(sys.argv) > 1:
         if sys.argv[1] in controldbtables:
@@ -669,6 +703,11 @@ if __name__ == "__main__":
         elif sys.argv[1] in ['notifications', 'Notifications']:
             print('running rebuilding notifications table')
             rebuildnotificationsdb()
+        elif sys.argv[1] in ['wirelessdata']:
+            print('running rebuild wireless safedata')
+            rebuildwirelessdata()
+        elif sys.argv[1] in 'logsettings':
+            rebuildlogsettings()
 
 
     else:

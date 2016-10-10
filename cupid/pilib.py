@@ -110,7 +110,6 @@ Utility Functions
 """
 
 
-
 def dbnametopath(friendlyname):
     friendlynames = ['controldb', 'logdatadb', 'infodb', 'systemdb', 'authdb', 'safedatadb', 'usersdb', 'motesdb', 'systemdatadb', 'notificationsdb']
     paths = [dirs.dbs.control, dirs.dbs.log, dirs.dbs.info, dirs.dbs.system, dirs.dbs.auths, dirs.dbs.safe, dirs.dbs.users, dirs.dbs.motes, dirs.dbs.system, dirs.dbs.notifications]
@@ -134,7 +133,7 @@ def processnotification(notification):
         pingresult = pingstatus()
         if not pingresult['status']:
 
-            utility.log(pilib.dirs.logs.notifications, 'WAN access is ok, so processing notification')
+            utility.log(dirs.logs.notifications, 'WAN access is ok, so processing notification')
             options = datalib.parseoptions(notification['options'])
             message = notification['message']
             if 'subject' in options:
@@ -157,41 +156,40 @@ def processnotification(notification):
                 else:
                     result['status'] = 0
         else:
-            utility.log(pilib.dirs.logs.notifications, 'WAN access does not appear to be ok. Status is: ' + str(pingstatus['status']))
+            utility.log(dirs.logs.notifications, 'WAN access does not appear to be ok. Status is: ' + str(pingstatus['status']))
 
     return result
 
 
 def processnotificationsqueue():
-    from cupid import pilib
     from iiutilities import dblib
     from iiutilities.utility import log
 
     queuednotifications = dblib.readalldbrows(dirs.dbs.notifications, 'queuednotifications')
     for notification in queuednotifications:
         if loglevels.notifications >= 5:
-            log(pilib.dirs.logs.notifications, 'Processing notification of type' + notification['type'] + '. Message: ' + notification['message'] + '. Options: ' + notification['options'])
+            log(dirs.logs.notifications, 'Processing notification of type' + notification['type'] + '. Message: ' + notification['message'] + '. Options: ' + notification['options'])
         else:
-            log(pilib.dirs.logs.notifications, 'Processing notification of type' + notification['type'], pilib.dirs.logs.notifications)
+            log(dirs.logs.notifications, 'Processing notification of type' + notification['type'], dirs.logs.notifications)
 
         result = processnotification(notification)
 
         if result['status'] == 0:
-            log(pilib.dirs.logs.notifications, 'Notification appears to have been successful. Copying message to sent.')
+            log(dirs.logs.notifications, 'Notification appears to have been successful. Copying message to sent.')
             sententry = notification.copy()
             sententry['senttime'] = result['senttime']
             dblib.insertstringdicttablelist(dirs.dbs.notifications, 'sentnotifications', [sententry], droptable=False)
 
-            log(pilib.dirs.logs.notifications, 'Removing entry from queued messages.')
+            log(dirs.logs.notifications, 'Removing entry from queued messages.')
 
             # match by time and message
             conditionnames = ['queuedtime', 'message']
             conditionvalues = [sententry['queuedtime'], sententry['message']]
             delquery = dblib.makedeletesinglevaluequery('queuednotifications', {'conditionnames':conditionnames, 'conditionvalues':conditionvalues})
-            dblib.sqlitequery(pilib.dirs.dbs.notifications, delquery)
+            dblib.sqlitequery(dirs.dbs.notifications, delquery)
 
         else:
-            log(pilib.dirs.logs.notifications, 'Notification appears to have failed. Status: ' + str(result['status']))
+            log(dirs.logs.notifications, 'Notification appears to have failed. Status: ' + str(result['status']))
 
 
 def getgpiostatus():

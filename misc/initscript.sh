@@ -26,7 +26,7 @@ elif [ "$1" = "install" ]
     apt-get -y install python-serial
     apt-get -y install python-gtk2
     apt-get -y install automake
-    apt-get -y fping
+    apt-get -y install fping
     pip install lal
 
     apt-get -y install apache2 php5 sqlite3 php5-sqlite libapache2-mod-wsgi libapache2-mod-php5
@@ -72,11 +72,12 @@ elif [ "$1" = "install" ]
     echo -e "${WHT}************************************${NC}"
 
 elif [ "$1" = "camera" ]
+  then
     apt-get update
     apt-get install python-picamera
-fi
 
 elif [ "$1" = "labjack" ]
+  then
     apt-get update
     apt-get -y install libusb-1.0
     cd ../resource/labjack/LabJackPython-5-26-2015/
@@ -266,11 +267,13 @@ if [ "$2" = "full" -o "$1" = "full" ]
             echo "hostapd already configured"
     else
         echo "copying hostapd"
-        mv /usr/sbin/hostapd /usr/sbin/hostapd.bak
-        cp /usr/lib/iicontrollibs/resource/hostapd.edimax /usr/sbin/hostapd.edimax
-        ln -sf /usr/sbin/hostapd.edimax /usr/sbin/hostapd
-        chown root:root /usr/sbin/hostapd
-        chmod 755 /usr/sbin/hostapd
+
+        # This stuff is now deprecated with new hostapd on built-in Pi 3 ap hardware.
+#        mv /usr/sbin/hostapd /usr/sbin/hostapd.bak
+#        cp /usr/lib/iicontrollibs/resource/hostapd.edimax /usr/sbin/hostapd.edimax
+#        ln -sf /usr/sbin/hostapd.edimax /usr/sbin/hostapd
+#        chown root:root /usr/sbin/hostapd
+#        chmod 755 /usr/sbin/hostapd
         echo "hostapd configuration complete"
     fi
 

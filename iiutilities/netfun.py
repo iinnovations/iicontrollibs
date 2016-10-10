@@ -171,6 +171,43 @@ def getifconfigstatus():
     return interfaces
 
 
+def getwirelessnetworks(interface='wlan0'):
+    from subprocess import check_output
+    networkresponse = check_output(['iwlist',interface,'scan']).split('\n')
+    networks = []
+    # print(networkresponse)
+    networkindex = -1
+
+    items = ['Address:', 'ESSID:','Protocol:', 'Mode:','Frequency:','Encryption key:', 'Bit Rates:','Extra:','IE: IEEE']
+    itemnames = ['address','ssid','protocol','mode','frequency','encryptionkey','bitrates','extra']
+    for index, line in enumerate(networkresponse):
+
+        if line.find(' Cell ') >= 0:
+            try:
+                if network['ssid']:
+                    networks.append(network)
+            except:
+                # no network yet, or no ssid
+                pass
+            network = {}
+            networkindex += 1
+        for item, itemname in zip(items, itemnames):
+            if line.find(item) >=0:
+                try:
+                    network[itemname] = line.split(item)[1].replace('"','').strip()
+                except:
+                    print('error with item: ')
+                    print(itemname)
+                    print(line)
+        if line.find('Signal level')>= 0:
+            network['signallevel'] = line.split('Signal level')[1].split('/')[0].replace('=','')
+
+    # catch last one on the way out
+    if network['ssid']:
+        networks.append(network)
+    return networks
+
+
 def getwpaclientstatus(interface='wlan0'):
     import subprocess
     from pilib import dirs, loglevels
@@ -181,7 +218,7 @@ def getwpaclientstatus(interface='wlan0'):
         log(dirs.logs.network, 'Attempting WPA client status read for interface ' + interface, 4, loglevels.network)
         result = subprocess.check_output(['/sbin/wpa_cli', 'status', '-i', interface], stderr=subprocess.PIPE)
     except:
-        log(dirs.logs.network, 'Error reading wpa client status. Setting error status for systemstatus to catch.', 0, loglevels.network)
+        log(dirs.logs.network, 'Error reading wpa client status on interface ' + interface +  ' . Setting error status for systemstatus to catch.', 0, loglevels.network)
         resultdict['wpa_state'] = 'ERROR'
     else:
         log(dirs.logs.network, 'Completed WPA client status read. ', 4, loglevels.network)

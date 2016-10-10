@@ -13,9 +13,9 @@ def application(environ, start_response):
         sys.path.insert(0, top_folder)
 
     from cupid.pilib import dbnametopath
-    from cupid.dblib import dynamicsqliteread
-    from cupid.dblib import gettablenames
-    from cupid.dblib import switchtablerows
+    from iiutilities.dblib import dynamicsqliteread
+    from iiutilities.dblib import gettablenames
+    from iiutilities.dblib import switchtablerows
     from time import time
 
     post_env = environ.copy()
@@ -111,7 +111,7 @@ def application(environ, start_response):
                         output['data'] = dynamicsqliteread(dbpath, d['tablename'], d['row'])
                         output['querytime'] = time() - thetime
                     elif 'tablename' in d:  # Handle entire table
-                        output['message'] += 'Tablename keyword: ' + d['tablename']
+                        output['message'] += 'Tablename keyword: ' + d['tablename'] + '. '
                         thetime = time();
                         if 'condition' in d:
                             if not d['condition'] == '':

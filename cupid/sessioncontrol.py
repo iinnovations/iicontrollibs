@@ -20,7 +20,7 @@ if top_folder not in sys.path:
 
 
 from iiutilities import dblib
-from iiutilities.utility import datalib
+from iiutilities import datalib
 
 from cupid import pilib
 import time

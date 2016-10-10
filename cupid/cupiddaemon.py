@@ -9,9 +9,9 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
+import inspect
 import os
 import sys
-import inspect
 
 top_folder = \
     os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
@@ -89,77 +89,53 @@ def pgrepstatus(regex, full=True):
     return {'count': pcount, 'pids': pids}
 
 
-def findprocstatuses(procstofind):
-    import subprocess
-    statuses = []
-    for proc in procstofind:
-        # print(proc)
-        status = False
-        try:
-            result = subprocess.check_output(['pgrep','-fc',proc])
-            # print(result)
-        except:
-            # print('ERROR')
-            pass
-        else:
-            if int(result) > 0:
-                # print("FOUND")
-                status = True
-            else:
-                pass
-                # print("NOT FOUND")
-        statuses.append(status)
-    print(statuses)
-    return statuses
-
-
-# This thing sucks. See above for trivially simple way to do this.
-def deprecatedfindprocstatuses(procstofind):
-    proc_list = get_proc_list()
-
-    #Show the minimal proc list (user, pid, cmd)
-
-    #stdout.write('Process list:n')
-    #  print(proc_list)
-
-    procslist = ''
-    for proc in proc_list:
-        strproc = proc.to_str()
-        # stdout.write('t' + strproc + 'n')
-        # print(strproc + '\n')
-        procslist = procslist + strproc
-        for proc in procstofind:
-            if strproc.count(proc) > 0:
-                # print('** found **')
-                # print(proc + ' in ')
-                # print(strproc)
-                pass
-
-    #Build &amp; print a list of processes that are owned by root
-    #(proc.user == 'root')
-
-    root_proc_list = [x for x in proc_list if x.user == 'root']
-
-    #stdout.write('Owned by root:n')
-
-    for proc in root_proc_list:
-        #stdout.write('t' + proc.to_str() + 'n')
-        procslist = procslist + proc.to_str()
-
-    foundstatuses = []
-    for item in procstofind:
-        index = procstofind.index(item)
-        #print(index)
-        if procslist.count(index) > 0:  # Item was found
-            foundstatuses.append(True)
-        else:
-            foundstatuses.append(False)
-
-    return foundstatuses
+# # This thing sucks. See above for trivially simple way to do this.
+# def deprecatedfindprocstatuses(procstofind):
+#     proc_list = get_proc_list()
+#
+#     #Show the minimal proc list (user, pid, cmd)
+#
+#     #stdout.write('Process list:n')
+#     #  print(proc_list)
+#
+#     procslist = ''
+#     for proc in proc_list:
+#         strproc = proc.to_str()
+#         # stdout.write('t' + strproc + 'n')
+#         # print(strproc + '\n')
+#         procslist = procslist + strproc
+#         for proc in procstofind:
+#             if strproc.count(proc) > 0:
+#                 # print('** found **')
+#                 # print(proc + ' in ')
+#                 # print(strproc)
+#                 pass
+#
+#     #Build &amp; print a list of processes that are owned by root
+#     #(proc.user == 'root')
+#
+#     root_proc_list = [x for x in proc_list if x.user == 'root']
+#
+#     #stdout.write('Owned by root:n')
+#
+#     for proc in root_proc_list:
+#         #stdout.write('t' + proc.to_str() + 'n')
+#         procslist = procslist + proc.to_str()
+#
+#     foundstatuses = []
+#     for item in procstofind:
+#         index = procstofind.index(item)
+#         #print(index)
+#         if procslist.count(index) > 0:  # Item was found
+#             foundstatuses.append(True)
+#         else:
+#             foundstatuses.append(False)
+#
+#     return foundstatuses
 
 
 def runallprocs():
-    from subprocess import Popen, PIPE
+    from subprocess import Popen
     from cupid import pilib
     for index, proc in enumerate(pilib.daemonprocs):
         proc = Popen([pilib.dirs.baselib + pilib.daemonprocs[index], '&'])
@@ -234,7 +210,7 @@ def rundaemon(startall=False):
 
     enableditemlist = [(int(updateioenabled)), (int(picontrolenabled)), int(systemstatusenabled), int(sessioncontrolenabled), int(serialhandlerenabled)]
 
-    itemstatuses = findprocstatuses(pilib.daemonprocs)
+    itemstatuses = utility.findprocstatuses(pilib.daemonprocs)
 
     """
     Here we check to see if things are running properly and not hung. First here is systemstatus
@@ -310,7 +286,7 @@ def rundaemon(startall=False):
     sleep(3)
 
     # Refresh after set
-    itemstatuses = findprocstatuses(pilib.daemonprocs)
+    itemstatuses = utility.findprocstatuses(pilib.daemonprocs)
     for item in pilib.daemonprocs:
         index = pilib.daemonprocs.index(item)
         # set status
@@ -344,7 +320,7 @@ def rundaemon(startall=False):
 
 if __name__ == "__main__":
     from cupid.pilib import dirs, loglevels
-    from iiutilities.utility import log
+    from iiutilities.utility import log, findprocstatuses
 
     log(dirs.logs.daemon, 'Running daemon.', 1, loglevels.daemon)
     rundaemon()

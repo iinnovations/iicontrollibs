@@ -41,7 +41,7 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
     seriallog = True
     if seriallog:
         print('serial logging is enabled.')
-        logfile = open(pilib.dirs.logs.log, 'a', 1)
+        logfile = open(pilib.dirs.logs.serial, 'a', 1)
         logfile.write('\n' + datalib.gettimestring() + ": Initializing serial log\n")
 
     if checkstatus:
@@ -50,9 +50,9 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
         checktime = mktime(localtime())
         checkfrequency = 15  # seconds
         if runhandler:
-           utility.log(pilib.dirs.logs.io, "Starting monitoring of serial port", 1, pilib.loglevels.io)
+             utility.log(pilib.dirs.logs.io, "Starting monitoring of serial port", 1, pilib.loglevels.io)
         else:
-            utility.log(pilib.dirs.logs.io, "Not starting monitoring of serial port. How did I get here?", 1, pilib.loglevels.io)
+             utility.log(pilib.dirs.logs.io, "Not starting monitoring of serial port. How did I get here?", 1, pilib.loglevels.io)
     else:
         runhandler = True
 
@@ -88,17 +88,17 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
                     try:
                         if (printmessages):
                             print('*************** processing datadict')
-
+                        # print('processing data of length ' + str(len(data)))
                         datadicts, messages = processserialdata(s)
-                        # print('ALL MY DATADICTS')
+                        # print('ALL MY DATADICTS (length of ' + str(len(datadicts)) + ')')
                         # print(datadicts)
                         # print('END OF DICTS')
                     except IOError:
                         print('error processing message')
                     except Exception as ex:
-                        template = "An exception of type {0} occured. Arguments:\n{1!r}"
+                        template = "An exception of type {0} occured (line 99). Arguments:\n{1!r}"
                         message = template.format(type(ex).__name__, ex.args)
-                        print message
+                        print(message)
                     else:
                         for datadict, message in zip(datadicts, messages):
                             if datadict:
@@ -119,11 +119,16 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
                                     if (printmessages):
                                         print('publishing message: ')
                                         print(message)
-                                    statusresult = lograwmessages(message)
+                                    lograwmessages(message)
 
                                 dblib.sizesqlitetable(pilib.dirs.dbs.motes, 'readmessages', 1000)
+                                try:
+                                    processremotedata(datadict, message)
+                                except Exception as ex:
+                                    template = "An exception of type {0} occured (line 127). Arguments:\n{1!r}"
+                                    message = template.format(type(ex).__name__, ex.args)
+                                    print(message)
 
-                                statusresult = processremotedata(datadict, message)
                             else:
                                 if message:
                                     print('message: ')
@@ -134,7 +139,7 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
                                 try:
                                     logfile.write(datalib.gettimestring() + ' : ' + message + '\n')
                                 except Exception as e:
-                                    template = "An exception of type {0} occured. Arguments:\n{1!r}"
+                                    template = "An exception of type {0} occured (line 142). Arguments:\n{1!r}"
                                     message = template.format(type(ex).__name__, ex.args)
                                     print message
 
@@ -143,26 +148,38 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
                     # print('no data, try sending')
                     pass
 
-                utility.log(pilib.dirs.logs.log, "Attempting send routine", 4, pilib.loglevels.serial)
+                print('CLEARING DATA !!!')
+                data = []
+                # try:
+                #     utility.log(pilib.dirs.logs.serial, "Attempting send routine", 4, pilib.loglevels.serial)
+                # except Exception as e:
+                #     template = "An exception of type {0} occured while doing some serial logging. Arguments:\n{1!r}"
+                #     message = template.format(type(ex).__name__, ex.args)
+                #     print message
+
 
                 # See if there are messages to send.
+                print('LET US TRY SEND HANDLER')
                 try:
                     runsendhandler(ser)
                 except Exception as e:
-                    utility.log(pilib.dirs.logs.log, "Error in send routine", 1, 1)
+                    template = "An exception of type {0} occured in runsendhandler (line 142). Arguments:\n{1!r}"
+                    message = template.format(type(ex).__name__, ex.args)
+                    print message
+                    utility.log(pilib.dirs.logs.serial, "Error in send routine: " + message, 1, 1)
+                print('SEND HANDLER DONE')
+
                 #
                 #     template = "An exception of type {0} occured. Arguments:\n{1!r}"
                 #     message = template.format(type(ex).__name__, ex.args)
-                #     pilib.log(pilib.dirs.logs.log, message, 1, 1)
-                #     print message
-                data = []
+                #     pilib.log(pilib.dirs.logs.serial, message, 1, 1)
+
 
             else:
                 # print('DATA NOT ZERO')
                 # print(ch)
                 data.append(ch)
                 stringmessage += str(ch)
-
 
             if checkstatus:
                 print('checking status')
@@ -204,16 +221,16 @@ def runsendhandler(ser):
         # print('we have an error getting a queued message. Could be just no message.')
         pass
     else:
-        utility.log(pilib.dirs.logs.log, 'Sending serial message: ' + lastqueuedmessage['message'], 1, 1)
+        utility.log(pilib.dirs.logs.serial, 'Sending serial message: ' + lastqueuedmessage['message'], 1, 1)
         try:
             # print('going to send message:')
             # print(lastqueuedmessage['message'])
             ser.write(lastqueuedmessage['message'].encode())
             # sendserialmessage(ser, lastqueuedmessage['message'])
         except:
-             utility.log(pilib.dirs.logs.log, 'Error sending message', 1, 1)
+             utility.log(pilib.dirs.logs.serial, 'Error sending message', 1, 1)
         else:
-            utility.log(pilib.dirs.logs.log, 'Success sending message', 1, 1)
+            utility.log(pilib.dirs.logs.serial, 'Success sending message', 1, 1)
 
             conditionnames = ['queuedtime', 'message']
             conditionvalues = [lastqueuedmessage['queuedtime'], lastqueuedmessage['message']]
@@ -234,6 +251,8 @@ def processserialdata(data):
     # try:
     # Break into chunks
 
+    print('processing data: ')
+    print(data)
     # RF Message (deprecated, all are of serial form below)
     if data.strip().find('BEGIN RECEIVED') > 0:
         split1 = data.strip().split('BEGIN RECEIVED')
@@ -276,6 +295,7 @@ def lograwmessages(message):
     from iiutilities.dblib import sqliteinsertsingle
     # try:
     strmessage = str(message).replace('\x00','').strip()
+    print('publishing message: ' + strmessage)
     # print(repr(strmessage))
     sqliteinsertsingle(dirs.dbs.motes, 'readmessages', [gettimestring(), strmessage])
     # sqliteinsertsingle(dirs.dbs.motes, 'readmessages', [gettimestring(), 'nodeid:2,chan:02,sv:070.000,pv:071.000,RX_RSSI:_57'])
@@ -294,7 +314,7 @@ def lograwmessages(message):
 
 def processremotedata(datadict, stringmessage):
     import cupid.pilib as pilib
-    from iiutilities import dblib, datalib
+    from iiutilities import dblib, datalib, utility
     if 'nodeid' in datadict:
 
         # We are going to search for keywords. Message type will not be explicitly declared so
@@ -435,16 +455,14 @@ def processremotedata(datadict, stringmessage):
             # Ok, so here we are. We have either added new data to old data, or we have the new data alone.
             # We take our dictionary and convert it back to json and put it in the text entry
 
-            updatedjsonentry = datalib.dicttojson(updateddata)
+            updatedjsonentry = utility.dicttojson(updateddata)
 
             conditions += 'and "keyvalue"=\'' + keyvalue +'\''
             deletequery = dblib.makedeletesinglevaluequery('remotes', conditions)
 
             # hardcode this for now, should supply valuename list.
             addquery = dblib.makesqliteinsert('remotes', [datadict['nodeid'], 'channel', keyvalue, 'channel', updatedjsonentry, datalib.gettimestring()])
-
             dblib.sqlitemultquery(pilib.dirs.dbs.control, [deletequery, addquery])
-
 
         elif 'scalevalue' in datadict:
             querylist.append('create table if not exists scalevalues (value float, time string)')

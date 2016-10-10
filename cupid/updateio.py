@@ -231,6 +231,19 @@ def updateiodata(database, **kwargs):
                     options = datalib.parseoptions(interface['options'])
                     # print(options['formula'])
                     value = datalib.evaldbvnformula(options['formula'])
+
+                    if 'minvalue' in options:
+                        try:
+                            if value < float(options['minvalue']):
+                                value = float(options['minvalue'])
+                        except:
+                            pass
+                    if 'maxvalue' in options:
+                        try:
+                            if value > float(options['maxvalue']):
+                                value = float(options['maxvalue'])
+                        except:
+                            pass
                     if 'readtime' in options:
                         try:
                             # we grab a string time from where we are told
@@ -252,11 +265,13 @@ def updateiodata(database, **kwargs):
                           str(defaultinputpollfreq), '', ''])
                     querylist.append(query)
 
-
         elif interface['interface'] == 'MOTE':
 
             #determine and then update id based on fields
-            entryid = interface['interface'] + '_' + interface['type'] + '_' + interface['address']
+            try:
+                entryid = interface['interface'] + '_' + interface['type'] + '_' + interface['address']
+            except:
+                print('error with entryid + ',interface['interface'], interface['type'], interface['address'])
             interfaceids.append(entryid)
 
             condition = '"interface"=\'' + interface['interface'] + '\' and "type"=\'' + interface['type'] + '\' and "address"=\'' + interface['address'] + '\''
@@ -313,7 +328,7 @@ def updateiodata(database, **kwargs):
                 # print(len(nodeentries))
 
                 if interface['type'] == 'channel':
-                    # print('channel')
+                    print('channel')
                     if len(nodeentries) == 1:
                         # print('one entry found')
 
@@ -327,7 +342,7 @@ def updateiodata(database, **kwargs):
                             nodedata.pop('svcmd',None)
 
                             # Delete from remotes data by inserting entry without svcmd
-                            dblib.setsinglevalue(pilib.dirs.dbs.control, 'remotes', 'data', datalib.dicttojson(nodedata), condition=condition)
+                            dblib.setsinglevalue(pilib.dirs.dbs.control, 'remotes', 'data', utility.dicttojson(nodedata), condition=condition)
 
                             # Nuke pending entry
                             newchanneldata['pending'] = ''
@@ -430,9 +445,9 @@ def updateiodata(database, **kwargs):
                                 entryvalue = -1
 
 
-                            moteentries.append('insert into inputs values (\'' + entryid + '\',\'' + interface['interface'] + '\',\'' +
-                                interface['type'] + '\',\'' + str(address) + '\',\'' + entryname + '\',\'' + str(entryvalue) + "','','" +
-                                 nodeentry['time'] + '\',\'' + str(15) + "','" + '' + "','" + '' + "')")
+                            moteentries.append("insert into inputs values ('" + entryid + "','" + interface['interface'] + "','" +
+                                interface['type'] + "','" + str(address) + "','" + entryname + "','" + str(entryvalue) + "','','" +
+                                 nodeentry['time'] + "','" + str(15) + "','" + '' + "','" + '' + "')")
                     # print('querylist')
                     # print(moteentries)
                     querylist.extend(moteentries)
@@ -567,7 +582,7 @@ def updateioinfo(database, table):
     for item in tabledata:
         itemid = item['id']
         name = sqlitedatumquery(database, 'select name from ioinfo where id=\'' + itemid + '\'')
-        querylist.append(database, 'update ' + table + ' set name=\'' + name + '\' where id = \'' + itemid + '\'')
+        querylist.append(database, 'update ' + table + " set name='" + name + "' where id = '" + itemid + "'")
     if querylist:
         sqlitemultquery(querylist)
 
@@ -733,8 +748,8 @@ def processlabjackinterface(interface, previnputs):
                 offtime = preventry['pollfreq']
 
         query = "insert into inputs values ('" + usbid + "','" + interface['interface'] + "','" + \
-        interface['type'] + "','" + str(entry['address']) + "','" + name + "','" + str(data['value']) + "','','" + \
-        str(data['readtime']) + "','" + str(pollfreq) + "','" + ontime + "','" + offtime + "')"
+            interface['type'] + "','" + str(entry['address']) + "','" + name + "','" + str(data['value']) + "','','" + \
+            str(data['readtime']) + "','" + str(pollfreq) + "','" + ontime + "','" + offtime + "')"
 
         # print(query)
 
@@ -752,6 +767,7 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
         modbustable = dblib.readalldbrows(pilib.dirs.dbs.control, 'modbustcp')
     except:
         utility.log(pilib.dirs.logs.io, 'Error reading modbus table', 0, pilib.loglevels.io)
+        modbustable = []
     else:
         utility.log(pilib.dirs.logs.io, 'Read modbus table', 4, pilib.loglevels.io)
 
@@ -768,6 +784,7 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
             shortmode = 'RW'
         else:
             utility.log(pilib.dirs.logs.io, 'modbus mode error', 1, pilib.loglevels.io)
+            shortmode = 'R'
         try:
             mbid = entry['interfaceid'] + '_' + str(entry['register']) + '_' + str(entry['length']) + '_' + shortmode
         except KeyError:
@@ -876,16 +893,16 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
 
 
                         # Contruct entry for newly acquired data
-                        querylist.append('insert into inputs values (\'' + mbid + '\',\'' + interface['id'] + '\',\'' +
-                            interface['type'] + '\',\'' + str(entry['register']) + '\',\'' + mbname + '\',\'' + str(
+                        querylist.append('insert into inputs values (\'' + mbid + "','" + interface['id'] + "','" +
+                            interface['type'] + "','" + str(entry['register']) + "','" + mbname + "','" + str(
                             returnvalue) + "','','" + str(polltime) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
 
                     else:
                         utility.log(pilib.dirs.logs.io, 'Statuscode ' + str(readresult['statuscode']) + ' on MB read : ' + readresult['message'], 0, pilib.loglevels.io)
 
                         # restore previous value and construct entry if it existed (or not)
-                        querylist.append('insert into inputs values (\'' + mbid + '\',\'' + interface['interface'] + '\',\'' +
-                            interface['type'] + '\',\'' + str(entry['register']) + '\',\'' + mbname + '\',\'' + str(prevvalue) + "','','" + str(prevpolltime) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
+                        querylist.append('insert into inputs values (\'' + mbid + "','" + interface['interface'] + "','" +
+                            interface['type'] + '\',\'' + str(entry['register']) + "','" + mbname + "','" + str(prevvalue) + "','','" + str(prevpolltime) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
 
 
     utility.log(pilib.dirs.logs.io, 'Querylist: ' + str(querylist), 4, pilib.loglevels.io)
@@ -993,10 +1010,10 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
             offtime = ''
 
         # Add entry to outputs tables
-        querylist.append('insert into outputs values (\'' + interface['id'] + '\',\'' +
-                         interface['interface'] + '\',\'' + interface['type'] + '\',\'' + str(
-            address) + '\',\'' +
-                         gpioname + '\',\'' + str(value) + "','','" + str(polltime) + '\',\'' +
+        querylist.append('insert into outputs values (\'' + interface['id'] + "','" +
+                         interface['interface'] + "','" + interface['type'] + "','" + str(
+            address) + "','" +
+                         gpioname + "','" + str(value) + "','','" + str(polltime) + "','" +
                          str(pollfreq) + "','" + ontime + "','" + offtime + "')")
     elif options['mode'] == 'input':
         if method == 'rpigpio':
@@ -1057,10 +1074,10 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
                                    'Setting values to defaults, defaultinputpollfreq = ' + str(
                                        pollfreq), 3, pilib.loglevels.io)
     querylist.append(
-        'insert into inputs values (\'' + interface['id'] + '\',\'' + interface['interface'] + '\',\'' +
-        interface['type'] + '\',\'' + str(address) + '\',\'' + gpioname + '\',\'' + str(
+        'insert into inputs values (\'' + interface['id'] + "','" + interface['interface'] + '\',\'' +
+        interface['type'] + "','" + str(address) + "','" + gpioname + '\',\'' + str(
             value) + "','','" +
-        str(polltime) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
+        str(polltime) + "','" + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
 
     if method == 'pigpio' and 'piobject' not in kwargs:
         pi.stop()
