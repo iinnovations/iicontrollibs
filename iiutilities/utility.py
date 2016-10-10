@@ -77,7 +77,7 @@ def unmangleAPIdata(d):
 
     'alist[]': ['blurg', 'blurg2'],
 
-    unmanged
+    ld
     {'username': 'creese', 'pathalias': 'iiinventory', 'myobject': {'things': 'thingsvalue', 'stuff': 'stuffvalue'}, 'url': '/wsgiinventory', 'arrayofobjects': {'1': 'stuffvalue', '0': 'stuffvalue', '2': 'stuffvalue'}, 'alist': ['blurg', 'blurg2'], 'objwitharray[array2]': ['blurg11', 'blurg12'], 'start': '0', 'twodlist[0]': ['blurg', 'blurg2'], 'twodlist[1]': ['blurg11', 'blurg12'], 'action': 'addeditorderpart', 'objwitharray[array1]': ['blurg', 'blurg2'], 'hpass': '28229485665f96e033333c22c3bdb508daefca17'}
 
     Strangely, if an array only has one element, it comes through as myarray, not myarray[]. So if we must use arrays,
@@ -98,18 +98,18 @@ def unmangleAPIdata(d):
             else:
                 assignvalue = [value]
 
-            print(assignvalue)
+            # print(assignvalue)
             # Now check to see if this is part of a 2d list or a dict.
             # The way we are doing this means you should not allow your dict keys to be parsed into integers
             # Also don't use brackets in your keys. Common sense. I think?
 
             key = key[:-2]
-            print('pruned key: ' + key)
+            # print('pruned key: ' + key)
 
             if key[-1] == ']':
                 secondindex = key.split('[')[1].split(']')[0]
                 firstindex = key.split('[')[0]
-                print('** Dict' )
+                # print('** Dict' )
 
                 if firstindex not in unmangled:
                     unmangled[firstindex] = {}
@@ -202,8 +202,189 @@ def unmangleAPIdata(d):
         # else:
         #     unmangled[key]=value
 
-
     return unmangled
+
+
+def parsekeys(key):
+    import re
+
+    depth = key.count('[')
+    depth2 = key.count(']')
+
+    if depth != depth2:
+        # print('we have a depth calculation problem with key ' + key)
+        return None
+
+    # print ('depth is ' + str(depth) + ' for key ' + key)
+    if depth > 0:
+        indices = re.findall('\[(.*?)\]', key)
+        # print('indices:')
+        # print (indices)
+
+        islist = []
+        for index in indices:
+            # Empty index means list, i.e. []
+            if not index:
+                islist.append(True)
+            else:
+                try:
+                    anindex = int(index)
+                except:
+                    islist.append(False)
+                else:
+                    islist.append(True)
+
+        # If index is empty, we got a level 1 list, e.g. partids[]
+        if indices[0]:
+            root=key[0:key.index(indices[0])-1]
+        else:
+            root=key[0:key.index('[')]
+    else:
+        indices=[]
+        root=key
+        islist = []
+    # print('root')
+    # print(root)
+
+    return({'root':root,'depth':depth,'indices':indices, 'islist':islist})
+
+
+def testunmangle():
+    sampledict = {
+        'paneldesc[paneltype]':'brewpanel',
+        'paneldesc[pumps][0][controltype]': 'none',
+        'paneldesc[pumps][0][name]':'HLT Pump',
+        'paneldesc[pumps][0][size]':'1HP',
+        'paneldesc[pumps][1][controltype]':'none',
+        'paneldesc[pumps][1][name]':'MLT Pump',
+        'paneldesc[pumps][1][size]':'none',
+        'paneldesc[pumps][2][controltype]':'none',
+        'paneldesc[pumps][2][name]':'Kettle Pump',
+        'paneldesc[pumps][2][size]':'none',
+        'paneldesc[pumps][3][contr]':'none',
+        'paneldesc[pumps][3][name]':'Other Pu',
+        'paneldesc[vessels][0][lowlevel]':'none',
+        'paneldesc[vessels][0][name]':'HLT',
+        'paneldesc[vessels][1][con]':'monitor',
+        'paneldesc[vessels][1][highlevel]':'none',
+        'paneldesc[vessels][1][lowlevel]':'none',
+        'paneldesc[vessels][1][name]':'MLT',
+        'paneldesc[vessels][2][controltype]':'monitor',
+        'paneldesc[vessels][2][highlevel]':'tuningforkwithtimer',
+        'paneldesc[vessels][2][lowlevel]':'none',
+        'paneldesc[vessels][2][name]':'Kettle',
+        'partids[]':['value, anothervalue, yetanothervalue'],
+        # 'partids[someshit][]':'value, anothervalue, yetanothervalue',
+        'recalc':'true'
+    }
+    print(sampledict)
+    print(newunmangle(sampledict))
+
+
+def newunmangle(d):
+
+    # NB this will barf if you send in a dict key with the same value as a list, e.g.
+    # mydict['key'] = 'some value'
+    # mydict['key'][0] = 'some value'
+
+    # Also need to account for empty index list, e.g. partids[]. This will be list=True, index=''
+    unmangled = {}
+    for key,value in d.iteritems():
+
+        keyassess = parsekeys(key)
+        # print(keyassess)
+        if keyassess['depth'] == 0:
+            unmangled[keyassess['root']] = value
+
+        elif keyassess['depth'] == 1:
+            if keyassess['root'] not in unmangled:
+                unmangled[keyassess['root']] = {}
+
+            if keyassess['indices'][0] in unmangled[keyassess['root']]:
+                print('we appear to be overwriting something at depth 1: ' + keyassess['indices'][0])
+
+            if keyassess['indices'][0]:
+                unmangled[keyassess['root']][keyassess['indices'][0]] = value
+            else:   # Empty index = list
+                unmangled[keyassess['root']] = value
+
+        elif keyassess['depth'] == 2:
+            if keyassess['root'] not in unmangled:
+                unmangled[keyassess['root']] = {}
+                unmangled[keyassess['root']][keyassess['indices'][0]] = {}
+
+            elif keyassess['indices'][0] not in unmangled[keyassess['root']]:
+                unmangled[keyassess['root']][keyassess['indices'][0]] = {}
+
+            if keyassess['indices'][1] in unmangled[keyassess['root']][keyassess['indices'][0]]:
+                print('we appear to be overwriting something at depth 2: ' + keyassess['indices'][1])
+
+            if keyassess['indices'][1]:
+                unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]] = value
+            else:   # Empty index is list
+                unmangled[keyassess['root']][keyassess['indices'][0]] = value
+
+        elif keyassess['depth'] == 3:
+            if keyassess['root'] not in unmangled:
+                # print('root not in unmangled')
+                unmangled[keyassess['root']] = {}
+                unmangled[keyassess['root']][keyassess['indices'][0]] = {}
+                unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]] = {}
+
+            elif keyassess['indices'][0] not in unmangled[keyassess['root']]:
+                # print('index 0 not in root')
+                unmangled[keyassess['root']][keyassess['indices'][0]] = {}
+                unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]] = {}
+
+            elif keyassess['indices'][1] not in unmangled[keyassess['root']][keyassess['indices'][0]]:
+                # print('index 1 not in root 0')
+                unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]] = {}
+
+            elif keyassess['indices'][2] not in unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]]:
+                # print('index 2 not in index 0 1 ')
+                pass
+
+            if keyassess['indices'][2]:
+                unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]][keyassess['indices'][2]] = value
+            else:       # Empty index is list
+                unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]] = value
+
+            if keyassess['indices'][2] in unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]]:
+                print('we appear to be overwriting something for depth 3: ' + keyassess['indices'][1])
+
+    reducedicttolist(unmangled)
+    # print(' ** DONE **')
+    return unmangled
+
+
+def reducedicttolist(mydict):
+    """
+    This function recursively reduces dictionaries with integer keys to lists.
+    This is especially useful for unmangling data that comes through with the integer indices as strings,
+    in wsgi calls.
+    """
+
+    allintegers = True
+    for key,value in mydict.iteritems():
+        if isinstance(value, dict):
+            # recursive call
+            returnvalue = reducedicttolist(value)
+            mydict[key] = returnvalue
+
+    for key,value in mydict.iteritems():
+        try:
+            int(key)
+        except:
+            allintegers=False
+
+    if allintegers:
+        returnlist = []
+        sortedkeys = sorted(mydict, key=lambda key: float(key))
+        for key in sortedkeys:
+            returnlist.append(mydict[key])
+        return returnlist
+    else:
+        return mydict
 
 
 def killprocbyname(name):
@@ -231,43 +412,22 @@ def log(logfile, message, reqloglevel=1, currloglevel=1):
         logfile.close()
 
 
-def writetabletopdf(**kwargs):
+def writetabletopdf(tabledata, **kwargs):
 
-    output = {'status':0,'message':''}
-    requiredarguments = ['database', 'tablename', 'outputfile']
-    for argument in requiredarguments:
-        if argument not in kwargs:
-            output['message'] += argument + ' argument required. Exiting. '
-            output['status'] = 1
-            return output
+    output = {}
+    if 'fields' in kwargs:
+        output['message'] += 'Fields argument found. '
+        fields = kwargs['fields']
+    else:
+        fields = None
 
+    output = {}
     try:
         import reportlab
     except ImportError:
         output['message'] += "You do not have reportlab installed. You need to do that. "
         output['status'] = 1
         return output
-
-    from iiutilities import dblib
-
-    tabledata = dblib.readalldbrows(kwargs['database'], kwargs['tablename'])
-
-    if tabledata:
-
-        columnames=[]
-        for key, value in tabledata[0].iteritems():
-            columnames.append(key)
-
-    else:
-        output['message'] += 'No tabledata retrieved (Error or empty table). '
-        output['status'] = 1
-        return output
-
-    if 'fields' in kwargs:
-        output['message'] += 'Fields argument found. '
-        fields = kwargs['fields']
-    else:
-        fields = None
 
     from reportlab.pdfgen import canvas
     from reportlab.lib.pagesizes import letter, landscape
@@ -319,8 +479,77 @@ def writetabletopdf(**kwargs):
     #         c.drawString(100,750,value)
 
     c.save()
+    return output
+
+
+def writetextdoctopdf(text, **kwargs):
+
+    output = {}
+    try:
+        import reportlab
+    except ImportError:
+        output['message'] += "You do not have reportlab installed. You need to do that. "
+        output['status'] = 1
+        return output
+
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.lib.testutils import setOutDir,makeSuiteForClasses, outputfile, printLocation
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, XBox, Indenter, XPreformatted
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib.colors import red, black, navy, white, green
+    from reportlab.lib.randomtext import randomText
+    from reportlab.rl_config import defaultPageSize
+
+    styNormal = ParagraphStyle('normal')
+
+    styIndent1 = ParagraphStyle('normal', leftIndent=10)
+
+    body = []
+
+    for index,item in enumerate(text.split('\n')):
+        tabs = item.count('\t')
+        thisStyle = ParagraphStyle('normal', leftIndent=10*tabs)
+        body.append(Paragraph(item, thisStyle))
+
+    body.append(Paragraph("""<para>\n\tThis has newlines and tabs on the front but inside the para tag</para>""", styNormal))
+    doc = SimpleDocTemplate(kwargs['outputfile'])
+    # doc.build(body, onFirstPage=formatted_page, onLaterPages=formatted_page)
+    doc.build(body)
+
+    return output
+
+
+def writedbtabletopdf(**kwargs):
+
+    output = {'status':0,'message':''}
+    requiredarguments = ['database', 'tablename', 'outputfile']
+    for argument in requiredarguments:
+        if argument not in kwargs:
+            output['message'] += argument + ' argument required. Exiting. '
+            output['status'] = 1
+            return output
+
+    from iiutilities import dblib
+
+    tabledata = dblib.readalldbrows(kwargs['database'], kwargs['tablename'])
+
+    if tabledata:
+
+        columnames=[]
+        for key, value in tabledata[0].iteritems():
+            columnames.append(key)
+
+    else:
+        output['message'] += 'No tabledata retrieved (Error or empty table). '
+        output['status'] = 1
+        return output
+
+    returnstatus = writetabletopdf(tabledata)
 
     output['message'] += 'Routine finished. '
+    output['status'] = returnstatus
     return output
 
 

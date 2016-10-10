@@ -150,6 +150,11 @@ def tail(f, n, offset=None):
         avg_line_length *= 1.3
 
 
+def setprecision(number, precision):
+    number = float(int(float(number) * (10 ** precision))) / 10 ** precision
+    return number
+
+
 def calcastevalformula(formula):
     from asteval import Interpreter
     aeval = Interpreter()
