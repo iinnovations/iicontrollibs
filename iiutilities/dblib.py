@@ -522,6 +522,12 @@ def getentiredatabase(databasename, method='nometa'):
     return {'data': reconstructeddatabase, 'dictarray': tables, 'tablenames': tablenames}
 
 
+def sqliteemptytable(database, tablename):
+    querylist = []
+    querylist.append('delete from \'' + tablename + '\'')
+    sqlitemultquery(database, querylist)
+
+
 def emptyandsetdefaults(database, tablename):
     querylist = []
     querylist.append('delete from \'' + tablename + '\'')

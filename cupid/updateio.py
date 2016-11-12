@@ -279,7 +279,7 @@ def updateiodata(database, **kwargs):
             # print(condition)
             dblib.setsinglevalue(pilib.dirs.dbs.control, 'interfaces', 'id', entryid, condition)
 
-            utility.log(pilib.dirs.logs.io, 'Processing Mote interface' + interface['name'] + ', id:' + entryid, 3,
+            utility.log(pilib.dirs.logs.io, 'Processing Mote interface ' + interface['name'] + ', id:' + entryid, 3,
                         pilib.loglevels.io)
             if interface['enabled']:
                 utility.log(pilib.dirs.logs.io, 'Mote Interface ' + interface['name'] + ', id:' + entryid + ' enabled', 3,
@@ -829,63 +829,87 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
                                            'Setting values to defaults, defaultinputpollfreq = ' + str(pollfreq), 3, pilib.loglevels.io)
 
                 # Read data
+                from iiutilities.datalib import bytestovalue
                 try:
-                    readresult = readMBcodedaddresses(interface['address'], entry['register'], entry['length'])
+                    # Override length entry with format-specific length
+                    if entry['format']:
+                        from iiutilities.datalib import typetoreadlength
+                        readlength = typetoreadlength(entry['format'])
+                    else:
+                        readlength = entry['length']
+                    readresult = readMBcodedaddresses(interface['address'], entry['register'], readlength)
                 except:
                     utility.log(pilib.dirs.logs.io, 'Uncaught reror reading modbus value', 0, pilib.loglevels.io)
                 else:
                     if readresult['statuscode'] == 0:
                         values = readresult['values']
-                        try:
-                            FC = MBFCfromaddress(int(entry['register']))
-                        except ValueError:
-                            utility.log(pilib.dirs.logs.io, 'Malformed address for FC determination : ' + str(entry['address']), 0, pilib.loglevels.io)
-                        else:
-                            utility.log(pilib.dirs.logs.io, 'Function code : ' + str(FC), 4, pilib.loglevels.io)
-                        returnvalue = 0
-                        if len(values) > 0:
-                            utility.log(pilib.dirs.logs.io, 'Multiple values returned', 4, pilib.loglevels.io)
-                            if not entry['bigendian']:
-                                try:
-                                    values.reverse()
-                                except AttributeError:
-                                    utility.log(pilib.dirs.logs.io, 'Error on reverse of MB values: ' + str(values), 0, pilib.loglevels.io)
-                            if entry['format'] == 'float32':
-                                import struct
-                                byte2 = values[0] % 256
-                                byte1 = (values[0] - byte2)/256
-                                byte4 = values[1] % 256
-                                byte3 = (values[1] - byte4)/256
-
-                                byte1hex = chr(byte1)
-                                byte2hex = chr(byte2)
-                                byte3hex = chr(byte3)
-                                byte4hex = chr(byte4)
-                                hexstring = byte1hex + byte2hex + byte3hex + byte4hex
-
-                                returnvalue = struct.unpack('>f',hexstring)[0]
-                            else:
-                                for index, val in enumerate(values):
-                                    if FC in [0, 1]:
-                                        returnvalue += val * 2 ** index
-                                    elif FC in [3, 4]:
-                                        returnvalue += val * 256 ** index
-                                    else:
-                                         utility.log(pilib.dirs.logs.io, 'Invalid function code', 0, pilib.loglevels.io)
-                        else:
-                            returnvalue = values[0]
-                        if entry['options'] != '':
+                        # try:
+                        #     FC = MBFCfromaddress(int(entry['register']))
+                        # except ValueError:
+                        #     utility.log(pilib.dirs.logs.io, 'Malformed address for FC determination : ' + str(entry['address']), 0, pilib.loglevels.io)
+                        # else:
+                        #     utility.log(pilib.dirs.logs.io, 'Function code : ' + str(FC), 4, pilib.loglevels.io)
+                        # returnvalue = 0
+                        # if len(values) > 0:
+                        #     utility.log(pilib.dirs.logs.io, 'Multiple values returned', 4, pilib.loglevels.io)
+                        #     if not entry['bigendian']:
+                        #         try:
+                        #             values.reverse()
+                        #         except AttributeError:
+                        #             utility.log(pilib.dirs.logs.io, 'Error on reverse of MB values: ' + str(values), 0, pilib.loglevels.io)
+                        #     if entry['format'] == 'float32':
+                        #         import struct
+                        #         byte2 = values[0] % 256
+                        #         byte1 = (values[0] - byte2)/256
+                        #         byte4 = values[1] % 256
+                        #         byte3 = (values[1] - byte4)/256
+                        #
+                        #         byte1hex = chr(byte1)
+                        #         byte2hex = chr(byte2)
+                        #         byte3hex = chr(byte3)
+                        #         byte4hex = chr(byte4)
+                        #         hexstring = byte1hex + byte2hex + byte3hex + byte4hex
+                        #
+                        #         returnvalue = struct.unpack('>f',hexstring)[0]
+                        #     else:
+                        #         for index, val in enumerate(values):
+                        #             if FC in [0, 1]:
+                        #                 returnvalue += val * 2 ** index
+                        #             elif FC in [3, 4]:
+                        #                 returnvalue += val * 256 ** index
+                        #             else:
+                        #                  utility.log(pilib.dirs.logs.io, 'Invalid function code', 0, pilib.loglevels.io)
+                        # else:
+                        #     returnvalue = values[0]
+                        if entry['options']:
                             options = datalib.parseoptions(entry['options'])
+
+                            print(values)
+                            value = bytestovalue(values, entry['format'])
+                            print(value)
+
+                            utility.log(pilib.dirs.logs.io, 'processed value is ' + str(value), 2, pilib.loglevels.io)
+
                             if 'scale' in options:
-                                # try:
-                                    returnvalue = returnvalue * float(options['scale'])
-                                # except:
-                                #     pilib.writedatedlogmsg(pilib.dirs.logs.io, 'Error on scale operation', 0, pilib.loglevels.io)
+                                utility.log(pilib.dirs.logs.io, 'Scale attribute value found: ' + options['scale'], 2, pilib.loglevels.io)
+                                try:
+                                    value = float(value) / float(options['scale'])
+                                except:
+                                    utility.log(pilib.dirs.logs.io, 'error scaling ' + str(value) + ' with argument ' + options['scale'])
+
+                            if 'formula' in options:
+                                from iiutilities.datalib import calcastevalformula
+                                utility.log(pilib.dirs.logs.io, 'Processing formula: ' + options.formula + ' with value ' + str(value))
+                                try:
+                                    value = calcastevalformula(self.formula, x=value)
+                                except:
+                                    utility.log(pilib.dirs.logs.io, 'Error processing formula: ' + str(options['formula']))
+
                             if 'precision' in options:
-                                # try:
+                                try:
                                     returnvalue = round(returnvalue, int(options['precision']))
-                                # except:
-                                #     pilib.writedatedlogmsg(pilib.dirs.logs.io, 'Error on precision operation', 0, pilib.loglevels.io)
+                                except:
+                                    pilib.writedatedlogmsg(pilib.dirs.logs.io, 'Error on precision operation', 0, pilib.loglevels.io)
 
 
                         utility.log(pilib.dirs.logs.io, 'Values read: ' + str(values), 4, pilib.loglevels.io)

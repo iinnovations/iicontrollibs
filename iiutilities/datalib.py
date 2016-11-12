@@ -155,8 +155,135 @@ def setprecision(number, precision):
     return number
 
 
-def calcastevalformula(formula):
+def checkfloat(number):
+    # Not functional
+    bytes = valuetofloat32bytes(number, type='double')
+    print(bytes)
+    value = float32bytestovalue(bytes)
+    print(value)
+    print(number)
+
+
+def typetoreadlength(type):
+    if type in ['word', 'word16', 'float16','word16rb', 'float16rb', 'bit']:
+        readlength = 1
+    elif type in ['word32', 'word32rw', 'word32sw','word32rwrb', 'word32rwsb', 'word32swrb', 'word32swsb',
+                  'float32', 'float32rw', 'float32sw','float32rwrb', 'float32rwsb', 'float32swrb', 'float32swsb']:
+        readlength = 2
+    else:
+        print('READLENGTH NOT FOUND for "' + type + '". RETURNING DEFAULT 1 to be nice.')
+        readlength = 1
+    return readlength
+
+
+def float32bytestovalue(values, wordorder='standard', byteorder='standard'):
+    import struct
+
+    if wordorder == 'reverse':
+        word0 = values[1]
+        word1 = values[0]
+    else:
+        word0 = values[0]
+        word1 = values[1]
+
+    if byteorder == 'reverse':
+        byte1 = word0 % 256
+        byte2 = (word0 - byte1) / 256
+        byte3 = word1 % 256
+        byte4 = (word1 - byte3) / 256
+    else:
+        byte2 = word0 % 256
+        byte1 = (word0 - byte2) / 256
+        byte4 = word1 % 256
+        byte3 = (word1 - byte4) / 256
+
+    byte1hex = chr(byte1)
+    byte2hex = chr(byte2)
+    byte3hex = chr(byte3)
+    byte4hex = chr(byte4)
+    hexstring = byte1hex + byte2hex + byte3hex + byte4hex
+    returnvalue = struct.unpack('>f', hexstring)[0]
+
+    return returnvalue
+
+
+def bytestovalue(bytes, format='word32'):
+    # Standard word order
+    # MSW, LSW
+
+    # Standard byte order
+    # MSB, LSB
+
+    # Standard is byteorder=standard, wordorder=standard
+    if format in ['float32', 'float32swsb', 'float32sw', 'float32sb']:
+        value = float32bytestovalue(bytes)
+    elif format in ['float32rw', 'float32rwsb']:
+        value = float32bytestovalue(bytes, wordorder='reverse')
+    elif format in ['float32rb', 'float32swrb']:
+        value = float32bytestovalue(bytes, byteorder='reverse')
+    elif format in ['float32rwrb']:
+        value = float32bytestovalue(bytes, byteorder='reverse', wordorder='reverse')
+
+    elif format == 'word32':
+        value = bytes[1] * 65536 + bytes[0]
+    elif format == 'word32rw':
+        value = bytes[0] * 65536 + bytes[1]
+
+    # no provision for reverse bytes in word yet
+    else:
+        value = bytes[0]
+
+    return value
+
+
+def valuetobytes(value, format='beword32'):
+    if format in ['beword32', 'leword32']:
+        bigbyte = value / 65536
+        smallbyte = value % 65536
+        if format == 'beword32':
+            bytes = [bigbyte, smallbyte]
+        else:
+            bytes = [smallbyte, bigbyte]
+    elif format=='float32':
+        pass
+    return bytes
+
+
+def valuetofloat32bytes(value, type='float', endian='big', byteorder='standard'):
+    import struct
+    if type == 'float':
+        mybytearray = struct.pack("!f", value)
+    elif type == 'double':
+        mybytearray = struct.pack("!d", value)
+    else:
+        return
+
+    integers = [ord(c) for c in mybytearray]
+    print(integers)
+    print(mybytearray)
+
+    byte0 = mybytearray[0]*256 + mybytearray[1]
+    byte1 = mybytearray[2]*256 + mybytearray[2]
+
+    returnvalue = [byte0, byte1]
+
+    return returnvalue
+
+
+def calcastevalformula(formula, x=None):
+
+    """
+    This takes a formula, such as 9**8 + sin(19)
+    Optionally, provide the formula with x included and a value for x, e.g.
+     calcastevalformula(x**2 =5, x=18)
+    """
+
     from asteval import Interpreter
+    if x or x==0:
+        # print('we found x with value ' + str(x))
+        formula = formula.replace('x',str(x))
+
+    # print(formula)
     aeval = Interpreter()
     result = aeval(formula)
     # print('RESULT: ' + str(result))

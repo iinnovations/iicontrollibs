@@ -19,20 +19,31 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 
-def runping(pingAddress='8.8.8.8', numpings=1):
+def runping(pingAddress='8.8.8.8', numpings=1, quiet=False):
     pingtimes = []
     from cupid import pilib
     import subprocess
     for i in range(numpings):
         # Perform the ping using the system ping command (one ping only)
+        import os
+
         try:
             # result, err = Popen(['ping','-c','1', pingAddress], stdout=PIPE, stderr=PIPE).communicate()
             # Default ping timeout is 500ms. This is about right.
-            result = subprocess.Popen(['fping','-c','1', pingAddress], stdout=subprocess.PIPE)
+            # if quiet:
+            # result = subprocess.Popen(['fping','-c','1', pingAddress], stdout=os.devnull)
+            # else:
+            if quiet:
+                DEVNULL = open(os.devnull, 'wb')
+                result = subprocess.Popen(['fping', '-c', '1', pingAddress], stdout=subprocess.PIPE, stderr=DEVNULL)
+                DEVNULL.close()
+            else:
+                result = subprocess.Popen(['fping', '-c', '1', pingAddress], stdout=subprocess.PIPE)
+
             pingresult = result.stdout.read()
             # print(pingresult)
         except:
-            # print('there is problem')
+            print('there is problem with your pinging')
             pingtimes.append(-1)
         else:
             # Extract the ping time
@@ -69,8 +80,8 @@ def runping(pingAddress='8.8.8.8', numpings=1):
     return pingtimes
 
 
-def pingstatus(pingAddress='8.8.8.8', numpings=1, threshold=2000):
-    pingtimes = runping(pingAddress, numpings)
+def pingstatus(pingAddress='8.8.8.8', numpings=1, threshold=2000, quiet=True):
+    pingtimes = runping(pingAddress, numpings, quiet=quiet)
     pingmax = max(pingtimes)
     pingmin = min(pingtimes)
     pingave = sum(pingtimes)/len(pingtimes)
@@ -357,29 +368,54 @@ def messagefrommbstatuscode(code):
 
 
 def readMBinputs(clientIP, coil, number=1):
-    from resource.pymodbus.client.sync import ModbusTcpClient
+
+    from resource.pymodbus.client.sync import ModbusTcpClient, ConnectionException
 
     client = ModbusTcpClient(clientIP)
-    result = client.read_discrete_inputs(coil, number)
-    client.close()
+    values = []
     try:
-        return result.bits[0:number]
-    except AttributeError:
-        # print('there are no registers!')
-        return result
+        rawresult = client.read_discrete_inputs(coil, number)
+
+    except ConnectionException:
+        # print('we were unable to connect to the host')
+        statuscode = 7
+    else:
+        # print(rawresult)
+        try:
+            resultregisters = rawresult.bits[0:number]
+        except AttributeError:
+            statuscode = rawresult.exception_code
+        else:
+            statuscode = 0
+            values = resultregisters
+    client.close()
+    result = {'message': messagefrommbstatuscode(statuscode), 'statuscode': statuscode, 'values':values}
+    return result
 
 
 def readMBcoils(clientIP, coil, number=1):
-    from resource.pymodbus.client.sync import ModbusTcpClient
+    from resource.pymodbus.client.sync import ModbusTcpClient, ConnectionException
 
     client = ModbusTcpClient(clientIP)
-    result = client.read_coils(coil, number)
-    client.close()
+    values = []
     try:
-        return result.bits[0:number]
-    except AttributeError:
-        # print('there are no registers!')
-        return result
+        rawresult = client.read_coils(coil, number)
+
+    except ConnectionException:
+        # print('we were unable to connect to the host')
+        statuscode = 7
+    else:
+        # print(rawresult)
+        try:
+            resultregisters = rawresult.bits[0:number]
+        except AttributeError:
+            statuscode = rawresult.exception_code
+        else:
+            statuscode = 0
+            values = resultregisters
+    client.close()
+    result = {'message': messagefrommbstatuscode(statuscode), 'statuscode': statuscode, 'values':values}
+    return result
 
 
 def writeMBcoils(clientIP, coil, valuelist):
@@ -480,13 +516,15 @@ def readMBcodedaddresses(clientIP, address, length=1):
 
     if address >= 0 and address < 100000:
         # coils
-        readaddress = int(address) * 16 + int((address % 1) * 100)
+        # readaddress = int(address) * 16 + int((address % 1) * 100)
+        readaddress = address
         result = readMBcoils(clientIP, readaddress, length)
         #print(result)
         return result
     elif address >= 100000 and address < 200000:
         # discrete inputs
-        readaddress = int(address - 100000) * 16 + int(((address - 100000) % 1) * 100)
+        # readaddress = int(address - 100000) * 16 + int(((address - 100000) % 1) * 100)
+        readaddress = address - 100000
         result = readMBinputs(clientIP, readaddress, length)
         return result
     elif address >= 300000 and address < 400000:
@@ -498,6 +536,58 @@ def readMBcodedaddresses(clientIP, address, length=1):
         # holding registers 
         readaddress = int(address) - 400000
         result = readMBholdingregisters(clientIP, readaddress, length)
+        return result
+    else:
+        return
+
+
+def writeMBcodedaddresses(clientIP, address, values, convert=None, **kwargs):
+    # addresses are as following:
+    # Input registers   : 300000    -  399999 -- not writeable
+    # Holding registers : 400000    -  400000
+    # Coils             : 000001.00 -  099999.07
+    # Discrete inputs   : 100001.00 -  199999.07 -- not writeable
+
+    # Bit addresses are in float
+    # 16 bits per word
+
+    from iiutilities.datalib import valuetobytes
+
+    # determine what we are doing by address
+    if isinstance(address, int) or isinstance(address, float):
+        pass
+    elif isinstance(address, str):
+        address = float(address)
+    else:
+        # valueerror
+        return
+
+
+
+    if address >= 000000 and address < 100000:
+        # coils
+        # writeaddress = int(address) * 16 + int((address % 1) * 100)
+        # writeaddress = int(address) * 16 + int((address % 1) * 100)
+        result = writeMBcoils(clientIP, address, values)
+        #print(result)
+        return result
+
+    elif address >= 400000 and address < 500000:
+
+        if convert == 'float32':
+            from datalib import valuetofloat32bytes
+            # Assume first value fed into values is float value to be converted
+            bytes = valuetofloat32bytes(values[0])
+        elif convert == 'beword32':
+            bytes = valuetobytes(values[0], 'beword32')
+        elif convert == 'leword32':
+            bytes = valuetobytes(values[0], 'leword32')
+        else:
+            bytes = values
+
+        # holding registers
+        readaddress = int(address) - 400000
+        result = writeMBholdingregisters(clientIP, readaddress, bytes)
         return result
     else:
         return

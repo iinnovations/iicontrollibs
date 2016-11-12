@@ -24,6 +24,29 @@ class Bunch:
         self.__dict__.update(kwds)
 
 
+def progressbar(time=5, length=20, type='percentage'):
+
+    from time import sleep
+    import sys
+
+    for i in range(length):
+        lesslength = length - 1
+        sys.stdout.write('\r')
+        # the exact output you're looking for:
+        p = int(100/length*(i+1))
+        if type == 'totaltime':
+            sys.stdout.write("[%" + '=' * i + '>' + ' ' * (length-i) + "] " + str(float(time)) + 's total ')
+        elif type == 'percentoftotaltime':
+            sys.stdout.write("[%" + '=' * i + '>' + ' ' * (length-i) + "] " + str(p) + '% of ' + str(float(time)) + 's total ')
+        else:
+            sys.stdout.write("[%" + '=' * i + '>' + ' ' * (length - i) + "] " + str(p) + '% ')
+
+        sys.stdout.flush()
+
+        sleep(float(time)/float(length))
+
+    print('')
+
 def unmangleAPIdata(d):
 
     """
@@ -301,7 +324,7 @@ def newunmangle(d):
                 unmangled[keyassess['root']] = {}
 
             if keyassess['indices'][0] in unmangled[keyassess['root']]:
-                print('we appear to be overwriting something at depth 1: ' + keyassess['indices'][0])
+                print('we appear to be overwriting something at depth 1: ' + keyassess['indices'][0] + ', value: ' + value)
 
             if keyassess['indices'][0]:
                 unmangled[keyassess['root']][keyassess['indices'][0]] = value
@@ -317,7 +340,7 @@ def newunmangle(d):
                 unmangled[keyassess['root']][keyassess['indices'][0]] = {}
 
             if keyassess['indices'][1] in unmangled[keyassess['root']][keyassess['indices'][0]]:
-                print('we appear to be overwriting something at depth 2: ' + keyassess['indices'][1])
+                print('we appear to be overwriting something at depth 2: ' + keyassess['indices'][1] + ', value: ' + value)
 
             if keyassess['indices'][1]:
                 unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]] = value
@@ -350,7 +373,7 @@ def newunmangle(d):
                 unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]] = value
 
             if keyassess['indices'][2] in unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]]:
-                print('we appear to be overwriting something for depth 3: ' + keyassess['indices'][1])
+                print('we appear to be overwriting something for depth 3: ' + keyassess['indices'][1] + ', value: ' + value)
 
     reducedicttolist(unmangled)
     # print(' ** DONE **')

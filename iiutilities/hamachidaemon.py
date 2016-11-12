@@ -21,12 +21,12 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 
-def runhamachicheck():
+def runhamachicheck(pingIP='25.37.18.7'):
     import iiutilities.netfun as netfun
     import socket
     hostname = socket.gethostname()
 
-    pingtime = netfun.runping('25.215.49.105')[0]
+    pingtime = netfun.runping(pingIP)[0]
 
     if ( pingtime > 1000 or pingtime == 0 ):
         from iiutilities.utility import gmail
@@ -118,5 +118,10 @@ def generatehamachipage(hamachidata=None, path=None):
 
 
 if __name__=="__main__":
+    if len(sys.argv) > 1:
+        print('running with IP provided of ' + sys.argv[1])
+        runhamachicheck(pingIP=sys.argv[1])
+    else:
+        print('running hamachi with default IP (no argument)')
         runhamachicheck()
 
