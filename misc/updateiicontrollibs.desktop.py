@@ -1,8 +1,10 @@
 #!/usr/bin/python
 
 import os
+
 import gtk
-from gitupdatelib import updateiicontrollibs
+
+from iiutilities.gitupdatelib import updateiicontrollibs
 
 message=gtk.MessageDialog(buttons=gtk.BUTTONS_OK)
 

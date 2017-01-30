@@ -84,7 +84,6 @@ def runboot():
     if mightyboost:
         subprocess.Popen(['/usr/lib/iicontrollibs/misc/mightyboost.sh','&'])
 
-
     for interface in interfaces:
         if interface['enabled']:
             if interface['interface'] == 'I2C' and interface['type'] == 'DS2483':

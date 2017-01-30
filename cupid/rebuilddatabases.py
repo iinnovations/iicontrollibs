@@ -18,17 +18,36 @@ top_folder = \
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
+from iiutilities.utility import Bunch
+tablenames = Bunch()
 
-# This script resets the control databases
+tablenames.control = ['actions', 'modbustcp', 'labjack', 'defaults', 'indicators', 'inputs', 'outputs', 'owfs', 'ioinfo',
+                   'interfaces',
+                   'controlalgorithms', 'algorithmtypes', 'channels', 'remotes']
+tablenames.system = ['systemstatus', 'logconfig', 'metadata', 'netconfig', 'netstatus', 'wirelessnetworks', 'versions',
+                  'systemflags', 'uisettings', 'notifications']
+tablenames.motes = ['read', 'queued', 'sent']
+tablenames.safe = ['wirelessdata', 'apdata']
+tablenames.notifications = ['queued', 'sent']
+tablenames.recipes = ['recipes']
+tablenames.sessions = ['sessionlimits','settings','sessions','sessionsummary','sessionlog']
+tablenames.logsettings = ['logsettings']
+tablenames.users = ['users']
+
 
 """
 Main control database
 """
 
-def rebuildcontroldb(tabledict):
+
+def rebuild_control_db(tablelist=None, migrate=False):
 
     from iiutilities.dblib import sqlitemultquery
+    from iiutilities import dblib
     from cupid.pilib import dirs
+
+    if not tablelist:
+        tablelist = tablenames.control
 
     # Create databases entries or leave them empty?
     addentries = True
@@ -36,401 +55,669 @@ def rebuildcontroldb(tabledict):
     querylist = []
     runquery = False
 
+    control_database = dblib.sqliteDatabase(dirs.dbs.control)
+
     ### Remotes table
-    if 'remotes' in tabledict:
-        runquery = True
-        table = 'remotes'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " (nodeid integer, msgtype text, keyvalue text, keyvaluename text, data text, time text)")
+    tablename = 'remotes'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name':'nodeid'},
+            {'name':'msgtype'},
+            {'name':'keyvalue'},
+            {'name':'keyvaluename'},
+            {'name':'data'},
+            {'name':'time'}
+        ])
+        if migrate:
+            control_database.migrate_table(tablename, schema=schema, queue=True)
+        else:
+            control_database.create_table(tablename, schema, queue=True)
 
     ### Actions table
-    if 'actions' in tabledict:
-        runquery = True
-        table = 'actions'
-        querylist.append('drop table if exists ' + table)
-        # actionindex, actiontype,
-        querylist.append(
-        #     "create table " + table + " (actionindex integer primary key, valuerowid integer default 1, name text unique default 'myaction', enabled boolean default 0, actiontype text default 'email', actiondetail text default 'info@interfaceinnovations.org', conditiontype text default 'dbvalue',database text default 'controldata',tablename text default 'channels', variablename text default 'controlvalue', variablevalue text default '', operator text default 'equal',criterion text default '25',offdelay real default 0,ondelay real default 0,active boolean default 0, activereset boolean default 1, status boolean default 0,ontime text,offtime text,actionfrequency real default 60, lastactiontime text default '', statusmsg text default 'default msg')")
-             "create table " + table + " (actionindex integer primary key, name text unique default 'myaction', enabled boolean default 0, actiontype text default 'email', actiondetail text default 'info@interfaceinnovations.org', conditiontype text default 'logical', actiondata text default '', value text default '', offdelay real default 0, ondelay real default 0, active boolean default 0, activereset boolean default 1, status boolean default 0,ontime text,offtime text,actionfrequency real default 60, lastactiontime text default '', statusmsg text default 'default msg')")
-        # querylist.append("create table " + table + " (actionindex integer primary key, actiondata text default '')")
-
+    tablename = 'actions'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'actionindex', 'primary':True},
+            {'name': 'name', 'unique':True, 'default':'myaction'},
+            {'name': 'enabled', 'type':'boolean', 'default':0},
+            {'name': 'actiontype', 'default':'email'},
+            {'name': 'actiondetail', 'default':'info@interfaceinnovationsorg'},
+            {'name': 'conditiontype', 'default':'logical'},
+            {'name': 'actiondata'},
+            {'name': 'value'},
+            {'name': 'offdelay'},
+            {'name': 'ondelay'},
+            {'name': 'active', 'type':'boolean', 'default':0},
+            {'name': 'activereset','type':'boolean', 'default':1},
+            {'name': 'status','type':'boolean', 'default':0},
+            {'name': 'ontime'},
+            {'name': 'offtime'},
+            {'name': 'actionfrequency','type':'real','default':0},
+            {'name': 'lastactiontime'},
+            {'name': 'statusmsg','default':'default msg'}
+        ])
+        if migrate:
+            control_database.migrate_table(tablename, schema=schema, queue=True)
+        else:
+            control_database.create_table(tablename, schema, queue=True)
 
     ### Indicators table
-    if 'indicators' in tabledict:
-        runquery = True
-        table = 'indicators'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " ( name text primary key, interface text, type text, status boolean default 0, detail text)")
-        addentries = True
+    tablename = 'indicators'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name':'name','primary':True},
+            {'name':'interface'},
+            {'name':'type'},
+            {'name':'status', 'type':'boolean'},
+            {'name':'detail'}
+        ])
+        if migrate:
+            control_database.migrate_table(tablename, schema=schema, queue=True)
+        else:
+            control_database.create_table(tablename, schema, queue=True)
+
+            addentries = True
+
         if addentries:
-            querylist.append("insert into " + table + " values ('SPI_RGB1_R', 'SPI1', 'CuPIDlights',0,'red')")
-            querylist.append("insert into " + table + " values ('SPI_RGB1_G', 'SPI1', 'CuPIDlights',0,'green')")
-            querylist.append("insert into " + table + " values ('SPI_RGB1_B', 'SPI1', 'CuPIDlights',0,'blue')")
-            querylist.append("insert into " + table + " values ('SPI_RGB2_R', 'SPI1', 'CuPIDlights',0,'red')")
-            querylist.append("insert into " + table + " values ('SPI_RGB2_G', 'SPI1', 'CuPIDlights',0,'green')")
-            querylist.append("insert into " + table + " values ('SPI_RGB2_B', 'SPI1', 'CuPIDlights',0,'blue')")
-            querylist.append("insert into " + table + " values ('SPI_RGB3_R', 'SPI1', 'CuPIDlights',0,'red')")
-            querylist.append("insert into " + table + " values ('SPI_RGB3_G', 'SPI1', 'CuPIDlights',0,'green')")
-            querylist.append("insert into " + table + " values ('SPI_RGB3_B', 'SPI1', 'CuPIDlights',0,'blue')")
-            querylist.append("insert into " + table + " values ('SPI_RGB4_R', 'SPI1', 'CuPIDlights',0,'red')")
-            querylist.append("insert into " + table + " values ('SPI_RGB4_G', 'SPI1', 'CuPIDlights',0,'green')")
-            querylist.append("insert into " + table + " values ('SPI_RGB4_B', 'SPI1', 'CuPIDlights',0,'blue')")
-            querylist.append("insert into " + table + " values ('SPI_SC_R', 'SPI1', 'CuPIDlights',0,'red')")
-            querylist.append("insert into " + table + " values ('SPI_SC_G', 'SPI1', 'CuPIDlights',0,'green')")
-            querylist.append("insert into " + table + " values ('SPI_SC_B', 'SPI1', 'CuPIDlights',0,'blue')")
-            querylist.append("insert into " + table + " values ('SPI_SC_Y', 'SPI1', 'CuPIDlights',0,'yellow')")
+            control_database.insert(tablename, {'name':'SPI_RGB1_R', 'interface':'SPI1', 'type':'CuPIDlights', 'status':0, 'detail':'red'}, queue=True)
+            control_database.insert(tablename, {'name':'SPI_RGB1_G', 'interface':'SPI1', 'type':'CuPIDlights', 'status':0, 'detail':'green'}, queue=True)
+            control_database.insert(tablename, {'name':'SPI_RGB1_B', 'interface':'SPI1', 'type':'CuPIDlights', 'status':0, 'detail':'blue'}, queue=True)
+            control_database.insert(tablename, {'name':'SPI_RGB2_R', 'interface':'SPI1', 'type':'CuPIDlights', 'status':0, 'detail':'red'}, queue=True)
+            control_database.insert(tablename, {'name':'SPI_RGB2_G', 'interface':'SPI1', 'type':'CuPIDlights', 'status':0, 'detail':'green'}, queue=True)
+            control_database.insert(tablename, {'name':'SPI_RGB2_B', 'interface':'SPI1', 'type':'CuPIDlights', 'status':0, 'detail':'blue'}, queue=True)
+            control_database.insert(tablename, {'name':'SPI_RGB3_R', 'interface':'SPI1', 'type':'CuPIDlights', 'status':0, 'detail':'red'}, queue=True)
+            control_database.insert(tablename, {'name':'SPI_RGB3_G', 'interface':'SPI1', 'type':'CuPIDlights', 'status':0, 'detail':'green'}, queue=True)
+            control_database.insert(tablename, {'name':'SPI_RGB3_B', 'interface':'SPI1', 'type':'CuPIDlights', 'status':0, 'detail':'blue'}, queue=True)
+            control_database.insert(tablename, {'name':'SPI_RGB4_R', 'interface':'SPI1', 'type':'CuPIDlights', 'status':0, 'detail':'red'}, queue=True)
+            control_database.insert(tablename, {'name':'SPI_RGB4_G', 'interface':'SPI1', 'type':'CuPIDlights', 'status':0, 'detail':'green'}, queue=True)
+            control_database.insert(tablename, {'name':'SPI_RGB4_B', 'interface':'SPI1', 'type':'CuPIDlights', 'status':0, 'detail':'blue'}, queue=True)
+            control_database.insert(tablename, {'name':'SPI_SC_R', 'interface':'SPI1', 'type':'CuPIDlights', 'status':0, 'detail':'red'}, queue=True)
+            control_database.insert(tablename, {'name':'SPI_SC_G', 'interface':'SPI1', 'type':'CuPIDlights', 'status':0, 'detail':'green'}, queue=True)
+            control_database.insert(tablename, {'name':'SPI_SC_B', 'interface':'SPI1', 'type':'CuPIDlights', 'status':0, 'detail':'blue'}, queue=True)
+            control_database.insert(tablename, {'name':'SPI_SC_Y', 'interface':'SPI1', 'type':'CuPIDlights', 'status':0, 'detail':'yellow'}, queue=True)
+
 
     ### Defaults table
-    if 'defaults' in tabledict:
-        runquery = True
-        table = 'defaults'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " ( inputpollfreq real, outputpollfreq real)")
-        addentries = True
-        if addentries:
-            querylist.append("insert into " + table + " values (60, 60)")
+    tablename = 'defaults'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'valuename', 'primary': True},
+            {'name': 'value'}
+        ])
+        if migrate:
+            prev_table = control_database.migrate_table(tablename, schema=schema, queue=True)
+        else:
+            prev_table = []
+            control_database.create_table(tablename, schema, queue=True)
+
+        # Insert only if it does not override existing entries, as reported by migrate (or empty for initialize)
+        inserts = [
+            {'valuename':'inputpollfreq', 'value':60},
+            {'valuename':'outputpollfreq', 'value':60}
+        ]
+        for insert in inserts:
+            if not any(insert['valuename'] in row['valuename'] for row in prev_table):
+                control_database.insert(tablename, insert, queue=True)
 
     ### Outputs table
-    if 'outputs' in tabledict:
-        runquery = True
-        table = 'outputs'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            'create table ' + table + ' (id text primary key, interface text, type text, address text, name text, ' +
-            'value real, unit text, polltime text, pollfreq real, ontime text, offtime text)')
+    tablename = 'outputs'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name':'id','options':'primary'},
+            {'name':'interface'},
+            {'name':'type'},
+            {'name':'address'},
+            {'name':'name'},
+            {'name':'value','type':'real'},
+            {'name':'unit'},
+            {'name':'polltime'},
+            {'name':'pollfreq'},
+            {'name':'ontime'},
+            {'name':'offtime'}
+        ])
+        if migrate:
+            prev_table = control_database.migrate_table(tablename, schema=schema, queue=True)
+        else:
+            control_database.create_table(tablename, schema, queue=True)
+
     ### Inputs table
-    if 'inputs' in tabledict:
-        runquery = True
-        table = 'inputs'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            'create table ' + table + ' (id text primary key, interface text, type text, address text, name text, ' +
-            'value real, unit text, polltime text, pollfreq real, ontime text, offtime text)')
+    tablename = 'inputs'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'id', 'options': 'primary'},
+            {'name': 'interface'},
+            {'name': 'type'},
+            {'name': 'address'},
+            {'name': 'name'},
+            {'name': 'value', 'type': 'real'},
+            {'name': 'unit'},
+            {'name': 'polltime'},
+            {'name': 'pollfreq'},
+            {'name': 'ontime'},
+            {'name': 'offtime'}
+        ])
+        control_database.create_table(tablename, schema, queue=True)
 
 
     ### OWFS Table
-    if 'owfs' in tabledict:
-        runquery = True
-        table = 'owfs'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " (address text primary key, family text, id text, type text, crc8 text)")
+    tablename = 'owfs'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'address', 'options': 'primary'},
+            {'name': 'family'},
+            {'name': 'id'},
+            {'name': 'type'},
+            {'name': 'crc8'}
+        ])
+        control_database.create_table(tablename, schema, queue=True)
 
     ### Inputs Info Table
-    if 'ioinfo' in tabledict:
-        runquery = True
-        table = 'ioinfo'
-        querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (id text primary key, name text, options text)")
+    tablename = 'ioinfo'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'id', 'options': 'primary'},
+            {'name': 'name'},
+            {'name': 'options'}
+        ])
+        control_database.create_table(tablename, schema, queue=True)
+
         if addentries:
-            querylist.append(
-                "insert into " + table + " values ('GPIO18', 'GPIO18', '')")
-            querylist.append(
-                "insert into " + table + " values ('GPIO23', 'GPIO23', '')")
-            querylist.append(
-                "insert into " + table + " values ('GPIO24', 'GPIO24', '')")
-            querylist.append(
-                "insert into " + table + " values ('GPIO25', 'GPIO25(BootOk)', '')")
-            querylist.append(
-                "insert into " + table + " values ('GPIO4', 'GPIO4(MotePower)', '')")
-            querylist.append(
-                "insert into " + table + " values ('GPIO17', 'GPIO17', '')")
-            querylist.append(
-                "insert into " + table + " values ('GPIO27', 'GPIO27', '')")
-            querylist.append(
-                "insert into " + table + " values ('GPIO22', 'GPIO22', '')")
-            querylist.append(
-                "insert into " + table + " values ('GPIO5', 'GPIO5', '')")
-            querylist.append(
-                "insert into " + table + " values ('GPIO6', 'GPIO6', '')")
-            querylist.append(
-                "insert into " + table + " values ('GPIO13', 'GPIO13', '')")
-            querylist.append(
-                "insert into " + table + " values ('GPIO19', 'GPIO19', '')")
-            querylist.append(
-                "insert into " + table + " values ('GPIO26', 'GPIO26', '')")
-            querylist.append(
-                "insert into " + table + " values ('GPIO16', 'GPIO16', '')")
-            querylist.append(
-                "insert into " + table + " values ('GPIO20', 'GPIO20', '')")
-            querylist.append(
-                "insert into " + table + " values ('GPIO21', 'GPIO21(WiFi)', '')")
+            control_database.insert(tablename, {'id':'GPIO18','name':'GPIO18'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO23','name':'GPIO23'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO24','name':'GPIO24'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO25','name':'GPIO25(Boot ok)'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO4','name':'GPIO4(MB Power)'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO17','name':'GPIO17'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO27','name':'GPIO27'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO22','name':'GPIO22'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO5','name':'GPIO5 - Red Status'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO6','name':'GPIO6 - Green Status'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO13','name':'GPIO13 - Blue Status'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO19','name':'GPIO19 - Yellow Status'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO26','name':'GPIO26 - Other Status'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO16','name':'GPIO16'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO20','name':'GPIO20'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO21','name':'GPIO21'}, queue=True)
 
     ### Interfaces Table
-    if 'interfaces' in tabledict:
-        runquery = True
-        table = 'interfaces'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " (interface text, type text, address text, id text primary key, name text unique, options text, enabled integer default 0, status integer default 0)")
-        if addentries:
-            querylist.append(
-                "insert into " + table + " values ('SPI1','CuPIDlights','','SPIout1','myCuPIDlightboard','',0,0)")
-            querylist.append(
-                "insert into " + table + " values ('SPI0','SPITC','','SPITC0','mySPITC','',0,0)")
-            querylist.append(
-                "insert into " + table + " values ('I2C','DS2483','','I2CDS2483','I2C 1Wire','tempunit:F',1,0)")
-            querylist.append(
-                "insert into " + table + " values ('LAN','MBTCP','192.168.1.18','MBTCP1','Modbus TCPIP','wordblocksize:24,bitblocksize:96',0,0)")
-            querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','18','GPIO18','GPIO 18','mode:input,pullupdown:pullup',1,0)")
-            querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','23','GPIO23','GPIO 23','mode:input,pullupdown:pullu',1,0)")
-            querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','24','GPIO24','GPIO 24','mode:input,pullupdown:pullup',1,0)")
-            querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','25','GPIO25','GPIO 25','mode:output',0,0)")
-            querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','4','GPIO4','GPIO 4','mode:input,pullupdown:pullup',1,0)")
-            querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','17','GPIO17','GPIO 17','mode:input,pullupdown:pullup',1,0)")
-            querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','27','GPIO27','GPIO 27','mode:input,pullupdown:pullup',1,0)")
-            querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','22','GPIO22','GPIO 22','mode:input,pullupdown:pullup',1,0)")
-            querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','5','GPIO5','GPIO 5','mode:input,pullupdown:pullup',1,0)")
-            querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','6','GPIO6','GPIO 6','mode:input,pullupdown:pullup',1,0)")
-            querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','13','GPIO13','GPIO 13','mode:input,pullupdown:pullup',1,0)")
-            querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','19','GPIO19','GPIO 19','mode:input,pullupdown:pullup',1,0)")
-            querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','26','GPIO26','GPIO 26','mode:input,pullupdown:pullup',1,0)")
-            querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','16','GPIO16','GPIO 16','mode:input,pullupdown:pullup',1,0)")
-            querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','20','GPIO20','GPIO 20','mode:input,pullupdown:pulldown,function:shutdown,functionstate:true',1,0)")
-            querylist.append(
-                "insert into " + table + " values ('GPIO','GPIO','21','GPIO21','GPIO 21','mode:input,pullupdown:pullup',1,0)")
+    tablename = 'interfaces'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'id', 'primary':True},
+            {'name': 'interface'},
+            {'name': 'type'},
+            {'name': 'address'},
+            {'name': 'name'},
+            {'name': 'options'},
+            {'name': 'enabled', 'default':0},
+            {'name': 'status', 'default':0}
+        ])
+        control_database.create_table(tablename, schema, queue=True)
 
-    ### modbustcp Table
-    if 'modbustcp' in tabledict:
-        runquery = True
-        table = 'modbustcp'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " (interfaceid text, register integer, mode text default 'read', length integer default 1,  bigendian boolean default 1, reversebyte boolean default 0, format text, options text)")
         if addentries:
-            querylist.append("insert into " + table + " values ('MBTCP1', '400001', 'read', 2, 1, 0, 'float32','')")
-            querylist.append("insert into " + table + " values ('MBTCP1', '400003', 'read', 2, 1, 0, 'float32','')")
-            querylist.append("insert into " + table + " values ('MBTCP1', '400005', 'read', 2, 1, 0, 'float32','')")
-            querylist.append("insert into " + table + " values ('MBTCP1', '400007', 'read', 2, 1, 0, 'float32','')")
+            control_database.insert(tablename, {'interface': 'SPI1', 'type': 'CuPIDlights', 'id': 'SPIout1', 'name': 'myCuPIDlightboard'}, queue=True)
+            control_database.insert(tablename, {'interface': 'SPI0', 'type': 'SPITC', 'id': 'SPITC0', 'name': 'mySPITC'}, queue=True)
+            control_database.insert(tablename, {'interface': 'I2C', 'type': 'DS2483', 'address':'', 'id': 'I2C_DS2483', 'name': 'I2C 1Wire', 'options':'tempunit:F', 'enabled':1}, queue=True)
+            control_database.insert(tablename, {'interface': 'I2C', 'type': 'ADS1115', 'address':'1:48','id': 'I2C_1:48_ADS1115', 'name': 'I2C ADS1115', 'options':'type:diff,gain:16,channel:0', 'enabled':1}, queue=True)
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'18', 'id': 'GPIO18', 'name': 'GPIO 18', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'23', 'id': 'GPIO23', 'name': 'GPIO 23', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'24', 'id': 'GPIO24', 'name': 'GPIO 24', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'25', 'id': 'GPIO25', 'name': 'GPIO 25', 'options':'mode:output,pullupdown:pullup','enabled':0},queue=True),
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'4', 'id': 'GPIO4', 'name': 'GPIO 4', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'17', 'id': 'GPIO17', 'name': 'GPIO 17', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'27', 'id': 'GPIO27', 'name': 'GPIO 27', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'22', 'id': 'GPIO22', 'name': 'GPIO 22', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'5', 'id': 'GPIO5', 'name': 'GPIO 5', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'6', 'id': 'GPIO6', 'name': 'GPIO 6', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'13', 'id': 'GPIO13', 'name': 'GPIO 13', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'19', 'id': 'GPIO19', 'name': 'GPIO 19', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'26', 'id': 'GPIO26', 'name': 'GPIO 26', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'16', 'id': 'GPIO16', 'name': 'GPIO 16', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'20', 'id': 'GPIO20', 'name': 'GPIO 20', 'options':'mode:input,pullupdown:pulldown,function:shutdown,functionstate:true','enabled':1},queue=True),
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'21', 'id': 'GPIO21', 'name': 'GPIO 21', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
 
-     ### modbustcp Table
-    if 'labjack' in tabledict:
-        runquery = True
-        table = 'labjack'
-        querylist.append('drop table if exists ' + table)
+    """
+    modbustcp Table
+    TODO: Double-check to make sure this works the same as qmclibs, which is working nicely
+    """
+
+    tablename = 'modbustcp'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'id', 'primary': True},
+            {'name': 'register', 'type':'integer'},
+            {'name': 'mode', 'default':'read'},
+            {'name': 'length', 'type':'integer', 'default':1},
+            {'name': 'bigendian', 'type':'boolean', 'default':1},
+            {'name': 'reversebyte', 'type':'boolean', 'default':0},
+            {'name': 'format'},
+            {'name': 'options'}
+        ])
+        control_database.create_table(tablename, schema, queue=True)
+
         querylist.append(
-            "create table " + table + " (interfaceid text, address integer, mode text default 'read', options text)")
+            "create table " + tablename + " (interfaceid text, register integer, mode text default 'read', length integer default 1,  "
+                                      "bigendian boolean default 1, reversebyte boolean default 0, format text, options text)")
         if addentries:
-            querylist.append("insert into " + table + " values ('USB1', '0', 'AIN', '')")
+            control_database.insert(tablename, {'id':'MBTCP1', 'register':400001, 'length':2, 'format':'float32'})
+            control_database.insert(tablename, {'id':'MBTCP1', 'register':400003, 'length':2, 'format':'float32'})
+            control_database.insert(tablename, {'id':'MBTCP1', 'register':400005, 'length':2, 'format':'float32'})
+            control_database.insert(tablename, {'id':'MBTCP1', 'register':400007, 'length':2, 'format':'float32'})
+
+    ### LabJack table
+    tablename = 'labjack'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'interfaceid'},
+            {'name': 'address', 'type': 'integer'},
+            {'name': 'mode', 'default': 'read'},
+            {'name': 'options'}
+        ])
+        control_database.create_table(tablename, schema, queue=True)
+
+        if addentries:
+            control_database.insert(tablename, {'interfaceid':'USB1','address':0, 'mode':'AIN'})
 
     ### Controlalgorithms table
-    if 'algorithms' in tabledict:
-        runquery = True
-        table = 'controlalgorithms'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " (name text primary key, type text, maxposrate real default 0, maxnegrate real default 0, derivativemode text default time, derivativeperiod real default 0, integralmode text default time, integralperiod real default 0, proportional real default 1, integral real default 0, derivative real default 0, deadbandhigh real default 0, deadbandlow real default 0, dutypercent real default 0, dutyperiod real default 1, minontime real, minofftime real)")
+    tablename = 'controlalgorithms'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'name', 'primary':True},
+            {'name': 'description'},
+            {'name': 'maxposrate', 'type':'real', 'default':0},
+            {'name': 'maxnegrate', 'type':'real', 'default':0},
+            {'name': 'derivativemode', 'default': 'time'},
+            {'name': 'derivativeperiod', 'default': 0, 'type':'real'},
+            {'name': 'integralmode', 'default': 'time'},
+            {'name': 'integralperiod', 'type':'real','default': 0},
+            {'name': 'proportional', 'type':'real','default': 1},
+            {'name': 'integral', 'type':'real','default': 0},
+            {'name': 'derivative', 'type':'real','default': 0},
+            {'name': 'deadbandhigh', 'type':'real','default': 0},
+            {'name': 'deadbandlow', 'type':'real','default': 0},
+            {'name': 'dutypercent', 'type':'real','default': 0},
+            {'name': 'dutyperiod', 'type':'real','default': 0},
+            {'name': 'minontime', 'type':'real','default': 0},
+            {'name': 'minofftime', 'type':'real','default': 0}
+        ])
+        control_database.create_table(tablename, schema, queue=True)
+
         if addentries:
-            querylist.append(
-                "insert into " + table + " values ('on/off 1', 'on/off with deadband',1,1,0,0,0,0,0,0,0,0,0,0,1,0,0)")
+            control_database.insert(tablename,{'name':'on/off 1', 'description':'on/off with deadband'}, queue=True)
 
     ### Algorithmtypes
-    if 'algorithmtypes' in tabledict:
-        runquery = True
-        table = 'algorithmtypes'
-        querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " ( name text )")
+    tablename = 'algorithmtypes'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name':'name'}
+        ])
+        control_database.create_table(tablename, schema, queue=True)
+
         if addentries:
-            querylist.append("insert into " + table + " values ( 'on/off with deadband')")
+            control_database.insert(tablename, {'name':'on/off with deadband'})
 
     ### Channels table
-    if 'channels' in tabledict:
-        runquery = True
-        table = 'channels'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " (channelindex integer primary key, type text default local, name text unique, controlinput text default 'none', enabled boolean default 0, outputsenabled boolean default 0, controlupdatetime text, controlalgorithm text default 'on/off 1', controlrecipe text default 'none', recipestage integer default 0, recipestarttime real default 0, recipestagestarttime real default 0, setpointvalue real, controlvalue real, controlvaluetime text, positiveoutput text default none, negativeoutput text default none, action real default 0, mode text default manual, statusmessage text, logpoints real default 100, data text, dataclasses text default '', pending text default '')")
-        if addentries:
-            # querylist.append("insert into " + table + " values (1, 'local', 'channel 1', '', 'none', 0, 0, '', 'on/off 1', 'none',0,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'', '', '')")
-            querylist.append("insert into " + table + " values (1, 'remote', 'Kettle', 'none', 0, 0, '', 'on/off 1', 'none',1,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'', '', '')")
-            querylist.append("insert into " + table + " values (2, 'remote', 'MLT', 'none', 0, 0, '', 'on/off 1', 'none',1,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'', '', '')")
-            querylist.append("insert into " + table + " values (3, 'remote', 'HLT', 'none', 0, 0, '', 'on/off 1', 'none',1,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'', '', '')")
+    tablename = 'channels'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'channelindex','type':'integer','primary':True},
+            {'name':'type', 'default':'local'},
+            {'name':'name', 'unique':True},
+            {'name':'controlinput','default':'none'},
+            {'name':'enabled','type':'boolean', 'default':0},
+            {'name':'outputsenabled','type':'boolean', 'default':0},
+            {'name':'controlupdatetime'},
+            {'name':'controlalgorithm', 'default':'on/off 1'},
+            {'name':'controlrecipe','default':'none'},
+            {'name':'recipestage','type':'integer', 'default':0},
+            {'name':'recipestarttime'},
+            {'name':'recipestagestarttime'},
+            {'name':'setpointvalue', 'type':'real'},
+            {'name':'controlvalue', 'type':'real'},
+            {'name':'controlvaluetime'},
+            {'name':'positiveoutput'},
+            {'name':'negativeoutput'},
+            {'name':'action','type':'real', 'default':0},
+            {'name':'mode','default':'manual'},
+            {'name':'statusmessage'},
+            {'name':'logpoints', 'type':'real', 'default':100},
+            {'name':'data'},
+            {'name':'dataclasses'},
+            {'name':'pending'}
+        ])
+        control_database.create_table(tablename, schema, queue=True)
 
-    if runquery:
-        print(querylist)
-        sqlitemultquery(dirs.dbs.control, querylist)
+        if addentries:
+            pass
+            # TODO: fix channl default entries
+            # control_database.insert(tablename, {'channelindex':1,'type':'remote','Kettle'})
+            # querylist.append("insert into " + table + " values (1, 'local', 'channel 1', '', 'none', 0, 0, '', 'on/off 1', 'none',0,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'', '', '')")
+            # querylist.append("insert into " + table + " values (1, 'remote', 'Kettle', 'none', 0, 0, '', 'on/off 1', 'none',1,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'', '', '')")
+            # querylist.append("insert into " + table + " values (2, 'remote', 'MLT', 'none', 0, 0, '', 'on/off 1', 'none',1,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'', '', '')")
+            # querylist.append("insert into " + table + " values (3, 'remote', 'HLT', 'none', 0, 0, '', 'on/off 1', 'none',1,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'', '', '')")
+
+    if control_database.queued_queries:
+        control_database.execute_queue()
+
+    # Check to see everything was created properly. Eventually we can check schema, once we check the schema
+    table_names = control_database.get_table_names()
+    for table in tablelist:
+        if table not in table_names:
+            print(table + ' DOES NOT EXIST')
 
 
 """
 authlog
 """
 
-def rebuildsessiondb():
-    from iiutilities.dblib import sqlitemultquery
+
+def rebuild_sessions_db(tablelist, migrate=False):
+
+    from iiutilities import dblib
     from cupid.pilib import dirs
 
-    querylist = []
+    if not tablelist:
+        tablelist = tablenames.sessions
+
+    session_database = dblib.sqliteDatabase(dirs.dbs.session)
+    print(session_database.path)
 
     ### Session limits
 
-    table = 'sessionlimits'
-    querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " (username text primary key, sessionsallowed real default 5 )")
+    tablename = 'sessionlimits'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name':'username', 'primary':True},
+            {'name':'sessionsallowed', 'type':'integer', 'default':5}
+        ])
+        if migrate:
+            prev_table = session_database.migrate_table(tablename, schema=schema, queue=True)
+        else:
+            prev_table = []
+            session_database.create_table(tablename, schema, queue=True)
 
-    querylist.append("insert into " + table + " values ('viewer', 5)")
-    querylist.append("insert into " + table + " values ('controller', 5)")
-    querylist.append("insert into " + table + " values ('administrator', 5)")
-    querylist.append("insert into " + table + " values ('owner', 3)")
-    querylist.append("insert into " + table + " values ('admin', 3)")
-    querylist.append("insert into " + table + " values ('colin', 5)")
+        inserts = [
+            {'username': 'viewer', 'sessionsallowed': 5},
+            {'username': 'controller', 'sessionsallowed': 5},
+            {'username': 'administrator', 'sessionsallowed': 5},
+            {'username': 'owner', 'sessionsallowed': 5},
+            {'username': 'admin', 'sessionsallowed': 5},
+            {'username': 'colin', 'sessionsallowed': 5}
+        ]
+        for insert in inserts:
+            if not any(insert['username'] in prev_entry['username'] for prev_entry in prev_table):
+                session_database.insert(tablename, insert, queue=True)
 
     ### Settings table
 
-    table = 'settings'
-    querylist.append('drop table if exists ' + table)
-    querylist.append(
-        "create table " + table + " (sessionlength real default 600, sessionlimitsenabled real default 1, updatefrequency real)")
+    tablename = 'settings'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name':'sessionlength', 'type':'real', 'default':600},
+            {'name':'sessionlimitsenabled', 'type':'real', 'default':1},
+            {'name':'updatefrequency','type':'real'}
+        ])
+        if migrate:
+            prev_table = session_database.migrate_table(tablename, schema=schema, queue=True)
+        else:
+            prev_table = []
+            session_database.create_table(tablename, schema, queue=True)
 
-    querylist.append("insert into " + table + " values (600,1,30)")
+        if not prev_table:
+            session_database.insert(tablename, {'sessionlength':600, 'sessionlimitsenabled':1, 'updatefrequency':30}, queue=True)
 
     ### Session table
 
-    table = 'sessions'
-    querylist.append('drop table if exists ' + table)
-    querylist.append(
-        "create table " + table + " (username text, sessionid text, sessionlength real, timecreated text, apparentIP text , realIP text)")
+    tablename = 'sessions'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name':'username'},
+            {'name':'sessionid'}
+        ])
+        if migrate:
+            prev_table = session_database.migrate_table(tablename, schema=schema, queue=True)
+        else:
+            session_database.create_table(tablename, schema, queue=True)
 
     ### Sessions summary
 
-    table = 'sessionsummary'
-    querylist.append('drop table if exists ' + table)
-    querylist.append("create table " + table + " (username text,  sessionsactive real)")
-
-    querylist.append("insert into " + table + " values ('viewer', 0)")
-    querylist.append("insert into " + table + " values ('controller', 0)")
-    querylist.append("insert into " + table + " values ('administrator', 0)")
+    tablename = 'sessionsummary'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name':'username', 'primary':True},
+            {'name':'sessionsactive', 'type':'real'}
+        ])
+        if migrate:
+            prev_table = session_database.migrate_table(tablename, schema=schema, queue=True)
+        else:
+            session_database.create_table(tablename, schema, queue=True)
 
     ### Session log
 
-    table = 'sessionlog'
-    querylist.append('drop table if exists ' + table)
-    querylist.append(
-        "create table " + table + " (username text, sessionid text, time text, action text, apparentIP text, realIP text)")
+    tablename = 'sessionlog'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name':'username'},
+            {'name':'sessionid'},
+            {'name':'time'},
+            {'name':'action'},
+            {'name':'apparentIP'},
+            {'name':'realIP'}
+        ])
+        if migrate:
+            prev_table = session_database.migrate_table(tablename, schema=schema, queue=True)
+        else:
+            session_database.create_table(tablename, schema, queue=True)
 
-
-    # print(querylist)
-    sqlitemultquery(dirs.dbs.session, querylist)
-
+    if session_database.queued_queries:
+        session_database.execute_queue()
 
 """
 System control and information
 """
 
 
-def rebuildsystemdb(tabledict):
-    from iiutilities.dblib import sqlitemultquery
+def rebuild_system_db(tablelist):
+    from iiutilities import dblib
     from cupid.pilib import dirs
-    runquery = "False"
-    querylist = []
-    if 'netstatus' in tabledict:
-        runquery = True
-        table = 'netstatus'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " ( WANaccess boolean default 0, WANaccessrestarts integer default 0, latency real default 0, mode text default 'eth0wlan0bridge', onlinetime text, offlinetime text default '', lastnetreconfig text default '', netstate integer default 0, netstateoktime text default '', updatetime text '', statusmsg text default '', netrebootcounter integer default 0, addresses text default '')")
-        querylist.append("insert into " + table + "  default values")
 
-    table = 'wirelessnetworks'
-    if table in tabledict:
-        runquery = True
-        querylist.append('drop table if exists ' + table)
-        querylist.append('create table ' + table + "(ssid text, strength integer, data text)")
+    system_database = dblib.sqliteDatabase(dirs.dbs.system)
+    if not tablelist:
+        tablelist = tablenames.system
 
-    table = 'netconfig'
-    if table in tabledict:
-        runquery = True
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " (requireWANaccess integer default 1, WANretrytime integer default 30, mode text default eth0wlan0bridge, SSID text default '', aprevert text default '', addtype text default 'dhcp', address text default '192.168.1.30', gateway text default '192.168.0.1', dhcpstart text default '192.168.0.70', dhcpend text default '192.168.0.99', apreverttime integer default 60, stationretrytime integer default 300, laststationretry text default '', pingthreshold integer default 2000, netstatslogenabled boolean default 0, netstatslogfreq integer default 60, apoverride boolean default 0, apoverridepin integer default 21, rebootonfail integer default 0, rebootonfailperiod default 900)")
-        querylist.append("insert into " + table + "  default values")
+    tablename = 'netstatus'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name':'WANaccess', 'type':'boolean', 'default':0},
+            {'name':'WANaccessrestarts', 'type':'integer', 'default':0},
+            {'name':'latency', 'type':'real', 'default':0},
+            {'name':'mode', 'default':'eth0wlan0bridge'},
+            {'name':'onlinetime'},
+            {'name':'offlinetime'},
+            {'name':'lastnetreconfig'},
+            {'name':'netstate','type':'integer', 'default':0},
+            {'name':'netstateoktime'},
+            {'name':'updatetime'},
+            {'name':'statusmsg'},
+            {'name':'netrebootcounter', 'type':'integer', 'default':0},
+            {'name':'addresses'}
+        ])
+        system_database.create_table(tablename, schema, queue=True)
+        system_database.insert_defaults(tablename, queue=True)
 
-    if 'systemflags' in tabledict:
-        runquery = True
-        table = 'systemflags'
-        querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (name text, value boolean default 0)")
-        querylist.append("insert into " + table + " values ('reboot', 0)")
-        querylist.append("insert into " + table + " values ('netconfig', 0)")
-        querylist.append("insert into " + table + " values ('updateiicontrollibs', 0)")
-        querylist.append("insert into " + table + " values ('updatecupidweblib', 0)")
+    tablename = 'wirelessnetworks'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name':'SSID', 'primary':True},
+            {'name':'strength'},
+            {'name':'data'}
+        ])
+        system_database.create_table(tablename, schema, queue=True)
 
-    if 'metadata' in tabledict:
-        runquery = True
-        table = 'metadata'
-        querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (  devicename text, groupname text)")
-        querylist.append("insert into " + table + " values ( 'My CuPID', 'None' )")
+    tablename = 'netconfig'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'requireWANaccess', 'type':'integer', 'default':1},
+            {'name': 'WANretrytime', 'type':'integer', 'default':30},
+            {'name': 'mode', 'default':'eth0wlan0bridge'},
+            {'name': 'SSID'},
+            {'name': 'aprevert'},
+            {'name': 'addtype', 'default':'dhcp'},
+            {'name': 'address', 'default':'192.168.1.30'},
+            {'name': 'gateway', 'default':'192.168.0.1'},
+            {'name': 'dhcpstart', 'default':'192.168.0.70'},
+            {'name': 'dhcpend', 'default':'192.168.0.99'},
+            {'name': 'apreverttime', 'type':'integer','default':60},
+            {'name': 'stationretrytime', 'type':'integer','default':300},
+            {'name': 'laststationretry'},
+            {'name': 'pingthreshold','type':'integer','default':2000},
+            {'name': 'netstatslogenabled','type':'boolean','default':0},
+            {'name': 'netstatslogfreq','type':'integer','default':60},
+            {'name': 'apoverride','type':'boolean','default':0},
+            {'name': 'apoverridepin','type':'integer','default':21},
+            {'name': 'rebootonfail','type':'boolean','default':0},
+            {'name': 'rebootfailperiod','type':'integer','default':900}
+        ])
+        system_database.create_table(tablename, schema, queue=True)
+        system_database.insert_defaults(tablename, queue=True)
 
-    if 'systemstatus' in tabledict:
-        runquery = True
-        table = 'systemstatus'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " (picontrolenabled boolean default 0, picontrolstatus boolean default 0, picontrolfreq real default 15 , lastpicontrolpoll text default '', updateioenabled boolean default 1, updateiostatus boolean default 0, updateiofreq real default 15, lastiopoll text default '', enableoutputs boolean default 0, sessioncontrolenabled boolean default 0, sessioncontrolstatus boolean default 0, systemstatusenabled boolean default 1, netstatusenabled boolean default 1, netconfigenabled default 0, checkhamachistatus boolean default 0, hamachistatus boolean default 0, systemstatusstatus boolean default 0, systemstatusfreq real default 15, lastsystemstatuspoll text default '', systemmessage text default '', serialhandlerenabled boolean default 0, serialhandlerstatus boolean default 0, webserver text default 'nginx')")
-        querylist.append("insert into " + table + " default values")
+    tablename = 'systemflags'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'name'},
+            {'name': 'value', 'type': 'boolean', 'default': 0}
+        ])
+        system_database.create_table(tablename, schema, queue=True)
+        system_database.insert(tablename, [
+            {'name':'reboot'},
+            {'name':'netconfig'},
+            {'name':'updateiicontrollibs'},
+            {'name':'updatecupidweblib'}
+        ], queue=True)
 
-    if 'logconfig' in tabledict:
-        runquery = True
-        table = 'logconfig'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " (network integer, io integer, system integer, control integer, daemon integer, remote integer, serial integer, notifications integer, daemonproc integer, error integer)")
-        querylist.append(
-                "insert into " + table + " values (4,4,4,4,4,4,4,4,4,4)")
+    tablename = 'metadata'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name':'name'},
+            {'name':'value'}
+            ])
+        system_database.create_table(tablename, schema, queue=True)
+        system_database.insert(tablename, [
+            {'name': 'devicename', 'value':'My CuPID'},
+            {'name': 'groupname', 'value':'None'}
+        ], queue=True)
 
-    if 'notifications' in tabledict:
-        runquery = True
-        table = 'notifications'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " (item text, enabled boolean default 0, options text, lastnotification text)")
-        querylist.append("insert into " + table + " values ('unittests', 1, 'type:email,email:notificatios@interfaceinnovations.org','')")
-        querylist.append("insert into " + table + " values ('daemonkillproc', 1, 'type:email,email:notificatios@interfaceinnovations.org','')")
+    tablename = 'systemstatus'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'systemstatusenabled', 'type': 'boolean', 'default': 1},
+            {'name': 'systemstatusstatus', 'type': 'boolean', 'default': 0},
+            {'name': 'systemstatusfreq', 'type': 'integer', 'default': 15},
+            {'name': 'lastsystemstatuspoll'},
+            {'name': 'systemmessage'},
 
-    if 'uisettings' in tabledict:
-        runquery = True
-        table = 'uisettings'
-        querylist.append('drop table if exists ' + table)
-        querylist.append("create table " + table + " (  'setting' text, 'group' text, 'value' text)")
-        querylist.append("insert into " + table + " values ( 'showinputgpiologs', 'dataviewer', '0' )")
-        querylist.append("insert into " + table + " values ( 'showinput1wirelogs', 'dataviewer', '1' )")
-        querylist.append("insert into " + table + " values ( 'showchannellogs', 'dataviewer', '1' )")
-        querylist.append("insert into " + table + " values ( 'showotherlogs', 'dataviewer', '1' )")
+            {'name': 'webserver','default':'nginx'},
 
-    if 'versions' in tabledict:
-        runquery = True
-        table = 'versions'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " ( item text primary key,  version text, versiontime text, updatetime text)")
-    if runquery:
-        print(querylist)
-        sqlitemultquery(dirs.dbs.system, querylist)
+            {'name': 'picontrolenabled', 'type': 'boolean', 'default': 0},
+            {'name': 'picontrolstatus', 'type': 'boolean', 'default': 0},
+            {'name': 'picontrolfreq', 'type': 'integer', 'default': 15},
+            {'name': 'lastpicontrolpoll'},
+
+            {'name': 'updateioenabled', 'type': 'boolean', 'default': 0},
+            {'name': 'updateiostatus', 'type': 'boolean', 'default': 0},
+            {'name': 'updateiofreq', 'type': 'integer', 'default': 15},
+            {'name': 'lastupdateiopoll'},
+
+            {'name': 'serialhandlerenabled', 'type': 'boolean', 'default': 0},
+            {'name': 'serialhandlerstatus', 'type': 'boolean', 'default': 0},
+
+            {'name': 'sessioncontrolenabled', 'type': 'boolean', 'default': 0},
+            {'name': 'sessioncontrolstatus', 'type': 'boolean', 'default': 0},
+            {'name': 'sessioncontrolfreq', 'type': 'integer', 'default': 15},
+            {'name': 'lastsessioncontrolpoll'},
+
+            {'name': 'enableoutputs', 'type': 'boolean', 'default': 0},
+            {'name': 'netstatusenabled', 'type': 'boolean', 'default': 0},
+            {'name': 'netconfigenabled', 'type': 'boolean', 'default': 0},
+            {'name': 'checkhamachistatus', 'type': 'boolean', 'default': 1},
+            {'name': 'hamachistatus', 'type': 'boolean', 'default': 0},
+
+        ])
+        system_database.create_table(tablename, schema, queue=True)
+        system_database.insert_defaults(tablename, queue=True)
+
+    tablename = 'logconfig'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'network', 'type':'integer', 'default':4},
+            {'name': 'io', 'type':'integer', 'default':4},
+            {'name': 'system', 'type':'integer', 'default':4},
+            {'name': 'control', 'type':'integer', 'default':4},
+            {'name': 'daemon', 'type':'integer', 'default':4},
+            {'name': 'remote', 'type':'integer', 'default':4},
+            {'name': 'serial', 'type':'integer', 'default':4},
+            {'name': 'notifications', 'type':'integer', 'default':4},
+            {'name': 'daemonproc', 'type':'integer', 'default':4},
+            {'name': 'error', 'type':'integer', 'default':4}
+        ])
+        system_database.create_table(tablename, schema, queue=True)
+        system_database.insert_defaults(tablename, queue=True)
+
+    tablename = 'notifications'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'item'},
+            {'name': 'enabled', 'type':'boolean', 'default':0},
+            {'name': 'options'},
+            {'name': 'lastnotification'}
+            ])
+        system_database.create_table(tablename, schema, queue=True)
+        system_database.insert(tablename, [
+            {'item':'unittests', 'enabled':1, 'options':'type:email,email:notifications@interfaceinnovations.org,frequency:600'},
+            {'item':'daemonkillproc', 'enabled':1, 'options':'type:email,email:notifications@interfaceinnovations.org,frequency:600'}
+        ], queue=True)
+
+    tablename = 'uisettings'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name':'setting'},
+            {'name':'group'},
+            {'name':'value'}
+        ])
+        system_database.create_table(tablename, schema, queue=True)
+        system_database.insert(tablename, [
+            {'setting': 'showinputgpiologs', 'group': 'dataviewer', 'value':'0'},
+            {'setting': 'showinput1wirelogs', 'group': 'dataviewer', 'value':'1'},
+            {'setting': 'showchannellogs', 'group': 'dataviewer', 'value':'1'},
+            {'setting': 'showotherlogs', 'group': 'dataviewer', 'value':'1'},
+        ], queue=True)
+
+    tablename = 'versions'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name':'item', 'primary':True},
+            {'name': 'version'},
+            {'name': 'versiontime'},
+            {'name': 'updatetime'}
+            ])
+        system_database.create_table(tablename, schema, queue=True)
+
+    if system_database.queued_queries:
+        # print('executing queries')
+        system_database.execute_queue()
+
+    # Check to see everything was created properly. Eventually we can check schema, once we check the schema
+    table_names = system_database.get_table_names()
+    for table in tablelist:
+        if table not in table_names:
+            print(table + ' DOES NOT EXIST')
 
 """
 logsettings
 """
 
 
-def rebuildlogsettings():
+def rebuild_log_settings_db(tablelist):
     from iiutilities.dblib import sqlitemultquery
     from cupid.pilib import dirs
 
@@ -448,114 +735,127 @@ recipesdata
 """
 
 
-def rebuildrecipesdb(tabledict):
-    from iiutilities.dblib import sqlitemultquery
+def rebuild_recipes_db(tabledict):
+    from iiutilities  import dblib
     from cupid.pilib import dirs
 
-    runquery = False
-    querylist = []
-    addentries = True
+    recipes_db = dblib.sqliteDatabase(dirs.dbs.recipe)
+
     if 'recipes' in tabledict:
-        runquery = True
+        tablename = 'stdreflow'
+        recipes_db.drop_table(tablename, queue=True)
+        table_schema = dblib.sqliteTableSchema([
+            {'name': 'stagenumber', 'type': 'integer', 'options': 'primary'},
+            {'name': 'stagelength', 'type': 'real'},
+            {'name': 'setpointvalue', 'type': 'real'},
+            {'name': 'lengthmode', 'type': 'real'},
+            {'name': 'controlalgorithm', 'type': 'real', 'options':"default 'on/off 1'"},
+        ])
+        recipes_db.create_table(tablename, table_schema, queue=True)
 
-        table = 'stdreflow'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " ( stagenumber integer default 1, stagelength real default 0, setpointvalue real default 0, lengthmode text default 'setpoint', controlalgorithm text default 'on/off 1')")
-        if addentries:
-            querylist.append("insert into " + table + " values ( 1, 180, 300, 'setpoint','on/off 1')")
-            querylist.append("insert into " + table + " values ( 2, 90, 360, 'setpoint','on/off 1')")
-            querylist.append("insert into " + table + " values ( 3, 60, 420, 'setpoint','on/off 1')")
-            querylist.append("insert into " + table + " values ( 4, 60, 60, 'setpoint','on/off 1')")
+    if recipes_db.queued_queries:
+        print('executing queue')
+        recipes_db.execute_queue()
 
-    if runquery:
-        print(querylist)
-
-        sqlitemultquery(dirs.dbs.session, querylist)
-
+    print('reading table ...')
+    recipes_db.read_table('stdreflow')
 
 """
 Notifications (mail, IFFFT, etc) data
 """
 
 
-def rebuildnotificationsdb(tabledict=['queuednotifications', 'sentnotifications']):
-    from iiutilities.dblib import sqlitemultquery
+def rebuild_notifications_db(tablelist=None, migrate=True):
+    from iiutilities import dblib
     from cupid.pilib import dirs
 
-    runquery = False
-    querylist = []
-    addentries = True
+    if not tablelist:
+        tablelist = tablenames.notifications
 
-    table = 'queuednotifications'
-    if table in tabledict:
-        runquery = True
+    notifications_database = dblib.sqliteDatabase(dirs.dbs.notifications)
 
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " ( queuedtime text default '', type text default 'email', message text default '', options text default '')")
+    tablename = 'queued'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name':'queuedtime','primary':True},
+            {'name':'type','default':'email'},
+            {'name':'message'},
+            {'name':'options'},
+        ])
+        if migrate:
+            notifications_database.migrate_table(tablename, schema, queue=True)
+        else:
+            notifications_database.create_table(tablename, schema, queue=True)
 
-    table = 'sentnotifications'
-    if table in tabledict:
-        runquery = True
+    tablename = 'sent'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name':'queuedtime','primary':True},
+            {'name':'senttime'},
+            {'name':'type'},
+            {'name':'message'},
+            {'name':'options'}
+        ])
+        if migrate:
+            notifications_database.migrate_table(tablename, schema, queue=True)
+        else:
+            notifications_database.create_table(tablename, schema, queue=True)
 
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " ( queuedtime text default '', senttime text default '', type text default 'email', message text default '', options text default '')")
+    if notifications_database.queued_queries:
+        print(notifications_database.queued_queries)
+        notifications_database.execute_queue()
 
-    if runquery:
-        print(querylist)
-
-        sqlitemultquery(dirs.dbs.notifications, querylist)
-
+    # Check to see everything was created properly. Eventually we can check schema, once we check the schema
+    table_names = notifications_database.get_table_names()
+    for table in tablelist:
+        if table not in table_names:
+            print(table + ' DOES NOT EXIST')
 
 """
 Motes raw data
 """
 
-
-def rebuildmotesdb(tabledict):
+def rebuild_motes_db(tablelist):
     from cupid.pilib import dirs
-    from iiutilities.dblib import sqlitemultquery
+    from iiutilities import dblib
 
-    runquery = False
-    querylist = []
-    addentries = True
-    if 'readmessages' in tabledict:
-        runquery = True
+    motes_database = dblib.sqliteDatabase(dirs.dbs.motes)
 
-        table = 'readmessages'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " ( time text default '', message text default '' )")
+    tablename = 'read'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'time', 'primary':True},
+            {'name': 'message'}
+        ])
+        motes_database.create_table(tablename, schema, queue=True)
 
-    if 'queuedmessages' in tabledict:
-        runquery = True
+    tablename = 'queued'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'queuedtime', 'primary': True},
+            {'name': 'message'}
+        ])
+        motes_database.create_table(tablename, schema, queue=True)
 
-        table = 'queuedmessages'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " ( queuedtime text default '', message text default '' )")
+    tablename = 'sent'
+    if tablename in tablelist:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'queuedtime', 'primary': True},
+            {'name': 'senttime'},
+            {'name': 'message'}
+        ])
+        motes_database.create_table(tablename, schema, queue=True)
 
-    if 'sentmessages' in tabledict:
-        runquery = True
+    if motes_database.queue_queries:
+        motes_database.execute_queue()
 
-        table = 'sentmessages'
-        querylist.append('drop table if exists ' + table)
-        querylist.append(
-            "create table " + table + " ( queuedtime text default '', senttime text default '', message text default '' )")
-
-    if runquery:
-        print(querylist)
-
-        sqlitemultquery(dirs.dbs.motes, querylist)
 
 """
 userstabledata
 """
 
 
-def rebuildusersdata(argument=None):
+def rebuild_users_data(argument=None):
     from pilib import gethashedentry, dirs
     from iiutilities.dblib import sqlitemultquery
 
@@ -622,27 +922,28 @@ def rebuildusersdata(argument=None):
 """
 
 
-def rebuildwirelessdata(preserve=True):
+def rebuild_wireless_data(preserve=True):
     from iiutilities.dblib import sqlitemultquery, gettablenames, readalldbrows
     from cupid.pilib import dirs
 
     querylist = []
     querylist.append('drop table if exists wireless')
-    querylist.append('create table wireless (SSID text, password text, auto integer default 1, priority integer default 1)')
+    querylist.append('create table wireless (SSID text primary key, password text, auto integer default 1, priority integer default 1)')
 
     safetables = gettablenames(dirs.dbs.safe)
     print('tables : ')
     print(safetables)
     if 'wireless' in safetables:
-        print("wireless table found")
+        # print("wireless table found")
         wirelessentries = readalldbrows(dirs.dbs.safe, 'wireless')
         for index,entry in enumerate(wirelessentries):
             querylist.append("insert into wireless values('" + entry['SSID'] + "','" + entry['password'] + "',1," + str(index+1) + ')')
 
-    print(querylist)
+    # print(querylist)
     sqlitemultquery(dirs.dbs.safe, querylist)
 
-def rebuildapdata(SSID='cupidwifi', password='cupidpassword'):
+
+def rebuild_ap_data(SSID='cupidwifi', password='cupidpassword'):
     from iiutilities.dblib import sqlitemultquery
     from cupid.pilib import dirs
     querylist = []
@@ -665,104 +966,96 @@ if __name__ == "__main__":
 
     # Check for DEFAULTS argument
 
-    controldbtables = ['actions', 'modbustcp', 'labjack', 'defaults', 'indicators', 'inputs', 'outputs', 'owfs', 'ioinfo', 'interfaces',
-                       'algorithms', 'algorithmtypes', 'channels', 'remotes', 'mote']
-    systemdbtables = ['systemstatus', 'logconfig', 'metadata', 'netconfig', 'netstatus', 'wirelessnetworks', 'versions', 'systemflags', 'uisettings', 'notifications']
-    motestables = ['readmessages', 'queuedmessages', 'sentmessages']
-    safetables = ['wirelessdata', 'apdata']
-    notificationstables = ['queuedmessages', 'setmessages']
-
     if len(sys.argv) > 1 and sys.argv[1] == 'DEFAULTS':
         print('making default databases')
-        rebuildwirelessdata()
+        rebuild_wireless_data()
 
         # This checks the hostname, sets it as the hostname with 'cupid' prefix, and sets default password
         # Then it calls the file rebuild
         from netconfig import setdefaultapsettings
         setdefaultapsettings()
-        rebuildusersdata('defaults')
+        rebuild_users_data('defaults')
 
-        rebuildcontroldb(maketruetabledict(controldbtables))
-        rebuildsystemdb(maketruetabledict(systemdbtables))
-        rebuildmotesdb(maketruetabledict(motestables))
-        rebuildnotificationsdb()
-        rebuildrecipesdb({'recipes': True})
-        rebuildsessiondb()
-        rebuildlogsettings()
+        rebuild_control_db(tablenames.control)
+        rebuild_system_db(tablenames.system)
+        rebuild_motes_db(tablenames.motes)
+        rebuild_notifications_db(tablenames.notifications)
+        rebuild_recipes_db(tablenames.recipes)
+        rebuild_sessions_db(tablenames.sessions)
+        rebuild_log_settings_db(tablenames.logsettings)
 
     elif len(sys.argv) > 1:
-        if sys.argv[1] in controldbtables:
+        if sys.argv[1] in tablenames.control:
             print('running rebuild control tables for ' + sys.argv[1])
-            rebuildcontroldb(sys.argv[1])
-        elif sys.argv[1] in systemdbtables:
+            rebuild_control_db([sys.argv[1]])
+        elif sys.argv[1] in tablenames.system:
             print('running rebuild system tables for ' + sys.argv[1])
-            rebuildsystemdb(sys.argv[1])
-        elif sys.argv[1] in motestables:
+            rebuild_system_db([sys.argv[1]])
+        elif sys.argv[1] in tablenames.motes:
             print('running rebuild motes tables for ' + sys.argv[1])
-            rebuildmotesdb(sys.argv[1])
+            rebuild_motes_db([sys.argv[1]])
         elif sys.argv[1] in ['notifications', 'Notifications']:
             print('running rebuilding notifications table')
-            rebuildnotificationsdb()
+            rebuild_notifications_db()
         elif sys.argv[1] in ['wirelessdata']:
             print('running rebuild wireless safedata')
-            rebuildwirelessdata()
+            rebuild_wireless_data()
         elif sys.argv[1] in 'logsettings':
-            rebuildlogsettings()
-
+            rebuild_log_settings_db()
 
     else:
 
         print("** Motes tables **")
         tablestorebuild = []
         execute = False
-        for table in motestables:
+        for table in tablenames.motes:
             answer = raw_input('Rebuild ' + table + ' table (y/N)?')
             if answer == 'y':
                 execute = True
                 tablestorebuild.append(table)
         if execute:
-            rebuildmotesdb(maketruetabledict(tablestorebuild))
+            rebuild_motes_db(maketruetabledict(tablestorebuild))
 
         print("** Control tables **")
         tablestorebuild = []
         execute = False
-        for table in controldbtables:
+        for table in tablenames.control:
             answer = raw_input('Rebuild ' + table + ' table (y/N)?')
             if answer == 'y':
                 execute = True
                 tablestorebuild.append(table)
         if execute:
-            rebuildcontroldb(maketruetabledict(tablestorebuild))
+            rebuild_control_db(maketruetabledict(tablestorebuild))
 
         print("** System tables **")
         tablestorebuild = []
         execute = False
-        for table in systemdbtables:
+        for table in tablenames.system:
             answer = raw_input('Rebuild ' + table + ' table (y/N)?')
             if answer == 'y':
                 execute = True
                 tablestorebuild.append(table)
         if execute:
-            rebuildsystemdb(maketruetabledict(tablestorebuild))
+            rebuild_system_db(maketruetabledict(tablestorebuild))
 
         answer = raw_input('Rebuild wireless table (y/N)?')
         if answer == 'y':
-            rebuildwirelessdata()
+            rebuild_wireless_data()
 
         answer = raw_input('Rebuild AP table (y/N)?')
         if answer == 'y':
-            rebuildapdata()
+            rebuild_ap_data()
 
         answer = raw_input('Rebuild users table (y/N)?')
         if answer == 'y':
-            rebuildusersdata()
+            rebuild_users_data()
 
         recipetabledict = {}
         answer = raw_input('Rebuild recipes table (y/N)?')
         if answer == 'y':
             recipetabledict['recipes'] = True
-        rebuildrecipesdb(recipetabledict)
+        rebuild_recipes_db(recipetabledict)
 
         answer = raw_input('Rebuild sessions table (y/N)?')
         if answer == 'y':
-            rebuildsessiondb()
+            rebuild_sessions_db()

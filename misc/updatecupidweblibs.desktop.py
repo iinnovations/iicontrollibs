@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
 import gtk
-from gitupdatelib import updatecupidweblibs
+
+from iiutilities.gitupdatelib import updatecupidweblibs
 
 message=gtk.MessageDialog(buttons=gtk.BUTTONS_OK)
 

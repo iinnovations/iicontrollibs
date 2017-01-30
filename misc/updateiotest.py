@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import datalib
+from iiutilities.utility import datalib
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2014, Interface Innovations"
@@ -35,7 +35,7 @@ while True:
     cycle += 1
     starttime = datetime.utcnow()
     print(datalib.gettimestring() + ' : Running updateio')
-    updateiodata(pilib.controldatabase, piobject=pi)
+    updateiodata(pilib.dirs.dbs.control, piobject=pi)
     print('elapsed time: ' + str((datetime.utcnow()-starttime).total_seconds()))
     print('total elapsed time: ' + str((datetime.utcnow()-theabsolutestarttime).total_seconds()))
     time.sleep(0.1)

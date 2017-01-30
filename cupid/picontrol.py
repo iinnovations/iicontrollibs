@@ -108,7 +108,7 @@ def runpicontrol(runonce=False):
                 logpoints = channel['logpoints']
 
                 # Move forward if everything is defined for control
-                if channel['enabled'] and 'controlvalue' in locals() and 'setpointvalue' in locals():
+                if channel['type'] not in ['remote'] and channel['enabled'] and 'controlvalue' in locals() and 'setpointvalue' in locals():
 
                     statusmsg += 'Channel Enabled. '
 
@@ -243,6 +243,20 @@ def runpicontrol(runonce=False):
                     dblib.sizesqlitetable(pilib.dirs.dbs.log, logtablename, logpoints)
                     # print(statusmsg)
 
+                elif channel['type'] == 'remote':
+                    statusmsg += 'Remote channel. '
+
+                    # Compartmentalize this
+                    # Insert entry into control log
+                    dblib.makesqliteinsert(pilib.dirs.dbs.log, logtablename, [time, controlinput, controlvalue, setpointvalue, channel['action'], channelalgorithmname, channel['enabled'], statusmsg])
+                    dblib.sqliteinsertsingle(pilib.dirs.dbs.log, logtablename,
+                                             [time, controlinput, controlvalue, setpointvalue, channel['action'], channelalgorithmname,
+                                              channel['enabled'], statusmsg])
+
+                    # Size log
+                    dblib.sizesqlitetable(pilib.dirs.dbs.log, logtablename, logpoints)
+
+
             else:
                 # print('channel not enabled')
                 statusmsg += 'Channel not enabled. '
@@ -250,7 +264,7 @@ def runpicontrol(runonce=False):
             # If active reset and we didn't set channel modes, disable outputs
             # Active reset is not yet explicitly declared, but implied
 
-            if disableoutputs:
+            if disableoutputs and channel['type'] not in ['remote']:
                 statusmsg += 'Disabling Outputs. '
                 for output in outputs:
                     if output['name'] in [channel['positiveoutput'], channel['negativeoutput']]:

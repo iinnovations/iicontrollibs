@@ -86,7 +86,7 @@ def updatehostapd(path='/etc/hostapd/hostapd.conf', interface='wlan0'):
 
 def setdefaultapsettings():
     import socket
-    from rebuilddatabases import rebuildapdata
+    from rebuilddatabases import rebuild_ap_data
     hostname = socket.gethostname()
     if hostname == 'raspberrypi':
         networkname = 'cupidwifi'
@@ -95,22 +95,38 @@ def setdefaultapsettings():
         networkname = 'cupid' + hostname
         networkpassword = hostname + '_pwd'
 
-    rebuildapdata(SSID=networkname, password=networkpassword)
+    rebuild_ap_data(SSID=networkname, password=networkpassword)
 
 
 def updatewirelessnetworks(interface='wlan0'):
     from iiutilities.netfun import getwirelessnetworks
     from iiutilities.utility import dicttojson
-    from iiutilities.dblib import dropcreatetexttablefromdict
+    from iiutilities.utility import log
+    from iiutilities.dblib import dropcreatetexttablefromdict, sqliteemptytable
     from pilib import dirs
 
-    networks = getwirelessnetworks(interface)
-    netinsert = []
-    for network in networks:
-        print(network)
-        netinsert.append({'ssid':network['ssid'],'strength':network['signallevel'], 'data':dicttojson(network)})
+    networks = []
+    for i in range(2):
+        try:
+            networks = getwirelessnetworks(interface)
+        except:
+            log('Error getting wireless interface networks. Setting empty networks for restart on catch', dirs.logs.network)
 
-    dropcreatetexttablefromdict(dirs.dbs.system, 'wirelessnetworks', netinsert)
+        if not networks:
+            log('No networks returned or error in retrieving, restarting interface ' + interface, dirs.logs.network)
+            resetwlan(interface=interface)
+        else:
+            break
+
+    if networks:
+        netinsert = []
+        for network in networks:
+            # print(network)
+            netinsert.append({'ssid':network['ssid'],'strength':network['signallevel'], 'data':dicttojson(network)})
+
+        dropcreatetexttablefromdict(dirs.dbs.system, 'wirelessnetworks', netinsert)
+    else:
+        sqliteemptytable(dirs.dbs.system, 'wirelessnetworks')
     return networks
 
 
@@ -291,10 +307,10 @@ def updatewpasupplicant(path='/etc/wpa_supplicant/wpa_supplicant.conf', netconfi
 
 
     # Update networks to see what is available to attach to
-    try:
-        networks = updatewirelessnetworks(stationinterface)
-    except:
-        utility.log(pilib.dirs.logs.network, 'Error finding network interface. Is interface down?', 0, pilib.loglevels.network)
+    # try:
+    networks = updatewirelessnetworks(stationinterface)
+    # except:
+    # utility.log(pilib.dirs.logs.network, 'Error finding network interface. Is interface down?', 0, pilib.loglevels.network)
 
     availablessids = []
     for network in networks:
@@ -456,18 +472,33 @@ def setstationmode(netconfigdata=None):
             utility.log(pilib.dirs.logs.network, 'Read netconfig data. ', 4, pilib.loglevels.network)
 
     killapservices()
-    if netconfigdata['addtype'] == 'static':
-        utility.log(pilib.dirs.logs.network, 'Configuring static address. ', 3, pilib.loglevels.network)
+    if netconfigdata['mode'] == 'staticeth0stationdhcp':
+        utility.log(pilib.dirs.logs.network, 'Configuring static eth0 and dhcp wlan0. ', 3, pilib.loglevels.network)
 
-        subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.static', '/etc/network/interfaces'])
+        subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.eth0staticwlan0dhcp', '/etc/network/interfaces'])
+        resetwlan(interface='eth0')
+
 
         # update IP from netconfig
         utility.log(pilib.dirs.logs.network, 'Updating netconfig with ip ' + netconfigdata['address'], 3, pilib.loglevels.network)
         replaceifaceparameters('/etc/network/interfaces', '/etc/network/interfaces', 'wlan0', ['address', 'gateway'],
                                [netconfigdata['address'], netconfigdata['gateway']])
-    elif netconfigdata['addtype'] == 'dhcp':
-        utility.log(pilib.dirs.logs.network, 'Configuring dhcp. ', 3, pilib.loglevels.network)
-        subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.dhcp', '/etc/network/interfaces'])
+
+    # This is the old mode for legacy purposes and backward compatibility
+    elif netconfigdata['mode'] == 'station':
+
+        if netconfigdata['addtype'] == 'static':
+            utility.log(pilib.dirs.logs.network, 'Configuring static address. ', 3, pilib.loglevels.network)
+
+            subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.static', '/etc/network/interfaces'])
+
+            # update IP from netconfig
+            utility.log(pilib.dirs.logs.network, 'Updating netconfig with ip ' + netconfigdata['address'], 3, pilib.loglevels.network)
+            replaceifaceparameters('/etc/network/interfaces', '/etc/network/interfaces', 'wlan0', ['address', 'gateway'],
+                                   [netconfigdata['address'], netconfigdata['gateway']])
+        elif netconfigdata['addtype'] == 'dhcp':
+            utility.log(pilib.dirs.logs.network, 'Configuring dhcp. ', 3, pilib.loglevels.network)
+            subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.dhcp', '/etc/network/interfaces'])
 
     utility.log(pilib.dirs.logs.network, 'Resetting wlan. ', 3, pilib.loglevels.network)
     resetwlan()
@@ -573,12 +604,17 @@ def resetwlan(interface='wlan0'):
         utility.log(pilib.dirs.logs.network, 'Completed resetting ' + interface + '. ', 3, pilib.loglevels.network)
 
 
-def runconfig(onboot=False):
+def runconfig(**kwargs):
     import subprocess
     from iiutilities import utility
     from cupid import pilib
     from iiutilities.datalib import gettimestring
     from iiutilities import dblib
+
+    settings = {
+        'debug':False, 'onboot':False
+    }
+    settings.update(kwargs)
 
     utility.log(pilib.dirs.logs.network, 'Running network reconfig (setting lastnetreconfig). ', 0, pilib.loglevels.network)
     dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'lastnetreconfig', gettimestring())
@@ -603,6 +639,8 @@ def runconfig(onboot=False):
 
         # Copy the correct interfaces file
         if netconfigdata['mode'] == 'station':
+            setstationmode(netconfigdata)
+        elif netconfigdata['mode'] == 'staticeth0stationdhcp':
             setstationmode(netconfigdata)
         elif netconfigdata['mode'] in ['ap', 'tempap', 'eth0wlan0bridge']:
             utility.log(pilib.dirs.logs.network, 'Setting eth0wlan0 bridge (or bare ap mode). ', 0, pilib.loglevels.network)
@@ -688,5 +726,5 @@ def flushIPTables():
 if __name__ == "__main__":
     # This will run the configuration script (if netconfig is enabled) and set
     # ap or station mode, and finally bring down and up wlan0
-    runconfig()
+    runconfig(debug=True)
     # updatewpasupplicant()

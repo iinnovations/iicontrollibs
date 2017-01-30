@@ -47,6 +47,7 @@ def progressbar(time=5, length=20, type='percentage'):
 
     print('')
 
+
 def unmangleAPIdata(d):
 
     """
@@ -228,6 +229,48 @@ def unmangleAPIdata(d):
     return unmangled
 
 
+def insertuser(database, username, password, salt, **kwargs):
+
+    from iiutilities import dblib, datalib
+    entry = {'name':username,'password':password, 'email':'','accesskeywords':'','authlevel':1,'temp':'','admin':0}
+    entry.update(kwargs)
+
+    # entries = [{'name': 'creese', 'password': 'mydata', 'email': 'colin.reese@interfaceinnovations.org',
+    #             'accesskeywords': 'iiinventory,demo', 'authlevel': 5, 'temp': '', 'admin': 1},
+    #            {'name': 'iwalker', 'password': 'iwalker', 'email': 'colin.reese@interfaceinnovations.org',
+    #             'accesskeywords': 'demo', 'authlevel': 4, 'temp': '', 'admin': 0},
+    #            {'name': 'demo', 'password': 'demo', 'email': 'info@interfaceinnovations.org',
+    #             'accesskeywords': 'demo', 'authlevel': 2, 'temp': '', 'admin': 0},
+    #            {'name': 'mbertram', 'password': 'mbertram', 'email': 'info@interfaceinnovations.org',
+    #             'accesskeywords': 'demo', 'authlevel': 2, 'temp': '', 'admin': 0}]
+
+    existingentries = dblib.readalldbrows(database, 'users')
+    usercount = len(existingentries)
+    existingindices = [existingentry['id'] for existingentry in existingentries]
+    existingnames = [existingentry['id'] for existingentry in existingentries]
+
+    print('EXISTING ENTRIES:')
+    print(existingentries)
+
+    newindex = usercount+1
+    while newindex in existingindices:
+        newindex += 1
+
+    table = 'users'
+
+    hashedentry = datalib.gethashedentry(entry['name'], entry['password'], salt=salt)
+
+
+    query = dblib.makesqliteinsert(table, [newindex, entry['name'], hashedentry, entry['email'],
+                                                    entry['accesskeywords'], entry['authlevel'], '',
+                                                    entry['admin']])
+
+    print(database)
+    print(salt)
+    print(query)
+    dblib.sqlitequery(database, query)
+
+
 def parsekeys(key):
     import re
 
@@ -311,6 +354,8 @@ def newunmangle(d):
     # mydict['key'][0] = 'some value'
 
     # Also need to account for empty index list, e.g. partids[]. This will be list=True, index=''
+    # This is only currently done for first level ...*[]:
+
     unmangled = {}
     for key,value in d.iteritems():
 
@@ -324,12 +369,17 @@ def newunmangle(d):
                 unmangled[keyassess['root']] = {}
 
             if keyassess['indices'][0] in unmangled[keyassess['root']]:
-                print('we appear to be overwriting something at depth 1: ' + keyassess['indices'][0] + ', value: ' + value)
+                print('we appear to be overwriting something at depth 1: ')
+                print(keyassess['indices'][0] + ' already exists in unmangled key ' + keyassess['root'])
+                print('already existing value is ' + unmangled[keyassess['root']][keyassess['indices'][0]] + ', new value is ' + value)
 
             if keyassess['indices'][0]:
                 unmangled[keyassess['root']][keyassess['indices'][0]] = value
             else:   # Empty index = list
-                unmangled[keyassess['root']] = value
+                if isinstance(value, list):
+                    unmangled[keyassess['root']] = value
+                else:
+                    unmangled[keyassess['root']] = [value]
 
         elif keyassess['depth'] == 2:
             if keyassess['root'] not in unmangled:
@@ -345,7 +395,10 @@ def newunmangle(d):
             if keyassess['indices'][1]:
                 unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]] = value
             else:   # Empty index is list
-                unmangled[keyassess['root']][keyassess['indices'][0]] = value
+                if isinstance(value, list):
+                    unmangled[keyassess['root']][keyassess['indices'][0]] = value
+                else:
+                    unmangled[keyassess['root']][keyassess['indices'][0]] = [value]
 
         elif keyassess['depth'] == 3:
             if keyassess['root'] not in unmangled:
@@ -367,13 +420,15 @@ def newunmangle(d):
                 # print('index 2 not in index 0 1 ')
                 pass
 
+            if keyassess['indices'][2] in unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]]:
+                print('we appear to be overwriting something for depth 3: ' + keyassess['indices'][1] + ', value: ' + value)
+
             if keyassess['indices'][2]:
                 unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]][keyassess['indices'][2]] = value
             else:       # Empty index is list
                 unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]] = value
 
-            if keyassess['indices'][2] in unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]]:
-                print('we appear to be overwriting something for depth 3: ' + keyassess['indices'][1] + ', value: ' + value)
+
 
     reducedicttolist(unmangled)
     # print(' ** DONE **')
@@ -433,6 +488,8 @@ def log(logfile, message, reqloglevel=1, currloglevel=1):
         logfile = open(logfile, 'a')
         logfile.writelines([gettimestring() + ' : ' + message + '\n'])
         logfile.close()
+    if currloglevel >= 9:
+        print(message)
 
 
 def writetabletopdf(tabledata, **kwargs):

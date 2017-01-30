@@ -58,8 +58,6 @@ def rebuildsafedb(tabledict={'usermeta':True, 'users':True, 'pathaliases':True})
         except:
             print('ERROR in usermeta query')
 
-
-
     table = 'pathaliases'
     if table in tabledict:
         runquery = True
@@ -88,9 +86,9 @@ def rebuildsafedb(tabledict={'usermeta':True, 'users':True, 'pathaliases':True})
         ### No default tables. Create a table as an example
 
         querylist=['drop table if exists ' + table,
-                    "create table " + table + " ( id integer primary key not null, name text, password text, " +
+                    "create table " + table + " ( id integer primary key not null, name text unique, password text, " +
                                               "email text, accesskeywords text, authlevel integer default 1, " +
-                                              "temp text,admin integer default 0)"]
+                                              "temp text, admin integer default 0)"]
 
         addentries = True
         if addentries:

@@ -172,12 +172,12 @@ def updatelightsfromdb(database, table, CS):
     query = 'select status from \'' + table + '\' where interface=\'SPI' + str(CS) + '\''
     query2 = 'select name from \'' + table + '\' where interface=\'SPI' + str(CS) + '\''
 
-    print(query)
-    print(query2)
+    # print(query)
+    # print(query2)
     statuses = dblib.sqlitequery(database, query)
     names = dblib.sqlitequery(database, query2)
-    print(statuses)
-    print(names)
+    # print(statuses)
+    # print(names)
     d = {}
     for status, name in zip(statuses, names):
         d[name[0]] = status[0]
@@ -190,9 +190,10 @@ def updatelightsfromdb(database, table, CS):
                     [d['SPI_RGB4_R'], d['SPI_RGB4_G'], d['SPI_RGB4_B']],
                     d['SPI_SC_R'], d['SPI_SC_G'], d['SPI_SC_B'],
                     d['SPI_SC_Y']]
-        print(setarray)
+        # print(setarray)
     except KeyError:
-        print('key error on indicator keys')
+        pass
+        # print('key error on indicator keys')
     else:
         setspilights(setarray, CS)
 

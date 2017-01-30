@@ -13,7 +13,13 @@ elif [ "$1" = "install" ]
     echo -e "${WHT}*****      RUNNING INSTALL     *****${NC}"
     echo -e "${WHT}************************************${NC}"
 
+    # reconfig keys?
+
+    rm -r /etc/ssh/ssh*key
+    dpkg-reconfigure openssh-server
+
     apt-get update
+    apt-get install git
     apt-get -y remove --purge wolfram-engine
     apt-get -y install lsb-core
     apt-get -y install php5 sqlite3 php5-sqlite
@@ -27,12 +33,13 @@ elif [ "$1" = "install" ]
     apt-get -y install python-gtk2
     apt-get -y install automake
     apt-get -y install fping
-    pip install lal
+    # pip install lal
 
     apt-get -y install apache2 php5 sqlite3 php5-sqlite libapache2-mod-wsgi libapache2-mod-php5
     a2enmod rewrite
     a2enmod ssl
     update-rc.d -f apache2 remove
+    service apache2 stop
 
     apt-get -y install nginx
     update-rc.d -f nginx remove
@@ -114,6 +121,7 @@ if [ "$2" = "full" -o "$1" = "full" ]
     chmod ug+x /var/wwwsafe
 
     mkdir /var/www
+    rm -Rf /var/www/*
     chown -R root:www-data /var/www
     chmod -R 775 /var/www
     chmod ug+x /var/www
@@ -191,8 +199,17 @@ if [ "$2" = "full" -o "$1" = "full" ]
 
 
     echo "configuring hamachi"
+    # So we have a compatibility issue with the lsb-core in raspbian jessie. We should ideally:
+    # 1. Test for OS version (probably revert to previous raspbian here)
+    # 2. If using jessie, do the following
+    # wget http://ftp.de.debian.org/debian/pool/main/l/lsb/lsb-core_4.1+Debian8+deb7u1_armhf.deb
+    # dpkg -i lsb-core_4.1+Debian8+deb7u1_armhf.deb
+
+    # This is what should work (and WILL work once they update the repos)
     apt-get -y lsb-core
+
     # wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.139-1_armhf.deb
+    wget https://www.vpn.net/installers/logmein-hamachi_2.1.0.174-1_armhf.deb
     dpkg -i /usr/lib/iicontrollibs/resource/logmein-hamachi_2.1.0.139-1_armhf.deb
     hamachi login
     # hamachi do-join 283-153-722

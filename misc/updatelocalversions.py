@@ -9,7 +9,7 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
-from gitupdatelib import updaterepoversion
+from iiutilities.gitupdatelib import updaterepoversion
 
 updaterepoversion('/usr/lib/iicontrollibs')
 updaterepoversion('/var/www')

@@ -92,10 +92,19 @@ def gettimestring(timeinseconds=None):
 def timestringtoseconds(timestring=None):
     import time
     try:
-        timeinseconds = time.mktime(time.strptime(timestring, '%Y-%m-%d %H:%M:%S'))
+        timeinseconds = time.mktime(timestring_to_struct(timestring))
     except:
         timeinseconds = 0
     return timeinseconds
+
+
+def timestring_to_struct(timestring=None):
+    import time
+    try:
+        time_struct = time.strptime(timestring, '%Y-%m-%d %H:%M:%S')
+    except:
+        time_struct = time.strptime(gettimestring(), '%Y-%m-%d %H:%M:%S')
+    return time_struct
 
 
 def getnexttime(timestring, unit, increment):
@@ -171,7 +180,7 @@ def typetoreadlength(type):
                   'float32', 'float32rw', 'float32sw','float32rwrb', 'float32rwsb', 'float32swrb', 'float32swsb']:
         readlength = 2
     else:
-        print('READLENGTH NOT FOUND for "' + type + '". RETURNING DEFAULT 1 to be nice.')
+        # print('READLENGTH NOT FOUND for "' + type + '". RETURNING DEFAULT 1 to be nice.')
         readlength = 1
     return readlength
 
@@ -228,6 +237,8 @@ def bytestovalue(bytes, format='word32'):
         value = bytes[1] * 65536 + bytes[0]
     elif format == 'word32rw':
         value = bytes[0] * 65536 + bytes[1]
+    elif format == 'boolean':
+        value = int(bytes[0])
 
     # no provision for reverse bytes in word yet
     else:

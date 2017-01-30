@@ -81,7 +81,7 @@ def runping(pingAddress='8.8.8.8', numpings=1, quiet=False):
 
 
 def pingstatus(pingAddress='8.8.8.8', numpings=1, threshold=2000, quiet=True):
-    pingtimes = runping(pingAddress, numpings, quiet=quiet)
+    pingtimes = runping(pingAddress, numpings, quiet=True)
     pingmax = max(pingtimes)
     pingmin = min(pingtimes)
     pingave = sum(pingtimes)/len(pingtimes)
@@ -151,11 +151,14 @@ def getifconfigstatus():
             interfaces.append(blankinterface.copy())
             interfaces[ifaceindex]['ifaceindex'] = str(ifaceindex)
             interfaces[ifaceindex]['name'] = line.split(' ')[0].strip()
-            try:
-                interfaces[ifaceindex]['hwaddress'] = line.split('HWaddr')[1].strip()
-            except:
-                # print('error parsing interface - ' + )
-                utility.log(pilib.dirs.logs.network, 'Error parsing hwaddress in ifconfig for interface' + interfaces[ifaceindex]['name'], 4, pilib.loglevels.network)
+            if interfaces[ifaceindex]['name'] == 'lo':
+                interfaces[ifaceindex]['hwaddress'] = ''
+            else:
+                try:
+                    interfaces[ifaceindex]['hwaddress'] = line.split('HWaddr')[1].strip()
+                except:
+                    # print('error parsing interface - ' + )
+                    utility.log(pilib.dirs.logs.network, 'Error parsing hwaddress in ifconfig for interface' + interfaces[ifaceindex]['name'], 4, pilib.loglevels.network)
 
         else:
             if line.find('addr') >= 0:
@@ -229,8 +232,8 @@ def getwpaclientstatus(interface='wlan0'):
         log(dirs.logs.network, 'Attempting WPA client status read for interface ' + interface, 4, loglevels.network)
         result = subprocess.check_output(['/sbin/wpa_cli', 'status', '-i', interface], stderr=subprocess.PIPE)
     except:
-        log(dirs.logs.network, 'Error reading wpa client status on interface ' + interface +  ' . Setting error status for systemstatus to catch.', 0, loglevels.network)
-        resultdict['wpa_state'] = 'ERROR'
+        log(dirs.logs.network, 'Unabe to read wpa client status on interface ' + interface +  ' .', 0, loglevels.network)
+        resultdict['wpa_state'] = 'None'
     else:
         log(dirs.logs.network, 'Completed WPA client status read. ', 4, loglevels.network)
 
@@ -301,7 +304,43 @@ def gethamachistatusdata():
         except:
             # print('oops')
             pass
+    if 'address' in statusdict and statusdict['address'].find(':') >= 0:
+        split_index = statusdict['address'].find(' ')
+
+        statusdict['address_ipv6'] = statusdict['address'][split_index:].strip()
+        statusdict['address_ipv4'] = statusdict['address'][0:split_index].strip()
+    else:
+        statusdict['address_ipv4'] = statusdict['address']
+
     return statusdict
+
+
+def restart_uwsgi(directory='/usr/lib/iicontrollibs/uwsgi', quiet=True, killall=False):
+    import subprocess
+    import os
+    if killall:
+        if quiet:
+            DEVNULL = open(os.devnull, 'wb')
+            result = subprocess.Popen(['pkill', 'uwsgi'], stdout=subprocess.PIPE, stderr=DEVNULL)
+            DEVNULL.close()
+        else:
+            result = subprocess.Popen(['pkill', 'uwsgi'], stdout=subprocess.PIPE)
+            # print(result.stdout)
+            # print(result.stderr)
+
+    commandlist = ['/usr/bin/uwsgi', '--emperor', directory, '--daemonize', '/var/log/uwsgi.log']
+    # print(commandlist)
+
+    subprocess.call(commandlist)
+    if quiet:
+        DEVNULL = open(os.devnull, 'wb')
+        result = subprocess.Popen(commandlist, stdout=subprocess.PIPE, stderr=DEVNULL)
+        DEVNULL.close()
+        # call(['/usr/bin/uwsgi', '--emperor', directory, '--daemonize', '/var/log/uwsgi.log'])
+    else:
+        result = subprocess.Popen(commandlist, stdout=subprocess.PIPE)
+        print(result.stdout)
+        print(result.stderr)
 
 
 def restarthamachi():
@@ -561,8 +600,6 @@ def writeMBcodedaddresses(clientIP, address, values, convert=None, **kwargs):
     else:
         # valueerror
         return
-
-
 
     if address >= 000000 and address < 100000:
         # coils
