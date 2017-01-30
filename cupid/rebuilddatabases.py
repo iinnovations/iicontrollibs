@@ -411,7 +411,7 @@ authlog
 """
 
 
-def rebuild_sessions_db(tablelist, migrate=False):
+def rebuild_sessions_db(tablelist=tablenames.sessions, migrate=False):
 
     from iiutilities import dblib
     from cupid.pilib import dirs
@@ -472,7 +472,11 @@ def rebuild_sessions_db(tablelist, migrate=False):
     if tablename in tablelist:
         schema = dblib.sqliteTableSchema([
             {'name':'username'},
-            {'name':'sessionid'}
+            {'name':'sessionid'},
+            {'name':'sessionlength'},
+            {'name':'time'},
+            {'name':'appip'},
+            {'name':'realip'}
         ])
         if migrate:
             prev_table = session_database.migrate_table(tablename, schema=schema, queue=True)

@@ -182,5 +182,6 @@ def runperiodicio(**kwargs):
     dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'updateiostatus', '0')
 
 if __name__ == "__main__":
-    runperiodicio(force_run=True, run_once=True)
+    # runperiodicio(force_run=True, run_once=True)
+    runperiodicio()
 

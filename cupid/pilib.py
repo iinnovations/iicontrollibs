@@ -243,7 +243,8 @@ class io_wrapper(object):
     we can do more than atomic read/write operations. For GPIO, we can even set callbacks for value changes.
     """
     def __init__(self, **kwargs):
-        self.required_properties = ['type','options', 'pi']
+        # self.required_properties = ['type','options', 'pi']
+        self.required_properties = ['pi']
 
         if not all(property in kwargs for property in self.required_properties):
             print('You did not provide all required parameters: ' + str(self.required_properties))
@@ -260,15 +261,15 @@ class pigpiod_gpio_counter(io_wrapper):
         super(pigpiod_gpio_counter, self).__init__(**kwargs)
 
         import pigpio
-        self.settings = {'edge':'falling', 'pullupdown':None, 'debounce_ms':50, 'event_min_ms':50,
-                         'watchdog_ms':100}
+        self.settings = {'edge':'falling', 'pullupdown':None, 'debounce_ms':20, 'event_min_ms':20,
+                         'watchdog_ms':1000, 'rate_period_ms':2000}
         self.settings.update(kwargs)
         for key,value in self.settings.iteritems():
             setattr(self, key, value)
 
         self.pi.set_mode(self.gpio, pigpio.INPUT)
         if self.pullupdown in ['up', 'pullup']:
-            self.pi.set_pull_up_down(gpio, pigpio.PUD_UP)
+            self.pi.set_pull_up_down(self.gpio, pigpio.PUD_UP)
 
         self._cb = self.pi.callback(self.gpio, pigpio.FALLING_EDGE, self._cbf)
         self.pi.set_watchdog(self.gpio, self.watchdog_ms)
@@ -276,6 +277,10 @@ class pigpiod_gpio_counter(io_wrapper):
         self.busy = False
         self.ticks = 0
         self.last_event_count = 0
+
+        self.last_counts = None
+        self.last_counts_time = None
+        self.rate = 0
 
     def _cbf(self, gpio, level, tick):
         if not self.busy:
@@ -290,7 +295,7 @@ class pigpiod_gpio_counter(io_wrapper):
             time.sleep(0.001 * self.debounce_ms)
             value = self.pi.read(self.gpio)
             if value == 0:
-                print('event length satisfied')
+                # print('event length satisfied')
 
                 if tick - self.last_event_count > self.debounce_ms * 1000:
                     self.ticks += 1
@@ -301,18 +306,35 @@ class pigpiod_gpio_counter(io_wrapper):
                 # print('event not long enough ( we waited to see ).')
                 pass
 
-        elif level == 2:  # Watchdog timeout.
+        elif level == 2:  # Watchdog timeout. We will calculate
             pass
-            # self.event_tick = 0  # reset event
 
         self.busy = False
 
     def get_value(self):
+        from datetime import datetime
+        now = datetime.now()
+        if self.last_counts_time:
+            seconds_delta = now - self.last_counts_time
+            seconds_passed = seconds_delta.seconds + float(seconds_delta.microseconds) / 1000000
+            self.rate = float(self.ticks - self.last_counts) / seconds_passed
+
+            print('COUNTING RATE')
+            print(self.last_counts, self.ticks)
+
+        self.last_counts = self.ticks
+        self.last_counts_time = now
+
+        # self.event_tick = 0  # reset event
         return self.ticks
+
+    def get_rate(self):
+
+        return self.rate
 
 
 class pigpiod_gpio_input(io_wrapper):
-    def __init__(self, gpio, **kwargs):
+    def __init__(self, **kwargs):
         # inherit parent properties
         super(pigpiod_gpio_input, self).__init__(**kwargs)
 
@@ -323,18 +345,18 @@ class pigpiod_gpio_input(io_wrapper):
         for key, value in self.settings.iteritems():
             setattr(self, key, value)
 
-        self.pi.set_mode(gpio, pigpio.INPUT)
+        self.pi.set_mode(self.gpio, pigpio.INPUT)
         if self.pullupdown in ['up', 'pullup']:
-            self.pi.set_pull_up_down(gpio, pigpio.PUD_UP)
+            self.pi.set_pull_up_down(self.gpio, pigpio.PUD_UP)
         elif self.pullupdown in ['down','pulldown']:
-            self.pi.set_pull_up_down(gpio, pigpio.PUD_DOWN)
+            self.pi.set_pull_up_down(self.gpio, pigpio.PUD_DOWN)
 
     def get_value(self):
         self.pi.read(self.gpio)
 
 
 class pigpiod_gpio_output(io_wrapper):
-    def __init__(self, gpio, **kwargs):
+    def __init__(self, **kwargs):
         # inherit parent properties
         super(pigpiod_gpio_output, self).__init__(**kwargs)
 
@@ -345,13 +367,13 @@ class pigpiod_gpio_output(io_wrapper):
         for key, value in self.settings.iteritems():
             setattr(self, key, value)
 
-        self.pi.set_mode(gpio, pigpio.OUTPUT)
+        self.pi.set_mode(self.gpio, pigpio.OUTPUT)
 
     def get_value(self):
         self.pi.read(self.gpio)
 
-    def get_value(self):
-        self.pi.write(self.gpio)
+    def set_value(self, value):
+        self.pi.write(self.gpio, value)
 
 
 def gethashedentry(user, password):

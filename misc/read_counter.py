@@ -4,8 +4,15 @@
 # 2016-01-20
 # Public Domain
 
-import time
-import pigpio  # http://abyz.co.uk/rpi/pigpio/python.html
+
+import os
+import sys
+import inspect
+
+top_folder = \
+    os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
+if top_folder not in sys.path:
+    sys.path.insert(0, top_folder)
 
 
 class reader:
@@ -132,31 +139,42 @@ if __name__ == "__main__":
 
     pi = pigpio.pi()
 
-    io_objects = []
+    from cupid import pilib
 
-    io_objects.append(read_counter.reader(pi, RPM_GPIO))
+    counter_options = {'gpio':RPM_GPIO, 'debounce_ms':20, 'event_min_ms':20, 'pi':pi}
+
+    my_counter = pilib.pigpiod_gpio_counter(**counter_options)
+
+    io_objects = []
+    io_objects.append(my_counter)
 
     start = time.time()
 
     # for practice, find object with the correct GPIO
+    the_object = None
     for object in io_objects:
         if object.gpio == RPM_GPIO:
             the_object = object
             break
 
-    try:
-        while (time.time() - start) < RUN_TIME:
+    if the_object:
 
-            time.sleep(SAMPLE_TIME)
+        try:
+            while (time.time() - start) < RUN_TIME:
 
-            print(the_object.get_value())
+                time.sleep(SAMPLE_TIME)
 
-            # RPM = p.RPM()
-    except KeyboardInterrupt:
-        print('BUT YOU INTERRUPTED ME')
+                print('TICKs: \t' + str(the_object.get_value()))
+                print('RATE: \t' + str(the_object.get_rate()))
 
-        # print("RPM={}".format(int(RPM + 0.5)))
-        # print('TICKS: \t' + str(p.ticks))
-    the_object.cancel()
+                # RPM = p.RPM()
+        except KeyboardInterrupt:
+            print('BUT YOU INTERRUPTED ME')
+
+            # print("RPM={}".format(int(RPM + 0.5)))
+            # print('TICKS: \t' + str(p.ticks))
+        the_object.cancel()
+    else:
+        print('THE OBJECT DNE')
 
     pi.stop()

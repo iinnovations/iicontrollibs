@@ -126,6 +126,15 @@ def application(environ, start_response):
                             else:
                                 output['message'] += 'Data query appears successful. '
                         output['querytime'] = time() - thetime
+
+                    # Clean data, field by field and row by row
+                    # fixeddata = []
+                    # for datarow in output['data']:
+                    #     if datarow:
+                    #         for key, value in datarow.iteritems():
+                    #             datarow[key] = value.replace('\xff','__')
+                    #     fixeddata.append(datarow)
+                    # output['data'] = fixeddata
                 else:
                     output['message'] += 'Friendly name ' + d['database'] + ' unsuccessfully translated. '
             else:
@@ -147,7 +156,12 @@ def application(environ, start_response):
 
     output['etag'] = newetag
 
-    foutput = json.dumps(output, indent=1)
+    try:
+        foutput = json.dumps(output, indent=1)
+    except:
+        print('*** THERE WAS AN ERROR DECODING DATA ***')
+        print(output)
+        foutput = json.dumps({'message': 'Error in json dumps'})
 
     response_headers = [('Content-type', 'application/json')]
     response_headers.append(('Etag',newetag))
