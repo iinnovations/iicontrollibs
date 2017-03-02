@@ -45,7 +45,6 @@ def progressbar(time=5, length=20, type='percentage'):
 
         sleep(float(time)/float(length))
 
-<<<<<<< HEAD
     # print('')
 
 
@@ -319,9 +318,6 @@ def rotate_log_by_size(logname, numlogs=5, logsize=1024):
             logmessage += 'log not big enough\n'
             returnmessage = 'logs not rotated'
     return {'message': returnmessage, 'logmessage': logmessage, 'statuscode': statuscode}
-=======
-    print('')
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
 
 def unmangleAPIdata(d):

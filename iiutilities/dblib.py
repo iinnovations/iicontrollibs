@@ -40,11 +40,7 @@ class sqliteDatabase(object):
     def create_table(self, name, schema, queue=False, dropexisting=True):
         if schema.valid:
             if dropexisting:
-<<<<<<< HEAD
                 self.drop_table(name, queue=queue, quiet=True)
-=======
-                self.drop_table(name, queue=queue)
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
             query = sqlite_create_table_query_from_schema(name, schema)
             if queue:
@@ -54,7 +50,6 @@ class sqliteDatabase(object):
         else:
             print('schema is invalid')
 
-<<<<<<< HEAD
     def drop_table(self, name, queue=False, quiet=False):
         if queue:
             self.queue_queries(["drop table '" + name + "'"])
@@ -68,13 +63,6 @@ class sqliteDatabase(object):
                 self.drop_table(tablename, queue=True)
         if self.queued_queries:
             self.execute_queue()
-=======
-    def drop_table(self, name, queue=False):
-        if queue:
-            self.queue_queries(["drop table '" + name + "'"])
-        else:
-            sqlitedroptable(self.path,name)
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
     def move_table(self, oldname, newname):
         sqlitemovetable(self.path, oldname, newname)
@@ -110,7 +98,6 @@ class sqliteDatabase(object):
             self.execute_queue()
         return current_table
 
-<<<<<<< HEAD
     def get_table_size(self, tablename):
         return gettablesize(self.path, tablename)
 
@@ -145,29 +132,11 @@ class sqliteDatabase(object):
         data = self.query(query)['data']
         return data
 
-=======
-    def read_table(self, name, **kwargs):
-        dbrows = readalldbrows(self.path, name, **kwargs)
-        return dbrows
-
-    def read_table_row(self, name, row=0, **kwargs):
-        dbrow = readonedbrow(self.path, name, row, **kwargs)
-        return dbrow
-
-    def read_table_rows(self, name, row=0, length=1, **kwargs):
-        dbrows = readsomedbrows(self.path, name, row, length, **kwargs)
-        return dbrows
-
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
     def get_pragma_names(self, tablename):
         return getpragmanames(self.path, tablename)
 
     def get_schema(self, tablename):
-<<<<<<< HEAD
         schema = sqliteTableSchema(getpragma(self.path, tablename))
-=======
-        schema = getpragma(self.path, tablename)
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
         # maybe do some massaging
         return schema
 
@@ -175,17 +144,12 @@ class sqliteDatabase(object):
         return gettablesize(self.path, tablename)
 
     # Single table operations
-<<<<<<< HEAD
     def set_single_value(self, tablename, valuename, value, condition=None, queue=False):
         query = makesinglevaluequery(tablename, valuename, value, condition)
         if queue:
             self.queue_queries([query])
         else:
             self.query(query)
-=======
-    def set_single_value(self, tablename, valuename, value, condition=None):
-        setsinglevalue(self.path, tablename, valuename, value, condition)
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
     def get_single_value(self, tablename, valuename, condition=None):
         value = getsinglevalue(self.path, tablename, valuename, condition)
@@ -241,12 +205,9 @@ class sqliteDatabase(object):
     def clear_queue(self):
         self.queued_queries = []
 
-<<<<<<< HEAD
     def queue_query(self, query):
         self.queued_queries.append(query)
 
-=======
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
     def queue_queries(self, queries):
         self.queued_queries.extend(queries)
 
@@ -258,12 +219,6 @@ class sqliteDatabase(object):
         result = sqlitemultquery(self.path, queries)
         return result
 
-<<<<<<< HEAD
-=======
-    def table_names(self):
-        return gettablenames(self.path)
-
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
 class tableSchema(object):
 
@@ -562,8 +517,6 @@ def insertstringdicttablelist(database, tablename, datadictarray, droptable=Fals
 
 
 def sqlite_create_table_query_from_schema(tablename, schema, **kwargs):
-<<<<<<< HEAD
-=======
 
     settings = {'removequotes':True, 'removeslashes':True}
     settings.update(kwargs)
@@ -597,80 +550,6 @@ def sqlite_create_table_query_from_schema(tablename, schema, **kwargs):
     constructorquery = "create table '" + tablename + "' (" + constructor[:-1] + ")"
     return constructorquery
 
-
-def sqlitecreateemptytablequery(tablename, valuenames, valuetypes, valueoptions=None, dropexisting=True,
-                           removequotes=True, removeslashes=True):
-    constructor = ''
-    for index, valuename in enumerate(valuenames):
-        try:
-            if removequotes:
-                valuename = valuename.replace("'", '').replace('"', '')
-            if removeslashes:
-                valuename = valuename.replace("\\", '').replace("/", "")
-        except:
-            print('error replacing in key ' + str(valuename))
-
-        constructor += "'" + valuename + "' " + valuetypes[index]
-
-        if valueoptions and valueoptions[index]:
-            # limited. multiple options in the future.
-            if 'primary' == valueoptions[index]:
-                constructor += ' primary key'
-            elif 'unique' == valueoptions[index]:
-                constructor += ' unique'
-
-        constructor += ","
-
-    constructorquery = "create table '" + tablename + "' (" + constructor[:-1] + ")"
-
-    return constructorquery
-
-
-def sqlitecreateemptytable(database, tablename, valuenames, valuetypes, valueoptions=None, dropexisting=True,
-                           removequotes=True, removeslashes=True, execute=True):
-    if len(valuenames) != len(valuetypes):
-        print('Names and types are not of same length. Cannot continue. ')
-        return None
-    else:
-        if valueoptions:
-            if len(valuenames) != len(valueoptions):
-                print('Valueoptions were delivered but do not appear to be the correct length. Cannot continue. ')
-                return None
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
-
-    settings = {'removequotes':True, 'removeslashes':True}
-    settings.update(kwargs)
-    constructor = ''
-    for item in schema.items:
-        # Items are 'name', 'type', 'options'
-        valuename = item['name']
-        try:
-            if settings['removequotes']:
-                valuename = valuename.replace("'", '').replace('"', '')
-            if settings['removeslashes']:
-                valuename = valuename.replace("\\", '').replace("/", "")
-        except:
-            print('error replacing in key ' + str(valuename))
-
-        constructor += "'" + valuename + "' " + item['type']
-
-        # options.
-        if 'primary' in item and item['primary']:
-            constructor += ' primary key '
-        elif 'unique' in item and item['unique']:
-            constructor += ' unique '
-        if 'default' in item:
-            if item['type'] == 'text':
-                constructor += " default '" + str(item['default']) + "'"
-            else:
-                constructor += " default " + str(item['default'])
-
-        constructor += ","
-
-    constructorquery = "create table '" + tablename + "' (" + constructor[:-1] + ")"
-    return constructorquery
-
-<<<<<<< HEAD
 
 def sqlitecreateemptytablequery(tablename, valuenames, valuetypes, valueoptions=None, dropexisting=True,
                            removequotes=True, removeslashes=True):
@@ -724,14 +603,6 @@ def sqlitecreateemptytable(database, tablename, valuenames, valuetypes, valueopt
     if 'execute':
         sqlitequery(database, constructorquery)
     return constructorquery
-=======
-    constructorquery = sqlitecreateemptytablequery(tablename, valuenames, valuetypes, valueoptions, dropexisting,
-                                                   removequotes, removeslashes)
-    if 'execute':
-        sqlitequery(database, constructorquery)
-    return constructorquery
-
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
 
 def dropcreatetexttablefromdict(databasename, tablename, dictordictarray, removequotes=True, removeslashes=True, primarykey=None):
@@ -843,18 +714,10 @@ def sqlitemultquery(database, querylist, **kwargs):
 
             data.append(dataitem)
         con.commit()
-<<<<<<< HEAD
-
-    return {'data':data, 'message':message, 'status':status}
-=======
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
     return {'data':data, 'message':message, 'status':status}
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 def sqlitequery(database, query, **kwargs):
     import sqlite3 as lite
 
@@ -871,10 +734,7 @@ def sqlitequery(database, query, **kwargs):
         data = ''
         message = traceback.format_exc()
         status = 1
-<<<<<<< HEAD
         print('error with query: "' + query + '"')
-=======
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
         if not 'quiet' in kwargs:
             print(message)
     else:
@@ -1113,16 +973,6 @@ def sqlitedropalltables(database):
         sqlitemultquery(database, queries)
 
 
-def sqlitedropalltables(database):
-    # not optimized
-    existingtables = gettablenames(database)
-    queries = []
-    if existingtables:
-        for table in existingtables:
-            queries.append('drop table "' + table + '"')
-        sqlitemultquery(database, queries)
-
-
 def gettablesize(databasename, tablename):
     logsize = sqlitedatumquery(databasename, 'select count(*) from \'' + tablename + '\'')
     return logsize
@@ -1140,15 +990,9 @@ def sizesqlitetable(databasename, tablename, size):
     return (logexcess)
 
 
-<<<<<<< HEAD
 def getfirsttimerows(database, tablename, timecolname='time', numrows=1):
     query = 'select * from \'' + tablename + "' order by'" + timecolname + "' desc limit " + str(int(numrows))
     data = sqlitequery(database, query)['data']
-=======
-def getfirsttimerow(database, tablename, timecolname='time'):
-    query = 'select * from \'' + tablename + '\' order by \'' + timecolname + '\' limit 1'
-    data = sqlitequery(database, query)['data'][0]
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
     try:
         dictarray = []
         for datum in data:
@@ -1161,13 +1005,8 @@ def getfirsttimerow(database, tablename, timecolname='time'):
     return dictarray
 
 
-<<<<<<< HEAD
 def getlasttimerows(database, tablename, timecolname='time', numrows=1):
     query = 'select * from \'' + tablename + "' order by'" + timecolname + "' desc limit " + str(int(numrows))
-=======
-def getlasttimerows(database, tablename, numrows=1):
-    query = 'select * from \'' + tablename + '\' order by time desc limit ' + str(int(numrows))
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
     data = sqlitequery(database, query)['data']
     try:
         dictarray = []
