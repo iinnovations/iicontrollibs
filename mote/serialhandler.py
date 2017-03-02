@@ -20,8 +20,8 @@ if top_folder not in sys.path:
 
 import cupid.pilib as pilib
 
-
-def write(message, port='/dev/ttyAMA0', baudrate=115200, timeout=1):
+# Need to backward compatible this for Pi2 based on hardware version
+def write(message, port='/dev/serial0', baudrate=115200, timeout=1):
     import serial
     ser = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
     ser.write(message)
@@ -71,7 +71,7 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
             #     print('null character')
 
             if len(ch) == 0 or ch == '\x0D':
-                # print('LEN ZERO OR END CHAR: PROCESS TIME')
+                print('LEN ZERO OR END CHAR: PROCESS TIME')
 
                 # rec'd nothing print all
                 if len(data) > 0:
@@ -307,28 +307,39 @@ def lograwmessages(message):
     #     return{'status':0, 'message':'ok' }
 
 
-# THis function processes remote data as it is read. This is reserved for things that should happen synchronously.
-# Keep in mind, however, that we are trying to read data in real-time within the limits of the UART, so we should
-# put off all time-consuming activities until later if at all possible to avoid missing messages due to buffer
-# limitations
+"""
+This function processes remote data as it is read. This is reserved for things that should happen synchronously.
+Keep in mind, however, that we are trying to read data in real-time within the limits of the UART, so we should
+put off all time-consuming activities until later if at all possible to avoid missing messages due to buffer
+limitations
+"""
+
 
 def processremotedata(datadict, stringmessage):
     import cupid.pilib as pilib
     from iiutilities import dblib, datalib, utility
     if 'nodeid' in datadict:
 
-        # We are going to search for keywords. Message type will not be explicitly declared so
-        # as not to waste precious message space in transmission. Or we could tack these on in
-        # the gateway, but we won't yet.
+        """
+        We are going to search for keywords. Message type will not be explicitly declared so
+        as not to waste precious message space in transmission. Or we could tack these on in
+        the gateway, but we won't yet.
+        """
 
-        # Then we have to construct a query where we will replace a unique item
-        # This will take the form :
-        #   update or replace in remotes where nodeid=3 and msgtype='iovalue' and iopin=3
-        #   update or repalce in remotes where nodeid=2 and msgtype='owdev' and owrom='28XXXXXXXXXXXXXX'
-        #               (and later which IO on this device)
-        #   update or replace in remotes where nodeid=2 and msgtype='chanstat' channum=1
-        #               (need to see if all channel variables can be fit into one message:
-        #               channum, sv,pv,mode,state
+        """
+        Then we have to construct a query where we will replace a unique item
+        This will take the form :
+          update or replace in remotes where nodeid=3 and msgtype='iovalue' and iopin=3
+          update or repalce in remotes where nodeid=2 and msgtype='owdev' and owrom='28XXXXXXXXXXXXXX'
+                      (and later which IO on this device)
+
+
+          update or replace in remotes where nodeid=2 and msgtype='chanstat' channum=1
+        """
+        """
+                      (need to see if all channel variables can be fit into one message:
+                      channum, sv,pv,mode,state
+        """
         runquery = False
         nodeid = datadict['nodeid']
         querylist = []

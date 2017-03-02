@@ -19,20 +19,31 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 
-def runping(pingAddress='8.8.8.8', numpings=1):
+def runping(pingAddress='8.8.8.8', numpings=1, quiet=False):
     pingtimes = []
     from cupid import pilib
     import subprocess
     for i in range(numpings):
         # Perform the ping using the system ping command (one ping only)
+        import os
+
         try:
             # result, err = Popen(['ping','-c','1', pingAddress], stdout=PIPE, stderr=PIPE).communicate()
             # Default ping timeout is 500ms. This is about right.
-            result = subprocess.Popen(['fping','-c','1', pingAddress], stdout=subprocess.PIPE)
+            # if quiet:
+            # result = subprocess.Popen(['fping','-c','1', pingAddress], stdout=os.devnull)
+            # else:
+            if quiet:
+                DEVNULL = open(os.devnull, 'wb')
+                result = subprocess.Popen(['fping', '-c', '1', pingAddress], stdout=subprocess.PIPE, stderr=DEVNULL)
+                DEVNULL.close()
+            else:
+                result = subprocess.Popen(['fping', '-c', '1', pingAddress], stdout=subprocess.PIPE)
+
             pingresult = result.stdout.read()
             # print(pingresult)
         except:
-            # print('there is problem')
+            print('there is problem with your pinging')
             pingtimes.append(-1)
         else:
             # Extract the ping time
@@ -69,8 +80,8 @@ def runping(pingAddress='8.8.8.8', numpings=1):
     return pingtimes
 
 
-def pingstatus(pingAddress='8.8.8.8', numpings=1, threshold=2000):
-    pingtimes = runping(pingAddress, numpings)
+def pingstatus(pingAddress='8.8.8.8', numpings=1, threshold=2000, quiet=True):
+    pingtimes = runping(pingAddress, numpings, quiet=True)
     pingmax = max(pingtimes)
     pingmin = min(pingtimes)
     pingave = sum(pingtimes)/len(pingtimes)
@@ -140,11 +151,14 @@ def getifconfigstatus():
             interfaces.append(blankinterface.copy())
             interfaces[ifaceindex]['ifaceindex'] = str(ifaceindex)
             interfaces[ifaceindex]['name'] = line.split(' ')[0].strip()
-            try:
-                interfaces[ifaceindex]['hwaddress'] = line.split('HWaddr')[1].strip()
-            except:
-                # print('error parsing interface - ' + )
-                utility.log(pilib.dirs.logs.network, 'Error parsing hwaddress in ifconfig for interface' + interfaces[ifaceindex]['name'], 4, pilib.loglevels.network)
+            if interfaces[ifaceindex]['name'] == 'lo':
+                interfaces[ifaceindex]['hwaddress'] = ''
+            else:
+                try:
+                    interfaces[ifaceindex]['hwaddress'] = line.split('HWaddr')[1].strip()
+                except:
+                    # print('error parsing interface - ' + )
+                    utility.log(pilib.dirs.logs.network, 'Error parsing hwaddress in ifconfig for interface' + interfaces[ifaceindex]['name'], 4, pilib.loglevels.network)
 
         else:
             if line.find('addr') >= 0:
@@ -218,8 +232,8 @@ def getwpaclientstatus(interface='wlan0'):
         log(dirs.logs.network, 'Attempting WPA client status read for interface ' + interface, 4, loglevels.network)
         result = subprocess.check_output(['/sbin/wpa_cli', 'status', '-i', interface], stderr=subprocess.PIPE)
     except:
-        log(dirs.logs.network, 'Error reading wpa client status on interface ' + interface +  ' . Setting error status for systemstatus to catch.', 0, loglevels.network)
-        resultdict['wpa_state'] = 'ERROR'
+        log(dirs.logs.network, 'Unabe to read wpa client status on interface ' + interface +  ' .', 0, loglevels.network)
+        resultdict['wpa_state'] = 'None'
     else:
         log(dirs.logs.network, 'Completed WPA client status read. ', 4, loglevels.network)
 
@@ -290,7 +304,53 @@ def gethamachistatusdata():
         except:
             # print('oops')
             pass
+    if 'address' in statusdict and statusdict['address'].find(':') >= 0:
+        split_index = statusdict['address'].find(' ')
+
+        statusdict['address_ipv6'] = statusdict['address'][split_index:].strip()
+        statusdict['address_ipv4'] = statusdict['address'][0:split_index].strip()
+    else:
+        statusdict['address_ipv4'] = statusdict['address']
+
     return statusdict
+
+
+def restart_uwsgi(directory='/usr/lib/iicontrollibs/uwsgi', quiet=True, killall=False):
+    import subprocess
+    import os
+    quiet = False
+    if not quiet:
+        print('restarting uwsgi from directory:  ' + directory)
+    if killall:
+        try:
+            result = subprocess.Popen(['pkill', 'uwsgi'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except:
+            print('exception killing uwsgi')
+        # if quiet:
+        #     DEVNULL = open(os.devnull, 'wb')
+        #     result = subprocess.Popen(['pkill', 'uwsgi'], stdout=subprocess.PIPE, stderr=DEVNULL)
+        #     DEVNULL.close()
+        # else:
+        #     result = subprocess.Popen(['pkill', 'uwsgi'], stdout=subprocess.PIPE)
+        #     # print(result.stdout)
+        #     # print(result.stderr)
+
+    commandlist = ['/usr/bin/uwsgi', '--emperor', directory, '--daemonize', '/var/log/uwsgi.log']
+    # print(commandlist)
+
+    subprocess.call(commandlist)
+    if quiet:
+        DEVNULL = open(os.devnull, 'wb')
+        result = subprocess.Popen(commandlist, stdout=subprocess.PIPE, stderr=DEVNULL)
+        DEVNULL.close()
+        # call(['/usr/bin/uwsgi', '--emperor', directory, '--daemonize', '/var/log/uwsgi.log'])
+    else:
+        try:
+            result = subprocess.Popen(commandlist, stdout=subprocess.PIPE)
+            print(result.stdout)
+            print(result.stderr)
+        except:
+            print('error starting uwsgi. ')
 
 
 def restarthamachi():
@@ -357,29 +417,54 @@ def messagefrommbstatuscode(code):
 
 
 def readMBinputs(clientIP, coil, number=1):
-    from resource.pymodbus.client.sync import ModbusTcpClient
+
+    from resource.pymodbus.client.sync import ModbusTcpClient, ConnectionException
 
     client = ModbusTcpClient(clientIP)
-    result = client.read_discrete_inputs(coil, number)
-    client.close()
+    values = []
     try:
-        return result.bits[0:number]
-    except AttributeError:
-        # print('there are no registers!')
-        return result
+        rawresult = client.read_discrete_inputs(coil, number)
+
+    except ConnectionException:
+        # print('we were unable to connect to the host')
+        statuscode = 7
+    else:
+        # print(rawresult)
+        try:
+            resultregisters = rawresult.bits[0:number]
+        except AttributeError:
+            statuscode = rawresult.exception_code
+        else:
+            statuscode = 0
+            values = resultregisters
+    client.close()
+    result = {'message': messagefrommbstatuscode(statuscode), 'statuscode': statuscode, 'values':values}
+    return result
 
 
 def readMBcoils(clientIP, coil, number=1):
-    from resource.pymodbus.client.sync import ModbusTcpClient
+    from resource.pymodbus.client.sync import ModbusTcpClient, ConnectionException
 
     client = ModbusTcpClient(clientIP)
-    result = client.read_coils(coil, number)
-    client.close()
+    values = []
     try:
-        return result.bits[0:number]
-    except AttributeError:
-        # print('there are no registers!')
-        return result
+        rawresult = client.read_coils(coil, number)
+
+    except ConnectionException:
+        # print('we were unable to connect to the host')
+        statuscode = 7
+    else:
+        # print(rawresult)
+        try:
+            resultregisters = rawresult.bits[0:number]
+        except AttributeError:
+            statuscode = rawresult.exception_code
+        else:
+            statuscode = 0
+            values = resultregisters
+    client.close()
+    result = {'message': messagefrommbstatuscode(statuscode), 'statuscode': statuscode, 'values':values}
+    return result
 
 
 def writeMBcoils(clientIP, coil, valuelist):
@@ -459,7 +544,7 @@ def writeMBholdingregisters(clientIP, register, valuelist):
         return result
 
 
-def readMBcodedaddresses(clientIP, address, length=1):
+def readMBcodedaddresses(clientIP, address, length=1, **kwargs):
     # addresses are as following:
     # Input registers   : 300000    -  399999
     # Holding registers : 400000    -  400000
@@ -468,6 +553,11 @@ def readMBcodedaddresses(clientIP, address, length=1):
 
     # Bit addresses are in float 
     # 16 bits per word
+
+    if 'boolean_to_int' in kwargs and kwargs['boolean_to_int']:
+        boolean_to_int = True
+    else:
+        boolean_to_int = False
 
     # determine what we are doing by address
     if isinstance(address, int) or isinstance(address, float):
@@ -480,14 +570,18 @@ def readMBcodedaddresses(clientIP, address, length=1):
 
     if address >= 0 and address < 100000:
         # coils
-        readaddress = int(address) * 16 + int((address % 1) * 100)
+        # readaddress = int(address) * 16 + int((address % 1) * 100)
+        readaddress = address
         result = readMBcoils(clientIP, readaddress, length)
+        result['values'] = [int(value) for value in result['values']]
         #print(result)
         return result
     elif address >= 100000 and address < 200000:
         # discrete inputs
-        readaddress = int(address - 100000) * 16 + int(((address - 100000) % 1) * 100)
+        # readaddress = int(address - 100000) * 16 + int(((address - 100000) % 1) * 100)
+        readaddress = address - 100000
         result = readMBinputs(clientIP, readaddress, length)
+        result['values'] = [int(value) for value in result['values']]
         return result
     elif address >= 300000 and address < 400000:
         # input registers
@@ -498,6 +592,56 @@ def readMBcodedaddresses(clientIP, address, length=1):
         # holding registers 
         readaddress = int(address) - 400000
         result = readMBholdingregisters(clientIP, readaddress, length)
+        return result
+    else:
+        return
+
+
+def writeMBcodedaddresses(clientIP, address, values, convert=None, **kwargs):
+    # addresses are as following:
+    # Input registers   : 300000    -  399999 -- not writeable
+    # Holding registers : 400000    -  400000
+    # Coils             : 000001.00 -  099999.07
+    # Discrete inputs   : 100001.00 -  199999.07 -- not writeable
+
+    # Bit addresses are in float
+    # 16 bits per word
+
+    from iiutilities.datalib import valuetobytes
+
+    # determine what we are doing by address
+    if isinstance(address, int) or isinstance(address, float):
+        pass
+    elif isinstance(address, str):
+        address = float(address)
+    else:
+        # valueerror
+        return
+
+    if address >= 000000 and address < 100000:
+        # coils
+        # writeaddress = int(address) * 16 + int((address % 1) * 100)
+        # writeaddress = int(address) * 16 + int((address % 1) * 100)
+        result = writeMBcoils(clientIP, address, values)
+        #print(result)
+        return result
+
+    elif address >= 400000 and address < 500000:
+
+        if convert == 'float32':
+            from datalib import valuetofloat32bytes
+            # Assume first value fed into values is float value to be converted
+            bytes = valuetofloat32bytes(values[0])
+        elif convert == 'beword32':
+            bytes = valuetobytes(values[0], 'beword32')
+        elif convert == 'leword32':
+            bytes = valuetobytes(values[0], 'leword32')
+        else:
+            bytes = values
+
+        # holding registers
+        readaddress = int(address) - 400000
+        result = writeMBholdingregisters(clientIP, readaddress, bytes)
         return result
     else:
         return

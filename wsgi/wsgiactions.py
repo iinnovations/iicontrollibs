@@ -11,8 +11,7 @@ def application(environ, start_response):
     if top_folder not in sys.path:
         sys.path.insert(0,top_folder)
 
-    import cupid.pilib as pilib
-    import cupid.controllib as controllib
+    from cupid import pilib, controllib
     from iiutilities import dblib, utility, datalib
 
     post_env = environ.copy()
@@ -31,33 +30,45 @@ def application(environ, start_response):
         d[k] = post.getvalue(k)
 
     status = '200 OK'
-    wsgiauth = False
+    wsgiauth = True
     authverified = False
 
     if wsgiauth:
         # Verfiy that session login information is legit: hashed password, with salt and username, match
         # hash stored in database.
         import hashlib
-        from pilib import salt
 
-        try:
-            userdata = dblib.datarowtodict(pilib.dirs.dbs.users, 'users', dblib.sqlitequery(pilib.dirs.dbs.users, "select * from users where name='" + d['sessionuser'] + "'")[0])
-        except:
-            output['message'] += 'error in user sqlite query. '
-            # unsuccessful authentication
+        safe_database = dblib.sqliteDatabase(pilib.dirs.dbs.users)
+        if 'username' in d and d['username']:
+            output['message'] += 'Session user is ' + d['username'] + '. '
+        else:
+            output['message'] += 'No session user found. '
+            d['username'] = ''
 
-        # Get session hpass to verify credentials
-        hashedpassword = d['sessionhpass']
-        hname = hashlib.new('sha1')
-        hname.update(d['sessionuser'])
-        hashedname = hname.hexdigest()
-        hentry = hashlib.new('md5')
-        hentry.update(hashedname + salt + hashedpassword)
-        hashedentry = hentry.hexdigest()
-        if hashedentry == userdata['password']:
-            # successful auth
-            output['message'] += 'Password verified. '
-            authverified = True
+        if d['username']:
+            try:
+                condition = "name='" + d['username'] + "'"
+                user_data = safe_database.read_table_row('users', condition=condition)[0]
+            except:
+                output['message'] += 'Error in user sqlite query for session user "' + d['username'] + '". '
+                output['message'] += 'Condition: ' + condition + '. Path: ' + pilib.dirs.dbs.safe
+                user_data = {'accesskeywords': 'demo', 'admin': False}
+            else:
+                # Get session hpass to verify credentials
+                hashedpassword = d['hpass']
+                hname = hashlib.new('sha1')
+                hname.update(d['username'])
+                hashedname = hname.hexdigest()
+                hentry = hashlib.new('md5')
+                hentry.update(hashedname + pilib.salt + hashedpassword)
+                hashedentry = hentry.hexdigest()
+                if hashedentry == user_data['password']:
+                    # successful auth
+                    output['message'] += 'Password verified. '
+                    authverified = True
+
+                    # TODO: implement usermeta
+
     else:
         output['message'] += 'WSGI authorization not enabled. '
 
@@ -66,6 +77,7 @@ def application(environ, start_response):
         if 'action' in d:
             action = d['action']
             output['message'] += 'Found action. '
+            # NO NO NO
             if action == 'runquery':
                 output['message'] += 'Query keyword found. '
                 dbpath = pilib.dbnametopath(d['database'])
@@ -84,6 +96,25 @@ def application(environ, start_response):
                         output['message'] += 'Query array executed. '
                 else:
                      output['message'] += 'Name "' + d['database'] + '"  unsuccessfully translated. '
+            elif action == 'testdbvn':
+                from iiutilities.dblib import dbvntovalue
+                try:
+                    output['data'] = dbvntovalue(d['dbvn'])
+                except:
+                    output['message'] += 'Error in dbvn evaluation. '
+                    output['data'] = 'error'
+                else:
+                    output['message'] += 'Seems to have worked out. '
+            elif action == 'testlogical':
+                from iiutilities.datalib import evaldbvnformula
+                try:
+                    output['data'] = evaldbvnformula(d['logical'])
+                except:
+                    output['message'] += 'Error in logical evaluation. '
+                    output['data'] = 'error'
+                else:
+                    output['message'] += 'Seems to have worked out. '
+
             elif action == 'testmodule':
                 output['message'] += 'Testing module: '
                 if 'modulename' in d:

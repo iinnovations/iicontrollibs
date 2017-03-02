@@ -90,7 +90,7 @@ loglevels.serial = 2
 loglevels.notifications = 5
 
 daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py', 'mote/serialhandler.py']
-
+daemonprocnames = ['updateio', 'picontrol', 'systemstatus', 'sessioncontrol', 'serialhandler']
 
 """
 Utility Functions
@@ -111,8 +111,8 @@ Utility Functions
 
 
 def dbnametopath(friendlyname):
-    friendlynames = ['controldb', 'logdatadb', 'infodb', 'systemdb', 'authdb', 'safedatadb', 'usersdb', 'motesdb', 'systemdatadb', 'notificationsdb']
-    paths = [dirs.dbs.control, dirs.dbs.log, dirs.dbs.info, dirs.dbs.system, dirs.dbs.auths, dirs.dbs.safe, dirs.dbs.users, dirs.dbs.motes, dirs.dbs.system, dirs.dbs.notifications]
+    friendlynames = ['controldb', 'logdatadb', 'infodb', 'systemdb', 'authdb', 'safedatadb', 'usersdb', 'motesdb', 'notificationsdb']
+    paths = [dirs.dbs.control, dirs.dbs.log, dirs.dbs.info, dirs.dbs.system, dirs.dbs.auths, dirs.dbs.safe, dirs.dbs.users, dirs.dbs.motes, dirs.dbs.notifications]
     path = None
     if friendlyname in friendlynames:
         path = paths[friendlynames.index(friendlyname)]
@@ -165,7 +165,9 @@ def processnotificationsqueue():
     from iiutilities import dblib
     from iiutilities.utility import log
 
-    queuednotifications = dblib.readalldbrows(dirs.dbs.notifications, 'queuednotifications')
+    notifications_db = dblib.sqliteDatabase(dirs.dbs.notifications)
+    queuednotifications = notifications_db.read_table('queued')
+
     for notification in queuednotifications:
         if loglevels.notifications >= 5:
             log(dirs.logs.notifications, 'Processing notification of type' + notification['type'] + '. Message: ' + notification['message'] + '. Options: ' + notification['options'])
@@ -178,18 +180,26 @@ def processnotificationsqueue():
             log(dirs.logs.notifications, 'Notification appears to have been successful. Copying message to sent.')
             sententry = notification.copy()
             sententry['senttime'] = result['senttime']
-            dblib.insertstringdicttablelist(dirs.dbs.notifications, 'sentnotifications', [sententry], droptable=False)
+            dblib.insertstringdicttablelist(dirs.dbs.notifications, 'sent', [sententry], droptable=False)
 
             log(dirs.logs.notifications, 'Removing entry from queued messages.')
 
             # match by time and message
             conditionnames = ['queuedtime', 'message']
             conditionvalues = [sententry['queuedtime'], sententry['message']]
-            delquery = dblib.makedeletesinglevaluequery('queuednotifications', {'conditionnames':conditionnames, 'conditionvalues':conditionvalues})
-            dblib.sqlitequery(dirs.dbs.notifications, delquery)
+
+            notifications_db.delete('queued', {'conditionnames':conditionnames, 'conditionvalues':conditionvalues})
+
+            # delquery = dblib.makedeletesinglevaluequery('queuednotifications', {'conditionnames':conditionnames, 'conditionvalues':conditionvalues})
+            # dblib.sqlitequery(dirs.dbs.notifications, delquery)
 
         else:
             log(dirs.logs.notifications, 'Notification appears to have failed. Status: ' + str(result['status']))
+
+
+""" IO functions
+
+"""
 
 
 def getgpiostatus():
@@ -224,6 +234,148 @@ def getgpiostatus():
     return gpiolist
 
 
+
+class io_wrapper(object):
+
+    """
+    This is going to be a general class of IO handler that has a identifying values to match against (to know when we
+    need to destroy and recreate it), and can handle functions in the background, such as pigpiod callbacks. This way
+    we can do more than atomic read/write operations. For GPIO, we can even set callbacks for value changes.
+    """
+    def __init__(self, **kwargs):
+        # self.required_properties = ['type','options', 'pi']
+        self.required_properties = ['pi']
+
+        if not all(property in kwargs for property in self.required_properties):
+            print('You did not provide all required parameters: ' + str(self.required_properties))
+        self.settings = {}
+        self.settings.update(kwargs)
+        for key,value in self.settings.iteritems():
+            setattr(self, key, value)
+
+
+class pigpiod_gpio_counter(io_wrapper):
+
+    def __init__(self, **kwargs):
+        # inherit parent properties
+        super(pigpiod_gpio_counter, self).__init__(**kwargs)
+
+        import pigpio
+        self.settings = {'edge':'falling', 'pullupdown':None, 'debounce_ms':20, 'event_min_ms':20,
+                         'watchdog_ms':1000, 'rate_period_ms':2000}
+        self.settings.update(kwargs)
+        for key,value in self.settings.iteritems():
+            setattr(self, key, value)
+
+        self.pi.set_mode(self.gpio, pigpio.INPUT)
+        if self.pullupdown in ['up', 'pullup']:
+            self.pi.set_pull_up_down(self.gpio, pigpio.PUD_UP)
+
+        self._cb = self.pi.callback(self.gpio, pigpio.FALLING_EDGE, self._cbf)
+        self.pi.set_watchdog(self.gpio, self.watchdog_ms)
+
+        self.busy = False
+        self.ticks = 0
+        self.last_event_count = 0
+
+        self.last_counts = None
+        self.last_counts_time = None
+        self.rate = 0
+
+    def _cbf(self, gpio, level, tick):
+        if not self.busy:
+            self.busy = True
+            self.process_callback(gpio, level, tick)
+
+    def process_callback(self, gpio, level, tick):
+        # a tick event happened
+        import time
+
+        if level == 0:  # Falling edge
+            time.sleep(0.001 * self.debounce_ms)
+            value = self.pi.read(self.gpio)
+            if value == 0:
+                # print('event length satisfied')
+
+                if tick - self.last_event_count > self.debounce_ms * 1000:
+                    self.ticks += 1
+                    self.last_event_count = tick
+                else:
+                    print('debounce')
+            else:
+                # print('event not long enough ( we waited to see ).')
+                pass
+
+        elif level == 2:  # Watchdog timeout. We will calculate
+            pass
+
+        self.busy = False
+
+    def get_value(self):
+        from datetime import datetime
+        now = datetime.now()
+        if self.last_counts_time:
+            seconds_delta = now - self.last_counts_time
+            seconds_passed = seconds_delta.seconds + float(seconds_delta.microseconds) / 1000000
+            self.rate = float(self.ticks - self.last_counts) / seconds_passed
+
+            print('COUNTING RATE')
+            print(self.last_counts, self.ticks)
+
+        self.last_counts = self.ticks
+        self.last_counts_time = now
+
+        # self.event_tick = 0  # reset event
+        return self.ticks
+
+    def get_rate(self):
+
+        return self.rate
+
+
+class pigpiod_gpio_input(io_wrapper):
+    def __init__(self, **kwargs):
+        # inherit parent properties
+        super(pigpiod_gpio_input, self).__init__(**kwargs)
+
+        import pigpio
+        self.settings = {'pullupdown': None}
+        self.settings.update(kwargs)
+
+        for key, value in self.settings.iteritems():
+            setattr(self, key, value)
+
+        self.pi.set_mode(self.gpio, pigpio.INPUT)
+        if self.pullupdown in ['up', 'pullup']:
+            self.pi.set_pull_up_down(self.gpio, pigpio.PUD_UP)
+        elif self.pullupdown in ['down','pulldown']:
+            self.pi.set_pull_up_down(self.gpio, pigpio.PUD_DOWN)
+
+    def get_value(self):
+        self.pi.read(self.gpio)
+
+
+class pigpiod_gpio_output(io_wrapper):
+    def __init__(self, **kwargs):
+        # inherit parent properties
+        super(pigpiod_gpio_output, self).__init__(**kwargs)
+
+        import pigpio
+        self.settings = {}
+        self.settings.update(kwargs)
+
+        for key, value in self.settings.iteritems():
+            setattr(self, key, value)
+
+        self.pi.set_mode(self.gpio, pigpio.OUTPUT)
+
+    def get_value(self):
+        self.pi.read(self.gpio)
+
+    def set_value(self, value):
+        self.pi.write(self.gpio, value)
+
+
 def gethashedentry(user, password):
     import hashlib
      # Create hashed, salted password entry
@@ -237,43 +389,6 @@ def gethashedentry(user, password):
     hentry.update(hashedname + salt + hashedpassword)
     hashedentry = hentry.hexdigest()
     return hashedentry
-
-
-def rotatelogs(logname, numlogs=5, logsize=1024):
-    import os
-
-    returnmessage = ''
-    logmessage = ''
-    try:
-        currlogsize = os.path.getsize(logname)
-    except:
-        logmessage = 'Error sizing original log'
-        returnmessage = logmessage
-        statuscode = 1
-    else:
-        statuscode = 0
-        if currlogsize > logsize * 1000:
-            for i in range(numlogs - 1):
-                oldlog = logname + '.' + str(numlogs - i - 2)
-                newlog = logname + '.' + str(numlogs - i - 1)
-                try:
-                    os.rename(oldlog, newlog)
-                except:
-                    logmessage += 'file error. log ' + oldlog + ' does not exist?\n'
-
-            try:
-                os.rename(logname, logname + '.1')
-                os.chmod(logname + '.1', 744)
-                open(logname, 'a').close()
-                os.chmod(logname, 764)
-
-            except:
-                logmessage += 'original doesn\'t exist\?\n'
-                returnmessage = "error in "
-        else:
-            logmessage += 'log not big enough\n'
-            returnmessage = 'logs not rotated'
-    return {'message': returnmessage, 'logmessage': logmessage, 'statuscode': statuscode}
 
 
 #############################################
@@ -342,7 +457,7 @@ def setsinglecontrolvalue(database, table, valuename, value, condition=None):
 
                     # Then queue up the message for dispatch
 
-                    dblib.sqliteinsertsingle(dirs.dbs.motes, 'queuedmessages', [gettimestring(), message])
+                    dblib.sqliteinsertsingle(dirs.dbs.motes, 'queued', [gettimestring(), message])
 
                 # get existing pending entry
                 pendingvaluelist = []
@@ -370,17 +485,30 @@ def setsinglecontrolvalue(database, table, valuename, value, condition=None):
     return response
 
 
-def getlogconfig():
+def reload_log_config():
     from iiutilities.dblib import readonedbrow
     logconfigdata = readonedbrow(dirs.dbs.system, 'logconfig')[0]
 
+    loglevels.network = logconfigdata['network']
+    loglevels.io = logconfigdata['io']
+    loglevels.system = logconfigdata['system']
+    loglevels.control = logconfigdata['control']
+    loglevels.daemon = logconfigdata['daemon']
+    loglevels.serial = logconfigdata['serial']
+    loglevels.notifications = logconfigdata['notifications']
+
     return logconfigdata
+
+
+def set_debug():
+    for attr, value in loglevels.__dict__.iteritems():
+        setattr(loglevels, attr, 9)
 
 
 # Attempt to update from database. If we are unsuccessful, the above are defaults
 
 try:
-    logconfig = getlogconfig()
+    logconfig = reload_log_config()
 except:
     pass
 else:

@@ -33,9 +33,19 @@ Read from systemstatus to make sure we should be running
 """
 
 
-def runperiodicio():
+def runperiodicio(**kwargs):
 
-    updateioenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'updateioenabled')
+    settings = {'force_run':False, 'run_once':False}
+    settings.update(kwargs)
+    if settings['force_run']:
+        updateioenabled = True
+    else:
+        updateioenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'updateioenabled')
+
+    if updateioenabled:
+        import pigpio
+        pi = pigpio.pi()
+        io_objects = {}
 
     while updateioenabled:
 
@@ -43,7 +53,7 @@ def runperiodicio():
         utility.log(pilib.dirs.logs.system, 'Running periodicupdateio', 3, pilib.loglevels.system)
 
         # Set last run time
-        dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'lastinputpoll', datalib.gettimestring())
+        dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'lastupdateiopoll', datalib.gettimestring())
         dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'updateiostatus', '1')
 
         # Read and record everything as specified in dirs.dbs.control
@@ -52,7 +62,7 @@ def runperiodicio():
         # DEBUG
         runupdate = True
         if runupdate:
-            reply = updateio.updateiodata(pilib.dirs.dbs.control)
+            reply = updateio.updateiodata(database=pilib.dirs.dbs.control, piobject=pi, io_objects=io_objects)
         else:
             utility.log(pilib.dirs.logs.io, 'DEBUG: Update IO disabled', 1, pilib.loglevels.io)
             utility.log(pilib.dirs.log.system, 'DEBUG: Update IO disabled', 1, pilib.loglevels.system)
@@ -90,10 +100,10 @@ def runperiodicio():
 
         channels = dblib.readalldbrows(pilib.dirs.dbs.control, 'channels')
         for channel in channels:
-
             # Get controlinput for each channel
             channelname = channel['name']
             controlinput = channel['controlinput']
+
             # Get the input for the name from inputs info
             # Then get the value and readtime from the input if it
             # can be found
@@ -106,7 +116,7 @@ def runperiodicio():
 
                 # Only update channel value if value was found
 
-                if controlvalue is not None:
+                if controlvalue:
                     # print('control value for channel ' + channelname + ' = ' + str(controlvalue))
                     dblib.setsinglevalue(pilib.dirs.dbs.control, 'channels', 'controlvalue', str(controlvalue), "controlinput='" + controlinput + "'")
                     # pilib.sqlitequery(pilib.dirs.dbs.control, 'update channels set controlvalue=' + str(
@@ -120,6 +130,27 @@ def runperiodicio():
 
                 # disable channel
                 #pilib.sqlitequery(dirs.dbs.control,"update channels set enabled=0 where controlinput = \'" + controlinput + "'")
+
+            if channel['controlsetpoint'] and channel['controlsetpoint'] not in ['none', 'None']:
+
+                value = dblib.getsinglevalue(pilib.dirs.dbs.control, 'inputs', 'value', "name='" + channel['controlsetpoint'] + "'")
+
+
+                # Only update channel value if value was found
+                if value or value==0:
+                    # print('control value for channel ' + channelname + ' = ' + str(controlvalue))
+                    dblib.setsinglevalue(pilib.dirs.dbs.control, 'channels', 'setpointvalue', str(value), "controlsetpoint='" + channel['controlsetpoint'] + "'")
+
+            if channel['enabledinput'] and channel['enabledinput'] not in ['none', 'None']:
+
+                value = dblib.getsinglevalue(pilib.dirs.dbs.control, 'inputs', 'value', "name='" + channel['enabledinput'] + "'")
+
+
+                # Only update channel value if value was found
+                if value or value==0:
+                    # print('control value for channel ' + channelname + ' = ' + str(controlvalue))
+                    dblib.setsinglevalue(pilib.dirs.dbs.control, 'channels', 'enabled', str(value), "enabledinput='" + channel['enabledinput'] + "'")
+
 
 
         """
@@ -159,14 +190,19 @@ def runperiodicio():
 
         dblib.getandsetmetadata(pilib.dirs.dbs.log)
 
-        utility.log(pilib.dirs.logs.io, 'Sleeping for ' + str(readtime), 1, pilib.loglevels.io)
-        sleep(readtime)
+        if not settings['run_once']:
+            utility.log(pilib.dirs.logs.io, 'Sleeping for ' + str(readtime), 1, pilib.loglevels.io)
+            sleep(readtime)
+        else:
+            break
 
-        # Read from systemstatus to make sure we should be running
-        updateioenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'updateioenabled')
+        if not settings['force_run']:
+            # Read from systemstatus to make sure we should be running
+            updateioenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'updateioenabled')
 
     dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'updateiostatus', '0')
 
 if __name__ == "__main__":
+    # runperiodicio(force_run=True, run_once=True)
     runperiodicio()
 

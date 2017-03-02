@@ -28,7 +28,7 @@ querylist = [];
 
 
 def recordspidata(database, valuedict, execute=False):
-    from iiutilities import dblib
+    from iiutilities import dblib, datalib
     # This is incomplete and hardcoded partially
     querylist = []
     for key, value in valuedict.iteritems():

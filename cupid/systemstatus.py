@@ -57,28 +57,31 @@ def updateiwstatus():
     insertstringdicttablelist(dirs.dbs.system, 'iwstatus', [iwdict], droptable=True)
 
 
-def watchdoghamachi(pingip):
-    from iiutilities.netfun import runping, restarthamachi, killhamachi
+def watchdoghamachi(pingip='self', threshold=3000, debug=False):
+    from iiutilities.netfun import runping, restarthamachi, killhamachi, gethamachistatusdata
     from iiutilities import utility
     from iiutilities import dblib
     from cupid import pilib
 
+    if debug:
+        pilib.set_debug()
+
     try:
         # Turns out this is not going to work, as when it hangs, it hangs hard
-        # hamachistatusdata = gethamachistatusdata()
+        hamachistatusdata = gethamachistatusdata()
 
         # So instead, we are going to test with a ping to another member on the network that
         # should always be online. This of course means that we have to make sure that it is, in fact, always
         # online
-
-        pingtimes = runping(pingip, numpings=5)
-        print(pingtimes)
+        if pingip in ['self', 'Self']:
+            pingip = hamachistatusdata['address']
+        pingtimes = runping(pingip, numpings=5, quiet=True)
         pingmax = max(pingtimes)
         pingmin = min(pingtimes)
         pingave = sum(pingtimes)/len(pingtimes)
 
         # if hamachistatusdata['status'] not in ['logged in']:
-        if pingave <= 0 or pingave > 3000:
+        if pingave <= 0 or pingave > threshold:
             utility.log(pilib.dirs.logs.network, 'Pingtime unacceptable: ' + str(pingave) + '. ', 1, pilib.loglevels.network)
             dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'hamachistatus', 0)
             utility.log(pilib.dirs.logs.network, 'Restarting Hamachi. ', 1, pilib.loglevels.network)
@@ -88,7 +91,7 @@ def watchdoghamachi(pingip):
             utility.log(pilib.dirs.logs.network, 'Completed restarting Hamachi. ', 1, pilib.loglevels.network)
 
         else:
-            if pingmax > 3000 or pingmin <= 0:
+            if pingmax > threshold or pingmin <= 0:
                 utility.log(pilib.dirs.logs.system, 'Hamachi lives, with issues: ' + str(pingtimes), 3, pilib.loglevels.system)
             else:
                 dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'hamachistatus', 1)
@@ -251,7 +254,7 @@ def watchdognetstatus(allnetstatus=None):
                 statusmsg += 'station interface does not appear ok judged by wpa_state. '
                 runconfig = True
 
-    elif netconfigdata['mode'] == 'eth0wlan0bridge':
+    elif netconfigdata['mode'] in ['eth0wlan0bridge']:
 
         # We don't actually check eth0. This is because we shouldn't have to. Also, if we don't check on eth0, we can
         # use the same mode for wlan0 AP and eth0wlan0 bridge. Hot plug, works fine.
@@ -292,7 +295,7 @@ def watchdognetstatus(allnetstatus=None):
                 statusmsg += 'wlan0 hostpad does not appear ok. '
                 runconfig=True
 
-    elif netconfigdata['mode'] == 'wlan0wlan1bridge' or 'wlan1wlan0bridge':
+    elif netconfigdata['mode'] in ['wlan0wlan1bridge', 'wlan1wlan0bridge']:
         if netconfigdata['mode'] == 'wlan0wlan1bridge':
             stationinterface = 'wlan0'
             apinterface = 'wlan1'
@@ -344,7 +347,7 @@ def watchdognetstatus(allnetstatus=None):
                 # If not running, the subprocess call will throw an error
                 utility.log(pilib.dirs.logs.network, 'Error in reading dhcp server status for interface ' + apinterface + ' Assumed down. ', 1, pilib.loglevels.network)
                 statusmsg += 'Error in reading dhcp server status. Assumed down. '
-                print('SETTING TRUE')
+                print('SETTING TRUE because error reading dhcp server status for interface ' + apinterface + ' , mode: ' + netconfigdata['mode'])
                 runconfig = True
             else:
                 utility.log(pilib.dirs.logs.network, 'DHCP server appears to be up. ', 1, pilib.loglevels.network)
@@ -384,13 +387,17 @@ def watchdognetstatus(allnetstatus=None):
                 utility.log(pilib.dirs.logs.network, 'Error gettng offlinetime. ', 2, pilib.loglevels.network)
 
             offlineperiod = datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(offlinetime)
+
             utility.log(pilib.dirs.logs.network, 'We have been offline for ' + str(offlineperiod))
 
             # When did we last restart the network config? Is it time to again?
             timesincelastnetrestart = datalib.timestringtoseconds(
                 datalib.gettimestring()) - datalib.timestringtoseconds(netstatus['lastnetreconfig'])
+
             utility.log(pilib.dirs.logs.network, 'It has been ' + str(timesincelastnetrestart) + ' seconds since we last restarted the network configuration. ')
-            if timesincelastnetrestart > int(netconfigdata['WANretrytime']):
+
+            # Require that offline time is greater than WANretrytime
+            if timesincelastnetrestart > int(netconfigdata['WANretrytime']) and offlineperiod >  int(netconfigdata['WANretrytime']):
                 utility.log(pilib.dirs.logs.network, 'We are not online, and it has been long enough, exceeding retry time of ' + str(int(netconfigdata['WANretrytime'])))
                 dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'lastnetreconfig', datalib.gettimestring())
 
@@ -586,7 +593,6 @@ def updatenetstatus(lastnetstatus=None):
 
     netconfigdata = dblib.readonedbrow(pilib.dirs.dbs.system, 'netconfig')[0]
 
-
     """ We get last netstatus so that we can save last online times, previous online status, etc. """
 
     if not lastnetstatus:
@@ -607,13 +613,18 @@ def updatenetstatus(lastnetstatus=None):
     ifacesdictarray = getifconfigstatus()
     # ifacesdictarray = getifacestatus()
 
-    """ We supplement with wpa status on the wlan interfaces if station mode should be set """
-    """ Here, we need to decide which interfaces should have a proper wpa status """
+    """
+    We supplement with wpa status on the wlan interfaces if station mode should be set
+    Here, we need to decide which interfaces should have a proper wpa status
+    """
 
-    if netconfigdata['mode'] in ['station', 'wlan0wlan1bridge' ,'eth0wlan0bridge']:
-        wpainterfaces = ['wlan0']
-    elif netconfigdata['mode'] in ['wlan1wlan0bridge']:
-        wpainterfaces = ['wlan1']
+    wpainterfaces = []
+    if netconfigdata['mode'] in ['station', 'wlan0wlan1bridge' , 'staticeth0stationdhcp']:
+        wpainterfaces.append('wlan0')
+    elif netconfigdata['mode'] in ['wlan1wlan0bridge', 'staticeth0_apwlan0_stadhcpwlan1']:
+        wpainterfaces.append('wlan1')
+    elif netconfigdata['mode']:
+        pass
 
     utility.log(pilib.dirs.logs.network, 'Mode is ' + netconfigdata['mode'] + '. Need to check interfaces: ' + str(wpainterfaces) + '.', 3, pilib.loglevels.network)
 
@@ -647,7 +658,7 @@ def updatenetstatus(lastnetstatus=None):
     netstatusdict = {}
 
     querylist=[]
-    pingresults = netfun.runping('8.8.8.8')
+    pingresults = netfun.runping('8.8.8.8', quiet=True)
 
     # pingresults = [20, 20, 20]
     pingresult = sum(pingresults) / float(len(pingresults))
@@ -810,7 +821,7 @@ def piversiontoversionname(version):
     return {'versionname':versionname, 'memory':memory, 'detail':detail}
 
 
-def updatehardwareinfo(databasename='systemdatadb'):
+def updatehardwareinfo(databasename='systemdb'):
     from subprocess import check_output
     from cupid import pilib
     from iiutilities import datalib
@@ -845,7 +856,7 @@ def updatehardwareinfo(databasename='systemdatadb'):
     return dictstring
 
 
-def runsystemstatus(runonce=False):
+def runsystemstatus(**kwargs):
     import pilib
     import time
     from iiutilities import utility
@@ -853,6 +864,10 @@ def runsystemstatus(runonce=False):
     from iiutilities import datalib
 
     from iiutilities.gitupdatelib import updategitversions
+
+    if 'debug' in kwargs and kwargs['debug']:
+        print('DEBUG MODE')
+        pilib.set_debug()
 
     # This doesn't update git libraries. It checks current versions and updates the database
 
@@ -954,6 +969,7 @@ def runsystemstatus(runonce=False):
             dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'mode', 'manual')
             dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'statusmsg', 'netconfig is disabled')
 
+        """ Check Hamachi """
         if systemstatus['checkhamachistatus']:
             utility.log(pilib.dirs.logs.system, 'Hamachi watchdog is enabled', 3, pilib.loglevels.system)
             utility.log(pilib.dirs.logs.network, 'Hamachi watchdog is enabled. ', 3, pilib.loglevels.network)
@@ -963,7 +979,9 @@ def runsystemstatus(runonce=False):
             if netstatus['WANaccess']:
                 utility.log(pilib.dirs.logs.system, 'We appear to be online. Checking Hamachi Status. ', 3, pilib.loglevels.system)
                 utility.log(pilib.dirs.logs.network, 'We appear to be online. Checking Hamachi Status. ', 3, pilib.loglevels.network)
-                watchdoghamachi(pingip='25.37.18.7')
+                
+                watchdoghamachi(pingip='25.11.87.7')
+
                 utility.log(pilib.dirs.logs.system, 'Completed checking Hamachi Status. ', 3, pilib.loglevels.network)
                 utility.log(pilib.dirs.logs.system, 'Completed checking Hamachi Status. ', 3, pilib.loglevels.network)
 
@@ -1000,16 +1018,17 @@ def runsystemstatus(runonce=False):
                                'System status is sleeping for ' + str(systemstatus['systemstatusfreq']) + '. ', 3,
                       pilib.loglevels.system)
 
-        if runonce:
+        # print('enabled: ' , systemstatus['systemstatusenabled'])
+        if 'runonce' in kwargs and kwargs['runonce']:
             break
 
         time.sleep(systemstatus['systemstatusfreq'])
 
 
     else:
-        utility.log(pilib.dirs.logs.system, 'System status is disabled. Exiting. ', 0,
-                      pilib.loglevels.system)
+        utility.log(pilib.dirs.logs.system, 'System status is disabled. Exiting. ', 0, pilib.loglevels.system)
 
 
 if __name__ == '__main__':
+    # runsystemstatus(debug=True, runonce=True)
     runsystemstatus()

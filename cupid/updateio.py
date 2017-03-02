@@ -19,7 +19,7 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 
-def updateiodata(database, **kwargs):
+def updateiodata(**kwargs):
     """
     updateiodata
 
@@ -41,68 +41,66 @@ def updateiodata(database, **kwargs):
         import pigpio
         pi = pigpio.pi()
 
+    if 'io_objects' in kwargs:
+        io_objects = kwargs['io_objects']
+    else:
+        print('WARNING, NO io_objects PASSED')
+        io_objects ={}
+
     allowedGPIOaddresses = [18, 23, 24, 25, 4, 17, 27, 22, 5, 6, 13, 19, 26, 16, 20, 21]
 
-    logconfig = pilib.getlogconfig()
+    logconfig = pilib.reload_log_config()
 
-    tables = dblib.gettablenames(pilib.dirs.dbs.control)
-    if 'interfaces' in tables:
-        interfaces = dblib.readalldbrows(pilib.dirs.dbs.control, 'interfaces')
-    else:
-        utility.log(pilib.dirs.logs.io, 'interfaces table not found. Exiting', 1,
-                    logconfig['loglevels.io'])
-        return
+    # Defaults
+    settings = {'database':pilib.dirs.dbs.control, 'debug':False}
+    settings.update(kwargs)
+
+    if settings['debug']:
+        print('*** DEBUG MODE ***')
+        pilib.set_debug()
+
+    control_db = dblib.sqliteDatabase(settings['database'])
+    io_info = control_db.read_table('ioinfo')
+
+    tables = control_db.get_table_names()
+    interfaces = control_db.read_table('interfaces')
 
     # TODO: Sort interfaces to put aux values at the end and prioritize reads. Maybe a priority field?
 
-    if 'inputs' in tables:
-        previnputs = dblib.readalldbrows(pilib.dirs.dbs.control, 'inputs')
+    # TODO: just .. .clean this all up wtih objects.
+    last_data = utility.Bunch()
+    last_data.interfaces = interfaces
+    last_data.inputs = control_db.read_table('inputs')
+    last_data.outputs = control_db.read_table('outputs')
+    last_data.indicators = control_db.read_table('indicators')
 
-        # Make list of IDs for easy indexing
-        previnputids = []
-        for input in previnputs:
-            previnputids.append(input['id'])
-    else:
-        previnputs = []
-        previnputids = []
+    defaults = control_db.read_table('defaults')
 
-    if 'outputs' in tables:
-        prevoutputs = dblib.readalldbrows(pilib.dirs.dbs.control, 'outputs')
-
-        # Make list of IDs for easy indexing
-        prevoutputids = []
-        prevoutputvalues = []
-        for output in prevoutputs:
-            prevoutputids.append(output['id'])
-            prevoutputvalues.append(output['value'])
-    else:
-        prevoutputs = {}
-        prevoutputids = []
-
+    defaultinputpollfreq = 60
+    defaultoutputpollfreq = 60
     if 'defaults' in tables:
-        defaults = dblib.readalldbrows(pilib.dirs.dbs.control, 'defaults')[0]
-        defaultinputpollfreq = defaults['inputpollfreq']
-        defaultoutputpollfreq = defaults['outputpollfreq']
-    else:
-        defaults = []
-        defaultinputpollfreq = 60
-        defaultoutputpollfreq = 60
+        defaults = control_db.read_table('defaults')
 
-    if 'indicators' in tables:
-        indicatornames = []
-        previndicators = dblib.readalldbrows(pilib.dirs.dbs.control, 'indicators')
-        for indicator in previndicators:
-            indicatornames.append(indicator['name'])
-    else:
-        previndicators = []
-        indicatornames = []
+        for default in defaults:
+            if default['valuename'] == 'defaultinputpollfreq':
+                try:
+                    defaultinputpollfreq = float(default['value'])
+                except:
+                    pass
+            elif default['valuename'] == 'defaultoutputpollfreq':
+                try:
+                    defaultoutputpollfreq = float(default['value'])
+                except:
+                    pass
+
+    previndicators = []
+    indicatornames = []
 
     # We drop all inputs and outputs and recreate
     # Add all into one query so there is no time when the IO don't exist.
 
-    querylist = []
-    querylist.append('delete from inputs')
-    querylist.append('delete from outputs')
+    control_db.empty_table('inputs',queue=True)
+    control_db.empty_table('outputs',queue=True)
 
     '''
     This is temporary. Clearing the table here and adding entries below can result in a gap in time
@@ -113,13 +111,14 @@ def updateiodata(database, **kwargs):
     '''
 
     # We drop this table, so that if SP1 has been disabled, the entries do not appear as valid indicators
-    dblib.sqlitequery(pilib.dirs.dbs.control, 'delete from indicators')
+    control_db.empty_table('indicators')
 
     owfsupdate = False
     # Unfortunately, we need to keep track of the IDs we are creating, so we don't run them over as we go
 
     interfaceids = []
     for interface in interfaces:
+        print(interface)
         if interface['interface'] == 'I2C':
             utility.log(pilib.dirs.logs.io, 'Processing I2C interface ' + interface['name'], 3,
                         pilib.loglevels.io)
@@ -130,6 +129,16 @@ def updateiodata(database, **kwargs):
                     utility.log(pilib.dirs.logs.io, 'Interface type is DS2483', 3,
                                 pilib.loglevels.io)
                     owfsupdate = True
+                elif interface['type'] in ['ADS1115', 'ADS1015']:
+                    result = process_ads1x15_interface(interface)
+                    if not result['status']:
+                        name = get_or_insert_iface_metadata(interface['id'], io_info, control_db)['name']
+
+                        input_entry = {'id':interface['id'], 'interface':interface['interface'], 'type':interface['type'],
+                                                'address':interface['address'], 'name':name, 'value':result['value'],
+                                                'polltime':result['readtime'], 'pollfreq':defaultinputpollfreq}
+                        control_db.insert('inputs', input_entry, queue=True)
+
             else:
                  utility.log(pilib.dirs.logs.io, 'I2C Interface ' + interface['name'] + ' disabled', 3,
                              pilib.loglevels.io)
@@ -147,11 +156,11 @@ def updateiodata(database, **kwargs):
                     utility.log(pilib.dirs.logs.io, 'Interface type is LabJack of type: ' + interface['type'], 3, pilib.loglevels.io)
                     # address = int(interface['address'])
 
-                    valueentries = processlabjackinterface(interface, previnputs)
+                    valueentries = processlabjackinterface(control_db, interface, last_data, io_info)
 
                     # print(valueentries)
                     if valueentries:
-                        querylist.extend(valueentries)
+                        control_db.queue_queries(valueentries)
 
             else:
                  utility.log(pilib.dirs.logs.io, 'USB Interface ' + interface['name'] + ' disabled', 3,
@@ -169,12 +178,8 @@ def updateiodata(database, **kwargs):
             dblib.setsinglevalue(pilib.dirs.dbs.control, 'interfaces', 'id', entryid, condition)
 
             # Does this entry already exist in inputs?
-            if entryid in previnputids:
-                preventry = previnputs[previnputids.index(entryid)]
-                name = preventry['name']
-            else:
-                preventry = {}
-                name = entryid
+            prev_meta = get_or_insert_iface_metadata(entryid, io_info, control_db)
+            name = prev_meta['name']
 
             if interface['type'] == 'ratecounter':
 
@@ -199,10 +204,16 @@ def updateiodata(database, **kwargs):
                         else:
                             value = adjustedrate
 
-                    query = dblib.makesqliteinsert('inputs', [entryid, interface['interface'], interface['type'],
-                          interface['address'], name, str(value), '', str(readtime),
-                          str(defaultinputpollfreq), '', ''])
-                    querylist.append(query)
+                    # TODO: Handle pollfreq appropriately.
+                    input_entry = {'id':entryid, 'interface':interface['interface'], 'type':interface['type'],
+                                                'address':interface['address'], 'name':name, 'value':value,
+                                                'polltime':str(readtime), 'pollfreq':defaultinputpollfreq}
+                    control_db.insert('inputs', input_entry, queue=True)
+
+                    # query = dblib.makesqliteinsert('inputs', [entryid, interface['interface'], interface['type'],
+                    #       interface['address'], name, str(value), '', str(readtime),
+                    #       str(defaultinputpollfreq), '', ''])
+                    # querylist.append(query)
                 else:
                     # print('BAD RATE COUNTER VALUE')
                     utility.log(pilib.dirs.logs.io, 'Rate data returned None. Beginning of data set?')
@@ -260,13 +271,14 @@ def updateiodata(database, **kwargs):
                     pass
                     # print("error calculating aux value")
                 else:
-                    query = dblib.makesqliteinsert('inputs', [entryid, interface['interface'],
-                          interface['type'], str(interface['address']), name, str(value), '', str(readtime),
-                          str(defaultinputpollfreq), '', ''])
-                    querylist.append(query)
+                    input_entry = {'id': entryid, 'interface': interface['interface'], 'type': interface['type'],
+                                   'address': interface['address'], 'name': name, 'value': value,
+                                   'polltime': str(readtime), 'pollfreq': defaultinputpollfreq}
+                    control_db.insert('inputs', input_entry, queue=True)
 
         elif interface['interface'] == 'MOTE':
 
+            # TODO: My god this needs to be in a sub
             #determine and then update id based on fields
             try:
                 entryid = interface['interface'] + '_' + interface['type'] + '_' + interface['address']
@@ -277,9 +289,10 @@ def updateiodata(database, **kwargs):
             condition = '"interface"=\'' + interface['interface'] + '\' and "type"=\'' + interface['type'] + '\' and "address"=\'' + interface['address'] + '\''
 
             # print(condition)
-            dblib.setsinglevalue(pilib.dirs.dbs.control, 'interfaces', 'id', entryid, condition)
+            # Immediately?
+            control_db.set_single_value('interfaces', 'id', entryid, condition)
 
-            utility.log(pilib.dirs.logs.io, 'Processing Mote interface' + interface['name'] + ', id:' + entryid, 3,
+            utility.log(pilib.dirs.logs.io, 'Processing Mote interface ' + interface['name'] + ', id:' + entryid, 3,
                         pilib.loglevels.io)
             if interface['enabled']:
                 utility.log(pilib.dirs.logs.io, 'Mote Interface ' + interface['name'] + ', id:' + entryid + ' enabled', 3,
@@ -318,11 +331,12 @@ def updateiodata(database, **kwargs):
                 '''
 
                 if keyvalue == '*':
-                    nodeentries = []
+                    nodeentries =  control_db.read_table('remotes', condition='"nodeid"=\'' + nodeid + "'")
                 else:
                     condition = "\"nodeid\"='" + nodeid + "' and \"keyvalue\"='" + keyvalue + "'"
-                    nodeentries = dblib.dynamicsqliteread(pilib.dirs.dbs.control, 'remotes', condition=condition)
+                    nodeentries = control_db.read_table('remotes', condition=condition)
 
+                print(nodeentries)
                 # print("WE FOUND MOTE")
                 # print(condition)
                 # print(len(nodeentries))
@@ -342,7 +356,7 @@ def updateiodata(database, **kwargs):
                             nodedata.pop('svcmd',None)
 
                             # Delete from remotes data by inserting entry without svcmd
-                            dblib.setsinglevalue(pilib.dirs.dbs.control, 'remotes', 'data', utility.dicttojson(nodedata), condition=condition)
+                            control_db.set_single_value('remotes','data',utility.dicttojson(nodedata), condition=condition)
 
                             # Nuke pending entry
                             newchanneldata['pending'] = ''
@@ -359,7 +373,7 @@ def updateiodata(database, **kwargs):
                         # TODO: Reorder starting at 1 for when things get wonky
 
                         newchannel = {}
-                        existingchannels = dblib.readalldbrows(pilib.dirs.dbs.control, 'channels')
+                        existingchannels = control_db.read_table('channels')
                         for channel in existingchannels:
                             if channel['name'] == interface['name']:
                                 # print('updating')
@@ -367,24 +381,24 @@ def updateiodata(database, **kwargs):
                                 newchannel.update(channel)
                                 # print(newchannel)
                         newchannel.update(newchanneldata)
-                        # print(newchannel)
+                        # # print(newchannel)
+                        #
+                        # keys = []
+                        # values = []
+                        # for key, value in newchannel.iteritems():
+                        #     keys.append(key)
+                        #     values.append(value)
 
-                        keys = []
-                        values = []
-                        for key, value in newchannel.iteritems():
-                            keys.append(key)
-                            values.append(value)
-
-                        query = dblib.makesqliteinsert('channels', values, keys)
+                        control_db.insert('channels',newchannel)
+                        # query = dblib.makesqliteinsert('channels', values, keys)
                         # print(query)
-                        dblib.sqlitequery(pilib.dirs.dbs.control, query)
+                        # dblib.sqlitequery(pilib.dirs.dbs.control, query)
                     else:
                         # print('multiple entries found for channel. not appropriate')
                         pass
                 else:
                     # Create queries for table insertion
                     # TODO: process mote pollfreq, ontime, offtime
-                    moteentries = []
                     for nodeentry in nodeentries:
 
                         # THis breaks out all of the strictly json-encoded data.
@@ -395,46 +409,36 @@ def updateiodata(database, **kwargs):
                             # now treat each mote type entry specially
                             # if entrytype == 'channel':
 
-                            entryid = 'MOTE' + str(nodeentry['nodeid']) + '_' + nodeentry['keyvaluename'] + '_' + nodeentry['keyvalue']
+                            entryid = 'MOTE' + str(nodeentry['nodeid']) + '_' + nodeentry['keyvaluename']
 
-                            entrymetareturn = dblib.dynamicsqliteread(pilib.dirs.dbs.control, 'ioinfo', condition="\"id\"='" + entryid + "'")
-                            try:
-                                entrymeta = entrymetareturn[0]
-                            except:
-                                entrymeta = []
+                            default_name = '[MOTE' + str(nodeentry['nodeid']) + '] ' + nodeentry['keyvaluename']
+                            address = nodeentry['nodeid']
+                            entry_meta = get_or_insert_iface_metadata(id, io_info, control_db, default_name)
+                            entry_options = datalib.parseoptions(entry_meta['options'])
 
-                            # print(entrymeta)
-
-                            entryoptions={}
-                            if entrymeta:
-                                entryname = entrymeta['name']
-                                if entrymeta['options']:
-                                    entryoptions = datalib.parseoptions(entrymeta['options'])
-                            else:
-                                entryname = '[MOTE' + str(nodeentry['nodeid']) + '] ' + nodeentry['keyvaluename'] + ':' + nodeentry['keyvalue']
                         except KeyError:
-                            # print('OOPS KEY ERROR')
+                            print('OOPS KEY ERROR')
                             pass
                         else:
                             if entrytype == 'iovalue':
-                                if 'scale' in entryoptions:
-                                    entryvalue = str(float(entryoptions['scale']) * float(datadict['ioval']))
-                                elif 'formula' in entryoptions:
+                                if 'scale' in entry_options:
+                                    entryvalue = str(float(entry_options['scale']) * float(datadict['ioval']))
+                                elif 'formula' in entry_options:
                                     x = float(datadict['ioval'])
                                     try:
-                                        entryvalue = eval(entryoptions['formula'])
+                                        entryvalue = eval(entry_options['formula'])
                                     except:
                                         entryvalue = float(datadict['ioval'])
                                 else:
                                     entryvalue = float(datadict['ioval'])
                             elif entrytype == 'owdev':
                                 if 'owtmpasc' in datadict:
-                                    if 'scale' in entryoptions:
-                                        entryvalue = str(float(entryoptions['scale']) * float(datadict['owtmpasc']))
-                                    elif 'formula' in entryoptions:
+                                    if 'scale' in entry_options:
+                                        entryvalue = str(float(entry_options['scale']) * float(datadict['owtmpasc']))
+                                    elif 'formula' in entry_options:
                                         x = float(datadict['owtmpasc'])
                                         try:
-                                            entryvalue = eval(entryoptions['formula'])
+                                            entryvalue = eval(entry_options['formula'])
                                         except:
                                             entryvalue = float(datadict['owtmpasc'])
                                     else:
@@ -442,21 +446,24 @@ def updateiodata(database, **kwargs):
                                 else:
                                     entryvalue = -1
                             else:
-                                entryvalue = -1
+                                entryvalue = nodeentry['keyvalue']
 
-
-                            moteentries.append("insert into inputs values ('" + entryid + "','" + interface['interface'] + "','" +
-                                interface['type'] + "','" + str(address) + "','" + entryname + "','" + str(entryvalue) + "','','" +
-                                 nodeentry['time'] + "','" + str(15) + "','" + '' + "','" + '' + "')")
-                    # print('querylist')
-                    # print(moteentries)
-                    querylist.extend(moteentries)
+                            # TODO: Properly handle pollfreq for motes
+                            mote_insert = {'id': entryid, 'interface': interface['interface'], 'type': interface['type'],
+                                   'address': address, 'name': entry_meta['name'], 'value': entryvalue,
+                                   'polltime': nodeentry['time'], 'pollfreq':15}
+                            print('ENTRY')
+                            print(mote_insert)
+                            control_db.insert('inputs', mote_insert, queue=True)
+                            # moteentries.append("insert into inputs values ('" + entryid + "','" + interface['interface'] + "','" +
+                            #     interface['type'] + "','" + str(address) + "','" + entryname + "','" + str(entryvalue) + "','','" +
+                            #      nodeentry['time'] + "','" + str(15) + "','" + '' + "','" + '' + "')")
 
             else:
                 utility.log(pilib.dirs.logs.io, 'Mote Interface ' + interface['name'] + ' disnabled', 3,
                             pilib.loglevels.io)
         elif interface['interface'] == 'LAN':
-            utility.log(pilib.dirs.logs.io, 'Processing LAN interface' + interface['name'], 3,
+            utility.log(pilib.dirs.logs.io, 'Processing LAN interface ' + interface['name'], 3,
                         pilib.loglevels.io)
             if interface['enabled']:
                 utility.log(pilib.dirs.logs.io, 'LAN Interface ' + interface['name'] + ' enabled', 3,
@@ -466,7 +473,7 @@ def updateiodata(database, **kwargs):
                                 3, pilib.loglevels.io)
 
                     try:
-                        mbentries = processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previnputids, defaults, logconfig)
+                        mbentries = processMBinterface(control_db, interface, last_data, io_info, defaults)
                     except:
                         utility.log(pilib.dirs.logs.io,
                                                'Error processing MBTCP interface ' + interface['name'], 0,
@@ -477,7 +484,7 @@ def updateiodata(database, **kwargs):
                     else:
                         utility.log(pilib.dirs.logs.io,'Done processing MBTCP interface ' + interface['name'], 3,
                                     pilib.loglevels.io)
-                        querylist.extend(mbentries)
+                        control_db.queue_queries(mbentries)
             else:
                 utility.log(pilib.dirs.logs.io, 'LAN Interface ' + interface['name'] + ' disabled', 3, pilib.loglevels.io)
         elif interface['interface'] == 'GPIO':
@@ -496,14 +503,17 @@ def updateiodata(database, **kwargs):
                     utility.log(pilib.dirs.logs.io, 'GPIO address' + str(address) + ' allowed. Processing.', 4,
                                 pilib.loglevels.io)
                     try:
-                        GPIOentries = processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids,
-                                                               previnputs, previnputids, defaults, logconfig, piobject=pi)
+                        GPIOentries = processGPIOinterface(control_db, interface, last_data, io_info, defaults, piobject=pi, io_objects=io_objects)
                     except:
                         utility.log(pilib.dirs.logs.io,
                                            "ERROR handling GPIO interface " + str(address) + '. ', 0,  pilib.loglevels.io)
+                        print traceback.format_exc()
                         GPIOentries = []
+                    else:
+                        if settings['debug']:
+                            print(GPIOentries)
                     if GPIOentries:
-                                querylist.extend(GPIOentries)
+                        control_db.queue_queries(GPIOentries)
                 else:
                     utility.log(pilib.dirs.logs.io,
                                            'GPIO address' + str(address) + ' not allowed. Bad things can happen. ', 4,
@@ -523,15 +533,16 @@ def updateiodata(database, **kwargs):
                     tcdict = readspi.getpigpioMAX31855temp(0,0)
 
                     # Convert to F for now
-                    spitcentries = readspi.recordspidata(database, {'SPITC1' :tcdict['tctemp']*1.8+32})
-                    querylist.extend(spitcentries)
+                    spitcentries = readspi.recordspidata(control_db.path, {'SPITC1' :tcdict['tctemp']*1.8+32})
+                    control_db.queue_queries(spitcentries)
 
                 if interface['type'] == 'CuPIDlights':
                     import spilights
                     print('TOTALLY ENABLED')
                     spilightsentries, setlist = spilights.getCuPIDlightsentries('indicators', 0, previndicators)
-                    querylist.extend(spilightsentries)
-                    spilights.updatelightsfromdb(pilib.dirs.dbs.control, 'indicators', 0)
+
+                    control_db.queue_queries(spilightsentries)
+                    spilights.updatelightsfromdb(control_db.path, 'indicators', 0)
                     spilights.setspilights(setlist, 0)
             else:
                 utility.log(pilib.dirs.logs.io, 'SPI0 not enabled', 1, pilib.loglevels.io)
@@ -545,53 +556,90 @@ def updateiodata(database, **kwargs):
                     import spilights
 
                     spilightsentries, setlist = spilights.getCuPIDlightsentries('indicators', 1, previndicators)
-                    querylist.extend(spilightsentries)
+                    control_db.queue_queries(spilightsentries)
                     print(setlist)
                     spilights.setspilights(setlist, 1)
             else:
                 utility.log(pilib.dirs.logs.io, 'SPI1 disaabled', 1, pilib.loglevels.io)
 
     # Set tables
-    dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'lastiopoll', datalib.gettimestring())
+    dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'lastupdateiopoll', datalib.gettimestring())
 
     if owfsupdate:
         from iiutilities.owfslib import runowfsupdate
         utility.log(pilib.dirs.logs.io, 'Running owfsupdate', 1, pilib.loglevels.io)
         devices, owfsentries = runowfsupdate(execute=False)
-        querylist.extend(owfsentries)
+        control_db.queue_queries(owfsentries)
     else:
         utility.log(pilib.dirs.logs.io, 'owfsupdate disabled', 3, pilib.loglevels.io)
 
-    utility.log(pilib.dirs.logs.io, 'Executing query:  ' + str(querylist), 5, pilib.loglevels.io)
-    try:
-        dblib.sqlitemultquery(pilib.dirs.dbs.control, querylist)
-    except:
-        errorstring = traceback.format_exc()
-        utility.log(pilib.dirs.logs.io, 'Error executing query, message:  ' + errorstring, 0, pilib.loglevels.io)
-        utility.log(pilib.dirs.logs.error, 'Error executing updateio query, message:  ' + errorstring)
-        utility.log(pilib.dirs.logs.error, 'Query:  ' + str(querylist))
+    # utility.log(pilib.dirs.logs.io, 'Executing query:  ' + str(control_db.queued_queries), 5, pilib.loglevels.io)
+
+    if control_db.queued_queries:
+        try:
+            control_db.execute_queue()
+        except:
+            errorstring = traceback.format_exc()
+            utility.log(pilib.dirs.logs.io, 'Error executing query, message:  ' + errorstring, 0, pilib.loglevels.io)
+            utility.log(pilib.dirs.logs.error, 'Error executing updateio query, message:  ' + errorstring)
+            utility.log(pilib.dirs.logs.error, 'Query:  ' + str(control_db.queued_queries))
+            utility.log(pilib.dirs.logs.error, 'Clearing queue')
+            control_db.clear_queue()
 
 
-def updateioinfo(database, table):
-    from iiutilities.dblib import readalldbrows
-    from iiutilities.dblib import sqlitedatumquery
-    from iiutilities.dblib import sqlitemultquery
+def get_or_insert_iface_metadata(id, io_infos, control_db, default_name=None):
 
-    tabledata = readalldbrows(database, table)
+    """
+    Ok, so we want to choose name for input in order:
+    1. ioinfo entry
+    2 Default name
+    """
+
+    entry = {}
+    for io_info in io_infos:
+        if io_info['id'] == id:
+            entry = io_info
+            break
+
+    if not entry:
+        name = id
+        if default_name:
+            name = default_name
+
+        entry = {'name': name, 'id':id, 'options':''}
+        control_db.insert('ioinfo', entry)
+
+    return entry
+
+
+def updateioinfo(db_path, tablename_to_update, meta_tablename='ioinfo'):
+    from iiutilities.dblib import sqliteDatabase
+
+    """ I HAVE NO IDEA WHAT THIS IS USED FOR ATM"""
+
+    """ This routing iterates of data of table provided, and searches for a name, using the id field in the provided
+    table. It searches for this data in the metatable, which by default is the ioinfo table.
+    Current format dictates that they are in the same database.
+    """
+    database = sqliteDatabase(db_path)
+    tabledata = database.read_table(tablename_to_update)
     querylist = []
     for item in tabledata:
-        itemid = item['id']
-        name = sqlitedatumquery(database, 'select name from ioinfo where id=\'' + itemid + '\'')
-        querylist.append(database, 'update ' + table + " set name='" + name + "' where id = '" + itemid + "'")
-    if querylist:
-        sqlitemultquery(querylist)
+        condition = "id='" + item['id'] + "'"
+        name = database.get_single_value(meta_tablename, 'name', condition=condition)
+        if name:
+            database.set_single_value(tablename_to_update, 'name', name, condition=condition)
+
+    if database.queued_queries:
+        database.execute_queue()
 
 
-def testupdateio(times):
+def testupdateio(times, database=None):
     from pilib import dirs
-
+    if not database:
+        database = dirs.dbs.control
     for i in range(times):
-        updateiodata(dirs.dbs.control)
+        updateiodata(database=database)
 
 
 def processlabjackentry(interface, entry):
@@ -689,7 +737,47 @@ def processlabjackentry(interface, entry):
     return result
 
 
-def processlabjackinterface(interface, previnputs):
+def process_ads1x15_interface(interface=None):
+    try:
+        import Adafruit_ADS1x15
+    except ImportError:
+        message = 'ADAFRUIT_ADS1x15 DOES NOT APPEAR TO BE INSTALLED'
+        print(message)
+        return {'status':1,'message':message,'entries':[]}
+
+    from iiutilities import datalib
+    if interface and 'options' in interface:
+        options = datalib.parseoptions(interface['options'])
+    else:
+        print('using default options')
+        options = {}
+    settings = {'gain':1, 'channel':0, 'type':'single', 'address':'1:0x48'}
+    settings.update(options)
+
+    settings['busnum'] = int(settings['address'].split(':')[0])
+    settings['i2c_address'] = int(settings['address'].split(':')[1], 16)
+
+    print(settings)
+
+    # Create an ADS1115 ADC (16-bit) instance.
+    # adc = Adafruit_ADS1x15.ADS1115(address=settings['i2c_address'], busnum=settings['busnum'])
+    adc = Adafruit_ADS1x15.ADS1115(address=settings['i2c_address'], busnum=settings['busnum'])
+
+    if settings['type'] in ['diff','differential']:
+        value = float(adc.read_adc_difference(int(settings['channel']), gain=float(settings['gain']))) / 32768
+
+    else:
+        value = float(adc.read_adc(int(settings['channel']), gain=float(settings['gain']))) / 32768
+
+    scalar = 4.096 / float(settings['gain'])
+    value *= scalar
+
+    message = 'Read device at address ' + str((settings['address'])) + ', channel ' + str(settings['channel']) + ', type ' + settings['type'] + ', with gain ' + str(settings['gain']) + ' with value ' + str(value)
+
+    return {'status':0, 'message':message, 'value':value, 'readtime':datalib.gettimestring()}
+
+
+def processlabjackinterface(control_db, interface, last_data, ioinfos):
     '''
      As with modbus, we will have an auxiliary table that contains a map of stuff we are supposed to read.
      Later, we can use this to make things faster, detect inconsistencies, e.g. setting a FIO to do multiple things
@@ -704,8 +792,7 @@ def processlabjackinterface(interface, previnputs):
      name, ontime, offtime. If name is empty, we just make it the same as the ID
     '''
     querylist = []
-    labjackentries = readalldbrows(pilib.dirs.dbs.control, 'labjack', 'interfaceid=\'' + interface['id'] + '\'')
-    # print(labjackentries)
+    labjackentries = control_db.read_table('labjack', 'interfaceid=\'' + interface['id'] + '\'')
     for entry in labjackentries:
         usbid = entry['interfaceid'] + '_' + str(entry['address']) + '_' + str(entry['mode'])
 
@@ -716,7 +803,7 @@ def processlabjackinterface(interface, previnputs):
 
         # Now find previnput entry, if it exists
         preventry = {}
-        for input in previnputs:
+        for input in last_data.inputs:
             if 'id' == usbid:
                 preventry = input
 
@@ -747,9 +834,13 @@ def processlabjackinterface(interface, previnputs):
             if preventry['pollfreq']:
                 offtime = preventry['pollfreq']
 
-        query = "insert into inputs values ('" + usbid + "','" + interface['interface'] + "','" + \
-            interface['type'] + "','" + str(entry['address']) + "','" + name + "','" + str(data['value']) + "','','" + \
-            str(data['readtime']) + "','" + str(pollfreq) + "','" + ontime + "','" + offtime + "')"
+        from iiutilities.dblib import make_insert_from_dict
+        input_query = {'interface':interface['interface'], 'type':interface['type'], 'address':str(entry['address']),
+                       'name':name, 'value':str(data['value']), 'readtime':str(data['readtime']), 'pollfreq':str(pollfreq)}
+        query = make_insert_from_dict('input', input_query)
+        # query = "insert into inputs values ('" + usbid + "','" + interface['interface'] + "','" + \
+        #     interface['type'] + "','" + str(entry['address']) + "','" + name + "','" + str(data['value']) + "','','" + \
+        #     str(data['readtime']) + "','" + str(pollfreq) + "','" + ontime + "','" + offtime + "')"
 
         # print(query)
 
@@ -757,14 +848,20 @@ def processlabjackinterface(interface, previnputs):
     return querylist
 
 
-def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previnputids, defaults, logconfig):
+def processMBinterface(control_db, interface, last_data, io_info, defaults):
+
     from iiutilities.netfun import readMBcodedaddresses, MBFCfromaddress
     from iiutilities import dblib, utility, datalib
+
+    previnputids = [previnput['id'] for previnput in last_data.inputs]
+    previnputvalues = [previnput['value'] for previnput in last_data.inputs]
+    prevoutputids = [prevoutput['id'] for prevoutput in last_data.outputs]
+    prevoutputvalues = [prevoutput['value'] for prevoutput in last_data.outputs]
 
     import pilib
     # get all modbus reads that have the same address from the modbus table
     try:
-        modbustable = dblib.readalldbrows(pilib.dirs.dbs.control, 'modbustcp')
+        modbustable = control_db.read_table('modbustcp')
     except:
         utility.log(pilib.dirs.logs.io, 'Error reading modbus table', 0, pilib.loglevels.io)
         modbustable = []
@@ -793,7 +890,9 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
 
         utility.log(pilib.dirs.logs.io, 'Modbus ID: ' + mbid, 4, pilib.loglevels.io)
 
-        mbname = dblib.sqlitedatumquery(pilib.dirs.dbs.control, "select name from ioinfo where id='" + mbid + "'")
+        mb_meta = get_or_insert_iface_metadata(mbid, io_info, control_db)
+        mb_name = mb_meta['name']
+
         polltime = datalib.gettimestring()
         if entry['interfaceid'] == interface['id']:
             # For now, we're going to read them one by one. We'll assemble these into block reads
@@ -804,11 +903,11 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
                 # Get input settings and keep them if the input previously existed
 
                 if mbid in previnputids:
-                    pollfreq = previnputs[previnputids.index(mbid)]['pollfreq']
-                    ontime = previnputs[previnputids.index(mbid)]['ontime']
-                    offtime = previnputs[previnputids.index(mbid)]['offtime']
-                    prevvalue = previnputs[previnputids.index(mbid)]['offtime']
-                    prevpolltime = previnputs[previnputids.index(mbid)]['offtime']
+                    pollfreq = last_data.inputs[previnputids.index(mbid)]['pollfreq']
+                    ontime = last_data.inputs[previnputids.index(mbid)]['ontime']
+                    offtime = last_data.inputs[previnputids.index(mbid)]['offtime']
+                    prevvalue = last_data.inputs[previnputids.index(mbid)]['offtime']
+                    prevpolltime = last_data.inputs[previnputids.index(mbid)]['offtime']
 
                     utility.log(pilib.dirs.logs.io,
                                            'Restoring values from previous inputids: pollfreq = ' + str(
@@ -829,80 +928,100 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
                                            'Setting values to defaults, defaultinputpollfreq = ' + str(pollfreq), 3, pilib.loglevels.io)
 
                 # Read data
+                from iiutilities.datalib import bytestovalue
                 try:
-                    readresult = readMBcodedaddresses(interface['address'], entry['register'], entry['length'])
+                    # Override length entry with format-specific length
+                    if entry['format']:
+                        from iiutilities.datalib import typetoreadlength
+                        readlength = typetoreadlength(entry['format'])
+                    else:
+                        readlength = entry['length']
+                    readresult = readMBcodedaddresses(interface['address'], entry['register'], readlength, boolean_to_int=True)
+
                 except:
-                    utility.log(pilib.dirs.logs.io, 'Uncaught reror reading modbus value', 0, pilib.loglevels.io)
+                    utility.log(pilib.dirs.logs.io, 'Uncaught error reading modbus value', 0, pilib.loglevels.io)
                 else:
                     if readresult['statuscode'] == 0:
                         values = readresult['values']
-                        try:
-                            FC = MBFCfromaddress(int(entry['register']))
-                        except ValueError:
-                            utility.log(pilib.dirs.logs.io, 'Malformed address for FC determination : ' + str(entry['address']), 0, pilib.loglevels.io)
-                        else:
-                            utility.log(pilib.dirs.logs.io, 'Function code : ' + str(FC), 4, pilib.loglevels.io)
-                        returnvalue = 0
-                        if len(values) > 0:
-                            utility.log(pilib.dirs.logs.io, 'Multiple values returned', 4, pilib.loglevels.io)
-                            if not entry['bigendian']:
-                                try:
-                                    values.reverse()
-                                except AttributeError:
-                                    utility.log(pilib.dirs.logs.io, 'Error on reverse of MB values: ' + str(values), 0, pilib.loglevels.io)
-                            if entry['format'] == 'float32':
-                                import struct
-                                byte2 = values[0] % 256
-                                byte1 = (values[0] - byte2)/256
-                                byte4 = values[1] % 256
-                                byte3 = (values[1] - byte4)/256
 
-                                byte1hex = chr(byte1)
-                                byte2hex = chr(byte2)
-                                byte3hex = chr(byte3)
-                                byte4hex = chr(byte4)
-                                hexstring = byte1hex + byte2hex + byte3hex + byte4hex
+                        value = bytestovalue(values, entry['format'])
+                        # print(value)
 
-                                returnvalue = struct.unpack('>f',hexstring)[0]
-                            else:
-                                for index, val in enumerate(values):
-                                    if FC in [0, 1]:
-                                        returnvalue += val * 2 ** index
-                                    elif FC in [3, 4]:
-                                        returnvalue += val * 256 ** index
-                                    else:
-                                         utility.log(pilib.dirs.logs.io, 'Invalid function code', 0, pilib.loglevels.io)
-                        else:
-                            returnvalue = values[0]
-                        if entry['options'] != '':
+                        if entry['options']:
                             options = datalib.parseoptions(entry['options'])
+                            # print(options)
+
+                            utility.log(pilib.dirs.logs.io, 'processed value is ' + str(value) + ' for format ' + entry['format'], 2, pilib.loglevels.io)
+
                             if 'scale' in options:
-                                # try:
-                                    returnvalue = returnvalue * float(options['scale'])
-                                # except:
-                                #     pilib.writedatedlogmsg(pilib.dirs.logs.io, 'Error on scale operation', 0, pilib.loglevels.io)
+                                utility.log(pilib.dirs.logs.io, 'Scale attribute value found: ' + options['scale'], 2, pilib.loglevels.io)
+                                try:
+                                    value = float(value) * float(options['scale'])
+                                except:
+                                    utility.log(pilib.dirs.logs.io, 'error scaling ' + str(value) + ' with argument ' + options['scale'])
+
+                            if 'formula' in options:
+                                # print(options['formula'])
+                                from iiutilities.datalib import calcastevalformula
+                                utility.log(pilib.dirs.logs.io, 'Processing formula: ' + options['formula'] + ' with value ' + str(value))
+                                try:
+                                    value = calcastevalformula(options['formula'], x=value)
+                                except:
+                                    utility.log(pilib.dirs.logs.io, 'Error processing formula: ' + str(options['formula']))
+
                             if 'precision' in options:
-                                # try:
-                                    returnvalue = round(returnvalue, int(options['precision']))
-                                # except:
-                                #     pilib.writedatedlogmsg(pilib.dirs.logs.io, 'Error on precision operation', 0, pilib.loglevels.io)
+                                try:
+                                    value = round(value, int(options['precision']))
+                                except:
+                                    utility.log(pilib.dirs.logs.io, 'Error on precision operation', 0, pilib.loglevels.io)
+
+                            # override name if requested to
+                            # TODO : clean this up. clear as mud
+                            if 'name' in options:
+                                # Check to see if entry already exists in ioinfo to save extra queries
+                                if mb_name == options['name']:
+                                    # do nothing. all is ok
+                                    pass
+                                else:
+                                    # Update ioinfo
+                                    dblib.sqliteinsertsingle(pilib.dirs.dbs.control, 'ioinfo', [mbid, options['name']], ['id', 'name'])
+                                    # mbname = dblib.sqlitedatumquery(pilib.dirs.dbs.control,
+                                    #                                 "select name from ioinfo where id='" + mbid + "'")
+                                    mb_name = options['name']
 
 
+                        # print(entry['interfaceid'] + ' ' + entry['format'] + ' ' + str(value))
                         utility.log(pilib.dirs.logs.io, 'Values read: ' + str(values), 4, pilib.loglevels.io)
-                        utility.log(pilib.dirs.logs.io, 'Value returned: ' + str(returnvalue), 4, pilib.loglevels.io)
+                        utility.log(pilib.dirs.logs.io, 'Value returned: ' + str(value), 4, pilib.loglevels.io)
 
 
                         # Contruct entry for newly acquired data
-                        querylist.append('insert into inputs values (\'' + mbid + "','" + interface['id'] + "','" +
-                            interface['type'] + "','" + str(entry['register']) + "','" + mbname + "','" + str(
-                            returnvalue) + "','','" + str(polltime) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
+                        newquery = dblib.makesqliteinsert('inputs', [mbid,interface['id'],
+                            interface['type'],str(entry['register']),mb_name,str(value),'',str(polltime), str(pollfreq), ontime,offtime])
+                        # print(newquery)
+                        querylist.append(newquery)
+                        # Old dirty way
+                        # querylist.append('insert into inputs values (\'' + mbid + "','" + interface['id'] + "','" +
+                        #     interface['type'] + "','" + str(entry['register']) + "','" + mbname + "','" + str(
+                        #     value) + "','','" + str(polltime) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
 
                     else:
-                        utility.log(pilib.dirs.logs.io, 'Statuscode ' + str(readresult['statuscode']) + ' on MB read : ' + readresult['message'], 0, pilib.loglevels.io)
+                        status_message = 'Statuscode ' + str(readresult['statuscode']) + ' on MB read : ' + readresult[
+                            'message']
+                        utility.log(pilib.dirs.logs.io, status_message, 0, pilib.loglevels.io)
+
+
 
                         # restore previous value and construct entry if it existed (or not)
-                        querylist.append('insert into inputs values (\'' + mbid + "','" + interface['interface'] + "','" +
-                            interface['type'] + '\',\'' + str(entry['register']) + "','" + mbname + "','" + str(prevvalue) + "','','" + str(prevpolltime) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
+                        input_entry = {'id':mbid, 'interface':interface['interface'], 'type':interface['type'],
+                                                              'address':str(entry['register']), 'name':mb_meta['name'],
+                                       'value':str(prevvalue), 'polltime':str(prevpolltime), 'pollfreq':str(pollfreq),
+                                                                                'ontime':ontime, 'offtime':offtime}
+                        query = dblib.make_insert_from_dict('inputs', input_entry)
+                        querylist.append(query)
+                        # querylist.append('insert into inputs values (\'' + mbid + "','" + interface['interface'] + "','" +
+                        #     interface['type'] + '\',\'' + str(entry['register']) + "','" + mb_meta['name'] + "','" +
+                        #                  str(prevvalue) + "','','" + str(prevpolltime) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
 
 
     utility.log(pilib.dirs.logs.io, 'Querylist: ' + str(querylist), 4, pilib.loglevels.io)
@@ -910,10 +1029,15 @@ def processMBinterface(interface, prevoutputs, prevoutputids, previnputs, previn
     return querylist
 
 
-def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids, previnputs, previnputids, defaults, logconfig, **kwargs):
+def processGPIOinterface(control_db, interface, last_data, io_info, defaults, **kwargs):
 
     import pilib
     from iiutilities import utility, datalib, dblib
+
+    previnputids = [previnput['id'] for previnput in last_data.inputs]
+    previnputvalues = [previnput['value'] for previnput in last_data.inputs]
+    prevoutputids = [prevoutput['id'] for prevoutput in last_data.outputs]
+    prevoutputvalues = [prevoutput['value'] for prevoutput in last_data.outputs]
 
     if 'method' in kwargs:
         method = kwargs['method']
@@ -950,7 +1074,9 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
 
     utility.log(pilib.dirs.logs.io, 'GPIO address' + str(address) + ' enabled', 4, pilib.loglevels.io)
     # Get name from ioinfo table to give it a colloquial name
-    gpioname = dblib.sqlitedatumquery(pilib.dirs.dbs.control, 'select name from ioinfo where id=\'' + interface['id'] + '\'')
+
+    entry_meta = get_or_insert_iface_metadata(interface['id'], io_info, control_db)
+    name = entry_meta['name']
     polltime = datalib.gettimestring()
 
     querylist = []
@@ -998,23 +1124,38 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
 
         # Get output settings and keep them if the GPIO previously existed
         if interface['id'] in prevoutputids:
-            pollfreq = prevoutputs[prevoutputids.index(interface['id'])]['pollfreq']
-            ontime = prevoutputs[prevoutputids.index(interface['id'])]['ontime']
-            offtime = prevoutputs[prevoutputids.index(interface['id'])]['offtime']
+            pollfreq = last_data.outputs[prevoutputids.index(interface['id'])]['pollfreq']
+            ontime = last_data.outputs[prevoutputids.index(interface['id'])]['ontime']
+            offtime = last_data.outputs[prevoutputids.index(interface['id'])]['offtime']
         else:
             try:
                 pollfreq = defaults['defaultoutputpollfreq']
             except:
                 pollfreq = 60
-            ontime = ''
-            offtime = ''
+                ontime = ''
+                offtime = ''
+                utility.log(pilib.dirs.logs.io,
+                            'Setting values to defaults, defaultinputpollfreq = ' + str(
+                                pollfreq), 3, pilib.loglevels.io)
 
         # Add entry to outputs tables
-        querylist.append('insert into outputs values (\'' + interface['id'] + "','" +
-                         interface['interface'] + "','" + interface['type'] + "','" + str(
-            address) + "','" +
-                         gpioname + "','" + str(value) + "','','" + str(polltime) + "','" +
-                         str(pollfreq) + "','" + ontime + "','" + offtime + "')")
+        output_entry = {'id':interface['id'], 'interface':interface['interface'], 'type':interface['type'],
+                                                'address':interface['address'], 'name':name, 'value':value,
+                                                'polltime':polltime, 'pollfreq':pollfreq}
+        querylist.append(dblib.make_insert_from_dict('outputs', output_entry))
+
+
+        # Also add to inputs table for use in other channels
+        querylist.append(dblib.make_insert_from_dict('inputs', output_entry))
+
+
+
+        # querylist.append('insert into outputs values (\'' + interface['id'] + "','" +
+        #                  interface['interface'] + "','" + interface['type'] + "','" + str(
+        #     address) + "','" +
+        #                  gpioname + "','" + str(value) + "','','" + str(polltime) + "','" +
+        #                  str(pollfreq) + "','" + ontime + "','" + offtime + "')")
+
     elif options['mode'] == 'input':
         if method == 'rpigpio':
             GPIO.setup(address, GPIO.IN)
@@ -1055,9 +1196,9 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
 
         # Get input settings and keep them if the GPIO previously existed
         if interface['id'] in previnputids:
-            pollfreq = previnputs[previnputids.index(interface['id'])]['pollfreq']
-            ontime = previnputs[previnputids.index(interface['id'])]['ontime']
-            offtime = previnputs[previnputids.index(interface['id'])]['offtime']
+            pollfreq = last_data.inputs[previnputids.index(interface['id'])]['pollfreq']
+            ontime = last_data.inputs[previnputids.index(interface['id'])]['ontime']
+            offtime = last_data.inputs[previnputids.index(interface['id'])]['offtime']
             utility.log(pilib.dirs.logs.io,
                                    'Restoring values from previous inputids: pollfreq = ' + str(
                                        pollfreq) + ' ontime = ' + str(ontime) + ' offtime = ' + str(
@@ -1068,16 +1209,70 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
                 pollfreq = defaults['defaultinputpollfreq']
             except:
                 pollfreq = 60
-            ontime = ''
-            offtime = ''
+                ontime = ''
+                offtime = ''
+                utility.log(pilib.dirs.logs.io,
+                                       'Setting values to defaults, defaultinputpollfreq = ' + str(
+                                           pollfreq), 3, pilib.loglevels.io)
+
+        # Add entry to outputs tables
+        input_entry = {'id': interface['id'], 'interface': interface['interface'], 'type': interface['type'],
+                        'address': interface['address'], 'name': name, 'value': value,
+                        'polltime': polltime, 'pollfreq': pollfreq}
+
+        querylist.append(dblib.make_insert_from_dict('inputs', input_entry))
+
+    elif options['mode'] == 'counter':
+        settings = {'edge': 'falling', 'pullupdown': None, 'debounce_ms': 50, 'event_min_ms': 50, 'watchdog_ms': 100}
+        settings.update(options)
+
+        # check io_objects to see if the object already exists. if not, instantiate it
+        # We name the objects after the id for now
+        if interface['id'] in kwargs['io_objects']:
+            print('WE FOUNd THE OBJECT')
+
+        else:
+            io_object = pilib.pigpiod_gpio_counter(**{'gpio':address, 'pi':pi, 'options':options, 'type': 'counter'})
+            kwargs['io_objects'][interface['id']] = io_object
+
+        value = kwargs['io_objects'][interface['id']].get_value()
+        print('VALUE IS ' + str(value))
+        rate = kwargs['io_objects'][interface['id']].get_rate()
+        print('RATE IS ' + str(rate))
+
+        # Get input settings and keep them if the GPIO previously existed
+        if interface['id'] in previnputids:
+            pollfreq = last_data.inputs[previnputids.index(interface['id'])]['pollfreq']
+            ontime = last_data.inputs[previnputids.index(interface['id'])]['ontime']
+            offtime = last_data.inputs[previnputids.index(interface['id'])]['offtime']
             utility.log(pilib.dirs.logs.io,
-                                   'Setting values to defaults, defaultinputpollfreq = ' + str(
-                                       pollfreq), 3, pilib.loglevels.io)
-    querylist.append(
-        'insert into inputs values (\'' + interface['id'] + "','" + interface['interface'] + '\',\'' +
-        interface['type'] + "','" + str(address) + "','" + gpioname + '\',\'' + str(
-            value) + "','','" +
-        str(polltime) + "','" + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
+                        'Restoring values from previous inputids: pollfreq = ' + str(
+                            pollfreq) + ' ontime = ' + str(ontime) + ' offtime = ' + str(
+                            offtime), 3, pilib.loglevels.io)
+
+        else:
+            try:
+                pollfreq = defaults['defaultinputpollfreq']
+            except:
+                pollfreq = 60
+                ontime = ''
+                offtime = ''
+                utility.log(pilib.dirs.logs.io,
+                            'Setting values to defaults, defaultinputpollfreq = ' + str(
+                                pollfreq), 3, pilib.loglevels.io)
+
+        input_entry = {'id': interface['id'], 'interface': interface['interface'], 'type': interface['type'],
+                        'address': interface['address'], 'name': name, 'value': value,
+                        'polltime': polltime, 'pollfreq': pollfreq}
+        querylist.append(dblib.make_insert_from_dict('inputs', input_entry))
+
+        rate_id = interface['id'] + '_rate'
+        entry_meta = get_or_insert_iface_metadata(rate_id, io_info, control_db)
+        name = entry_meta['name']
+        input_entry = {'id': rate_id, 'interface': interface['interface'], 'type': interface['type'],
+                       'address': interface['address'], 'name': name, 'value': rate,
+                       'polltime': polltime, 'pollfreq': pollfreq}
+        querylist.append(dblib.make_insert_from_dict('inputs', input_entry))
 
     if method == 'pigpio' and 'piobject' not in kwargs:
         pi.stop()
@@ -1087,5 +1282,5 @@ def processGPIOinterface(interface, prevoutputs, prevoutputvalues, prevoutputids
 
 if __name__ == '__main__':
     from pilib import dirs
-    updateiodata(dirs.dbs.control)
+    updateiodata(database=dirs.dbs.control, debug=True)
 

@@ -26,6 +26,297 @@ Database tools
 """
 
 
+class sqliteDatabase(object):
+
+    def __init__(self, path):
+        # Verify database exists
+        self.path = path
+        self.queued_queries = []
+
+    def get_table_names(self):
+        self.tablenames = gettablenames(self.path)
+        return self.tablenames
+
+    def create_table(self, name, schema, queue=False, dropexisting=True):
+        if schema.valid:
+            if dropexisting:
+                self.drop_table(name, queue=queue, quiet=True)
+
+            query = sqlite_create_table_query_from_schema(name, schema)
+            if queue:
+                self.queue_queries([query])
+            else:
+                self.query(query)
+        else:
+            print('schema is invalid')
+
+    def drop_table(self, name, queue=False, quiet=False):
+        if queue:
+            self.queue_queries(["drop table '" + name + "'"])
+        else:
+            sqlitedroptable(self.path, name, quiet)
+
+    def drop_empty_tables(self):
+        tablenames = self.get_table_names()
+        for tablename in tablenames:
+            if self.get_table_size(tablename) == 0:
+                self.drop_table(tablename, queue=True)
+        if self.queued_queries:
+            self.execute_queue()
+
+    def move_table(self, oldname, newname):
+        sqlitemovetable(self.path, oldname, newname)
+
+    def migrate_table(self, tablename, schema, data_loss_ok=False, queue=False):
+        try:
+            current_table = self.read_table(tablename)
+        except:
+            print('table ' + tablename + ' does not currently exist (or there was another error) ')
+            current_table = []
+
+        self.create_table(tablename, schema, queue=True)
+        # Check here to make sure we will not incur dataloss
+
+        schema_columns = schema.columns()
+        if current_table:
+            all_exist = all(key in schema_columns for key,value in current_table[0].iteritems())
+
+            if not all_exist and not data_loss_ok:
+                print('NOT ALL KEYS EXIST IN SCHEMA AS IN TABLE YOU ARE MIGRATING FROM. OVERRIDE WITH data_loss_ok=True '
+                      'kwarg or figure out why this is happening')
+                print('Existing keys: ' + str([key for key,value in current_table[0].iteritems()]))
+                print('Schema keys: ' + str(self.columns()))
+                return
+            elif all_exist and data_loss_ok:
+                print('NOT ALL KEYS EXIST, BUT YOU SAID SO. SO I DO IT.')
+        else:
+            print('no table or tabledata exists :  ' + tablename)
+
+        for row in current_table:
+            self.insert(tablename, row, queue=True)
+        if not queue:
+            self.execute_queue()
+        return current_table
+
+    def get_table_size(self, tablename):
+        return gettablesize(self.path, tablename)
+
+    def read_table(self, tablename, **kwargs):
+        dbrows = readalldbrows(self.path, tablename, **kwargs)
+        return dbrows
+
+    def read_table_row(self, tablename, row=0, **kwargs):
+        dbrow = readonedbrow(self.path, tablename, row, **kwargs)
+        return dbrow
+
+    def read_table_rows(self, tablename, row=0, length=1, **kwargs):
+        dbrows = readsomedbrows(self.path, tablename, row, length, **kwargs)
+        return dbrows
+
+    def get_last_time_row(self, tablename, timecolumn='time'):
+        row = getlasttimerows(self.path, tablename, timecolumn)[0]
+        return row
+
+    def get_first_time_row(self, tablename, timecolumn='time'):
+        row = getfirsttimerows(self.path, tablename, timecolumn)[0]
+        return row
+
+    def get_tuples(self, tablename, valuenames, condition=None):
+        query = 'select '
+        for valuename in valuenames:
+            query += '"' + valuename + '",'
+        query = query[:-1]
+        query += " from '" + tablename + "'"
+        if condition:
+            query += ' where ' + condition
+        data = self.query(query)['data']
+        return data
+
+    def get_pragma_names(self, tablename):
+        return getpragmanames(self.path, tablename)
+
+    def get_schema(self, tablename):
+        schema = sqliteTableSchema(getpragma(self.path, tablename))
+        # maybe do some massaging
+        return schema
+
+    def get_table_size(self, tablename):
+        return gettablesize(self.path, tablename)
+
+    # Single table operations
+    def set_single_value(self, tablename, valuename, value, condition=None, queue=False):
+        query = makesinglevaluequery(tablename, valuename, value, condition)
+        if queue:
+            self.queue_queries([query])
+        else:
+            self.query(query)
+
+    def get_single_value(self, tablename, valuename, condition=None):
+        value = getsinglevalue(self.path, tablename, valuename, condition)
+        return value
+
+    def insert(self, tablename, insert, replace=True, queue=False):
+        # Insert can be single insert or list
+
+        if not (isinstance(insert, list)):
+            insert_list = [insert]
+        else:
+            insert_list = insert
+
+        queries = []
+        for insert in insert_list:
+            query = make_insert_from_dict(tablename, insert)
+            queries.append(query)
+
+        if queue:
+            self.queue_queries(queries)
+        else:
+            self.queries(queries)
+
+        return queries
+
+    def insert_defaults(self, tablename, queue=False):
+        query = "insert into " + tablename + "  default values"
+        if queue:
+            self.queue_queries([query])
+        else:
+            self.query(query)
+
+    def delete(self, tablename, condition, queue=False):
+        query = makedeletesinglevaluequery(tablename,condition)
+        if queue:
+            self.queue_queries([query])
+        else:
+            self.query(query)
+
+    def empty_table(self, tablename, queue=False):
+        query = makedeletesinglevaluequery(tablename, condition=None)
+        if queue:
+            self.queue_queries([query])
+        else:
+            self.query(query)
+
+    def execute_queue(self, clear_queue=True):
+        if self.queued_queries:
+            self.queries(self.queued_queries)
+        if clear_queue:
+            self.clear_queue()
+
+    def clear_queue(self):
+        self.queued_queries = []
+
+    def queue_query(self, query):
+        self.queued_queries.append(query)
+
+    def queue_queries(self, queries):
+        self.queued_queries.extend(queries)
+
+    def query(self, query):
+        result = sqlitequery(self.path, query)
+        return result
+
+    def queries(self, queries):
+        result = sqlitemultquery(self.path, queries)
+        return result
+
+
+class tableSchema(object):
+
+    def __init__(self, **kwargs):
+        self.requiredproperties = ['properties']
+        if not all(requiredproperty in kwargs for requiredproperty in self.requiredproperties):
+            print('not all required properties required supplied : ')
+            print(self.requiredproperties)
+        else:
+            for key, value in kwargs.iteritems():
+                setattr(self, key, value)
+
+
+# This one is instantiated with a list of schema items
+class sqliteTableSchema(object):
+
+    def __init__(self, items):
+        # check over items list to ensure that there are not conflicts
+        primary = 0
+        self.valid_item_types = ['integer','boolean','text','real']
+        self.required_schema_items = ['name']   # Default to text
+
+        self.valid = True
+
+        read_items = []
+        for item in items:
+            if item['name'] in read_items:
+                print('DUPLICATE KEY IS PRESENT')
+                return None
+            else:
+                read_items.append(item['name'])
+
+            if not all(key in item for key in self.required_schema_items):
+                print('item incomplete: ')
+                print(item)
+                print('required items: ')
+                print(self.required_schema_items)
+                self.valid = False
+                break
+            if 'type' in item:
+                if item['type'] not in self.valid_item_types:
+                    print('item type ' + item['type'] + ' invalid. Defaulting to text')
+                    print(item)
+                    self.valid = False
+                    break
+            else:   # default to text
+                item['type'] = 'text'
+
+            if item['type'] == 'text' and 'default' not in item:
+                item['default'] = ''
+            elif item['type'] == 'boolean' and 'default' not in item:
+                item['default'] = 0
+            elif 'default' not in item:
+                item['default'] = 'null'
+
+            if 'primary' in item and item['primary']:
+                primary += 1
+            else:
+                item['options'] = ''
+
+        if primary == 0:
+            print('warning: no primary key provided for schema.')
+        elif primary > 1:
+            print('invalid schema: multiple primary keys found')
+            for item in items:
+                if 'primary' in item and item['primary']:
+                    print(item['name'])
+            self.valid = False
+
+        self.items = items
+
+    def columns(self):
+        return [item['name'] for item in self.items]
+
+    def defaults(self):
+        return [item['default'] for item in self.items]
+
+    def names(self):
+        return [item['name'] for item in self.items]
+
+    def types(self):
+        return [item['type'] for item in self.items]
+
+    def options(self):
+        return [item['options'] for item in self.items]
+
+
+def make_insert_from_dict(tablename, insert_dict, replace=True):
+    values = []
+    valuenames = []
+    for key, value in insert_dict.iteritems():
+        values.append(value)
+        valuenames.append(key)
+    insert_query = makesqliteinsert(tablename, values, valuenames=valuenames, replace=replace)
+
+    return insert_query
+
+
 def switchtablerows(database, table, rowid1, rowid2, uniqueindex):
     unique1 = sqlitedatumquery(database,
                                'select \'' + uniqueindex + '\'' + ' from \'' + table + '\' where rowid=' + str(rowid1))
@@ -109,7 +400,7 @@ def logtimevaluedata(database, tablename, timeinseconds, value, logsize=5000, lo
 
 
 def gettablenames(database):
-    result = sqlitequery(database, 'select name from sqlite_master where type=\'table\'')
+    result = sqlitequery(database, 'select name from sqlite_master where type=\'table\'')['data']
     tables = []
     for element in result:
         tables.append(element[0])
@@ -121,7 +412,7 @@ def getdatameta(database):
     queryarray = []
     for tablename in tablenames:
         queryarray.append("select count(*) from '" + tablename + "'")
-    results = sqlitemultquery(database, queryarray)
+    results = sqlitemultquery(database, queryarray)['data']
     meta = []
     for result, tablename in zip(results, tablenames):
         meta.append({'tablename':tablename, 'numpoints':result[0][0]})
@@ -140,15 +431,23 @@ def getandsetmetadata(database):
 
 
 def getpragma(database, table):
-    pragma = sqlitequery(database, 'pragma table_info ( \'' + table + '\')')
-    return pragma
+    pragma = sqlitequery(database, 'pragma table_info ( \'' + table + '\')')['data']
+    pragmadictlist = []
+    for item in pragma:
+        pragmadictlist.append({
+            'name':item[1],
+            'type':item[2],
+            'default':item[4],
+            'primary':bool(item[5])
+        })
+    return pragmadictlist
 
 
 def getpragmanames(database, table):
     pragma = getpragma(database, table)
     pragmanames = []
     for item in pragma:
-        pragmanames.append(item[1])
+        pragmanames.append(item['name'])
     return pragmanames
 
 
@@ -156,7 +455,7 @@ def getpragmatypes(database, table):
     pragma = getpragma(database, table)
     pragmanames = []
     for item in pragma:
-        pragmanames.append(item[2])
+        pragmanames.append(item['type'])
     return pragmanames
 
 
@@ -164,16 +463,12 @@ def getpragmanametypedict(database, table):
     pragma = getpragma(database, table)
     pragmadict = {}
     for item in pragma:
-        pragmadict[item[1]] = item[2]
+        pragmadict[item['name']] = item['type']
     return pragmadict
 
 
 def datarowtodict(database, table, datarow):
-    pragma = getpragma(database, table)
-    #print(pragma)
-    pragmanames = []
-    for item in pragma:
-        pragmanames.append(item[1])
+    pragmanames = getpragmanames(database, table)
 
     dict = {}
     index = 0
@@ -190,7 +485,7 @@ def insertstringdicttablelist(database, tablename, datadictarray, droptable=Fals
 
         addquery = 'create table "' + tablename + '" ('
         for key in datadictarray[0]:
-            addquery += '\'' + key + '\' text,'
+            addquery += "'" + key + "' text,"
 
         addquery = addquery[:-1]
         addquery += ')'
@@ -209,6 +504,7 @@ def insertstringdicttablelist(database, tablename, datadictarray, droptable=Fals
     result = {'query': querylist}
 
     # try:
+    # print(querylist)
     sqlitemultquery(database, querylist)
     # except:
     #     import sys, traceback
@@ -220,8 +516,71 @@ def insertstringdicttablelist(database, tablename, datadictarray, droptable=Fals
     return result
 
 
-def sqlitecreateemptytable(database, tablename, valuenames, valuetypes, valueoptions=None, dropexisting=True,
+def sqlite_create_table_query_from_schema(tablename, schema, **kwargs):
+
+    settings = {'removequotes':True, 'removeslashes':True}
+    settings.update(kwargs)
+    constructor = ''
+    for item in schema.items:
+        # Items are 'name', 'type', 'options'
+        valuename = item['name']
+        try:
+            if settings['removequotes']:
+                valuename = valuename.replace("'", '').replace('"', '')
+            if settings['removeslashes']:
+                valuename = valuename.replace("\\", '').replace("/", "")
+        except:
+            print('error replacing in key ' + str(valuename))
+
+        constructor += "'" + valuename + "' " + item['type']
+
+        # options.
+        if 'primary' in item and item['primary']:
+            constructor += ' primary key '
+        elif 'unique' in item and item['unique']:
+            constructor += ' unique '
+        if 'default' in item:
+            if item['type'] == 'text':
+                constructor += " default '" + str(item['default']) + "'"
+            else:
+                constructor += " default " + str(item['default'])
+
+        constructor += ","
+
+    constructorquery = "create table '" + tablename + "' (" + constructor[:-1] + ")"
+    return constructorquery
+
+
+def sqlitecreateemptytablequery(tablename, valuenames, valuetypes, valueoptions=None, dropexisting=True,
                            removequotes=True, removeslashes=True):
+    constructor = ''
+    for index, valuename in enumerate(valuenames):
+        try:
+            if removequotes:
+                valuename = valuename.replace("'", '').replace('"', '')
+            if removeslashes:
+                valuename = valuename.replace("\\", '').replace("/", "")
+        except:
+            print('error replacing in key ' + str(valuename))
+
+        constructor += "'" + valuename + "' " + valuetypes[index]
+
+        if valueoptions and valueoptions[index]:
+            # limited. multiple options in the future.
+            if 'primary' == valueoptions[index]:
+                constructor += ' primary key'
+            elif 'unique' == valueoptions[index]:
+                constructor += ' unique'
+
+        constructor += ","
+
+    constructorquery = "create table '" + tablename + "' (" + constructor[:-1] + ")"
+
+    return constructorquery
+
+
+def sqlitecreateemptytable(database, tablename, valuenames, valuetypes, valueoptions=None, dropexisting=True,
+                           removequotes=True, removeslashes=True, execute=True):
     if len(valuenames) != len(valuetypes):
         print('Names and types are not of same length. Cannot continue. ')
         return None
@@ -239,28 +598,11 @@ def sqlitecreateemptytable(database, tablename, valuenames, valuetypes, valueopt
             # Check to see if this will work out? Match fields, etc.
             pass
 
-    constructor = ''
-    for index, valuename in enumerate(valuenames):
-        try:
-            if removequotes:
-                valuename = valuename.replace("'", '').replace('"', '')
-            if removeslashes:
-                valuename = valuename.replace("\\", '').replace("/", "")
-        except:
-            print('error replacing in key ' + str(valuename))
-
-        constructor += "'" + valuename + "' " + valuetypes[index]
-
-        # limited. multiple options in the future.
-        if 'primary' == valueoptions[index]:
-            constructor += ' primary key'
-        elif 'unique' == valueoptions[index]:
-            constructor += ' unique'
-
-        constructor += ","
-
-    constructorquery = "create table '" + tablename + "' (" + constructor[:-1] + ")"
-    sqlitequery(database, constructorquery)
+    constructorquery = sqlitecreateemptytablequery(tablename, valuenames, valuetypes, valueoptions, dropexisting,
+                                                   removequotes, removeslashes)
+    if 'execute':
+        sqlitequery(database, constructorquery)
+    return constructorquery
 
 
 def dropcreatetexttablefromdict(databasename, tablename, dictordictarray, removequotes=True, removeslashes=True, primarykey=None):
@@ -314,19 +656,19 @@ def makesqliteinsert(table, valuelist, valuenames=None, replace=True):
         query = 'insert or replace into '
     else:
         query = 'insert into '
-    query += '\'' + table + '\''
+    query += "'" + table + "'"
 
     if valuenames:
         query += ' ('
         for valuename in valuenames:
-            query += '\'' + str(valuename) + '\','
+            query += "'" + str(valuename) + "',"
         query = query[:-1] + ')'
 
     query += ' values ('
 
     for value in valuelist:
         strvalue = str(value).replace("'","''")
-        query += '\'' + strvalue + '\','
+        query += "'" + strvalue + "',"
     query = query[:-1] + ')'
     return query
 
@@ -334,33 +676,49 @@ def makesqliteinsert(table, valuelist, valuenames=None, replace=True):
 def sqliteinsertsingle(database, table, valuelist, valuenames=None, replace=True):
     import sqlite3 as lite
 
-    con = lite.connect(database)
-    con.text_factory = str
+    query = makesqliteinsert(table, valuelist, valuenames, replace)
+    result = sqlitequery(database, query)
 
-    with con:
-        cur = con.cursor()
-        query = makesqliteinsert(table, valuelist, valuenames, replace)
-        cur.execute(query)
+    return result
 
 
-def sqlitemultquery(database, querylist):
+
+def sqlitemultquery(database, querylist, **kwargs):
     import sqlite3 as lite
 
     con = lite.connect(database)
     con.text_factory = str
 
+    settings = {'break_on_error':False}
+    settings.update(kwargs)
     with con:
         cur = con.cursor()
         data = []
+        message = ''
+        status = 0
         for query in querylist:
-            cur.execute(query)
-            dataitem = cur.fetchall()
+            try:
+                cur.execute(query)
+            except:
+                import traceback
+                dataitem = ''
+                trace_msg = 'Error with query: "' + query + '"\n\t' + traceback.format_exc()
+                message += trace_msg
+                status = 1
+                if not 'quiet' in kwargs:
+                    print(trace_msg)
+                if settings['break_on_error']:
+                    break
+            else:
+                dataitem = cur.fetchall()
+
             data.append(dataitem)
         con.commit()
-    return data
+
+    return {'data':data, 'message':message, 'status':status}
 
 
-def sqlitequery(database, query):
+def sqlitequery(database, query, **kwargs):
     import sqlite3 as lite
 
     con = lite.connect(database)
@@ -372,12 +730,22 @@ def sqlitequery(database, query):
             cur.execute(query)
             data = cur.fetchall()
     except:
+        import traceback
         data = ''
-    return data
+        message = traceback.format_exc()
+        status = 1
+        print('error with query: "' + query + '"')
+        if not 'quiet' in kwargs:
+            print(message)
+    else:
+        status = 0
+        message = 'all seems ok'
+
+    return {'data':data, 'status':status, 'message':message}
 
 
 def sqlitedatumquery(database, query):
-    datarow = sqlitequery(database, query)
+    datarow = sqlitequery(database, query)['data']
     if datarow:
         datum = datarow[0][0]
     else:
@@ -414,12 +782,13 @@ def makegetsinglevaluequery(table, valuename, condition=None):
     return query
 
 
-def sqlitedeleteitem(database, table, condition):
-    sqlitequery(database, makedeletesinglevaluequery(table, condition))
+def sqlitedeleteitem(database, table, condition=None):
+    query = makedeletesinglevaluequery(table, condition)
+    sqlitequery(database, query)
 
 
 def makedeletesinglevaluequery(table, condition=None):
-    query = 'delete from \'' + table + '\''
+    query = "delete from '" + table + "'"
     if isinstance(condition, dict):
         try:
             conditionnames = condition['conditionnames']
@@ -430,7 +799,7 @@ def makedeletesinglevaluequery(table, condition=None):
             query += ' where '
             numconditions = len(conditionnames)
             for index, (name, value) in enumerate(zip(conditionnames, conditionvalues)):
-                query += "\"" + name + "\"='" + value + "'"
+                query += '"' + name + '"' + "='" + value + "'"
                 if index < numconditions-1:
                     query += ' and '
     elif isinstance(condition, basestring):
@@ -440,11 +809,11 @@ def makedeletesinglevaluequery(table, condition=None):
 
 def readalldbrows(database, table, condition=None, includerowids=True):
 
-    query = 'select * from \'' + table + '\''
+    query = "select * from '" + table + "'"
     if condition:
         query += ' where ' + condition
 
-    data = sqlitequery(database, query)
+    data = sqlitequery(database, query)['data']
 
     pragmanames = getpragmanames(database, table)
 
@@ -475,7 +844,7 @@ def getentiredatabase(databasename, method='nometa'):
         databasequery.append(makegetallrowsquery(tablename))
 
     # Execute multiple query to return data
-    alldatabasedata = sqlitemultquery(databasename, databasequery)
+    alldatabasedata = sqlitemultquery(databasename, databasequery)['data']
     reconstructeddatabase=[]
     tables = []
 
@@ -522,6 +891,12 @@ def getentiredatabase(databasename, method='nometa'):
     return {'data': reconstructeddatabase, 'dictarray': tables, 'tablenames': tablenames}
 
 
+def sqliteemptytable(database, tablename):
+    querylist = []
+    querylist.append('delete from \'' + tablename + '\'')
+    sqlitemultquery(database, querylist)
+
+
 def emptyandsetdefaults(database, tablename):
     querylist = []
     querylist.append('delete from \'' + tablename + '\'')
@@ -553,18 +928,17 @@ def cleanlog(databasename, logname):
 
 def sqliteduplicatetable(database, oldname, newname):
     # Get pragma to create table
-    oldcreatequery = sqlitequery(database, "SELECT sql FROM sqlite_master WHERE type='table' AND name='" + oldname + "'")[0][0]
-    # print(oldcreatequery)
+    oldcreatequery = sqlitequery(database, "SELECT sql FROM sqlite_master WHERE type='table' AND name='" + oldname + "'")['data'][0][0]
 
     # Check to see if it was created with quotes or not
     # Gotta use quotes on new name for safety
-    index = oldcreatequery.find('"' + oldname + '"')
-    if index >= 0:
-        newcreatequery = oldcreatequery.replace('"' + oldname + '"', '"' + newname + '"')
+    if oldcreatequery.find('"' + oldname + '"') >= 0:
+        newcreatequery = oldcreatequery.replace('"' + oldname + '"', "'" + newname + "'")
+    elif oldcreatequery.find("'" + oldname + "'") >= 0:
+        newcreatequery = oldcreatequery.replace("'" + oldname + "'", "'" + newname + "'")
     else:
-        newcreatequery = oldcreatequery.replace(oldname, '"' + newname + '"')
+        newcreatequery = oldcreatequery.replace(oldname, "'" + newname + "'")
 
-    # print(newcreatequery)
     sqlitequery(database, newcreatequery)
 
     # Now get all the old data and insert it
@@ -585,8 +959,18 @@ def sqlitedeleteallrecords(database, table):
     sqlitequery(database, 'delete from "' + table + '"')
 
 
-def sqlitedroptable(database, table):
-    sqlitequery(database, 'drop table "' + table + '"')
+def sqlitedroptable(database, table, quiet=False):
+    sqlitequery(database, 'drop table "' + table + '"', quiet=quiet)
+
+
+def sqlitedropalltables(database):
+    # not optimized
+    existingtables = gettablenames(database)
+    queries = []
+    if existingtables:
+        for table in existingtables:
+            queries.append('drop table "' + table + '"')
+        sqlitemultquery(database, queries)
 
 
 def gettablesize(databasename, tablename):
@@ -606,23 +990,24 @@ def sizesqlitetable(databasename, tablename, size):
     return (logexcess)
 
 
-def getfirsttimerow(database, tablename, timecolname='time'):
-    query = 'select * from \'' + tablename + '\' order by \'' + timecolname + '\' limit 1'
-    data = sqlitequery(database, query)[0]
+def getfirsttimerows(database, tablename, timecolname='time', numrows=1):
+    query = 'select * from \'' + tablename + "' order by'" + timecolname + "' desc limit " + str(int(numrows))
+    data = sqlitequery(database, query)['data']
     try:
-        dict = datarowtodict(database, tablename, data)
-        dictarray = [dict]
+        dictarray = []
+        for datum in data:
+            dict = datarowtodict(database, tablename, datum)
+            dictarray.append(dict)
     except:
         # print('no row here')
         dictarray = {}
         pass
-
     return dictarray
 
 
-def getlasttimerows(database, tablename, numrows=1):
-    query = 'select * from \'' + tablename + '\' order by time desc limit ' + str(int(numrows))
-    data = sqlitequery(database, query)
+def getlasttimerows(database, tablename, timecolname='time', numrows=1):
+    query = 'select * from \'' + tablename + "' order by'" + timecolname + "' desc limit " + str(int(numrows))
+    data = sqlitequery(database, query)['data']
     try:
         dictarray = []
         for datum in data:
@@ -637,7 +1022,7 @@ def getlasttimerows(database, tablename, numrows=1):
 
 def getlasttimevalue(database, tablename):
     query = 'select time from \'' + tablename + '\' order by time desc limit 1'
-    data = sqlitequery(database, query)[0][0]
+    data = sqlitequery(database, query)['data'][0][0]
     return data
 
 
@@ -659,7 +1044,7 @@ def sqlitedatadump(databasename, tablelist, outputfilename, limit=None):
                 queryarray.append('select ' + pragmaname + ' from \'' + tablename + '\' limit ' + str(limit))
             else:
                 queryarray.append('select ' + pragmaname + ' from \'' + tablename + '\'')
-    data = sqlitemultquery(databasename, queryarray)
+    data = sqlitemultquery(databasename, queryarray)['data']
     #print(data)
     newdata = []
     for outerlist in data:
@@ -678,7 +1063,7 @@ def sqlitedatadump(databasename, tablelist, outputfilename, limit=None):
 
 def setsinglevalue(database, table, valuename, value, condition=None):
     query = makesinglevaluequery(table, valuename, value, condition)
-    response = sqlitequery(database, query)
+    response = sqlitequery(database, query)['data']
     return response
 
 
@@ -693,7 +1078,7 @@ def readonedbrow(database, table, rownumber=0, condition=None):
     query = "select * from '" + table + "'"
     if condition:
         query += ' where ' + condition
-    data = sqlitequery(database, query)
+    data = sqlitequery(database, query)['data']
     try:
         datarow = data[rownumber]
 
@@ -718,7 +1103,7 @@ def readsomedbrows(database, table, start, length, condition=None):
     if condition:
         query += ' where ' + condition
 
-    datarows = sqlitequery(database, query)
+    datarows = sqlitequery(database, query)['data']
 
     # This is the old code. Requires retrieving the entire table
 
@@ -746,7 +1131,7 @@ def dbvntovalue(dbvn, interprettype=False):
 
     from iiutilities.datalib import parsedbvn, getvartype
     dbvndict = parsedbvn(dbvn)
-
+    print(dbvndict)
     # try:
 
     value = getsinglevalue(dbvndict['dbpath'], dbvndict['tablename'], dbvndict['valuename'], dbvndict['condition'])

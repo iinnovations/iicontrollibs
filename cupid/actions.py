@@ -58,7 +58,12 @@ class action:
 
     def __init__(self, actiondict):
         from iiutilities.datalib import parseoptions
-        for key, value in actiondict.items():
+        settings = {
+            'ondelay':0,
+            'offdelay':0
+        }
+        settings.update(actiondict)
+        for key, value in settings.items():
             setattr(self, key, value)
 
             """
@@ -74,7 +79,58 @@ class action:
 
 
             """ TODO: Set default values as a condition of alarm type to make alarm work when values are not specified.
-            Publish will then insert these values into the database """
+            Publish will then insert these values into the database
+
+            Also, when values are pulled in, use the schema to change value type, e.g. self.ondelay should come in as a
+            float, not string.
+
+            """
+        self.statusmsg = ''
+
+    def determine_status(self):
+        from iiutilities import dblib, datalib
+        if self.conditiontype == 'logical':
+            currstatus = datalib.evaldbvnformula(self.actiondatadict['condition'])
+            self.value = currstatus
+            self.status = int(currstatus)
+
+
+        elif self.conditiontype == 'value':
+            self.value = dblib.dbvntovalue(self.actiondatadict['dbvn'])
+            # self.value = datalib.evaldbvnformula(self.actiondatadict['dbvn'])
+            # self.operator = self.actiondatadict['operator']
+            # self.criterion = self.actiondatadict['criterion']
+            self.status = int(datalib.calcastevalformula(str(self.value) + self.actiondatadict['operator'] + self.actiondatadict['criterion']))
+
+
+        elif self.conditiontype == 'temporal':
+            """ THIS HAS NOT YET WORKED. WE GET THERE.
+
+            For now, idea is to set frequency to 0 for one-time events. > 0 for repeats. Details.
+            """
+
+            # Test event time against current time
+            # Has time passed, and then is time within action window (don't want to act on all past actions if we miss them)
+            timediff = float(
+                datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(self.actiontime))
+            self.value = timediff
+            if timediff >= 0:
+                if timediff < int(self.actiontimewindow):
+                    # We act
+                    self.statusmsg += 'Time to act. '
+
+                    # Then create the repeat event if we are supposed to.
+                    if hasattr(self, 'repeat'):
+                        newtimestring = str(
+                            datalib.getnexttime(self.actiontime, self.repeat, int(self.repeatvalue)))
+                        self.actiontime = newtimestring
+
+                else:
+                    self.statusmsg += 'Past time but outside of window ' + str(self.actiontimewindow) + '. '
+            else:
+                self.statusmsg += 'Not time yet for action scheduled for ' + str(self.actiontime) + '. '
+        # print(self.conditiontype)
+        # print(self.status)
 
     def onact(self):
         from iiutilities import dblib, datalib, utility
@@ -84,7 +140,12 @@ class action:
             # process email action
             self.statusmsg += 'Processing email alert. '
             email = self.actiondetail
-            message = 'Alert is active for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + str(self.criterion) + ' with an operator of ' + self.operator + '. This alarm status has been on since ' + self.ontime + '.'
+            # message = 'Alert is active for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + str(self.criterion) + ' with an operator of ' + self.operator + '. This alarm status has been on since ' + self.ontime + '.'
+            message = 'Alert for alarm ' + self.name + ' . On time of ' + self.ontime + '. Current time of ' \
+                      + datalib.gettimestring()
+            if self.conditiontype == 'value':
+                message += ' Value: ' + str(self.value) + self.actiondatadict['operator'] + str(self.actiondatadict['criterion'])
+
             subject = 'CuPID Alert : Alarm On - ' + self.name
             actionmail = utility.gmail(message=message, subject=subject, recipient=email)
             actionmail.send()
@@ -124,14 +185,22 @@ class action:
                     querycondition = None
                 dblib.setsinglevalue(dbpath, dbvndict['tablename'], dbvndict['valuename'], '1', querycondition)
 
+
     def offact(self):
         from iiutilities import dblib, datalib, utility
         from cupid import pilib
         if self.actiontype == 'email':
             # process email action
+            # TODO: This really needs to queue the email action in case we are not online.
             self.statusmsg +='Processing email alert.'
             email = self.actiondetail
-            message = 'Alert has gone inactive for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + str(self.criterion) + ' with an operator of ' + self.operator + '. This alarm status has been of since ' + self.offtime + '.'
+            # message = 'Alert has gone inactive for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + str(self.criterion) + ' with an operator of ' + self.operator + '. This alarm status has been of since ' + self.offtime + '.'
+            message = 'Alert for alarm ' + self.name + ' . Off time of ' + self.offtime + '. Current time of ' \
+                      + datalib.gettimestring()
+            if self.conditiontype == 'value':
+                message += ' Value: ' + str(self.value) + self.actiondatadict['operator'] + str(
+                    self.actiondatadict['criterion'])
+
             subject = 'CuPID Alert : Alarm Off - ' + self.name
             actionmail = utility.gmail(message=message, subject=subject, recipient=email)
             actionmail.send()
@@ -185,189 +254,125 @@ class action:
         valuelist=[]
         valuenames=[]
 
+        control_db = dblib.sqliteDatabase(pilib.dirs.dbs.control)
+
         # We convert our actiondatadict back into a string
         self.actiondata = dicttojson(self.actiondatadict)
 
-        attrdict = {}
-        for attr, value in self.__dict__.iteritems():
-            if attr not in ['actiondatadict']:
-                attrdict[attr] = value
-                valuenames.append(attr)
-                valuelist.append(value)
+        for attr in self.__dict__:
+            if attr not in ['actiondatadict', 'actionindex', 'actiondata']:
+                control_db.set_single_value('actions', attr, getattr(self, attr), condition='"actionindex"=\'' + self.actionindex +"'", queue=True)
 
+        # print(control_db.queued_queries)
+        control_db.execute_queue()
         # print(valuenames)
         # print(valuelist)
 
-        dblib.sqliteinsertsingle(pilib.dirs.dbs.control, 'actions', valuelist, valuenames)
+        # dblib.sqliteinsertsingle(pilib.dirs.dbs.control, 'actions', valuelist, valuenames)
         # setsinglevalue(dirs.dbs.control, 'actions', 'ontime', gettimestring(), 'rowid=' + str(self.rowid))
 
     def process(self):
         from iiutilities import datalib
         if self.enabled:
+            act = False
+
             self.statusmsg = datalib.gettimestring() + ' : Enabled and processing. '
-            if self.conditiontype == 'temporal':
 
-                # Test event time against current time
-                # Has time passed, and then is time within action window (don't want to act on all past actions if we miss them)
-                timediff = float(
-                    datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(self.actiontime))
-                if timediff >= 0:
-                    if timediff < int(self.actiontimewindow):
-                        # We act
-                        self.statusmsg += 'Time to act. '
+            last_status = bool(self.status)
 
-                        # Then create the repeat event if we are supposed to.
-                        if hasattr(self, 'repeat'):
-                            newtimestring = str(
-                                datalib.getnexttime(self.actiontime, self.repeat, int(self.repeatvalue)))
-                            self.actiontime = newtimestring
+            # Update status.
+            self.determine_status()
 
-                    else:
-                        self.statusmsg += 'Past time but outside of window ' + str(self.actiontimewindow) + '. '
+            # retrofit. i lazy.
+            currstatus = bool(self.status)
+
+            if last_status:
+                self.statusmsg += 'Last status is ' + str(last_status) + '. Currstatus is ' + str(currstatus) + '. '
+            else:
+                self.statusmsg += 'Last status is ' + str(last_status) + '. Currstatus is ' + str(currstatus) + '. '
+
+            currenttime = datalib.gettimestring()
+
+            # if status is true and current status is false, set ontime (or if on/off time field is empty)
+            if currstatus and (not last_status or not self.ontime):
+                # print(str(curstatus) + ' ' + str(self.status))
+                self.statusmsg += 'Setting status ontime. '
+                self.ontime = datalib.gettimestring()
+            elif not currstatus and (last_status or not self.offtime):
+                self.statusmsg += 'Setting status offtime. '
+                self.offtime = datalib.gettimestring()
+
+            print('CURR STATUS',currstatus)
+            print('SELF.ACTIVE',self.active)
+            # if status is true and alarm isn't yet active, see if ondelay exceeded
+            if currstatus and not self.active:
+                # print(pilib.timestringtoseconds(currenttime))
+                statusontime = datalib.timestringtoseconds(currenttime) - datalib.timestringtoseconds(self.ontime, defaulttozero=True)
+                # print(statusontime)
+                if statusontime >= float(self.ondelay):
+                    self.statusmsg += 'Setting action active. '
+                    self.active = 1
                 else:
-                    self.statusmsg += 'Not time yet for action scheduled for ' + str(self.actiontime) + '. '
 
-            elif self.conditiontype == 'logical':
+                    self.statusmsg += 'On delay not reached. '
+                    print('on',self.ontime)
+                    print('now',currenttime)
 
-                # dbpath = pilib.dbnametopath(self.database)
+            # if status is not true and alarm is active, see if offdelay exceeded
+            if not currstatus and self.active:
+                statusofftime = datalib.timestringtoseconds(currenttime) - datalib.timestringtoseconds(self.offtime, defaulttozero=True)
+                if statusofftime >= float(self.offdelay):
+                    self.statusmsg += 'Setting action inactive. '
+                    self.active = 0
 
-                # # variablename is columnname for dbvalue conditiontype
-                # if hasattr('valuerowid'):
-                #     self.variablevalue = pilib.getsinglevalue(self.database, self.tablename, self.variablename, 'rowid=' + str(self.valuerowid))
-                # else:
-                #     self.variablevalue = pilib.getsinglevalue(self.database, self.tablename, self.variablename)
-
-                currstatus = datalib.evaldbvnformula(self.actiondatadict['condition'])
-
-                # get variable type to handle
-                # variablestypedict = pilib.getpragmanametypedict(dbpath, self.tablename)
-                # vartype = variablestypedict[self.variablename]
-                # self.statusmsg += ' Variablevalue: ' + str(self.variablevalue) + '. Criterion: ' + str(self.criterion) + ' . '
-
-                # process criterion according to type
-                # curstatus = False
-                # if vartype == 'boolean':
-                #     self.statusmsg += ' Processing boolean. '
-                #     # TODO: String conversion is a hack here and needs series work.
-                #     if str(self.variablevalue) == str(self.criterion):
-                #         curstatus = True
-                # elif vartype == 'integer' or vartype == 'real':
-                #     self.statusmsg += ' Processing integer/real. '
-                #     # print(self.operator)
-                #     self.variablevalue = float(self.variablevalue)
-                #     self.criterion = float(self.criterion)
-                #     if self.operator == 'greater':
-                #         if self.variablevalue > self.criterion:
-                #             curstatus = True
-                #     elif self.operator == 'greaterorequal':
-                #         if self.variablevalue >= self.criterion:
-                #             curstatus = True
-                #     elif self.operator == 'less':
-                #         if self.variablevalue < self.criterion:
-                #             curstatus = True
-                #     elif self.operator == 'lessorequal':
-                #         if self.variablevalue <= self.criterion:
-                #             curstatus = True
-                #     elif self.operator == 'equal':
-                #         if self.variablevalue == self.criterion:
-                #             curstatus = True
-                #     else:
-                #         self.statusmsg += 'Operator error. '
-                #     if self.variablevalue == self.criterion:
-                #         curstatus = True
-                # elif vartype == 'text':
-                #     self.statusmsg += ' Processing text. '
-                #     if self.variablevalue == self.criterion:
-                #         curstatus = True
-                # else:
-                #     self.statusmsg += ' Mode Error for vartype ' + vartype + '. '
-
-                if self.status:
-                    self.statusmsg += 'Last status is true. Currstatus is ' + str(currstatus) + '. '
-                else:
-                    self.statusmsg += 'Last status is false. Currstatus is ' + str(currstatus) + '. '
-
-                currenttime = datalib.gettimestring()
-
-                # if status is true and current status is false, set ontime
-                if currstatus and not self.status:
-                    # print(str(curstatus) + ' ' + str(self.status))
-                    self.statusmsg += 'Setting status ontime. '
-                    self.ontime = datalib.gettimestring()
-                    self.status = 1
-                elif not currstatus and self.status:
-                    self.statusmsg += 'Setting status offtime. '
-                    self.offtime = datalib.gettimestring()
-                    self.status = 0
-
-                # Set current status
-                if currstatus:
-                    self.status = 1
-                    # print('settings status')
-                else:
-                    self.status = 0
-                    # print('resetting status')
-
-                # if status is true and alarm isn't yet active, see if ondelay exceeded
-                if currstatus and not self.active:
-                    # print(pilib.timestringtoseconds(currenttime))
-                    statusontime = datalib.timestringtoseconds(currenttime) - datalib.timestringtoseconds(self.ontime)
-                    # print(statusontime)
-                    if statusontime >= self.ondelay:
-                        self.statusmsg += 'Setting action active. '
-                        self.active = 1
-                    else:
-                        self.statusmsg += 'On delay not reached. '
-
-                # if status is not true and alarm is active, see if offdelay exceeded
-                if not currstatus and self.active:
-                    statusofftime = datalib.timestringtoseconds(currenttime) - datalib.timestringtoseconds(self.offtime)
-                    if statusofftime >= self.offdelay:
-                        self.statusmsg += 'Setting action inactive. '
-                        self.active = 0
-
-                    else:
-                        self.statusmsg += 'Off delay not reached. '
-
-                # test to see if it is time to alert, based on delay ond alert time
-                # print(self.statusmsg)
-                act = False
-                if self.active:
-                    # check to see if it is time to alert
-                    # For things like outputs, actionfrequency should be zero to always enforce that action is on.
-
-                    # print(pilib.timestringtoseconds(currenttime))
-                    # print(pilib.timestringtoseconds(self.lastactiontime))
-                    # print(float(self.actionfrequency))
-                    # print(pilib.timestringtoseconds(currenttime)-pilib.timestringtoseconds(self.lastactiontime))
-                    if datalib.timestringtoseconds(currenttime) - datalib.timestringtoseconds(self.lastactiontime) >= float(self.actionfrequency):
-                        act = True
-                        self.statusmsg += "Time to act. "
-                    else:
-                        act = False
-                        self.statusmsg += "Not yet time to act."
-                else:
+                    # act on inactive transition
                     # Send an alert / reset indicator if activereset is on
                     if self.activereset:
-                        if datalib.timestringtoseconds(currenttime) - datalib.timestringtoseconds(self.lastactiontime) >= float(self.actionfrequency):
+                        time_since_last_action = datalib.timestringtoseconds(currenttime) - datalib.timestringtoseconds(
+                            self.lastactiontime, defaulttozero=True)
+                        if time_since_last_action >= float(self.actionfrequency):
                             act = True
-                            self.statusmsg += "Time to act. "
+                            self.statusmsg += "Time to act on activereset. " + str(
+                                time_since_last_action) + ' since last action, with action frequency of ' + str(
+                                self.actionfrequency) + '. '
                         else:
                             act = False
                             self.statusmsg += "Not yet time to act."
 
-                if act:
-                    # We're ready to alert or alert again.
-                    self.lastactiontime = currenttime
-                    if currstatus:
-                        self.onact()
-                    else:
-                        self.offact()
+                else:
+                    self.statusmsg += 'Off delay not reached. '
+
+            # test to see if it is time to alert, based on delay ond alert time
+            # print(self.statusmsg)
+            if self.active:
+                # check to see if it is time to alert
+                # For things like outputs, actionfrequency should be zero to always enforce that action is on.
+
+                # print(pilib.timestringtoseconds(currenttime))
+                # print(pilib.timestringtoseconds(self.lastactiontime))
+                # print(float(self.actionfrequency))
+                # print(pilib.timestringtoseconds(currenttime)-pilib.timestringtoseconds(self.lastactiontime))
+                time_since_last_action =  datalib.timestringtoseconds(currenttime) - datalib.timestringtoseconds(self.lastactiontime, defaulttozero=True)
+                if time_since_last_action >= float(self.actionfrequency):
+                    act = True
+                    self.statusmsg += "Time to act. " + str(time_since_last_action) + ' since last action, with action frequency of ' + str(self.actionfrequency) + '. '
+                else:
+                    act = False
+                    self.statusmsg += "Not yet time to act."
             else:
-                self.statusmsg += 'Action disabled.'
-                self.status = 0
+                # Active reset only happens on the transition.
+                pass
+
+            if act:
+                # We're ready to alert or alert again.
+                self.lastactiontime = currenttime
+                if currstatus:
+                    self.onact()
+                else:
+                    self.offact()
         else:
-            self.statusmsg += 'Mode unrecognized.'
+            self.statusmsg += 'Action disabled.'
+            self.status = 0
 
 
 def processactions():

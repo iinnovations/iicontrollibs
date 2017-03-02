@@ -19,6 +19,7 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 from iiutilities import utility
+from iiutilities import dblib
 
 sysvars = utility.Bunch()
 sysvars.dirs = utility.Bunch()
@@ -35,9 +36,13 @@ sysvars.dirs.dbs.authlog = sysvars.dirs.safedataroot + 'authlog.db'
 # Set a default dataroot here. We do this mostly for code completion, but also for quick development
 # ( reimport without having to reload paths each time )
 
-sysvars.dirs.defaultdataroot = '/var/www/html/inventory/data/iiinventory/'
+sysvars.dirs.webroot = '/var/www/html/inventory/'
+sysvars.dirs.datadir = sysvars.dirs.webroot + 'data/'
+
+sysvars.dirs.defaultdataroot = sysvars.dirs.datadir + 'iiinventory/'
 
 sysvars.dirs.dataroot = sysvars.dirs.defaultdataroot
+
 sysvars.dirs.download = sysvars.dirs.dataroot + 'download/'
 
 sysvars.dirs.dbs.system = sysvars.dirs.dataroot + 'system.db'
@@ -45,51 +50,163 @@ sysvars.dirs.dbs.stock = sysvars.dirs.dataroot + 'stock.db'
 sysvars.dirs.dbs.boms = sysvars.dirs.dataroot + 'boms.db'
 sysvars.dirs.dbs.inventories = sysvars.dirs.dataroot + 'inventories.db'
 sysvars.dirs.dbs.orders = sysvars.dirs.dataroot + 'orders.db'
+sysvars.dirs.dbs.quotes = sysvars.dirs.dataroot + 'quotes.db'
 sysvars.dirs.dbs.assemblies = sysvars.dirs.dataroot + 'assemblies.db'
 
 tableitems = utility.Bunch()
-tableitems.stockpartproperties = ['partid', 'description', 'qtystock', 'qtyonorder', 'qtyreserved', 'qtyavailable',
-                                  'cost', 'costqty', 'costqtyunit', 'supplier', 'supplierpart', 'manufacturer',
-                                  'manufacturerpart', 'notes', 'partdata', 'datasheet', 'inuse', 'datecreated',
-                                  'createdby', 'inventory', 'minqty', 'type']
-tableitems.bompartproperties = ['partid', 'description', 'qty', 'qtyunit', 'cost', 'price', 'totalcost', 'totalprice',
-                                'costqty', 'costqtyunit',
-                                'supplier', 'supplierpart', 'manufacturer', 'manufacturerpart', 'notes', 'partdata',
-                                'datasheet', 'type', 'marginmethod', 'margin', 'inventory']
-tableitems.orderpartproperties = ['partid', 'description', 'qty', 'qtyunit', 'cost', 'price', 'totalcost', 'totalprice',
-                                  'costqty', 'costqtyunit',
-                                  'supplier', 'supplierpart', 'manufacturer', 'manufacturerpart', 'notes', 'partdata',
-                                  'datasheet', 'type', 'marginmethod', 'margin', 'inventory', 'received']
 
-# Experimental -- use complete databaseentry description. Could roll this up into a dict, but this is more condensed
+tableitems.stockpart_schema = dblib.sqliteTableSchema([
+    {'name':'partid', 'primary':True},
+    {'name':'description'},
+    {'name':'qtystock', 'type':'real'},
+    {'name':'qtyonorder', 'type':'real'},
+    {'name':'qtyreserved', 'type':'real'},
+    {'name':'qtyavailable', 'type':'real'},
+    {'name':'cost','type':'real'},
+    {'name':'costqty','type':'real'},
+    {'name':'costqtyunit','type':'real'},
+    {'name':'supplier'},
+    {'name':'supplierpart'},
+    {'name':'manufacturer'},
+    {'name':'manufacturerpart'},
+    {'name':'notes'},
+    {'name':'partdata'},
+    {'name':'datasheet'},
+    {'name':'inuse'},
+    {'name':'datecreated'},
+    {'name':'createdby'},
+    {'name':'type'},
+    {'name':'minqty', 'type':'real'},
+    {'name':'inventory'}
+])
+tableitems.bompart_schema = dblib.sqliteTableSchema([
+    {'name':'partid', 'primary':True},
+    {'name':'description'},
+    {'name':'qty', 'type':'real'},
+    {'name':'qtyunit'},
+    {'name':'cost','type':'real'},
+    {'name':'price', 'type':'real'},
+    {'name':'totalcost', 'type':'real'},
+    {'name':'totalprice', 'type':'real'},
+    {'name':'costqty', 'type':'real'},
+    {'name':'costqtyunit'},
+    {'name':'supplier'},
+    {'name':'supplierpart'},
+    {'name':'manufacturer'},
+    {'name':'manufacturerpart'},
+    {'name':'notes'},
+    {'name':'partdata'},
+    {'name':'datasheet'},
+    {'name':'type'},
+    {'name':'marginmethod'},
+    {'name':'margin','type':'real'},
+    {'name':'inventory'}
+])
 
-tableitems.assemblypartproperties = ['partid', 'description', 'qty', 'qtyunit', 'cost', 'price', 'totalcost',
-                                     'totalprice', 'costqty', 'costqtyunit',
-                                     'supplier', 'supplierpart', 'manufacturer', 'manufacturerpart', 'notes',
-                                     'partdata',
-                                     'datasheet', 'type', 'marginmethod', 'margin', 'inventory']
+tableitems.orderpart_schema = dblib.sqliteTableSchema([
+    {'name':'partid', 'primary':True},
+    {'name':'description'},
+    {'name':'qty', 'type':'real'},
+    {'name':'qtyunit'},
+    {'name':'cost','type':'real'},
+    {'name':'price', 'type':'real'},
+    {'name':'totalcost', 'type':'real'},
+    {'name':'totalprice', 'type':'real'},
+    {'name':'costqty', 'type':'real'},
+    {'name':'costqtyunit'},
+    {'name':'supplier'},
+    {'name':'supplierpart'},
+    {'name':'manufacturer'},
+    {'name':'manufacturerpart'},
+    {'name':'notes'},
+    {'name':'partdata'},
+    {'name':'datasheet'},
+    {'name':'type'},
+    {'name':'marginmethod'},
+    {'name':'margin','type':'real'},
+    {'name':'inventory'},
+    {'name':'received'}
+])
+tableitems.inventorypart_schema = dblib.sqliteTableSchema([
+    {'name':'partid', 'primary':True},
+    {'name':'qtystock','type':'real'}
+])
+tableitems.assemblypart_schema = dblib.sqliteTableSchema([
+    {'name':'partid', 'primary':True},
+    {'name':'description'},
+    {'name':'qty', 'type':'real'},
+    {'name':'qtyunit'},
+    {'name':'cost','type':'real'},
+    {'name':'price', 'type':'real'},
+    {'name':'totalcost', 'type':'real'},
+    {'name':'totalprice', 'type':'real'},
+    {'name':'costqty', 'type':'real'},
+    {'name':'costqtyunit'},
+    {'name':'supplier'},
+    {'name':'supplierpart'},
+    {'name':'manufacturer'},
+    {'name':'manufacturerpart'},
+    {'name':'notes'},
+    {'name':'partdata'},
+    {'name':'datasheet'},
+    {'name':'type'},
+    {'name':'marginmethod'},
+    {'name':'margin','type':'real'},
+    {'name':'inventory'}
+])
 
-tableitems.assemblyparttypes = ['text', 'text', 'real', 'text', 'real', 'real', 'real', 'real', 'real', 'real', 'text',
-                                'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'real', 'text']
+tableitems.bommetaitems_schema = dblib.sqliteTableSchema([
+    {'name': 'status', 'default':'active'},
+    {'name': 'name', 'primary':True},
+    {'name': 'cost', 'type':'real'},
+    {'name': 'price', 'type':'real'},
+    {'name': 'profit', 'type':'real'},
+    {'name': 'modified'},
+    {'name': 'created'},
+    {'name': 'used'},
+    {'name': 'notes'},
+])
 
-tableitems.assemblypartoptions = ['primary', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-                                  '']
+tableitems.ordermetaitems_schema = dblib.sqliteTableSchema([
+    {'name': 'status', 'default':'active'},
+    {'name': 'orderstatus', 'default':'draft'},
+    {'name': 'executed'},
+    {'name': 'name', 'primary':True},
+    {'name': 'supplier'},
+    {'name': 'desc'},
+    {'name': 'cost'},
+    {'name': 'price'},
+    {'name': 'modified'},
+    {'name': 'created'},
+    {'name': 'used', 'type':'boolean','default':1},
+    {'name': 'notes'},
+])
 
-tableitems.inventorypartproperties = ['partid', 'qtystock']
+tableitems.inventorymetaitems_schema = dblib.sqliteTableSchema([
+    {'name': 'status', 'default':'active'},
+    {'name': 'executed'},
+    {'name': 'reserved'},
+    {'name': 'name', 'primary':True},
+    {'name': 'desc'},
+    {'name': 'modified'},
+    {'name': 'created'},
+    {'name': 'used'},
+    {'name': 'notes'},
+    {'name': 'itemcount', 'type':'integer'},
+])
 
-tableitems.bommetaitems = ['status', 'name', 'cost', 'price', 'profit', 'modified', 'created', 'used', 'notes']
-tableitems.bommetadefaultvalues = ['active', '', '', '', '', '', '', '', '']
-
-tableitems.ordermetaitems = ['status', 'orderstatus', 'executed', 'name', 'supplier', 'desc', 'cost', 'price',
-                             'modified', 'created', 'used', 'notes']
-tableitems.ordermetadefaultvalues = ['active', '', '', '', '', '', '', '', '', '', '', '']
-
-tableitems.inventorymetaitems = ['status', 'executed', 'name', 'desc', 'modified', 'created', 'used', 'notes']
-tableitems.inventorymetadefaultvalues = ['active', '', '', '', '', '', '', '']
-
-tableitems.assemblymetaitems = ['status', 'executed', 'reserved', 'name', 'cost', 'price', 'modified', 'created',
-                                'used', 'notes']
-tableitems.assemblymetadefaultvalues = ['active', '', '', '', '', '', '', '', '', '']
+tableitems.assemblymetaitems_schema = dblib.sqliteTableSchema([
+    {'name':'status', 'default': 'active'},
+    {'name':'executed'},
+    {'name':'reserved'},
+    {'name':'name', 'primary':True},
+    {'name':'cost'},
+    {'name':'price'},
+    {'name':'modified'},
+    {'name':'created'},
+    {'name':'used'},
+    {'name':'notes'},
+])
 
 
 def reloaddatapaths(**kwargs):
@@ -170,20 +287,124 @@ Utilities
 
 
 def dbnametopath(friendlyname):
-    friendlynames = ['stockdb', 'bomsdb', 'inventoriesdb', 'ordersdb', 'assembliesdb']
+    # This should be replaced by something OO and more elegant so we edit all dbs in one place.
+    friendlynames = ['stockdb', 'bomsdb', 'inventoriesdb', 'ordersdb', 'assembliesdb', 'quotesdb']
     paths = [sysvars.dirs.dbs.stock, sysvars.dirs.dbs.boms, sysvars.dirs.dbs.inventories, sysvars.dirs.dbs.orders,
-             sysvars.dirs.dbs.assemblies]
+             sysvars.dirs.dbs.assemblies, sysvars.dirs.dbs.quotes]
     path = None
     if friendlyname in friendlynames:
         path = paths[friendlynames.index(friendlyname)]
     return path
 
 
+def check_action_auths(action, level):
+    action_auths_dict = {
+        # 'gettabledata':1, -- Leaving this out means anyone can do it
+        'addeditpart':3, 'copypart':3,'deleteparts':3, 'gettrackedpartdata':1,'generateorders':3,
+        'editinventory':3,'addinventory':3,'deleteinventories':3,'addeditinventorypart':3,'deletepartsfrominventory':3,
+
+        'editorder':3,'addorder':3,'deleteorders':3,'addeditorderpart':3,'addeditorderparts':3,'deletepartsfromorder':3,
+
+        'copybom':3,'addeditbom':3,'addeditbomparts':3,'getbomcalcs':1,'getquotecalcs':1,'deletepartsfrombom':3,
+        'deleteboms':3,
+
+        'copyassembly':3,'copybomintoassembly':3,'addeditassembly':3,'addeditassemblypart':3,'getassemblycalcs':1,
+        'deletepartsfromassembly':3,'deleteassemblys':3,
+
+        'deletequotes':3,'copyquotetoboms':3,
+
+        'exportbomtopdf':1,'exportassemblytopdf':1
+    }
+    # Currently setup to blacklist only. This allows panelbuilder to work
+    if action in action_auths_dict:
+        level_required = action_auths_dict[action]
+    else:
+        level_required = 0
+    try:
+        if int(level) >= level_required:
+            authorized = True
+        else:
+            authorized = False
+    except:
+        authorized = False
+
+    print('Action ' + action + ', ' + str(level) + ' provided, ' + str(level_required) + ' required : ' + str(authorized))
+
+    return authorized
+
+
+def add_inventory_user(username, password, **kwargs):
+    from iiutilities.utility import insertuser
+    from iiutilities import dblib
+    insertuser(sysvars.dirs.dbs.safe, username, password, sysvars.salt, **kwargs)
+
+    # grab the first access keyword (if there is one) and create a meta entry
+    if 'accesskeywords' in kwargs:
+        if kwargs['accesskeywords'].find(',') >= 0:
+            accesskeywords = kwargs['accesskeywords'].split(',')
+        else:
+            accesskeywords = [kwargs['accesskeywords'].strip()]
+        default_keyword =accesskeywords[0]
+    else:
+        default_keyword = ''
+
+    # insert metaentry for user with default pathalias.
+    safedb=dblib.sqliteDatabase(sysvars.dirs.dbs.safe)
+    safedb.insert('usermeta',{'user':username,'data':'pathalias:' + default_keyword})
+
+
+def respace_date(datetimein):
+    try:
+        date = datetimein.split(' ')[0]
+        time = datetimein.split(' ')[1]
+    except:
+        print('error in initial datetime split')
+        return datetimein
+
+    split = date.split('-')
+    if not len(split) == 3:
+        print('malformed date input')
+        return datetimein
+
+    # make sure dates are of correct length
+    # e.g. fix 1-17-2017 to 01-17-2017
+    if len(split[1]) == 1:
+        split[1] = '0' + split[1]
+    if len(split[2]) == 1:
+        split[2] = '0' + split[2]
+    dateout = '-'.join(split)
+    datetimeout = dateout + ' ' + time
+
+    return datetimeout
+
+
+def inventory_daemon(stockdatabasepath=sysvars.dirs.dbs.stock, tablename='stock', email_recipient='inventory_manager@interfaceinnovations.org'):
+
+    stockresults = generateordersfromstock(stockdatabasepath, tablename=tablename)
+
+    from iiutilities.utility import gmail
+    from iiutilities.datalib import gettimestring
+    mail_sender = gmail()
+    mail_sender.recipient=email_recipient
+    mail_sender.subject = 'Inventory daemon'
+
+    if stockresults['orderitems']:
+        mail_sender.subject += ' :: Order of ' + str(len(stockresults['orderitems'])) + ' items required.'
+        mail_sender.message = 'Order daemon run at ' + gettimestring() + ': \n\r'
+        for orderitem in stockresults['orderitems']:
+            mail_sender.message += 'PartID: ' + orderitem['partid'] + ':' + orderitem['description'] + ', Qty: ' + str(orderitem['toorder'])
+            mail_sender.message += ', Supplier: ' + orderitem['supplier'] + ' \n\r'
+    else:
+        mail_sender.subject += ' :: nothing to order'
+        mail_sender.message += 'It appears there is nothing needing to be ordered. '
+
+    mail_sender.send()
+
 def bomdatatolist(bomdatadictlist, fields, **kwargs):
     # sort
     if 'sortby' in kwargs:
         if kwargs['sortby'] in bomdatadictlist[0]:
-            print('** sorting by '  + kwargs['sortby'])
+            # print('** sorting by '  + kwargs['sortby'])
             bomdatadictlist = sorted(bomdatadictlist, key=lambda k: k[kwargs['sortby']])
         else:
             print('Cannot sort by key that does not exist in dictionary. Key selected: ' + kwargs['sortby'])
@@ -205,7 +426,7 @@ def bomdatatolist(bomdatadictlist, fields, **kwargs):
     return datalist
 
 
-def writebomtopdf(**kwargs):
+def writepanelbomtopdf(**kwargs):
 
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter, inch
@@ -213,6 +434,7 @@ def writebomtopdf(**kwargs):
     from reportlab.lib.styles import ParagraphStyle
 
     settings = {
+            'format':'normal',
             'items':['partid','qty','totalcost','totalprice','description'],
             'sortby':'partid',
             'widths': [0.75*inch, 0.3*inch, 0.5*inch, 0.5*inch, 3*inch],
@@ -243,16 +465,26 @@ def writebomtopdf(**kwargs):
 
 
     styNormal = ParagraphStyle('normal')
-    styTitle = ParagraphStyle('normal', fontSize=18, spaceBefore=20, spaceAfter=15)
+    styTitle = ParagraphStyle('normal', fontSize=14, spaceBefore=20, spaceAfter=20)
     stySubTitle = ParagraphStyle('normal', fontSize=14, spaceBefore=10, spaceAfter=7)
 
     styIndent1 = ParagraphStyle('normal', leftIndent=10)
 
     # Convert the data from a bom to a list
-    bomdatalist = [settings['items']]
+    if settings['format'] == 'picklist':
+        widths = [1.2 * inch, 0.3 * inch, 2.5 * inch, 0.6 * inch, 0.6 * inch]
+        settings['items'] = ['partid','qty','description','manufacturer','manufacturerpart']
+        settings['labels'] = ['partid','qty','desc.','mfr','mfrpart']
+        settings['charlimit']=40
+    else:
+        # default
+        widths = [1.25 * inch, 0.4 * inch, 0.6 * inch, 0.6 * inch, 3 * inch]
+        settings['items']= ['partid', 'qty', 'totalcost', 'totalprice', 'description']
+        settings['labels']= ['partid', 'qty', 'totalcost', 'totalprice', 'description']
+        settings['charlimit'] = 50
+    bomdatalist = [settings['labels']]
 
-    bomdatalist.extend(bomdatatolist(settings['bomdata'], settings['items'], charlimit=50, sortby=settings['sortby']))
-    print(bomdatalist)
+    bomdatalist.extend(bomdatatolist(settings['bomdata'], settings['items'], charlimit=settings['charlimit'], sortby=settings['sortby']))
 
     elements.append(Paragraph(settings['title'], styTitle))
     if 'totalprice' in settings:
@@ -266,7 +498,7 @@ def writebomtopdf(**kwargs):
                 ('VALIGN', (-1, 0), (-1, 0), 'MIDDLE'),
                 ('VALIGN', (0, 0), (1, 0), 'TOP'),
             ])
-    t = Table(bomdatalist ,[1.25*inch, 0.4*inch, 0.6*inch, 0.6*inch, 3*inch], [0.4*inch].extend((len(bomdatalist)-1)*[0.25*inch]),
+    t = Table(bomdatalist , widths, [0.5*inch].extend((len(bomdatalist)-1)*[0.25*inch]),
             hAlign='LEFT'
             )
     elements.append(t)
@@ -274,7 +506,7 @@ def writebomtopdf(**kwargs):
     doc.build(elements)
 
 
-def writequotetopdf(**kwargs):
+def writepanelquotetopdf(**kwargs):
 
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter, inch
@@ -297,7 +529,12 @@ def writequotetopdf(**kwargs):
                             {'price':123.34}
                         },
             'description':'Control panel quote generated by panelbuilder.',
-            'outputfile': '/var/www/html/panelbuilder/data/downloads/bomoutput.pdf'
+            'includes1':'Control web interface (where applicable), commissioning, testing, wiring',
+            'includes2':'of included sensors, complete drawings, support',
+            'notincludes1':'Travel and expenses for commissioning. Output wiring (available additional).',
+            'notincludes2':'See T&C for details',
+            'outputfile': '/var/www/html/panelbuilder/data/downloads/bomoutput.pdf',
+            'alphabetizeoptions':True
             }
 
     settings.update(kwargs)
@@ -323,10 +560,26 @@ def writequotetopdf(**kwargs):
     elements.append(Paragraph(settings['title'], styTitle))
 
     summarytable = [['Description: ', settings['description'], '', '', '']]
+    summarytable.append(['Included:', settings['includes1'], '','',''])
+    summarytable.append(['', settings['includes2'], '','',''])
+    summarytable.append(['Not included:', settings['notincludes1'],'','',''])
+    summarytable.append(['', settings['notincludes2'],'','',''])
     summarytable.append(['Price:','','','','$' + str(settings['price'])])
     summarytable.append(['Panel Options:','','','',''])
 
+    # Convert to list for sorting purposes
+    optionslist = []
     for optionname, optiondict in settings['options'].iteritems():
+        optionslist.append({'name':optionname, 'dict':optiondict})
+
+    if settings['alphabetizeoptions']:
+        optionslist = sorted(optionslist, key=lambda k: k['name'])
+
+
+    for item in optionslist:
+        optionname = item['name']
+        optiondict = item['dict']
+    # for optionname, optiondict in settings['options'].iteritems():
         summarytable.append(['', optionname, '','', ' $' + str(setprecision(optiondict['price'],2))])
 
     # example for how to style. Drop this in the Table creation definition
@@ -339,8 +592,11 @@ def writequotetopdf(**kwargs):
     # t = Table(bomdatalist ,[1.25*inch, 0.4*inch, 0.6*inch, 0.6*inch, 3*inch], [0.4*inch].extend((len(bomdatalist)-1)*[0.25*inch]),
     #         hAlign='LEFT'
     #         )
-
-    t = Table(summarytable, settings['widths'], len(summarytable)*[0.4*inch], hAlign='LEFT')
+    # Set some custom lineheights
+    lineheights = len(summarytable)*[0.35*inch]
+    lineheights[2] = 0.2*inch
+    lineheights[4] = 0.2*inch
+    t = Table(summarytable, settings['widths'], lineheights, hAlign='LEFT')
     t.setStyle(style)
     elements.append(t)
     # write the document to disk
@@ -405,44 +661,71 @@ def recalcpartdata(**kwargs):
 
     if 'stock' in kwargs:
         type = 'stock'
-        database = sysvars.dirs.dbs.stock
+        database = dblib.sqliteDatabase(sysvars.dirs.dbs.stock)
+        tableschema = tableitems.stockpart_schema
         tablenames = ['stock']
 
+    elif 'orders' in kwargs or 'ordername' in kwargs:
+        database = dblib.sqliteDatabase(sysvars.dirs.dbs.orders)
+        tableschema = tableitems.orderpart_schema
+        if 'ordername' in kwargs:
+            type = 'order'
+            tablenames = [str(kwargs['ordername'])]
+        elif 'orders' in kwargs:
+            type = 'orders'
+            if kwargs['orders']:
+                # Run array of orders
+                tablenames = kwargs['orders']
+            else:
+                # Run all orders
+                tablenames = dblib.gettablenames(database).remove('metadata')
 
-    elif 'ordername' in kwargs:
-        type = 'order'
-        database = sysvars.dirs.dbs.orders
-        tablenames = [str(kwargs['ordername'])]
-    elif 'orders' in kwargs:
-        type = 'orders'
-        database = sysvars.dirs.dbs.orders
-        if kwargs['orders']:
-            # Run array of orders
-            tablenames = kwargs['orders']
-        else:
-            # Run all orders
-            tablenames = dblib.gettablenames(database).remove('metadata')
+    elif 'bomname' in kwargs or 'boms' in kwargs:
+        database = dblib.sqliteDatabase(sysvars.dirs.dbs.boms)
+        tableschema = tableitems.bompart_schema
+        if 'bomname' in kwargs:
+            type = 'bom'
+            tablenames = [kwargs['bomname']]
+        elif 'boms' in kwargs:
+            type = 'boms'
+            database = sysvars.dirs.dbs.boms
 
-    elif 'bomname' in kwargs:
-        type = 'bom'
-        database = sysvars.dirs.dbs.boms
-        tablenames = [kwargs['bomname']]
+            if kwargs['boms']:
+                # Run array of orders
+                tablenames = kwargs['boms']
+            else:
+                # Run all orders
+                # print(database)
+                tablenames = database.get_table_names()
 
-    elif 'boms' in kwargs:
-        type = 'boms'
-        database = sysvars.dirs.dbs.boms
+                # print(tablenames)
+                tablenames.remove('metadata')
 
-        if kwargs['boms']:
-            # Run array of orders
-            tablenames = kwargs['boms']
-        else:
-            # Run all orders
-            # print(database)
-            tablenames = dblib.gettablenames(database)
-            # print(tablenames)
-            tablenames.remove('metadata')
+    elif 'assemblyname' in kwargs or 'assemblies' in kwargs:
+        database = dblib.sqliteDatabase(sysvars.dirs.dbs.assemblies)
+        tableschema = tableitems.assemblypart_schema
+
+        if 'assemblyname' in kwargs:
+            type = 'assembly'
+            tablenames = [kwargs['assemblyname']]
+
+        elif 'assemblies' in kwargs:
+            type = 'assemblies'
+            if kwargs['assemblies']:
+                # Run array of orders
+                tablenames = kwargs['assemblies']
+            else:
+                # Run all orders
+                # print(database)
+                tablenames = database.get_table_names()
+                # print(tablenames)
+                tablenames.remove('metadata')
 
     elif 'partdictarray' in kwargs:
+
+        # NOT YET TESTED OR USED since update to schema
+        tableschema = kwargs['schema']
+
         type = 'partdictarray'
 
         # Run on partdictarray sent through. Calculates bom cost though, not individual item recalcs
@@ -465,7 +748,7 @@ def recalcpartdata(**kwargs):
                 return
 
         else:
-            table = dblib.readalldbrows(database, tablename)
+            table = database.read_table(tablename)
 
         newtable = []
         for item in table:
@@ -559,23 +842,47 @@ def recalcpartdata(**kwargs):
         newtables.append(newtable)
 
     if type == 'stock':
-        dblib.insertstringdicttablelist(database, 'stock', newtables[0], droptable=False)
-    if type in ['order', 'orders', 'bom', 'boms']:
+        # We dont' need to create, do we?
+        # database.create_table('stock', tableitems.stockpart_schema, queue=True)
+        for item in newtables[0]:
+            database.insert('stock', item, queue=True)
+        # print(database.queued_queries)
+        database.execute_queue()
+        # dblib.insertstringdicttablelist(database, 'stock', newtables[0], droptable=False)
+    if type in ['order', 'orders', 'bom', 'boms', 'assembly', 'assemblies']:
         for tablename, anewtable in zip(tablenames, newtables):
             # print('TABLENAME')
             # print(tablename)
             # print('TABLE')
             # print(anewtable)
             if len(anewtable) > 0:
-                dblib.insertstringdicttablelist(database, tablename, anewtable, droptable=True)
+                database.create_table(tablename, tableschema, queue=True)
+                for tablerow in anewtable:
+                    database.insert(tablename, tablerow, queue=True)
+                # dblib.insertstringdicttablelist(database, tablename, anewtable, droptable=True)
             else:
                 # print('empty table')
                 pass
+
+        # print(database.queued_queries)
+        # for query in database.queued_queries:
+        #     print(query)
+            # database.query(query)
+        database.execute_queue()
+        # print(database.path)
+
     return {'tables': newtables, 'output': output}
 
 
 def addeditpartlist(d, output={'message': ''}):
+    from iiutilities import dblib, datalib
+
     """
+
+    TODO: Optimize query structure
+
+    This operates either on partdata OR partsdata list. Still does not optimize to run queries at once. Runs them
+    in series. An obvious place for optimization
 
     We are going to use this for BOMs, orders, and assemblies.
     Minor differences are contained in meta, with exceptions for items:
@@ -595,217 +902,236 @@ def addeditpartlist(d, output={'message': ''}):
 
     """
 
-    stockdb = sysvars.dirs.dbs.stock
-    ordersdb = sysvars.dirs.dbs.orders
-    bomsdb = sysvars.dirs.dbs.boms
-    inventoriesdb = sysvars.dirs.dbs.inventories
-    assembliesdb = sysvars.dirs.dbs.assemblies
+    # Defaults
+    settings = {'addqty':False, 'copystock':None}
+    settings.update(d)
+    stockdbpath = sysvars.dirs.dbs.stock
+    ordersdbpath = sysvars.dirs.dbs.orders
+    bomsdbpath = sysvars.dirs.dbs.boms
+    inventoriesdbpath = sysvars.dirs.dbs.inventories
+    assembliesdbpath = sysvars.dirs.dbs.assemblies
 
-    if 'bomname' in d:
+    if 'bomname' in settings:
         output['message'] += 'bomname key present. '
         type = 'bom'
-        activedb = bomsdb
+        activedbpath = bomsdbpath
         tablekey = 'bomname'
-        listpartproperties = tableitems.bompartproperties
+        listpartproperties = tableitems.bompart_schema.columns()
 
-    elif 'ordername' in d:
+    elif 'ordername' in settings:
         output['message'] += 'ordername key present. '
         type = 'order'
-        activedb = ordersdb
+        activedbpath = ordersdbpath
         tablekey = 'ordername'
-        listpartproperties = tableitems.orderpartproperties
+        listpartproperties = tableitems.orderpart_schema.columns()
 
-    elif 'assemblyname' in d:
+    elif 'assemblyname' in settings:
         output['message'] += 'assemblyname key present. '
         type = 'assembly'
-        activedb = assembliesdb
+        activedbpath = assembliesdbpath
         tablekey = 'assemblyname'
-        listpartproperties = tableitems.assemblypartproperties
+        listpartproperties = tableitems.assemblypart_schema.columns()
 
-    elif 'inventoryname' in d:
+    elif 'inventoryname' in settings:
         output['message'] += 'inventoryname key present. '
         type = 'inventory'
-        activedb = inventoriesdb
+        activedbpath = inventoriesdbpath
         tablekey = 'inventoryname'
-        listpartproperties = tableitems.inventorypartproperties
-
+        listpartproperties = tableitems.inventorypart_schema.columns()
 
     else:
         output['message'] += 'No suitable keyword present for command. Terminating. '
         return output
 
-    if 'partdata' not in d:
-        output['message'] += 'No partdata present in request. Terminating. '
+    if 'partdata' not in settings and 'partsdata' not in settings:
+        output['message'] += 'No partdata or partsdata present in request. Terminating. '
         return output
+
+    # Always operate on a list of parts to speed things up.
+    if 'partdata' in settings:
+        settings['partsdata'] = [settings['partdata']]
 
     if 'message' not in output:
         output['message'] = ''
 
-    if 'copystock' not in d:
-        d['copystock'] = 'none'
-
-    from iiutilities import dblib, datalib
-
     tablename = str(d[tablekey])
 
+    activedb = dblib.sqliteDatabase(activedbpath)
+
     # Determine whether or not the part already exists in the BOM
-    listparts = dblib.readalldbrows(activedb, tablename)
+    listparts = activedb.read_table(tablename)
 
     # This is just columns
     # Eventually this should be more robust and actually enforce types by pragma
-    ordercolumns = dblib.getpragmanames(activedb, tablename)
-    # print(ordercolumns)
-    # return
 
-    if d['copystock'] in ['all', 'missing']:
-        # Get the stock part entry for reference and backfill purposes
-        try:
-            stockpart = dblib.readonedbrow(stockdb, 'stock', condition="partid='" + d['partdata']['partid'] + "'")[0]
-        except:
-            stockpart = None
-            pass
-            # print('error in stockpart result')
+    ordercolumns = activedb.get_pragma_names(tablename)
 
-        # revert to no copystock if we can't find the part
-        if not stockpart:
-            d['copystock'] = 'none'
+    for index, partdatum in enumerate(settings['partsdata']):
+        print(index)
+        if settings['copystock'] in ['all', 'missing']:
+            # Get the stock part entry for reference and backfill purposes
+            try:
+                stockpart = dblib.readonedbrow(stockdbpath, 'stock', condition="partid='" + partdatum['partid'] + "'")[0]
+            except:
+                stockpart = None
+                pass
+                # print('error in stockpart result')
+
+            # revert to no copystock if we can't find the part
+            if not stockpart:
+                settings['copystock'] = None
+                stockpart = {}
+        else:
             stockpart = {}
-    else:
-        stockpart = {}
 
-    # print('MATCH PART STOCK ITEM')
-    # print(stockpart)
+        """
+        We are going to totally rebuild the database if database format changes.
 
-    """
-    We are going to totally rebuild the database, in case part database format changes.
+        TODO: Totally fix and unkludge this using new schema.
 
-    We are only going to do
-    this, however, if a sample part that exists in the database does not contain all the fields of the new entry
-    We do this because there are concurrency issues with recreating simultaneously with, for example multiple
-    asynchronous calls. Insert operations are atomic, however, so if we can run insert whenever possible, we will
-    do that.
-    """
+        We are only going to do
+        this, however, if a sample part that exists in the database does not contain all the fields of the new entry
+        We do this because there are concurrency issues with recreating simultaneously with, for example multiple
+        asynchronous calls. Insert operations are atomic, however, so if we can run insert whenever possible, we will
+        do that.
+        """
 
-    # Test: (again, this should eventually test pragma and properly form a database using types)
-    inclusive = True
-    if ordercolumns:
-        for property in listpartproperties:
-            if property not in ordercolumns:
-                inclusive = False
-                break
+        # Test: (again, this should eventually test pragma and properly form a database using schema)
+        inclusive = True
+        if ordercolumns:
+            for property in listpartproperties:
+                if property not in ordercolumns:
+                    inclusive = False
+                    break
 
-    newparts = []
-    thenewpart = {}
+        newparts = []
+        thenewpart = {}
 
-    """
-    We iterate over every part in the order.
-    We make a new part.
-    If the part we are modifying matches, matchpart = True and partexists = True
-    """
+        """
+        We iterate over every part in the existing database table.
+        We make a new part.
+        If the part we are modifying matches, matchpart = True and partexists = True
 
-    partexists = False
-    for orderpart in listparts:
+        TODO: OMG FIX THIS UGLY MESS
+        """
 
-        newpart = {'partid': orderpart['partid']}
-        matchpart = False
-        if orderpart['partid'] == d['partdata']['partid']:
-            output['message'] += 'Part ' + orderpart['partid'] + ' / ' + d['partdata']['partid'] + ' was found. '
-            matchpart = True
-            partexists = True
+        partexists = False
+        for orderpart in listparts:
 
-        # If we have a match, copy all data from previous part and stockpart where appropriate
-        # depending on backfill options.
+            newpart = {'partid': orderpart['partid']}
+            matchpart = False
+            print('orderpart, partid')
+            print(orderpart)
+            print(partdatum)
+            if orderpart['partid'] == partdatum['partid']:
+                output['message'] += 'Part ' + orderpart['partid'] + ' / ' + partdatum['partid'] + ' was found. '
+                matchpart = True
+                partexists = True
 
-        for property in listpartproperties:
-            if matchpart:
-
-                if d['copystock'] == 'all' and property != 'qty':
-                    # get all part data from stock entry
-                    # except qty, which is special
-                    newpart[property] = stockpart[property]
-                else:
-                    if property in d['partdata']:
-                        # print('property ' + property + ' found in partdata')
-                        # make sure not empty
-                        if d['partdata'][property]:
-                            newpart[property] = d['partdata'][property]
-                            continue
-
-                    # Combined elif via continue
-                    # Have to protect against properties that are in order and not stock
-                    if d['copystock'] == 'missing' and property in stockpart:
-                        # get part data if available from stock entry
-                        newpart[property] = stockpart[property]
-                    else:
-                        # print('empty property  ' + property)
-                        newpart[property] = ''
-
-            # If we don't have a match, just copy existing properties, mapped appropriately
-            else:
-                if property in orderpart:
-                    newpart[property] = orderpart[property]
-                else:
-                    newpart[property] = ''
-
-        # We make a single copy to use if we are not reconstructing database
-        newparts.append(newpart)
-        if matchpart:
-            thenewpart = newpart.copy()
-
-    if not partexists:
-        output['message'] += 'Part not found. Creating from scratch. '
-        if 'partid' in d['partdata']:
-            output['message'] += 'key partdata[partid] found in d with value ' + d['partdata']['partid'] + '. '
-            newpart = {'partid': d['partdata']['partid']}
+            # If we have a match, copy all data from previous part and stockpart where appropriate
+            # depending on backfill options.
 
             for property in listpartproperties:
-                if d['copystock'] == 'all' and property != 'qty':
-                    # get all part data from stock entry
-                    # except qty, which is special
-                    newpart[property] = stockpart[property]
-                else:
-                    if property in d['partdata']:
-                        # print('property ' + property + ' found')
-
-                        # make sure not empty
-                        if d['partdata'][property]:
-                            newpart[property] = d['partdata'][property]
-                            continue
+                if matchpart:
+                    # add qty if requested. otherwise just paste new value
+                    if property == 'qty':
+                        # print(partdatum['partid'] + ', ' + str(settings['addqty']))
+                        if settings['addqty']:
+                            # print('partdatum qty ' + str(partdatum['qty'] + ', orderpart qty ' + str(orderpart['qty'])))
+                            newpart['qty'] = float(partdatum['qty']) + float(orderpart['qty'])
                         else:
-                            # print('property empty.')
-                            pass
-
-                    # Have to protect against properties that are in order and not stock
-                    # print('input dictionary' )
-                    # print(d)
-                    if d['copystock'] == 'missing':
-                        # print('at copystock for property ' + property)
-                        pass
-                    if d['copystock'] == 'missing' and property in stockpart:
-                        # get part data if available from stock entry
+                            newpart['qty'] = partdatum['qty']
+                    elif settings['copystock'] == 'all' and property != 'qty':
+                        # get all part data from stock entry
+                        # except qty, which is special
                         newpart[property] = stockpart[property]
+                    else:
+                        if property in partdatum:
+                            # print('property ' + property + ' found in partdata')
+                            # make sure not empty
+                            if partdatum[property]:
+                                newpart[property] = partdatum[property]
+                                continue
+
+                        # Combined elif via continue
+                        # Have to protect against properties that are in order and not stock
+                        if settings['copystock'] == 'missing' and property in stockpart:
+                            # get part data if available from stock entry
+                            newpart[property] = stockpart[property]
+                        else:
+                            # print('empty property  ' + property)
+                            newpart[property] = ''
+
+                # If we don't have a match, just copy existing properties, mapped appropriately
+                else:
+                    if property in orderpart:
+                        newpart[property] = orderpart[property]
                     else:
                         newpart[property] = ''
 
+            # We make a single copy to use if we are not reconstructing database
             newparts.append(newpart)
-            thenewpart = newpart.copy()
+            if matchpart:
+                thenewpart = newpart.copy()
+
+        if not partexists:
+            output['message'] += 'Part not found. Creating from scratch. '
+            if 'partid' in partdatum:
+                output['message'] += 'key partdata[partid] found in d with value ' + partdatum['partid'] + '. '
+                newpart = {'partid': partdatum['partid']}
+
+                for property in listpartproperties:
+                    if settings['copystock'] == 'all' and property != 'qty':
+                        # get all part data from stock entry
+                        # except qty, which is special
+                        newpart[property] = stockpart[property]
+                    else:
+                        if property in partdatum:
+                            # print('property ' + property + ' found')
+
+                            # make sure not empty
+                            if partdatum[property]:
+                                newpart[property] = partdatum[property]
+                                continue
+                            else:
+                                # print('property empty.')
+                                pass
+
+                        # Have to protect against properties that are in order and not stock
+                        # print('input dictionary' )
+                        # print(d)
+                        if settings['copystock'] == 'missing':
+                            # print('at copystock for property ' + property)
+                            pass
+                        if settings['copystock'] == 'missing' and property in stockpart:
+                            # get part data if available from stock entry
+                            newpart[property] = stockpart[property]
+                        else:
+                            newpart[property] = ''
+
+                newparts.append(newpart)
+                thenewpart = newpart.copy()
+            else:
+                output['message'] += 'key partdata[partid] not found in d. '
+
+        output['message'] += 'Reinserting. '
+        if inclusive:
+            output['message'] += 'Structure was found to be inclusive. Not rebuilding. '
+            # if partexists:
+            #     activedb.insert
+            #
+            #     dblib.sqlitedeleteitem(activedb, tablename, "partid='" + thenewpart['partid'] + "'")
+            # # print('THE NEW NPART')
+            # # print(thenewpart)
+            try:
+                # assumes uniquekey and auto replace
+                activedb.insert(tablename, thenewpart)
+                # dblib.insertstringdicttablelist(activedb, tablename, [thenewpart], droptable=False)
+            except:
+                output['message'] += 'Error in query on "' + activedb + '" + and table "' + tablename + '. '
         else:
-            output['message'] += 'key partdata[partid] not found in d. '
-
-    output['message'] += 'Reinserting. '
-    if inclusive:
-        output['message'] += 'Structure was found to be inclusive. Not rebuilding. '
-        if partexists:
-            dblib.sqlitedeleteitem(activedb, tablename, "partid='" + thenewpart['partid'] + "'")
-
-        # print(thenewpart)
-        try:
-            dblib.insertstringdicttablelist(activedb, tablename, [thenewpart], droptable=False)
-        except:
-            output['message'] += 'Error in query on "' + activedb + '" + and table "' + tablename + '. '
-    else:
-        output['message'] += 'Structure was not found to be inclusive. rebuilding. '
-        dblib.insertstringdicttablelist(activedb, tablename, newparts, droptable=True)
+            output['message'] += 'Structure was not found to be inclusive. rebuilding. '
+            dblib.insertstringdicttablelist(activedb, tablename, newparts, droptable=True)
 
     # Recalculate quantities. Autotyped based on kwargs
     recalcpartdata(**{tablekey: tablename})
@@ -817,31 +1143,46 @@ def refreshpartsfromstock(d, output={'message': ''}):
     from iiutilities import dblib
 
     notouchkeys = ['qty', 'partid']
-    if 'bomname' in d:
-        output['message'] += 'bomname found. '
+    if 'bomname' or 'assemblyname' in d:
+        if 'bomname' in d:
+            output['message'] += 'bomname found. '
+            databasepath = sysvars.dirs.dbs.boms
+            tablename = d['bomname']
+            schema = tableitems.bompart_schema
+        elif 'assemblyname' in d:
+            output['message'] += 'assemblyname found. '
+            databasepath = sysvars.dirs.dbs.assemblies
+            tablename = d['assemblyname']
+            schema = tableitems.assemblypart_schema
+
+        database = dblib.sqliteDatabase(databasepath)
+        stock_database = dblib.sqliteDatabase(sysvars.dirs.dbs.stock)
+
         if 'partids' in d:
             output['message'] += 'partids found. '
             for partid in d['partids']:
                 output['message'] += 'processing ' + partid + '. '
                 condition = "partid='" + partid + "'"
                 try:
-                    stockpart = dblib.readonedbrow(sysvars.dirs.dbs.stock, 'stock', condition=condition)[0]
+                    stockpart = stock_database.read_table_row('stock', condition=condition)[0]
                 except:
                     output['message'] += 'No stock part found for condition ' + condition + '. '
                     return output
 
                 try:
-                    bomentry = dblib.readonedbrow(sysvars.dirs.dbs.boms, d['bomname'], condition=condition)[0]
+                    entry = database.read_table_row(tablename, condition=condition)[0]
                 except:
-                    output['message'] += 'No bomentry found for condition ' + condition + '. '
+                    output['message'] += 'No entry found for condition ' + condition + ' in table "' + tablename + '". '
                     return output
 
-                for key, value in stockpart.iteritems():
-                    if key not in notouchkeys and key in bomentry:
-                        bomentry[key] = stockpart[key]
-                dblib.sqlitedeleteitem(sysvars.dirs.dbs.boms, d['bomname'], condition=condition)
-                # print(bomentry)
-                dblib.insertstringdicttablelist(sysvars.dirs.dbs.boms, d['bomname'], [bomentry])
+                for property in schema.columns():
+                    if property not in notouchkeys and property in stockpart:
+                        entry[property] = stockpart[property]
+
+                # This takes advantage of partid being unique key. Will automatically replace without
+                # needing to delete
+
+                database.insert(tablename, entry)
 
     return output
 
@@ -864,7 +1205,7 @@ def addeditstockpart(d, output={'message': ''}):
         allowedkeywords = dblib.getpragmanames(sysvars.dirs.dbs.stock, 'stock')
     except:
         output['message'] += 'Error getting allowedkeywords from table automatically. Reverting to defaults. '
-        allowedkeywords = tableitems.stockpartproperties
+        allowedkeywords = tableitems.stockpart_schema.columns()
 
     # requiredkeys = []
     # for keyword in requiredkeywords:
@@ -939,8 +1280,8 @@ def addeditstockpart(d, output={'message': ''}):
 
     else:
         output['message'] += "No part data found. No action taken. "
-        for key, value in d.iteritems():
-            output['message'] += key + ': ' + value + '. '
+        for key in d:
+            output['message'] += key + ': ' + str(d[key]) + '. '
 
     return output
 
@@ -1011,7 +1352,6 @@ def makestockmetadata(database=sysvars.dirs.dbs.stock):
 
     '''
     Calculate total worth of inventory parts.
-
     '''
 
     allstock = dblib.readalldbrows(database, 'stock')
@@ -1048,18 +1388,18 @@ def makeinventorymetadata(database=sysvars.dirs.dbs.inventories):
     This entry should be created when the BOM is created, and modified when it is modified
     '''
 
-    allcurrentmeta = dblib.readalldbrows(database, 'metadata')
+    inventory_database = dblib.sqliteDatabase(database)
+
+    allcurrentmeta = inventory_database.read_table('metadata')
 
     tabledata = []
-    tablenames = dblib.gettablenames(database)
-
-    metaitems = tableitems.inventorymetaitems
-    metadefaultvalues = tableitems.inventorymetadefaultvalues
+    tablenames = inventory_database.get_table_names()
 
     if not tablenames:
         print('no inventory tables')
         return
 
+    inventory_database.create_table('metadata', tableitems.inventorymetaitems_schema, queue=True)
     for tablename in tablenames:
         if tablename == 'metadata':
             continue
@@ -1073,22 +1413,16 @@ def makeinventorymetadata(database=sysvars.dirs.dbs.inventories):
 
         # initialize if not found
         if not meta:
-            meta = {}
-            for item, value in zip(metaitems, metadefaultvalues):
-                meta[item] = value
-
-            # Then insert name to default dictionary
             meta['name'] = tablename
 
         # Get metadata for each table
         itemcount = dblib.gettablesize(database, tablename)
         meta['itemcount'] = itemcount
-        print(meta)
-        tabledata.append(meta)
-    if tabledata:
-        dblib.dropcreatetexttablefromdict(database, 'metadata', tabledata)
-    else:
-        dblib.sqlitedeleteallrecords(database, 'metadata')
+        # print(meta)
+
+        inventory_database.insert('metadata', meta, queue=True)
+
+    inventory_database.execute_queue()
 
 
 def editinventory(d, output={'message': ''}):
@@ -1151,11 +1485,14 @@ def createnewinventory(d, output={'message': ''}):
     # Going to leave this as items to make it generic. Inventories and orders are the same thing
 
     if 'database' in d:
-        database = d['database']
+        database_path = d['database']
     else:
-        database = sysvars.dirs.dbs.inventories
+        database_path = sysvars.dirs.dbs.inventories
 
-    existingitems = dblib.gettablenames(database)
+    inventory_db = dblib.sqliteDatabase(database_path)
+
+    existingitems = inventory_db.get_table_names()
+
     try:
         existingitems.remove('metadata')
     except:
@@ -1175,22 +1512,25 @@ def createnewinventory(d, output={'message': ''}):
 
     # Create a table with a single entry and then empty it
     emptydict = {}
-    for item in tableitems.inventorypartproperties:
+    for item in tableitems.inventorypart_schema.columns():
         emptydict[item] = ''
-    dblib.dropcreatetexttablefromdict(database, str(newitemnumber), emptydict)
-    dblib.sqlitedeleteallrecords(database, str(newitemnumber))
+
+    tablename = str(newitemnumber)
+    inventory_db.create_table(tablename, tableitems.inventorypart_schema)
 
     if 'partsdictarray' in d:
         # sort by partid
         from operator import itemgetter
         partsdictarray = sorted(d['partsdictarray'], key=itemgetter('partid'))
 
-        dblib.insertstringdicttablelist(database, str(newitemnumber), partsdictarray)
+        inventory_db.insert(tablename, partsdictarray)
+        # dblib.insertstringdicttablelist(database, str(newitemnumber), partsdictarray)
 
-    makeinventorymetadata(database)
+    makeinventorymetadata(inventory_db.path)
 
     # Set created date in meta
-    dblib.setsinglevalue(database, 'metadata', 'created', datalib.gettimestring(), "name='" + str(newitemnumber) + "'")
+    inventory_db.set_single_value('metadata', 'created', datalib.gettimestring(), condition="name='" + str(newitemnumber) + "'")
+    # dblib.setsinglevalue(database, 'metadata', 'created', datalib.gettimestring(), "name='" + str(newitemnumber) + "'")
 
     output['newitemnumber'] = newitemnumber
 
@@ -1218,6 +1558,126 @@ def deleteinventories(d, output={'message': ''}):
     return output
 
 
+def calcstockmeta(stockdatabase=sysvars.dirs.dbs.stock):
+    from iiutilities import dblib, datalib
+
+    totalstockvalue = 0
+    totalstockcost = 0
+    stocktuples = dblib.sqlitequery(stockdatabase, 'select partid, totalprice, totalcost from stock')
+    items = []
+    for stocktuple in stocktuples:
+        try:
+            totalprice = float(stocktuple[1])
+            totalcost = float(stocktuple[2])
+        except:
+            print(stocktuple[0] + ': error converting value ' + str(stocktuple[1]) + ' or ' + str(stocktuple[2]))
+        else:
+            # print(stocktuple[0] + ': ' + str(totalprice) + ',' + str(totalcost))
+            items.append({'partid':str(stocktuple[0]), 'totalprice':totalprice, 'totalcost':totalcost})
+            totalstockvalue += totalprice
+            totalstockcost += totalcost
+
+    sorteditems = sorted(items, key=lambda k: k['totalprice'])
+    sorteditems.reverse()
+    # print(sorteditems)
+    print('Total stock price : ' + str(totalstockvalue))
+    print('Total stock cost : ' + str(totalstockcost))
+
+
+def generateandaddorders(stockdatabase=sysvars.dirs.dbs.stock, ordersdatabase=sysvars.dirs.dbs.orders):
+    from iiutilities import dblib
+
+    stockgeneratedorders = generateordersfromstock(stockdatabase)['orders']
+
+    # for now, drop all autogenerated orders. We prevent these orders from being dropped by
+    # changing the value of the description field.
+
+    autogenorders = dblib.readalldbrows(ordersdatabase, 'metadata', "desc='autogenerated'")
+    # print('** autogenerated orders **')
+    # print(autogenorders)
+    for autogenorder in autogenorders:
+        dblib.sqlitedroptable(ordersdatabase, autogenorder['name'])
+
+    makeordermetadata(ordersdatabase)
+
+    neworderdata = []
+    for supplier, orderitems in stockgeneratedorders.iteritems():
+        # insert metadata entry with supplier
+        # print('** supplier')
+        # print(supplier)
+        # print('** order items')
+        # print(orderitems)
+        newordername = createneworder({'partsdictarray':orderitems})['newordername']
+        # print(newordername)
+        neworderdata.append({'name': newordername, 'supplier': supplier})
+        recalcpartdata(**{'ordername': newordername})
+
+
+    makeordermetadata(ordersdatabase)
+
+    # Now take new order data and tag new orders with supplier
+    for neworderdatum in neworderdata:
+
+        dblib.setsinglevalue(ordersdatabase, 'metadata', 'supplier', neworderdatum['supplier'],
+                             "name='" + neworderdatum['name'] + "'")
+        dblib.setsinglevalue(ordersdatabase, 'metadata', 'desc', 'autogenerated',
+                             "name='" + neworderdatum['name'] + "'")
+
+
+def generateordersfromstock(stockdatabase=sysvars.dirs.dbs.stock, tablename='stock'):
+    """
+    Iterate over items, finding ones where stock is less than min qty.
+    Then consolidate by vendor and those without vendor (soon to be limited to known and 'other'
+    """
+    from iiutilities import dblib
+    allstock = dblib.readalldbrows(stockdatabase, tablename)
+    orderentries = []
+    for stockitem in allstock:
+        try:
+            qtyavailable = float(stockitem['qtyavailable'])
+        except:
+            print('error parsing qtyavailable')
+            continue
+        try:
+            minqty = float(stockitem['minqty'])
+        except:
+            print('Error parsing minqty for item ' + stockitem['partid'] + '. Setting to 0. ')
+            minqty = 0
+
+        if qtyavailable < minqty:
+            qtytoorder = minqty - qtyavailable
+            # print('We need to order ' + str(qtytoorder) + ' of ' + stockitem['partid'])
+            orderentry = stockitem.copy()
+            orderentry['toorder'] = qtytoorder
+            orderentries.append(orderentry)
+
+    # Now put together order
+    suppliers = []
+    orders = {}
+    othersuppliers = ['other','Other','']
+
+    for orderentry in orderentries:
+        if orderentry['supplier'] in othersuppliers:
+            orderentry['supplier'] = 'other'
+
+        partorderentry = {}
+        for orderpartproperty in tableitems.orderpart_schema.columns():
+            if orderpartproperty in orderentry:
+                partorderentry[orderpartproperty] = orderentry[orderpartproperty]
+            else:
+                partorderentry[orderpartproperty] = ''
+
+        partorderentry['qty'] = orderentry['toorder']
+
+        if orderentry['supplier'] in suppliers:
+            orders[orderentry['supplier']].append(partorderentry)
+        else:
+            orders[orderentry['supplier']] = [partorderentry]
+            suppliers.append(orderentry['supplier'])
+
+    return {'orderitems':orderentries, 'orders':orders}
+
+
 def calcstockfromall(inventoriesdatabase=sysvars.dirs.dbs.inventories,
                      stockdatabase=sysvars.dirs.dbs.stock, ordersdatabase=sysvars.dirs.dbs.orders,
                      assembliesdatabase=sysvars.dirs.dbs.assemblies, output=None, **kwargs):
@@ -1240,6 +1700,7 @@ def calcstockfromall(inventoriesdatabase=sysvars.dirs.dbs.inventories,
     if 'trackpart' in kwargs:
         if kwargs['trackpart']:
             trackpartenabled = True
+            print('tracking part ' + kwargs['trackpart'])
             trackedpart = {'partid':kwargs['trackpart'], 'history':[]}
 
 
@@ -1250,7 +1711,23 @@ def calcstockfromall(inventoriesdatabase=sysvars.dirs.dbs.inventories,
 
     allitems = []
 
-    # print('** Inventories')
+    """
+    Get list of items to handle in inventory. By whitelisting, this means that if an item does not already exist in
+    stock and is listed as having a valid inventory type (here, 'std'), it will be ignored
+    """
+
+    # We need a generic function for this.
+
+    stock_database = dblib.sqliteDatabase(stockdatabase)
+
+    partinventorytuples = stock_database.get_tuples('stock',['partid','inventory'])
+    # dblib.sqlitequery(stockdatabase, 'select partid,inventory from stock')['data']
+
+    inventoryparts = []
+    for tuple in partinventorytuples:
+        if tuple[1] in ['std']:
+            inventoryparts.append(tuple[0])
+
 
     """
     Iterate over inventories. Take our list of tablenames, ignore metadata, grab meta, and determine which are executed
@@ -1284,16 +1761,18 @@ def calcstockfromall(inventoriesdatabase=sysvars.dirs.dbs.inventories,
 
                 for inventoryitem in inventoryitems:
                     # print('received: ' + inventoryitem['partid'])
-                    summaryitem = {'date': metaentry['executed'], 'partid': inventoryitem['partid'],
+                    summaryitem = {'date': respace_date(metaentry['executed']), 'partid': inventoryitem['partid'],
                                    'qtystock': inventoryitem['qtystock'], 'mode': 'inventory', 'origin':inventorytablename,
                                     'type':'inventory'}
                     allitems.append(summaryitem)
 
     """
+    Orders.
+
     Same as above with inventories, but this time our summary item has a mode of 'change' instead of 'inventory'.
     """
 
-    # print('** Orders')
+    print('** Orders')
     orderstablenames.sort()
     for orderstablename in orderstablenames:
         # Date is in metadata table
@@ -1311,24 +1790,27 @@ def calcstockfromall(inventoriesdatabase=sysvars.dirs.dbs.inventories,
             # order has been executed and should be reviewed
             if metaentry['executed']:
                 # print('executed')
+                # print(metaentry['executed'])
                 orderitems = dblib.readalldbrows(ordersdatabase, orderstablename)
 
                 for orderitem in orderitems:
                     if orderitem['received']:
                         # Denote as received into stock
                         # print('received: ' + orderitem['partid'])
-                        summaryitem = {'date': orderitem['received'], 'partid': orderitem['partid'],
+                        summaryitem = {'date': respace_date(orderitem['received']), 'partid': orderitem['partid'],
                                        'qtystock': orderitem['qty'], 'mode': 'change', 'type':'order'}
                     else:
-                        # Denote as on order
-                        # print('reserved: ' + orderitem['partid'])
-                        summaryitem = {'date': orderitem['received'], 'partid': orderitem['partid'],
+                        # Need to grab meta entry executed date
+                        # print('on order: ' + orderitem['partid'])
+                        summaryitem = {'date': respace_date(metaentry['executed']), 'partid': orderitem['partid'],
                                        'qtyonorder': orderitem['qty'], 'mode': 'change', 'type':'order'}
 
                     summaryitem['origin'] = orderstablename
                     allitems.append(summaryitem)
 
     """
+    Assemblies
+
     Same as above with orders, but we take the things away.
     """
 
@@ -1354,7 +1836,7 @@ def calcstockfromall(inventoriesdatabase=sysvars.dirs.dbs.inventories,
                 for orderitem in orderitems:
                     # Denote as taking out of stock
                     # print('executed: ' + orderitem['partid'])
-                    summaryitem = {'date': metaentry['executed'], 'partid': orderitem['partid'],
+                    summaryitem = {'date': respace_date(metaentry['executed']), 'partid': orderitem['partid'],
                                    'qtystock': -1 * float(orderitem['qty']), 'mode': 'change',
                                    'origin':assembliestablename, 'type':'assembly'}
                     allitems.append(summaryitem)
@@ -1365,16 +1847,20 @@ def calcstockfromall(inventoriesdatabase=sysvars.dirs.dbs.inventories,
                 for orderitem in orderitems:
                     # Denote as taking out of stock
                     # print('reserved: ' + orderitem['partid'])
-                    summaryitem = {'date': metaentry['reserved'], 'partid': orderitem['partid'],
+                    summaryitem = {'date': respace_date(metaentry['reserved']), 'partid': orderitem['partid'],
                                    'qtyreserved': orderitem['qty'], 'mode': 'change',
                                    'origin':assembliestablename, 'type':'assembly'}
                     allitems.append(summaryitem)
 
+    # print(allitems)
     """
     Now iterate over all items to create a comprehensive stock
     First sort by date
     """
     from operator import itemgetter
+
+    # need to add a fixer for date, since they are ot getting spaced right 100% of the time
+
     orderedlist = sorted(allitems, key=itemgetter('date'))
 
     # print(orderedlist)
@@ -1385,74 +1871,81 @@ def calcstockfromall(inventoriesdatabase=sysvars.dirs.dbs.inventories,
     newstockpartids = []
     elementtypes = ['qtystock', 'qtyreserved', 'qtyonorder']
     for element in orderedlist:
-        for elementtype in elementtypes:
-            if elementtype in element:
-                if trackpartenabled:
-                    if element['partid'] == trackedpart['partid']:
-                        trackedpart['history'].append(element)
-                # print(elementtype)
-                # print(element)
-                valueexists = False
-                partexists = False
-                if element['partid'] in newstockpartids:
-                    partexists = True
-                    # print('part exists')
-                    existingindex = newstockpartids.index(element['partid'])
-                    existingelement = newstockparts[existingindex]
-                    # print(existingelement)
+        if element['partid'] in inventoryparts:
+            for elementtype in elementtypes:
+                if elementtype in element:
+                    if trackpartenabled:
+                        if element['partid'] == trackedpart['partid']:
+                            trackedpart['history'].append(element)
+                    # print(elementtype)
+                    # print(element)
+                    valueexists = False
+                    partexists = False
+                    if element['partid'] in newstockpartids:
+                        partexists = True
+                        # print('part exists')
+                        existingindex = newstockpartids.index(element['partid'])
+                        existingelement = newstockparts[existingindex]
+                        # print(existingelement)
 
-                    # So we can have an element exist without the value type we are attempting to modify here.
-                    if elementtype in existingelement:
-                        valueexists = True
+                        # So we can have an element exist without the value type we are attempting to modify here.
+                        if elementtype in existingelement:
+                            valueexists = True
 
-                if not partexists:
-                    if element['mode'] == 'change':
-                        pass
-                        # print('warning: assigning part qty from change before inventory on item ' + element['partid'])
-
-                    # This will be the typical new item inventory add here.
-                    newstockparts.append({'partid': element['partid'], elementtype: element[elementtype]})
-                    newstockpartids.append(element['partid'])
-
-                else:
-                    if valueexists:
+                    if not partexists:
                         if element['mode'] == 'change':
-                            # print('changing existing value for part ' + element['partid'])
-                            # print('old value: ' + str(newstockparts[existingindex][elementtype]))
-                            newstockparts[existingindex][elementtype] = float(
-                                newstockparts[existingindex][elementtype]) + float(element[elementtype])
-                            # print('new value: ' + str(newstockparts[existingindex][elementtype]))
+                            pass
+                            # print('warning: assigning part qty from change before inventory on item ' + element['partid'])
 
-                        elif element['mode'] == 'inventory':
-                            newstockparts[existingindex][elementtype] = float(element[elementtype])
+                        # This will be the typical new item inventory add here.
+                        newstockparts.append({'partid': element['partid'], elementtype: element[elementtype]})
+                        newstockpartids.append(element['partid'])
 
                     else:
-                        print('value does not exist for part ' + element['partid'])
-                        # This will be for adding a new vaue to an existing part, e.g. onorder to a qtystock item
-                        # print('part exists but value does not. Setting new value. ')
-                        newstockparts[existingindex][elementtype] = element[elementtype]
+                        if valueexists:
+                            if element['mode'] == 'change':
+                                # print('changing existing value for part ' + element['partid'])
+                                # print('old value: ' + str(newstockparts[existingindex][elementtype]))
+                                newstockparts[existingindex][elementtype] = float(
+                                    newstockparts[existingindex][elementtype]) + float(element[elementtype])
+                                # print('new value: ' + str(newstockparts[existingindex][elementtype]))
 
-    # print(newstockparts)
+                            elif element['mode'] == 'inventory':
+                                newstockparts[existingindex][elementtype] = float(element[elementtype])
+
+                        else:
+                            # print('value does not exist for part ' + element['partid'])
+                            # This will be for adding a new vaue to an existing part, e.g. onorder to a qtystock item
+                            # print('part exists but value does not. Setting new value. ')
+                            newstockparts[existingindex][elementtype] = element[elementtype]
+        else:
+            # print(element['partid'] + ' is a non-inventory item.')
+            pass
+
     starttime = datalib.gettimestring()
 
     # set zero queries. This assumes the part already exists, which could prove problematic.
-    queries = []
-    queries.append('update stock set qtyreserved=0')
-    queries.append('update stock set qtystock=0')
-    queries.append('update stock set qtyonorder=0')
+    stock_database.queue_queries(['update stock set qtyreserved=0'])
+    stock_database.queue_queries(['update stock set qtystock=0'])
+    stock_database.queue_queries(['update stock set qtyonorder=0'])
+
     for part in newstockparts:
+        if part['partid'] == 'K080':
+            print('**')
+            print(part)
+            print('** ')
         for elementtype in elementtypes:
             if elementtype in part:
-                queries.append(dblib.makesinglevaluequery('stock', elementtype, str(part[elementtype]),
-                                                          condition="partid='" + part['partid'] + "'"))
+                stock_database.set_single_value('stock', elementtype, str(part[elementtype]),
+                                                condition="partid='" + part['partid'] + "'", queue=True)
 
-    dblib.sqlitemultquery(stockdatabase, queries)
+    output['queries'] = stock_database.queued_queries
+    stock_database.execute_queue()
 
     elapsedtime = datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(starttime)
     # print('Elapsed time: ' + str(elapsedtime))
     recalcpartdata(**{'stock': ''})
 
-    output['queries'] = queries
     if trackpartenabled:
         output['trackedpart'] = trackedpart
 
@@ -1521,7 +2014,7 @@ def importstockfromcsv(filename, database=sysvars.dirs.dbs.stock):
     # iterate over header to make sure key quantities are found
     foundkeys = []
     for itemname in datamapdictarray[0]:
-        if itemname in tableitems.stockpartproperties:
+        if itemname in tableitems.stockpart_schema.columns():
             # print('*** FOUND: ' + itemname)
             foundkeys.append(itemname)
 
@@ -1548,7 +2041,7 @@ def importstockfromcsv(filename, database=sysvars.dirs.dbs.stock):
                 # print(key + ' : ' + dict[key])
                 pass
 
-    print(str(len(insertarray)) + ' items prepared for insertion from ' + str(len(datamapdictarray)))
+    # print(str(len(insertarray)) + ' items prepared for insertion from ' + str(len(datamapdictarray)))
 
     for insert in insertarray:
         result = dblib.insertstringdicttablelist(database, 'stock', [insert], droptable=False)
@@ -1607,7 +2100,7 @@ def updatepartnumbersfromcsv(filename, database=sysvars.dirs.dbs.stock):
             print('Error with query:')
             print(query)
 
-    print('*** BOMS')
+    # print('*** BOMS')
     bomnames = dblib.gettablenames(sysvars.dirs.dbs.boms)
     for bomname in bomnames:
         for sub in subarray:
@@ -1631,7 +2124,7 @@ def updatepartnumbersfromcsv(filename, database=sysvars.dirs.dbs.stock):
                 print('Error with query:')
                 print(query)
 
-    print('*** ASSEMBLIES')
+    # print('*** ASSEMBLIES')
     assemblynames = dblib.gettablenames(sysvars.dirs.dbs.assemblies)
     for assemblyname in assemblynames:
         for sub in subarray:
@@ -1655,7 +2148,7 @@ def updatepartnumbersfromcsv(filename, database=sysvars.dirs.dbs.stock):
                 print('Error with query:')
                 print(query)
 
-    print('*** ORDERS')
+    # print('*** ORDERS')
     ordernames = dblib.gettablenames(sysvars.dirs.dbs.orders)
     for ordername in ordernames:
         for sub in subarray:
@@ -1693,7 +2186,7 @@ def createinventoryfromcsv(filename, database=sysvars.dirs.dbs.inventories):
     # iterate over header to make sure key quantities are found
     foundkeys = []
     for itemname in datamapdictarray[0]:
-        if itemname in tableitems.inventorypartproperties:
+        if itemname in tableitems.inventorypart_schema.columns():
             # print('*** FOUND: ' + itemname)
             foundkeys.append(itemname)
 
@@ -1773,7 +2266,7 @@ def makebommetadata(database=sysvars.dirs.dbs.boms):
         # initialize if not found
         if not bommeta:
             bommeta = {}
-            for item, value in zip(tableitems.bommetaitems, tableitems.bommetadefaultvalues):
+            for item, value in zip(tableitems.bommetaitems_schema.columns(), tableitems.bommetaitems_schema.defaults()):
                 bommeta[item] = value
 
             # Then insert name to default dictionary
@@ -1787,11 +2280,19 @@ def makebommetadata(database=sysvars.dirs.dbs.boms):
         bomitems = dblib.readalldbrows(database, tablename)
         cost = 0
         price = 0
-        for item in bomitems:
-            if item['totalcost']:
-                cost += float(item['totalcost'])
-            if item['totalprice']:
-                price += float(item['totalprice'])
+        if bomitems:
+            for item in bomitems:
+                if item['totalcost']:
+                    # Pick up errors for problems converting float
+                    try:
+                        cost += float(item['totalcost'])
+                    except:
+                        pass
+                if item['totalprice']:
+                    try:
+                        price += float(item['totalprice'])
+                    except:
+                        pass
 
         bommeta['price'] = price
         bommeta['cost'] = cost
@@ -1809,18 +2310,15 @@ def backfillbomfromstock(bomitems, recalc=True):
     from iiutilities import dblib
     newbomitems = []
     for bomitem in bomitems:
-        stockdbresult = dblib.readonedbrow(sysvars.dirs.dbs.stock, 'stock',
-                                           condition="partid='" + bomitem['partid'] + "'")
+        stockdbresult = dblib.readonedbrow(sysvars.dirs.dbs.stock, 'stock', condition="partid='" + bomitem['partid'] + "'")
         if stockdbresult:
             stockitem = stockdbresult[0]
         else:
-            print(' ITEM ' + bomitem['partid'] + ' NOT FOUND ')
+            print(' ITEM "' + bomitem['partid'] + '" NOT FOUND ')
             stockitem = {}
 
-
-
         # Backfill all properties that do not exist
-        for property in tableitems.bompartproperties:
+        for property in tableitems.bompart_schema.columns():
             if property in stockitem and property not in bomitem:
                 bomitem[property] = stockitem[property]
 
@@ -2033,32 +2531,36 @@ def copybom(d, output={'message': ''}):
 
 def addeditbom(d, output={'message': ''}):
     from iiutilities import dblib, datalib
-    database = sysvars.dirs.dbs.boms
+    settings = {'database':sysvars.dirs.dbs.boms}
+    settings.update(d)
+
+    boms_database = dblib.sqliteDatabase(settings['database'])
 
     # In here we should test to see if the request is valid. First, let us make sure we have all the required
     # fields we need:
     # partid, description, manufacturer, manufacturerpart
 
-    if 'name' not in d['bomdata']:
+    if 'name' not in settings['bomdata']:
         output['message'] += 'No bomname found in edit request dictionary. '
         return output
 
     # If we are modifying the partid of an existing part, we will first update the old part to have the new partid.
     # Then we will grab it as if it always had that partid.
-    if 'originalname' in d['bomdata']:
+    if 'originalname' in settings['bomdata']:
         output['message'] += 'Found original bomname. '
-        if d['bomdata']['originalname'] != '' and d['bomdata']['originalname'] != d['bomdata']['name']:
+        if settings['bomdata']['originalname'] != '' and settings['bomdata']['originalname'] != settings['bomdata']['name']:
 
-            output['message'] += 'Found original bomname. Moving ' + d['bomdata']['originalname'] + ' to ' + \
-                                 d['bomdata']['name'] + ". "
-            dblib.sqlitemovetable(database, d['bomdata']['originalname'], d['bomdata']['name'])
+            output['message'] += 'Found original bomname. Moving ' + settings['bomdata']['originalname'] + ' to ' + \
+                                 settings['bomdata']['name'] + ". "
+
+            boms_database.move_table(settings['bomdata']['originalname'], settings['bomdata']['name'])
 
             # Now instead of autocreating the metadata, which would lose the existing fields, we are going to move the
             # metadata entry as well, then edit it and autocreate. All information should be retained.
 
             output['message'] += 'Updating metadata entry. '
-            dblib.setsinglevalue(database, 'metadata', 'name', d['bomdata']['name'],
-                                 "name='" + d['bomdata']['originalname'] + "'")
+            dblib.setsinglevalue(settings['database'], 'metadata', 'name', settings['bomdata']['name'],
+                                 "name='" + settings['bomdata']['originalname'] + "'")
         else:
             output['message'] += 'Original bomname is same as new bomname. '
 
@@ -2066,30 +2568,28 @@ def addeditbom(d, output={'message': ''}):
     # For the moment this is only the notes and status fields. Everything else is dynamic
 
     # First we try to pull it. If it does not exist, we have to create it and then recreate the metadata table
-    bomnames = dblib.gettablenames(database)
-    bomnames.remove('metadata')
-    bomnames.sort()
-    mostrecentbomname = bomnames[-1]
+    # TODO: queue all entries where possible to speed up
 
-    # print(d['bomdata']['name'])
+    bomnames = dblib.gettablenames(settings['database'])
+    if 'metadata' in bomnames:
+        bomnames.remove('metadata')
+    bomnames.sort()
+    # mostrecentbomname = bomnames[-1]
+
+    # print(settings['bomdata']['name'])
     # print(bomnames)
-    if d['bomdata']['name'] not in bomnames:
+    if settings['bomdata']['name'] not in bomnames:
         output['message'] += 'BOM does not exist. Creating. '
 
-        # We are going to copy the most recent BOM and rename.
-        # This is lazy but ensures the most recent structure is used.
-
-        dblib.sqliteduplicatetable(database, mostrecentbomname, d['bomdata']['name'])
-
-        # Now we clean out the table
-        dblib.sqlitedeleteallrecords(database, d['bomdata']['name'])
+        boms_database.create_table(settings['bomdata']['name'], tableitems.bompart_schema)
 
         # And make a new metadata entry
-        makebommetadata(database)
+        print(boms_database.path)
+        makebommetadata(boms_database.path)
 
         # Now update with creation data
-        condition = "name='" + d['bomdata']['name'] + "'"
-        dblib.setsinglevalue(database, 'metadata', 'creationdata', datalib.gettimestring(), condition)
+        condition = "name='" + settings['bomdata']['name'] + "'"
+        boms_database.set_single_value('metadata','creationdate', datalib.gettimestring(), condition)
 
     else:
         output['message'] += 'Bom appears to exist. Continuing to edit. '
@@ -2100,18 +2600,79 @@ def addeditbom(d, output={'message': ''}):
     for keyword in allowedkeywords:
         # mangledkeyword = 'bomdata[' + keyword + ']'
         modified = False
-        if keyword in d['bomdata']:
+        if keyword in settings['bomdata']:
             modified = True
-            condition = "name='" + d['bomdata']['name'] + "'"
-            output['message'] += 'keyword ' + keyword + ' found with value: ' + d['bomdata'][
+            condition = "name='" + settings['bomdata']['name'] + "'"
+            output['message'] += 'keyword ' + keyword + ' found with value: ' + settings['bomdata'][
                 keyword] + '. Updating metadata entry with condition:' + condition + '. '
-            dblib.setsinglevalue(database, 'metadata', keyword, d['bomdata'][keyword], condition)
+            boms_database.set_single_value('metadata', keyword, settings['bomdata'][keyword], condition)
 
         if modified:
-            dblib.setsinglevalue(database, 'metadata', 'modifieddata', datalib.gettimestring(), condition)
+            boms_database.set_single_value('metadata', 'modifieddata', datalib.gettimestring(), condition)
 
     return output
 
+
+"""
+Quotes
+"""
+
+
+def deletequotes(d, output={'message': ''}):
+    from iiutilities import dblib
+
+    names = []
+    if 'name' in d:
+        output['message'] += 'Single name found. '
+        names = [d['bomname']]
+    elif 'names' in d:
+        output['message'] += 'names keyword found. '
+        if not d['names']:
+            output['message'] += 'Empty names value. '
+            return output
+        else:
+            names = d['names']
+
+    for name in names:
+        database = sysvars.dirs.dbs.quotes
+        output['message'] += 'Deleting quote with name "' + name + '" from db "' + database + '" . '
+        dblib.sqlitedroptable(database, name)
+
+    return output
+
+
+def copyquotetoboms(d, output={'message': ''}):
+    from iiutilities import dblib, datalib
+
+    # In here we should test to see if the request is valid. First, let us make sure we have all the required
+    # fields we need:
+    # partid, description, manufacturer, manufacturerpart
+
+    quotesdatabase = sysvars.dirs.dbs.quotes
+    bomsdatabase = sysvars.dirs.dbs.boms
+
+    if 'name' in d:
+        output['message'] += 'name ' + d['name'] + ' found. '
+    else:
+        output['message'] += 'No name found in copy request dictionary. '
+        return output
+
+    # Get items and then use our generic insert function
+    quoteitems = dblib.readalldbrows(quotesdatabase, d['name'])
+    # print('** QTY : ' + str(len(quoteitems)))
+
+    # Backfill and create BOM. Drop a table with the same name if it exists
+    backfillbomfromstock(quoteitems, recalc=True)
+
+    addeditbom({'bomdata':{'name':d['name']}}, output)
+
+    # for quoteitem in quoteitems:
+    addeditpartlist({'bomname':d['name'], 'partsdata':quoteitems, 'copystock':'all'}, output)
+
+    condition = "name='" + d['name'] + "'"
+    dblib.setsinglevalue(bomsdatabase, 'metadata', 'modifieddate', datalib.gettimestring(), condition)
+
+    return output
 
 """
 Assembly Functions
@@ -2153,13 +2714,13 @@ def makeassemblymetadata(database=sysvars.dirs.dbs.assemblies):
         # initialize if not found
         if not assemblymeta:
             assemblymeta = {}
-            for item, value in zip(tableitems.assemblymetaitems, tableitems.assemblymetadefaultvalues):
+            for item, value in zip(tableitems.assemblymetaitems_schema.columns(), tableitems.assemblymetaitems_schema.defaults()):
                 assemblymeta[item] = value
 
             # Then insert name to default dictionary
             assemblymeta['name'] = tablename
-            print("hey i created this new assemblymeta")
-            print(assemblymeta)
+            # print("hey i created this new assemblymeta")
+            # print(assemblymeta)
 
         # Get metadata for each table
         itemcount = dblib.gettablesize(database, tablename)
@@ -2207,11 +2768,11 @@ def calcassemblyprice(d, output={'message': ''}, recalc=True):
     assemblyresults = {'cost': 0, 'price': 0}
     if 'assemblydictarray' in d:
         # directly calculate assembly price
-        output['message'] == 'assemblydictarray keyword found. '
+        output['message'] += 'assemblydictarray keyword found. '
         pass
     elif 'assemblyname' in d:
         output['message'] += 'assemblyname keyword found. '
-        assemblydictarray = dblib.readalldbrows(sysvars.dirs.dbs.assemblys, d['assemblyname'])
+        assemblydictarray = dblib.readalldbrows(sysvars.dirs.dbs.assemblies, d['assemblyname'])
 
     else:
         return None
@@ -2386,9 +2947,8 @@ def copybomintoassembly(d, output={'message': ''}):
     # fields we need:
     # partid, description, manufacturer, manufacturerpart
 
-    bomsdatabase = sysvars.dirs.dbs.boms
-    assembliesdatabase = sysvars.dirs.dbs.assemblies
-
+    boms_database = dblib.sqliteDatabase(sysvars.dirs.dbs.boms)
+    assemblies_database = dblib.sqliteDatabase(sysvars.dirs.dbs.assemblies)
     if 'assemblyname' in d:
         output['message'] += 'assemblyname ' + d['assemblyname'] + ' found. '
     else:
@@ -2402,36 +2962,32 @@ def copybomintoassembly(d, output={'message': ''}):
         return output
 
     # Get items and then use our generic insert function
-    bomitems = dblib.readalldbrows(bomsdatabase, d['bomname'])
-    # try:
-    print(bomitems)
-    for item in bomitems:
-        # This needs to be sped up. Simplest way is to make the function below accept a list of parts.
-        # Also, too much error-handling in function below makes it very slow.
+    # Except -- we are going to make this additive for multiple units and combinations.
 
-        output = addeditpartlist({'assemblyname': d['assemblyname'], 'partdata': item}, output)
-    # except:
-    #     output['message'] += 'Error inserting part data. '
-    # else:
-    #     output['message'] += 'Query appears to have been successful. '
+    bomitems = boms_database.read_table(d['bomname'])
+
+    # print(bomitems)
+    # Should pass whole dict, but I can't be arsed to error check all of that just yet.
+    output = addeditpartlist({'assemblyname': d['assemblyname'], 'addqty':d['addqty'], 'partsdata': bomitems}, output)
 
     # Update metadata
     condition = "name='" + d['assemblyname'] + "'"
-    dblib.setsinglevalue(assembliesdatabase, 'metadata', 'modifieddate', datalib.gettimestring(), condition)
+    assemblies_database.set_single_value('metadata', 'modifieddate', datalib.gettimestring(), condition)
+    # dblib.setsinglevalue(assembliesdatabase, 'metadata', 'modifieddate', datalib.gettimestring(), condition)
 
     return output
 
 
 def addeditassembly(d, output={'message': ''}):
     from iiutilities import dblib, datalib
-    database = sysvars.dirs.dbs.assemblies
+    assembly_database = dblib.sqliteDatabase(sysvars.dirs.dbs.assemblies)
 
     # In here we should test to see if the request is valid. First, let us make sure we have all the required
     # fields we need:
     # partid, description, manufacturer, manufacturerpart
 
     if 'assemblydata' not in d:
-        output['message'] == 'No assemblydata found in delivered dict. '
+        output['message'] = 'No assemblydata found in delivered dict. '
         return output
     else:
         data = d['assemblydata']
@@ -2448,13 +3004,14 @@ def addeditassembly(d, output={'message': ''}):
 
             output['message'] += 'Found original assemblyname. Moving ' + data['originalname'] + ' to ' + data[
                 'name'] + ". "
-            dblib.sqlitemovetable(database, data['originalname'], data['name'])
+            assembly_database.move_table(data['originalname'], data['name'])
 
             # Now instead of autocreating the metadata, which would lose the existing fields, we are going to move the
             # metadata entry as well, then edit it and autocreate. All information should be retained.
 
             output['message'] += 'Updating metadata entry. '
-            dblib.setsinglevalue(database, 'metadata', 'name', data['name'], "name='" + data['originalname'] + "'")
+            assembly_database.set_single_value('metadata', 'name', data['name'], "name='" + data['originalname'] + "'")
+            # dblib.setsinglevalue(database, 'metadata', 'name', data['name'], "name='" + data['originalname'] + "'")
         else:
             output['message'] += 'Original assemblyname is same as new assemblyname. '
 
@@ -2462,13 +3019,10 @@ def addeditassembly(d, output={'message': ''}):
     # For the moment this is only the notes and status fields. Everything else is dynamic
 
     # First we try to pull it. If it does not exist, we have to create it and then recreate the metadata table
-    assemblynames = dblib.gettablenames(database)
+    assemblynames = assembly_database.get_table_names()
     if 'metadata' in assemblynames:
         assemblynames.remove('metadata')
     assemblynames.sort()
-
-    if assemblynames:
-        mostrecentassemblyname = assemblynames[-1]
 
     # print(data['name'])
     # print(assemblynames)
@@ -2476,15 +3030,17 @@ def addeditassembly(d, output={'message': ''}):
         output['message'] += 'Assembly does not exist. Creating. '
 
         # Create table by type
-        dblib.sqlitecreateemptytable(database, data['name'], tableitems.assemblypartproperties,
-                                     tableitems.assemblyparttypes, tableitems.assemblypartoptions)
+        assembly_database.create_table(data['name'], tableitems.assemblypart_schema)
+        # dblib.sqlitecreateemptytable(database, data['name'], tableitems.assemblypart_schema.columns(),
+        #                              tableitems.assemblypart.types, tableitems.assemblypart.options)
 
         # And make a new metadata entry
-        makeassemblymetadata(database)
+        makeassemblymetadata(assembly_database.path)
 
         # Now update with creation data
         condition = "name='" + data['name'] + "'"
-        dblib.setsinglevalue(database, 'metadata', 'creationdata', datalib.gettimestring(), condition)
+        assembly_database.set_single_value('metadata', 'creatiodate', datalib.gettimestring(), condition)
+        # dblib.setsinglevalue(database, 'metadata', 'creationdata', datalib.gettimestring(), condition)
 
     else:
         output['message'] += 'assembly appears to exist. Continuing to edit. '
@@ -2500,10 +3056,12 @@ def addeditassembly(d, output={'message': ''}):
             condition = "name='" + data['name'] + "'"
             output['message'] += 'keyword "' + keyword + '" found with value: "' + data[
                 keyword] + '". Updating metadata entry with condition:' + condition + '. '
-            dblib.setsinglevalue(database, 'metadata', keyword, data[keyword], condition)
+            assembly_database.set_single_value('metadata', keyword, data[keyword], condition)
+            # dblib.setsinglevalue(database, 'metadata', keyword, data[keyword], condition)
 
         if modified:
-            dblib.setsinglevalue(database, 'metadata', 'modified', datalib.gettimestring(), condition)
+            assembly_database.set_single_value('metadata', 'modified', datalib.gettimestring(), condition)
+            # dblib.setsinglevalue(database, 'metadata', 'modified', datalib.gettimestring(), condition)
 
     return output
 
@@ -2551,8 +3109,8 @@ def makeordermetadata(database=sysvars.dirs.dbs.orders, **kwargs):
     '''
 
     allcurrentmeta = dblib.readalldbrows(database, 'metadata')
-    defaultmetaitems = tableitems.ordermetaitems
-    defaultmetavalues = tableitems.ordermetadefaultvalues
+    defaultmetaitems = tableitems.ordermetaitems_schema.columns()
+    defaultmetavalues = tableitems.ordermetaitems_schema.defaults()
 
     tabledata = []
     tablenames = dblib.gettablenames(database)
@@ -2561,7 +3119,7 @@ def makeordermetadata(database=sysvars.dirs.dbs.orders, **kwargs):
             continue
 
         meta = {}
-        # Check to see if metadata already exist. We need to maintain activity status and notes
+        # Check to see if metadata already exist. We need to maintain activity status and notes, other things
         for currentmeta in allcurrentmeta:
             if 'name' in currentmeta:
                 if currentmeta['name'] == tablename:
@@ -2640,14 +3198,14 @@ def createneworder(d, output={'message': ''}):
 
     if existingorders:
         existingorders.sort(key=float)
-        print(existingorders)
+        # print(existingorders)
         newordername = int(existingorders[-1]) + 1
     else:
         newordername = 1
 
     # Create a table with a single entry and then empty it
     emptydict = {}
-    for item in tableitems.orderpartproperties:
+    for item in tableitems.orderpart_schema.columns():
         emptydict[item] = ''
     dblib.dropcreatetexttablefromdict(database, str(newordername), emptydict)
     dblib.sqlitedeleteallrecords(database, str(newordername))
@@ -2659,7 +3217,7 @@ def createneworder(d, output={'message': ''}):
 
     dblib.setsinglevalue(database, str(newordername), 'created', datalib.gettimestring())
 
-    output['newordername'] = newordername
+    output['newordername'] = str(newordername)
 
     return output
 
@@ -2733,7 +3291,7 @@ def deleteorders(d, output={'message': ''}):
             return output
         else:
             ordernames = d['ordernames']
-
+    # print(d['ordernames'])
     for ordername in ordernames:
         output['message'] += 'Deleting order with name' + ordername + '. '
         dblib.sqlitedroptable(sysvars.dirs.dbs.orders, ordername)

@@ -24,6 +24,302 @@ class Bunch:
         self.__dict__.update(kwds)
 
 
+def progressbar(time=5, length=20, type='percentage'):
+
+    from time import sleep
+    import sys
+
+    for i in range(length):
+        lesslength = length - 1
+        sys.stdout.write('\r')
+        # the exact output you're looking for:
+        p = int(100/length*(i+1))
+        if type == 'totaltime':
+            sys.stdout.write("[%" + '=' * i + '>' + ' ' * (length-i) + "] " + str(float(time)) + 's total ')
+        elif type == 'percentoftotaltime':
+            sys.stdout.write("[%" + '=' * i + '>' + ' ' * (length-i) + "] " + str(p) + '% of ' + str(float(time)) + 's total ')
+        else:
+            sys.stdout.write("[%" + '=' * i + '>' + ' ' * (length - i) + "] " + str(p) + '% ')
+
+        sys.stdout.flush()
+
+        sleep(float(time)/float(length))
+
+    # print('')
+
+
+def split_time_log(log, **kwargs):
+
+    """
+    Input here is a log
+    """
+
+    settings = {'key': 'time', 'format': 'datetimestring', 'splitmethod': 'time', 'division': 'day'}
+    settings.update(kwargs)
+
+    newlist = sorted(log, key=lambda k: k[settings['key']])
+
+    dated_dict_list = {}
+    if settings['splitmethod'] == 'time':
+        for listitem in newlist:
+            if settings['division'] == 'day':
+                import time
+                if settings['format'] == 'datetimestring':
+                    from datalib import timestring_to_struct
+                    the_time = timestring_to_struct(listitem['time'])
+                criterion = time.struct_time((the_time.tm_year, the_time.tm_mon, the_time.tm_mday, 0, 0, 0, 0, 1, 0))
+                # criterion = (time.tm_year, time.tm_mon, time.tm_mday)
+            if criterion not in dated_dict_list:
+                dated_dict_list[criterion] = [listitem]
+            else:
+                dated_dict_list[criterion].append(listitem)
+
+    # for key in dated_dict_list:
+    #     print(key, len(dated_dict_list[key]))
+
+    return dated_dict_list
+
+
+def split_time_db(path, **kwargs):
+
+    """
+    This beast will go through an entire database and size every log with a well-formed time column
+    """
+    settings = {
+        'division':'day',
+        'timekey':'time'
+    }
+    settings.update(kwargs)
+
+    from iiutilities import dblib
+    from datalib import gettimestring
+    import time
+
+    database = dblib.sqliteDatabase(path)
+
+    tablenames = database.get_table_names()
+    # print(tablenames)
+    all_dates = []
+
+    """
+    [timestring, timestring, timestring]
+    """
+
+    sorted_data = {}
+    """
+    {
+    tableaame:
+        {
+        struct_time(the_time.tm_year, the_time.tm_mon, the_time.tm_mday, ....):
+            [
+            timekey:timestring, 'valuename':'value',
+            timekey:timestring, 'valuename':'value'
+            ]
+        struct_time(the_time.tm_year, the_time.tm_mon, the_time.tm_mday, ....):
+            [
+            timekey:timestring, 'valuename':'value',
+            timekey:timestring, 'valuename':'value'
+            ]
+        }
+    }
+    """
+
+    for tablename in tablenames:
+        raw_data = database.read_table(tablename)
+        schema = database.get_schema(tablename)
+
+        """
+        [
+        {timekey:'atimestring','value':'somevalue'},
+        {timekey:'anothertimestring','value':'somevalue'}
+        ]
+        """
+
+        if raw_data:
+            if settings['timekey'] in raw_data[0]:
+                """
+                sorted_data[tablename] [=]
+                {
+                    'data':
+                    {
+                        struct_time(the_time.tm_year, the_time.tm_mon, the_time.tm_mday, ....):
+                        [
+                            timekey:timestring, 'valuename':'value',
+                            timekey:timestring, 'valuename':'value'
+                        ]
+                        struct_time(the_time.tm_year, the_time.tm_mon, the_time.tm_mday, ....):
+                        [
+                            timekey:timestring, 'valuename':'value',
+                            timekey:timestring, 'valuename':'value'
+                        ]
+                    }
+                    'schema':sqliteTableSchema object
+                }
+                """
+
+                # print(schema)
+                sorted_data[tablename] = {'data':split_time_log(raw_data), 'schema':schema}
+            else:
+                print('Table ' + tablename + ' does not have a time column. Skipping. ')
+                continue
+
+            # add date tuples to master list
+            for key in sorted_data[tablename]['data']:
+                if key not in all_dates:
+                    all_dates.append(key)
+
+    data_by_date = {}
+
+    """
+    data_by_date [=]
+    {
+        timestruct:
+        {
+            datatablename:
+            {
+                'data':
+                {
+                    struct_time(the_time.tm_year, the_time.tm_mon, the_time.tm_mday, ....):
+                    [
+                        timekey:timestring, 'valuename':'value',
+                    timekey:timestring, 'valuename':'value'
+                    ]
+                    struct_time(the_time.tm_year, the_time.tm_mon, the_time.tm_mday, ....):
+                    [
+                        timekey:timestring, 'valuename':'value',
+                        timekey:timestring, 'valuename':'value'
+                    ]
+                },
+                'schema':sqliteTableSchema object
+            }
+        }
+    }
+    """
+
+    for date in all_dates:
+        data_by_date[date] = {}
+        for tablename in sorted_data:
+            if date in sorted_data[tablename]['data']:
+                data_by_date[date][tablename] = {'data':sorted_data[tablename]['data'][date],
+                                                 'schema':sorted_data[tablename]['schema']}
+
+
+    # print('dates: ' + str(len(all_dates)))
+    return data_by_date
+
+
+def split_and_trim_db_by_date(logpath, **kwargs):
+
+    import dblib
+    from datalib import gettimestring
+    import time
+
+    settings = {
+        'division': 'day',
+        'timekey': 'time',
+        'remove': 'true'
+    }
+    settings.update(kwargs)
+
+    data_by_date = split_time_db(logpath, **settings)
+    dates = [date for date in data_by_date]
+    dates.sort(reverse=True)
+
+    # print('Most recent date', dates[0])
+    if dates:
+        current_date = dates[0]
+    else:
+        # print('NO time yet.')
+        current_date = time.gmtime()
+
+    # print(current_date)
+    dates.reverse()
+
+    log_db = dblib.sqliteDatabase(logpath)
+
+    modified_dbs = []
+
+    for date in data_by_date:
+
+        # Prune off time.
+        timestring = gettimestring(time.mktime(date)).split(' ')[0]
+        # print(timestring, 'tables: ' +str(len([tablename for tablename in data_by_date[date]])))
+
+        # for table in data_by_date[date]:
+        #     print(table)
+        new_db_path = logpath.split('.')[0] + '_' + timestring + '.' + logpath.split('.')[1]
+
+        modified_dbs.append(new_db_path)
+        new_db = dblib.sqliteDatabase(new_db_path)
+
+        # if table doesn't exist, we create it
+        new_db.tablenames = new_db.get_table_names()
+        # print('existing tablenames: ')
+        # print(new_db.tablenames)
+        for tablename in data_by_date[date]:
+            if tablename not in new_db.tablenames:
+                # print('creating table ' + tablename)
+                new_db.create_table(tablename, data_by_date[date][tablename]['schema'], queue=True)
+
+            # print(data_by_date[date][tablename]['data'][0])
+            # print(data_by_date[date][tablename]['schema'].items)
+            new_db.insert(tablename, data_by_date[date][tablename]['data'], queue=True)
+
+        # print(new_db.queued_queries)
+
+        new_db.execute_queue()
+
+        # Now we need to remove the old entries
+        if date != current_date:
+            for tablename in data_by_date[date]:
+                for datum in data_by_date[date][tablename]['data']:
+                    log_db.delete(tablename, '"' + settings['timekey'] + '"=' + "'" + datum[settings['timekey']] + "'", queue=True)
+
+
+    # print(log_db.queued_queries)
+    # print('Deletes',len(log_db.queued_queries))
+    log_db.execute_queue()
+
+    return {'modified_dbs':modified_dbs}
+
+
+def rotate_log_by_size(logname, numlogs=5, logsize=1024):
+    import os
+
+    returnmessage = ''
+    logmessage = ''
+    try:
+        currlogsize = os.path.getsize(logname)
+    except:
+        logmessage = 'Error sizing original log'
+        returnmessage = logmessage
+        statuscode = 1
+    else:
+        statuscode = 0
+        if currlogsize > logsize * 1000:
+            for i in range(numlogs - 1):
+                oldlog = logname + '.' + str(numlogs - i - 2)
+                newlog = logname + '.' + str(numlogs - i - 1)
+                try:
+                    os.rename(oldlog, newlog)
+                except:
+                    logmessage += 'file error. log ' + oldlog + ' does not exist?\n'
+
+            try:
+                os.rename(logname, logname + '.1')
+                os.chmod(logname + '.1', 744)
+                open(logname, 'a').close()
+                os.chmod(logname, 764)
+
+            except:
+                logmessage += 'original doesn\'t exist\?\n'
+                returnmessage = "error in "
+        else:
+            logmessage += 'log not big enough\n'
+            returnmessage = 'logs not rotated'
+    return {'message': returnmessage, 'logmessage': logmessage, 'statuscode': statuscode}
+
+
 def unmangleAPIdata(d):
 
     """
@@ -86,7 +382,8 @@ def unmangleAPIdata(d):
     """
 
     unmangled = {}
-    for key, value in d.iteritems():
+    for key in d:
+        value = d[key] # Python3 compatibility
         # print(key) + ': ' + str(value)
         # if last two characters are '[]' we have an array
 
@@ -162,7 +459,8 @@ def unmangleAPIdata(d):
     print('******')
 
     # Now go through the dicts and see if they appear to be arrays:
-    for itemkey, itemvalue in unmangled.iteritems():
+    for itemkey in unmangled:
+        itemvalue = unmangled[key] #python3 compatibility
         if isinstance(itemvalue, dict):
             print('is dict')
             islist = True
@@ -203,6 +501,48 @@ def unmangleAPIdata(d):
         #     unmangled[key]=value
 
     return unmangled
+
+
+def insertuser(database, username, password, salt, **kwargs):
+
+    from iiutilities import dblib, datalib
+    entry = {'name':username,'password':password, 'email':'','accesskeywords':'','authlevel':1,'temp':'','admin':0}
+    entry.update(kwargs)
+
+    # entries = [{'name': 'creese', 'password': 'mydata', 'email': 'colin.reese@interfaceinnovations.org',
+    #             'accesskeywords': 'iiinventory,demo', 'authlevel': 5, 'temp': '', 'admin': 1},
+    #            {'name': 'iwalker', 'password': 'iwalker', 'email': 'colin.reese@interfaceinnovations.org',
+    #             'accesskeywords': 'demo', 'authlevel': 4, 'temp': '', 'admin': 0},
+    #            {'name': 'demo', 'password': 'demo', 'email': 'info@interfaceinnovations.org',
+    #             'accesskeywords': 'demo', 'authlevel': 2, 'temp': '', 'admin': 0},
+    #            {'name': 'mbertram', 'password': 'mbertram', 'email': 'info@interfaceinnovations.org',
+    #             'accesskeywords': 'demo', 'authlevel': 2, 'temp': '', 'admin': 0}]
+
+    existingentries = dblib.readalldbrows(database, 'users')
+    usercount = len(existingentries)
+    existingindices = [existingentry['id'] for existingentry in existingentries]
+    existingnames = [existingentry['id'] for existingentry in existingentries]
+
+    print('EXISTING ENTRIES:')
+    print(existingentries)
+
+    newindex = usercount+1
+    while newindex in existingindices:
+        newindex += 1
+
+    table = 'users'
+
+    hashedentry = datalib.gethashedentry(entry['name'], entry['password'], salt=salt)
+
+
+    query = dblib.makesqliteinsert(table, [newindex, entry['name'], hashedentry, entry['email'],
+                                                    entry['accesskeywords'], entry['authlevel'], '',
+                                                    entry['admin']])
+
+    print(database)
+    print(salt)
+    print(query)
+    dblib.sqlitequery(database, query)
 
 
 def parsekeys(key):
@@ -288,8 +628,11 @@ def newunmangle(d):
     # mydict['key'][0] = 'some value'
 
     # Also need to account for empty index list, e.g. partids[]. This will be list=True, index=''
+    # This is only currently done for first level ...*[]:
+
     unmangled = {}
-    for key,value in d.iteritems():
+    for key in d:
+        value = d[key]
 
         keyassess = parsekeys(key)
         # print(keyassess)
@@ -301,12 +644,17 @@ def newunmangle(d):
                 unmangled[keyassess['root']] = {}
 
             if keyassess['indices'][0] in unmangled[keyassess['root']]:
-                print('we appear to be overwriting something at depth 1: ' + keyassess['indices'][0])
+                print('we appear to be overwriting something at depth 1: ')
+                print(keyassess['indices'][0] + ' already exists in unmangled key ' + keyassess['root'])
+                print('already existing value is ' + unmangled[keyassess['root']][keyassess['indices'][0]] + ', new value is ' + value)
 
             if keyassess['indices'][0]:
                 unmangled[keyassess['root']][keyassess['indices'][0]] = value
             else:   # Empty index = list
-                unmangled[keyassess['root']] = value
+                if isinstance(value, list):
+                    unmangled[keyassess['root']] = value
+                else:
+                    unmangled[keyassess['root']] = [value]
 
         elif keyassess['depth'] == 2:
             if keyassess['root'] not in unmangled:
@@ -317,12 +665,15 @@ def newunmangle(d):
                 unmangled[keyassess['root']][keyassess['indices'][0]] = {}
 
             if keyassess['indices'][1] in unmangled[keyassess['root']][keyassess['indices'][0]]:
-                print('we appear to be overwriting something at depth 2: ' + keyassess['indices'][1])
+                print('we appear to be overwriting something at depth 2: ' + keyassess['indices'][1] + ', value: ' + value)
 
             if keyassess['indices'][1]:
                 unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]] = value
             else:   # Empty index is list
-                unmangled[keyassess['root']][keyassess['indices'][0]] = value
+                if isinstance(value, list):
+                    unmangled[keyassess['root']][keyassess['indices'][0]] = value
+                else:
+                    unmangled[keyassess['root']][keyassess['indices'][0]] = [value]
 
         elif keyassess['depth'] == 3:
             if keyassess['root'] not in unmangled:
@@ -344,13 +695,15 @@ def newunmangle(d):
                 # print('index 2 not in index 0 1 ')
                 pass
 
+            if keyassess['indices'][2] in unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]]:
+                print('we appear to be overwriting something for depth 3: ' + keyassess['indices'][1] + ', value: ' + value)
+
             if keyassess['indices'][2]:
                 unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]][keyassess['indices'][2]] = value
             else:       # Empty index is list
                 unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]] = value
 
-            if keyassess['indices'][2] in unmangled[keyassess['root']][keyassess['indices'][0]][keyassess['indices'][1]]:
-                print('we appear to be overwriting something for depth 3: ' + keyassess['indices'][1])
+
 
     reducedicttolist(unmangled)
     # print(' ** DONE **')
@@ -365,13 +718,15 @@ def reducedicttolist(mydict):
     """
 
     allintegers = True
-    for key,value in mydict.iteritems():
+    for key in mydict:
+        value = mydict[key]
         if isinstance(value, dict):
             # recursive call
             returnvalue = reducedicttolist(value)
             mydict[key] = returnvalue
 
-    for key,value in mydict.iteritems():
+    for key in mydict:
+        value = mydict[key]
         try:
             int(key)
         except:
@@ -410,6 +765,8 @@ def log(logfile, message, reqloglevel=1, currloglevel=1):
         logfile = open(logfile, 'a')
         logfile.writelines([gettimestring() + ' : ' + message + '\n'])
         logfile.close()
+    if currloglevel >= 9:
+        print(message)
 
 
 def writetabletopdf(tabledata, **kwargs):
@@ -443,7 +800,8 @@ def writetabletopdf(tabledata, **kwargs):
     # Do header row
     if not fields:
         drawstring = ''
-        for key, value in tabledata[0].iteritems():
+        for key in tabledata[0]:
+            value = tabledata[0][key]
             drawstring += '| ' + key + ' |'
             length = float(len(key) + 4) * charwidth
             colwidths.append(length)
@@ -538,7 +896,7 @@ def writedbtabletopdf(**kwargs):
     if tabledata:
 
         columnames=[]
-        for key, value in tabledata[0].iteritems():
+        for key in tabledata[0]:
             columnames.append(key)
 
     else:
@@ -566,6 +924,11 @@ class gmail:
         self.recipient = recipient
         self.sender = sender
 
+        if self.recipient.find(',') >=0:
+            self.recipients = self.recipient.split(',')
+        else:
+            self.recipients = [self.recipient]
+
     def send(self):
         import smtplib
 
@@ -582,8 +945,8 @@ class gmail:
         session.starttls()
         session.ehlo
         session.login(self.login, self.password)
-
-        session.sendmail(self.sender, self.recipient, headers + '\r\n\r\n' + self.message)
+        for recipient in self.recipients:
+            session.sendmail(self.sender, recipient, headers + '\r\n\r\n' + self.message)
         session.quit()
 
 
@@ -628,9 +991,10 @@ def jsontodict(jsonstring):
     return outputdict
 
 
-def dicttojson(dict):
+def dicttojson(pass_dict):
     jsonentry = ''
-    for key, value in dict.iteritems():
+    for key in pass_dict:
+        value = pass_dict[key]
         jsonentry += key + ':' + str(value).replace('\x00','') + ','
     jsonentry = jsonentry[:-1]
     return jsonentry

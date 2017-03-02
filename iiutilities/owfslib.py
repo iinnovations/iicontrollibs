@@ -184,7 +184,10 @@ def updateowfsdevices(busdevices, myProxy=None):
     from iiutilities import datalib
 
     # get defaults
-    defaults = dblib.readalldbrows(pilib.dirs.dbs.control, 'defaults')[0]
+    defaults = dblib.readalldbrows(pilib.dirs.dbs.control, 'defaults')
+    default_dict={}
+    for default_item in defaults:
+        default_dict[default_item['valuename']] = default_item['value']
 
     # get current entries
     previnputs = dblib.readalldbrows(pilib.dirs.dbs.control, 'inputs')
@@ -201,20 +204,21 @@ def updateowfsdevices(busdevices, myProxy=None):
     for index, device in enumerate(busdevices):
         if device.sensorid in previnputids:
             try:
-                newpollfreq = int(previnputs[previnputids.index(device.sensorid)]['pollfreq'])
+                newpollfreq = float(previnputs[previnputids.index(device.sensorid)]['pollfreq'])
             except ValueError:
-                device.pollfreq = defaults['inputpollfreq']
+                device.pollfreq = float(default_dict['inputpollfreq'])
             else:
                 if newpollfreq >= 0:
-                    device.pollfreq = previnputs[previnputids.index(device.sensorid)]['pollfreq']
+                    device.pollfreq = float(previnputs[previnputids.index(device.sensorid)]['pollfreq'])
                 else:
-                    device.pollfreq = defaults['inputpollfreq']
+                    device.pollfreq = float(default_dict['inputpollfreq'])
+
             device.ontime = previnputs[previnputids.index(device.sensorid)]['ontime']
             device.offtime = previnputs[previnputids.index(device.sensorid)]['offtime']
             device.polltime = previnputs[previnputids.index(device.sensorid)]['polltime']
             device.value = previnputs[previnputids.index(device.sensorid)]['value']
         else:
-            device.pollfreq = defaults['inputpollfreq']
+            device.pollfreq = float(default_dict['inputpollfreq'])
             device.ontime = ''
             device.offtime = ''
             device.polltime = ''
@@ -251,8 +255,11 @@ def updateowfsdevices(busdevices, myProxy=None):
                         break
             device.name = name
 
+            device.time_since_last = datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(device.polltime, defaulttozero=True)
+
             # Is it time to read temperature?
-            if datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(device.polltime) > device.pollfreq:
+            if device.time_since_last > device.pollfreq:
+                print('reading temperature')
                 device.readprop('temperature', myProxy)
                 device.polltime = datalib.gettimestring()
                 device.value = device.temperature
