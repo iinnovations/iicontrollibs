@@ -621,7 +621,11 @@ def updatenetstatus(lastnetstatus=None):
     wpainterfaces = []
     if netconfigdata['mode'] in ['station', 'wlan0wlan1bridge' , 'staticeth0stationdhcp']:
         wpainterfaces.append('wlan0')
+<<<<<<< HEAD
     elif netconfigdata['mode'] in ['wlan1wlan0bridge', 'staticeth0_apwlan0_stadhcpwlan1']:
+=======
+    elif netconfigdata['mode'] in ['wlan1wlan0bridge']:
+>>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
         wpainterfaces.append('wlan1')
     elif netconfigdata['mode']:
         pass
@@ -980,7 +984,11 @@ def runsystemstatus(**kwargs):
                 utility.log(pilib.dirs.logs.system, 'We appear to be online. Checking Hamachi Status. ', 3, pilib.loglevels.system)
                 utility.log(pilib.dirs.logs.network, 'We appear to be online. Checking Hamachi Status. ', 3, pilib.loglevels.network)
                 
+<<<<<<< HEAD
                 watchdoghamachi(pingip='25.11.87.7')
+=======
+                watchdoghamachi(pingip='self')
+>>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
                 utility.log(pilib.dirs.logs.system, 'Completed checking Hamachi Status. ', 3, pilib.loglevels.network)
                 utility.log(pilib.dirs.logs.system, 'Completed checking Hamachi Status. ', 3, pilib.loglevels.network)

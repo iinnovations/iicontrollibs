@@ -318,6 +318,7 @@ def gethamachistatusdata():
 def restart_uwsgi(directory='/usr/lib/iicontrollibs/uwsgi', quiet=True, killall=False):
     import subprocess
     import os
+<<<<<<< HEAD
     quiet = False
     if not quiet:
         print('restarting uwsgi from directory:  ' + directory)
@@ -334,6 +335,17 @@ def restart_uwsgi(directory='/usr/lib/iicontrollibs/uwsgi', quiet=True, killall=
         #     result = subprocess.Popen(['pkill', 'uwsgi'], stdout=subprocess.PIPE)
         #     # print(result.stdout)
         #     # print(result.stderr)
+=======
+    if killall:
+        if quiet:
+            DEVNULL = open(os.devnull, 'wb')
+            result = subprocess.Popen(['pkill', 'uwsgi'], stdout=subprocess.PIPE, stderr=DEVNULL)
+            DEVNULL.close()
+        else:
+            result = subprocess.Popen(['pkill', 'uwsgi'], stdout=subprocess.PIPE)
+            # print(result.stdout)
+            # print(result.stderr)
+>>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
     commandlist = ['/usr/bin/uwsgi', '--emperor', directory, '--daemonize', '/var/log/uwsgi.log']
     # print(commandlist)
@@ -345,12 +357,18 @@ def restart_uwsgi(directory='/usr/lib/iicontrollibs/uwsgi', quiet=True, killall=
         DEVNULL.close()
         # call(['/usr/bin/uwsgi', '--emperor', directory, '--daemonize', '/var/log/uwsgi.log'])
     else:
+<<<<<<< HEAD
         try:
             result = subprocess.Popen(commandlist, stdout=subprocess.PIPE)
             print(result.stdout)
             print(result.stderr)
         except:
             print('error starting uwsgi. ')
+=======
+        result = subprocess.Popen(commandlist, stdout=subprocess.PIPE)
+        print(result.stdout)
+        print(result.stderr)
+>>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
 
 def restarthamachi():

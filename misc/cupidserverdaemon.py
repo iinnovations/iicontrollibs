@@ -1,6 +1,5 @@
 #!/usr/bin/python
-import datalib
-import dblib
+
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -20,6 +19,9 @@ top_folder = \
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
+from iiutilities import dblib, hamachidaemon
+from iiutilities import datalib, utility
+
 hamachidbpath = '/var/www/html/data/hamachi.db'
 
 
@@ -35,9 +37,7 @@ def onlineofflinetobinary(status):
 
 def updatehamachidatabase(path=hamachidbpath):
 
-    import cupid.pilib as pilib
-
-    from cupid.netfun import gethamachidata
+    from iiutilities.netfun import gethamachidata
     hamachidata = {}
     hamachidata = gethamachidata()
 
@@ -84,7 +84,7 @@ def updatehamachidatabase(path=hamachidbpath):
             # Now match and grab options
             for client in hamachidata['clients'][index]:
                 # print(client['id'])
-                cliententry = {'id':client['id'], 'name':client['name'], 'hamachiip':client['hamachiip'], 'onlinestatus':onlineofflinetobinary(client['onlinestatus']), 'alldata': datalib.dicttojson(client)}
+                cliententry = {'id':client['id'], 'name':client['name'], 'hamachiip':client['hamachiip'], 'onlinestatus':onlineofflinetobinary(client['onlinestatus']), 'alldata': utility.dicttojson(client)}
                 if client['id'] in prevclientids:
                     # print('CLIENT MATCH')
 
@@ -97,7 +97,7 @@ def updatehamachidatabase(path=hamachidbpath):
 
         else:
             for client in hamachidata['clients'][index]:
-                cliententry = {'id':client['id'], 'name':client['name'], 'hamachiip':client['hamachiip'], 'onlinestatus':onlineofflinetobinary(client['onlinestatus']), 'alldata': datalib.dicttojson(client), 'options':defaultoptions}
+                cliententry = {'id':client['id'], 'name':client['name'], 'hamachiip':client['hamachiip'], 'onlinestatus':onlineofflinetobinary(client['onlinestatus']), 'alldata': utility.dicttojson(client), 'options':defaultoptions}
 
                 netclientlist.append(cliententry)
 
@@ -110,9 +110,7 @@ def updatehamachidatabase(path=hamachidbpath):
 
 def rundaemon():
 
-    import hamachidaemon
-    import cupid.netfun as netfun
-    import cupid.pilib as pilib
+    import iiutilities.netfun as netfun
 
     hamachidata = updatehamachidatabase()
 
@@ -136,7 +134,7 @@ def rundaemon():
                         message += hostname + ' checked ' + client['name'] + '@' + client['hamachiip'] + ' in network "' + network['name'] + '" and found that it is not online. \r\n'
 
     if sendmessage:
-        from cupid.utilities import gmail
+        from iiutilities.utility import gmail
         subject = hostname + ' hosts report'
         email = 'colin.reese@gmail.com'
         actionmail = gmail(message=message, subject=subject, recipient=email)

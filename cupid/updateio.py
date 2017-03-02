@@ -409,10 +409,17 @@ def updateiodata(**kwargs):
                             # now treat each mote type entry specially
                             # if entrytype == 'channel':
 
+<<<<<<< HEAD
                             entryid = 'MOTE' + str(nodeentry['nodeid']) + '_' + nodeentry['keyvaluename']
 
                             default_name = '[MOTE' + str(nodeentry['nodeid']) + '] ' + nodeentry['keyvaluename']
                             address = nodeentry['nodeid']
+=======
+                            entryid = 'MOTE' + str(nodeentry['nodeid']) + '_' + nodeentry['keyvaluename'] + '_' + nodeentry['keyvalue']
+
+                            default_name = '[MOTE' + str(nodeentry['nodeid']) + '] ' + nodeentry['keyvaluename'] + ':' + nodeentry['keyvalue']
+
+>>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
                             entry_meta = get_or_insert_iface_metadata(id, io_info, control_db, default_name)
                             entry_options = datalib.parseoptions(entry_meta['options'])
 
@@ -446,14 +453,21 @@ def updateiodata(**kwargs):
                                 else:
                                     entryvalue = -1
                             else:
+<<<<<<< HEAD
                                 entryvalue = nodeentry['keyvalue']
+=======
+                                entryvalue = -1
+>>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
                             # TODO: Properly handle pollfreq for motes
                             mote_insert = {'id': entryid, 'interface': interface['interface'], 'type': interface['type'],
                                    'address': address, 'name': entry_meta['name'], 'value': entryvalue,
                                    'polltime': nodeentry['time'], 'pollfreq':15}
+<<<<<<< HEAD
                             print('ENTRY')
                             print(mote_insert)
+=======
+>>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
                             control_db.insert('inputs', mote_insert, queue=True)
                             # moteentries.append("insert into inputs values ('" + entryid + "','" + interface['interface'] + "','" +
                             #     interface['type'] + "','" + str(address) + "','" + entryname + "','" + str(entryvalue) + "','','" +
@@ -574,6 +588,20 @@ def updateiodata(**kwargs):
         utility.log(pilib.dirs.logs.io, 'owfsupdate disabled', 3, pilib.loglevels.io)
 
     # utility.log(pilib.dirs.logs.io, 'Executing query:  ' + str(control_db.queued_queries), 5, pilib.loglevels.io)
+<<<<<<< HEAD
+=======
+
+    if control_db.queued_queries:
+        try:
+            control_db.execute_queue()
+        except:
+            errorstring = traceback.format_exc()
+            utility.log(pilib.dirs.logs.io, 'Error executing query, message:  ' + errorstring, 0, pilib.loglevels.io)
+            utility.log(pilib.dirs.logs.error, 'Error executing updateio query, message:  ' + errorstring)
+            utility.log(pilib.dirs.logs.error, 'Query:  ' + str(control_db.queued_queries))
+            utility.log(pilib.dirs.logs.error, 'Clearing queue')
+            control_db.clear_queue()
+>>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
     if control_db.queued_queries:
         try:
@@ -586,6 +614,7 @@ def updateiodata(**kwargs):
             utility.log(pilib.dirs.logs.error, 'Clearing queue')
             control_db.clear_queue()
 
+<<<<<<< HEAD
 
 def get_or_insert_iface_metadata(id, io_infos, control_db, default_name=None):
 
@@ -611,6 +640,27 @@ def get_or_insert_iface_metadata(id, io_infos, control_db, default_name=None):
 
     return entry
 
+=======
+def get_or_insert_iface_metadata(id, io_infos, control_db, default_name=None):
+
+    entry = {}
+    for io_info in io_infos:
+        if io_info['id'] == id:
+            entry = io_info
+            break
+
+    if not entry:
+        name = id
+        if default_name:
+            name = default_name
+
+        entry = {'name': name, 'id':id, 'options':''}
+        control_db.insert('ioinfo', entry)
+
+    return entry
+
+
+>>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
 def updateioinfo(db_path, tablename_to_update, meta_tablename='ioinfo'):
     from iiutilities.dblib import sqliteDatabase
@@ -891,7 +941,10 @@ def processMBinterface(control_db, interface, last_data, io_info, defaults):
         utility.log(pilib.dirs.logs.io, 'Modbus ID: ' + mbid, 4, pilib.loglevels.io)
 
         mb_meta = get_or_insert_iface_metadata(mbid, io_info, control_db)
+<<<<<<< HEAD
         mb_name = mb_meta['name']
+=======
+>>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
         polltime = datalib.gettimestring()
         if entry['interfaceid'] == interface['id']:
@@ -936,8 +989,12 @@ def processMBinterface(control_db, interface, last_data, io_info, defaults):
                         readlength = typetoreadlength(entry['format'])
                     else:
                         readlength = entry['length']
+<<<<<<< HEAD
                     readresult = readMBcodedaddresses(interface['address'], entry['register'], readlength, boolean_to_int=True)
 
+=======
+                    readresult = readMBcodedaddresses(interface['address'], entry['register'], readlength)
+>>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
                 except:
                     utility.log(pilib.dirs.logs.io, 'Uncaught error reading modbus value', 0, pilib.loglevels.io)
                 else:
@@ -952,6 +1009,7 @@ def processMBinterface(control_db, interface, last_data, io_info, defaults):
                             # print(options)
 
                             utility.log(pilib.dirs.logs.io, 'processed value is ' + str(value) + ' for format ' + entry['format'], 2, pilib.loglevels.io)
+<<<<<<< HEAD
 
                             if 'scale' in options:
                                 utility.log(pilib.dirs.logs.io, 'Scale attribute value found: ' + options['scale'], 2, pilib.loglevels.io)
@@ -988,8 +1046,47 @@ def processMBinterface(control_db, interface, last_data, io_info, defaults):
                                     # mbname = dblib.sqlitedatumquery(pilib.dirs.dbs.control,
                                     #                                 "select name from ioinfo where id='" + mbid + "'")
                                     mb_name = options['name']
+=======
+>>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
+                            if 'scale' in options:
+                                utility.log(pilib.dirs.logs.io, 'Scale attribute value found: ' + options['scale'], 2, pilib.loglevels.io)
+                                try:
+                                    value = float(value) * float(options['scale'])
+                                except:
+                                    utility.log(pilib.dirs.logs.io, 'error scaling ' + str(value) + ' with argument ' + options['scale'])
 
+                            if 'formula' in options:
+                                # print(options['formula'])
+                                from iiutilities.datalib import calcastevalformula
+                                utility.log(pilib.dirs.logs.io, 'Processing formula: ' + options['formula'] + ' with value ' + str(value))
+                                try:
+                                    value = calcastevalformula(options['formula'], x=value)
+                                except:
+                                    utility.log(pilib.dirs.logs.io, 'Error processing formula: ' + str(options['formula']))
+
+<<<<<<< HEAD
+=======
+                            if 'precision' in options:
+                                try:
+                                    value = round(value, int(options['precision']))
+                                except:
+                                    utility.log(pilib.dirs.logs.io, 'Error on precision operation', 0, pilib.loglevels.io)
+
+                            # override name if requested to
+                            # TODO : clean this up. clear as mud
+                            if 'name' in options:
+                                # Check to see if entry already exists in ioinfo to save extra queries
+                                if mbname == options['name']:
+                                    # do nothing. all is ok
+                                    pass
+                                else:
+                                    # Update ioinfo
+                                    dblib.sqliteinsertsingle(pilib.dirs.dbs.control, 'ioinfo', [mbid, options['name']], ['id', 'name'])
+                                    # mbname = dblib.sqlitedatumquery(pilib.dirs.dbs.control,
+                                    #                                 "select name from ioinfo where id='" + mbid + "'")
+                                    mbname = options['name']
+>>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
                         # print(entry['interfaceid'] + ' ' + entry['format'] + ' ' + str(value))
                         utility.log(pilib.dirs.logs.io, 'Values read: ' + str(values), 4, pilib.loglevels.io)
                         utility.log(pilib.dirs.logs.io, 'Value returned: ' + str(value), 4, pilib.loglevels.io)
@@ -997,7 +1094,11 @@ def processMBinterface(control_db, interface, last_data, io_info, defaults):
 
                         # Contruct entry for newly acquired data
                         newquery = dblib.makesqliteinsert('inputs', [mbid,interface['id'],
+<<<<<<< HEAD
                             interface['type'],str(entry['register']),mb_name,str(value),'',str(polltime), str(pollfreq), ontime,offtime])
+=======
+                            interface['type'],str(entry['register']),mbname,str(value),'',str(polltime), str(pollfreq), ontime,offtime])
+>>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
                         # print(newquery)
                         querylist.append(newquery)
                         # Old dirty way
@@ -1006,11 +1107,16 @@ def processMBinterface(control_db, interface, last_data, io_info, defaults):
                         #     value) + "','','" + str(polltime) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
 
                     else:
+<<<<<<< HEAD
                         status_message = 'Statuscode ' + str(readresult['statuscode']) + ' on MB read : ' + readresult[
                             'message']
                         utility.log(pilib.dirs.logs.io, status_message, 0, pilib.loglevels.io)
 
 
+=======
+                        utility.log(pilib.dirs.logs.io, 'Statuscode ' + str(readresult['statuscode']) + ' on MB read : '
+                                    + readresult['message'], 0, pilib.loglevels.io)
+>>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
                         # restore previous value and construct entry if it existed (or not)
                         input_entry = {'id':mbid, 'interface':interface['interface'], 'type':interface['type'],

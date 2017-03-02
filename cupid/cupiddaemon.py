@@ -232,8 +232,13 @@ def rundaemon(**kwargs):
     """
 
     system_status_options = system_database.read_table_row('systemstatus')[0]
+<<<<<<< HEAD
     # print('systemstatusoptions')
     # print(system_status_options)
+=======
+    print('systemstatusoptions')
+    print(system_status_options)
+>>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
     item_enabled_dict = {'updateio':int(system_status_options['updateioenabled']),
                          'picontrol':int(system_status_options['picontrolenabled']),
