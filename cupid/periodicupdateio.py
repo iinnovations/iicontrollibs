@@ -90,9 +90,10 @@ def runperiodicio(**kwargs):
             for setting in logsettings:
                 if setting['item'] == 'defaultlogpoints':
                     logpoints = int(setting['value'])
-                    print('logpoints found and set to ' + str(logpoints))
+                    # print('logpoints found and set to ' + str(logpoints))
         except:
-            print('not found or other error. oops. ')
+            pass
+            # print('not found or other error. oops. ')
 
         """
         Update controlvalues in channels
@@ -115,8 +116,8 @@ def runperiodicio(**kwargs):
                                                    "name='" + controlinput + "'")
 
                 # Only update channel value if value was found
-
-                if controlvalue:
+                # print('CONTROLVALUE: ', controlvalue)
+                if controlvalue or controlvalue == 0:
                     # print('control value for channel ' + channelname + ' = ' + str(controlvalue))
                     dblib.setsinglevalue(pilib.dirs.dbs.control, 'channels', 'controlvalue', str(controlvalue), "controlinput='" + controlinput + "'")
                     # pilib.sqlitequery(pilib.dirs.dbs.control, 'update channels set controlvalue=' + str(

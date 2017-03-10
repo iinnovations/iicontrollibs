@@ -40,11 +40,7 @@ Main control database
 """
 
 
-<<<<<<< HEAD
 def rebuild_control_db(tablelist=None, migrate=True):
-=======
-def rebuild_control_db(tablelist=None, migrate=False):
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
     from iiutilities.dblib import sqlitemultquery
     from iiutilities import dblib
@@ -89,13 +85,8 @@ def rebuild_control_db(tablelist=None, migrate=False):
             {'name': 'conditiontype', 'default':'logical'},
             {'name': 'actiondata'},
             {'name': 'value'},
-<<<<<<< HEAD
             {'name': 'offdelay', 'type':'real', 'default':0},
             {'name': 'ondelay', 'type':'real', 'default':0},
-=======
-            {'name': 'offdelay'},
-            {'name': 'ondelay'},
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
             {'name': 'active', 'type':'boolean', 'default':0},
             {'name': 'activereset','type':'boolean', 'default':1},
             {'name': 'status','type':'boolean', 'default':0},
@@ -109,7 +100,6 @@ def rebuild_control_db(tablelist=None, migrate=False):
             control_database.migrate_table(tablename, schema=schema, queue=True)
         else:
             control_database.create_table(tablename, schema, queue=True)
-<<<<<<< HEAD
 
         if addentries:
             entries = [
@@ -139,8 +129,6 @@ def rebuild_control_db(tablelist=None, migrate=False):
                  'enabled': 1},
             ]
             control_database.insert(tablename, entries, queue=True)
-=======
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
     ### Indicators table
     tablename = 'indicators'
@@ -256,11 +244,7 @@ def rebuild_control_db(tablelist=None, migrate=False):
     tablename = 'ioinfo'
     if tablename in tablelist:
         schema = dblib.sqliteTableSchema([
-<<<<<<< HEAD
             {'name': 'id', 'primary':True},
-=======
-            {'name': 'id', 'options': 'primary'},
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
             {'name': 'name'},
             {'name': 'options'}
         ])
@@ -270,11 +254,7 @@ def rebuild_control_db(tablelist=None, migrate=False):
             control_database.insert(tablename, {'id':'GPIO18','name':'GPIO18'}, queue=True)
             control_database.insert(tablename, {'id':'GPIO23','name':'GPIO23'}, queue=True)
             control_database.insert(tablename, {'id':'GPIO24','name':'GPIO24'}, queue=True)
-<<<<<<< HEAD
             control_database.insert(tablename, {'id':'GPIO25','name':'GPIO25 (Boot ok)'}, queue=True)
-=======
-            control_database.insert(tablename, {'id':'GPIO25','name':'GPIO25(Boot ok)'}, queue=True)
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
             control_database.insert(tablename, {'id':'GPIO4','name':'GPIO4(MB Power)'}, queue=True)
             control_database.insert(tablename, {'id':'GPIO17','name':'GPIO17'}, queue=True)
             control_database.insert(tablename, {'id':'GPIO27','name':'GPIO27'}, queue=True)
@@ -298,7 +278,6 @@ def rebuild_control_db(tablelist=None, migrate=False):
             {'name': 'address'},
             {'name': 'name'},
             {'name': 'options'},
-<<<<<<< HEAD
             {'name': 'enabled', 'type':'boolean','default':0},
             {'name': 'status', 'type':'boolean','default':0}
         ])
@@ -354,62 +333,6 @@ def rebuild_control_db(tablelist=None, migrate=False):
             control_database.insert(tablename, {'interfaceid':'MBTCP1', 'register':400003, 'length':2, 'format':'float32'})
             control_database.insert(tablename, {'interfaceid':'MBTCP1', 'register':400005, 'length':2, 'format':'float32'})
             control_database.insert(tablename, {'interfaceid':'MBTCP1', 'register':400007, 'length':2, 'format':'float32'})
-=======
-            {'name': 'enabled', 'default':0},
-            {'name': 'status', 'default':0}
-        ])
-        control_database.create_table(tablename, schema, queue=True)
-
-        if addentries:
-            control_database.insert(tablename, {'interface': 'SPI1', 'type': 'CuPIDlights', 'id': 'SPIout1', 'name': 'myCuPIDlightboard'}, queue=True)
-            control_database.insert(tablename, {'interface': 'SPI0', 'type': 'SPITC', 'id': 'SPITC0', 'name': 'mySPITC'}, queue=True)
-            control_database.insert(tablename, {'interface': 'I2C', 'type': 'DS2483', 'address':'', 'id': 'I2C_DS2483', 'name': 'I2C 1Wire', 'options':'tempunit:F', 'enabled':1}, queue=True)
-            control_database.insert(tablename, {'interface': 'I2C', 'type': 'ADS1115', 'address':'1:48','id': 'I2C_1:48_ADS1115', 'name': 'I2C ADS1115', 'options':'type:diff,gain:16,channel:0', 'enabled':1}, queue=True)
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'18', 'id': 'GPIO18', 'name': 'GPIO 18', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'23', 'id': 'GPIO23', 'name': 'GPIO 23', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'24', 'id': 'GPIO24', 'name': 'GPIO 24', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'25', 'id': 'GPIO25', 'name': 'GPIO 25', 'options':'mode:output,pullupdown:pullup','enabled':0},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'4', 'id': 'GPIO4', 'name': 'GPIO 4', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'17', 'id': 'GPIO17', 'name': 'GPIO 17', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'27', 'id': 'GPIO27', 'name': 'GPIO 27', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'22', 'id': 'GPIO22', 'name': 'GPIO 22', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'5', 'id': 'GPIO5', 'name': 'GPIO 5', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'6', 'id': 'GPIO6', 'name': 'GPIO 6', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'13', 'id': 'GPIO13', 'name': 'GPIO 13', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'19', 'id': 'GPIO19', 'name': 'GPIO 19', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'26', 'id': 'GPIO26', 'name': 'GPIO 26', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'16', 'id': 'GPIO16', 'name': 'GPIO 16', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'20', 'id': 'GPIO20', 'name': 'GPIO 20', 'options':'mode:input,pullupdown:pulldown,function:shutdown,functionstate:true','enabled':1},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'21', 'id': 'GPIO21', 'name': 'GPIO 21', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
-
-    """
-    modbustcp Table
-    TODO: Double-check to make sure this works the same as qmclibs, which is working nicely
-    """
-
-    tablename = 'modbustcp'
-    if tablename in tablelist:
-        schema = dblib.sqliteTableSchema([
-            {'name': 'id', 'primary': True},
-            {'name': 'register', 'type':'integer'},
-            {'name': 'mode', 'default':'read'},
-            {'name': 'length', 'type':'integer', 'default':1},
-            {'name': 'bigendian', 'type':'boolean', 'default':1},
-            {'name': 'reversebyte', 'type':'boolean', 'default':0},
-            {'name': 'format'},
-            {'name': 'options'}
-        ])
-        control_database.create_table(tablename, schema, queue=True)
-
-        querylist.append(
-            "create table " + tablename + " (interfaceid text, register integer, mode text default 'read', length integer default 1,  "
-                                      "bigendian boolean default 1, reversebyte boolean default 0, format text, options text)")
-        if addentries:
-            control_database.insert(tablename, {'id':'MBTCP1', 'register':400001, 'length':2, 'format':'float32'})
-            control_database.insert(tablename, {'id':'MBTCP1', 'register':400003, 'length':2, 'format':'float32'})
-            control_database.insert(tablename, {'id':'MBTCP1', 'register':400005, 'length':2, 'format':'float32'})
-            control_database.insert(tablename, {'id':'MBTCP1', 'register':400007, 'length':2, 'format':'float32'})
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
     ### LabJack table
     tablename = 'labjack'
@@ -471,11 +394,8 @@ def rebuild_control_db(tablelist=None, migrate=False):
             {'name':'type', 'default':'local'},
             {'name':'name', 'unique':True},
             {'name':'controlinput','default':'none'},
-<<<<<<< HEAD
             {'name':'controlsetpoint','default':'none'},
             {'name':'enabledinput'},
-=======
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
             {'name':'enabled','type':'boolean', 'default':0},
             {'name':'outputsenabled','type':'boolean', 'default':0},
             {'name':'controlupdatetime'},
@@ -497,16 +417,12 @@ def rebuild_control_db(tablelist=None, migrate=False):
             {'name':'dataclasses'},
             {'name':'pending'}
         ])
-<<<<<<< HEAD
         if migrate:
             print('MIGRATING')
             control_database.migrate_table(tablename, schema=schema)
             addentries = False
         else:
             control_database.create_table(tablename, schema, queue=True)
-=======
-        control_database.create_table(tablename, schema, queue=True)
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
 
         if addentries:
             pass
@@ -685,10 +601,7 @@ def rebuild_system_db(tablelist):
             {'name': 'requireWANaccess', 'type':'integer', 'default':1},
             {'name': 'WANretrytime', 'type':'integer', 'default':30},
             {'name': 'mode', 'default':'eth0wlan0bridge'},
-<<<<<<< HEAD
             {'name': 'hamachiwatchdogip', 'default':'self'},
-=======
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
             {'name': 'SSID'},
             {'name': 'aprevert'},
             {'name': 'addtype', 'default':'dhcp'},

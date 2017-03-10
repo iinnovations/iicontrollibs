@@ -925,7 +925,7 @@ class gmail:
         self.sender = sender
 
         if self.recipient.find(',') >=0:
-            self.recipients = self.recipient.split(',')
+            self.recipients = self.recipient.split(',').strip()
         else:
             self.recipients = [self.recipient]
 
@@ -991,10 +991,3 @@ def jsontodict(jsonstring):
     return outputdict
 
 
-def dicttojson(pass_dict):
-    jsonentry = ''
-    for key in pass_dict:
-        value = pass_dict[key]
-        jsonentry += key + ':' + str(value).replace('\x00','') + ','
-    jsonentry = jsonentry[:-1]
-    return jsonentry

@@ -84,8 +84,15 @@ def runboot():
     if mightyboost:
         subprocess.Popen(['/usr/lib/iicontrollibs/misc/mightyboost.sh','&'])
 
+    temp_unit = 'C'
     for interface in interfaces:
         if interface['enabled']:
+            from iiutilities.datalib import parseoptions
+            options_dict = parseoptions(interface['options'])
+            if 'tempunit' in options_dict:
+                if options_dict['tempunit'] in ['F','f','Fahrenheit','fahrenheit']:
+                    temp_unit = 'F'
+
             if interface['interface'] == 'I2C' and interface['type'] == 'DS2483':
                 runi2cowfs = True
             if interface['interface'] == 'USB' and interface['type'] == 'DS9490':
@@ -100,25 +107,37 @@ def runboot():
         if runi2cowfs:
             utility.log(pilib.dirs.logs.system, 'boot: Running i2c owserver', 3, pilib.loglevels.system)
             try:
-                subprocess.call(['/opt/owfs/bin/owserver', '-F', '--i2c=/dev/i2c-1:ALL', '-p', '4304'])
+                if temp_unit == 'F':
+                    subprocess.call(['/opt/owfs/bin/owserver', '-F', '--i2c=/dev/i2c-1:ALL', '-p', '4304'])
+                else:
+                    subprocess.call(['/opt/owfs/bin/owserver', '--i2c=/dev/i2c-1:ALL', '-p', '4304'])
             except:
                 utility.log(pilib.dirs.logs.system, 'boot: error running i2c owserver', 1, pilib.loglevels.system)
         if runusbowfs:
             utility.log(pilib.dirs.logs.system, 'boot: Running usb owserver', 3, pilib.loglevels.system)
             try:
-                subprocess.call(['/opt/owfs/bin/owserver', '-F', '-u', '-p', '4304'])
+                if temp_unit == 'F':
+                    subprocess.call(['/opt/owfs/bin/owserver', '-F', '-u', '-p', '4304'])
+                else:
+                    subprocess.call(['/opt/owfs/bin/owserver', '-u', '-p', '4304'])
             except:
                 utility.log(pilib.dirs.logs.system, 'error running usb owserver', 1, pilib.loglevels.system)
 
         utility.log(pilib.dirs.logs.system, 'boot: Running owfs/owserver mount', 3, pilib.loglevels.system)
         try:
-            subprocess.call(['/opt/owfs/bin/owfs', '-F', '-s', '4304', '/var/1wire/'])
+            if temp_unit == 'F':
+                subprocess.call(['/opt/owfs/bin/owfs', '-F', '-s', '4304', '/var/1wire/'])
+            else:
+                subprocess.call(['/opt/owfs/bin/owfs', '-s', '4304', '/var/1wire/'])
         except:
             utility.log(pilib.dirs.logs.system, 'boot: error running owfs', 1, pilib.loglevels.system)
 
         utility.log(pilib.dirs.logs.system, 'boot: Running owhttpd/owserver mount', 3, pilib.loglevels.system)
         try:
-            subprocess.call(['/opt/owfs/bin/owhttpd', '-F', '-s', '4304', '-p', '4305'])
+            if temp_unit == 'F':
+                subprocess.call(['/opt/owfs/bin/owhttpd', '-F', '-s', '4304', '-p', '4305'])
+            else:
+                subprocess.call(['/opt/owfs/bin/owhttpd', '-s', '4304', '-p', '4305'])
         except:
             utility.log(pilib.dirs.logs.system, 'boot: error running owhttpd', 1, pilib.loglevels.system)
 

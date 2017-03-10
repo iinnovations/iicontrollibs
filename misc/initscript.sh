@@ -18,6 +18,9 @@ elif [ "$1" = "install" ]
     rm -r /etc/ssh/ssh*key
     dpkg-reconfigure openssh-server
 
+    # Enable uart
+    /bin/sed -ie 's/enable_uart=0/enable_uart=1/g' /boot/config.txt
+
     apt-get update
     apt-get install git
     apt-get -y remove --purge wolfram-engine
@@ -268,7 +271,7 @@ if [ "$2" = "full" -o "$1" = "full" ]
     echo "Creating self-signed ssl cert"
     mkdir /etc/ssl/localcerts
     openssl req -new -x509 -sha256 -days 365 -nodes \
-        -subj "/C=US/ST=OR/L=Portland/O=Interface Innovations/OU=CuPID Controls/CN=interfaceinnovations.org" \
+       -subj "/C=US/ST=OR/L=Portland/O=Interface Innovations/OU=CuPID Controls/CN=interfaceinnovations.org" \
         -out /etc/ssl/localcerts/mycert.pem \
         -keyout /etc/ssl/localcerts/mycert.key
 
@@ -279,11 +282,11 @@ if [ "$2" = "full" -o "$1" = "full" ]
 #    cp /usr/lib/iicontrollibs/misc/dhcpd.conf /etc/dhcp/
 #    echo "Complete"
 
-    if [ $(ls /usr/sbin/ | grep -c 'hostapd.edimax') -ne 0 ]
-        then
-            echo "hostapd already configured"
-    else
-        echo "copying hostapd"
+#    if [ $(ls /usr/sbin/ | grep -c 'hostapd.edimax') -ne 0 ]
+#        then
+#            echo "hostapd already configured"
+#    else
+#        echo "copying hostapd"
 
         # This stuff is now deprecated with new hostapd on built-in Pi 3 ap hardware.
 #        mv /usr/sbin/hostapd /usr/sbin/hostapd.bak
@@ -299,24 +302,24 @@ if [ "$2" = "full" -o "$1" = "full" ]
 #    cp /usr/lib/iicontrollibs/misc/hostapd.conf /etc/hostapd/
 
 #    # Ensure i2c-dev module is loaded
-    testresult=$(grep -c 'i2c-dev' /etc/modules)
-    if [ ${testresult} -ne 0 ]
-      then
-        echo "i2c-dev already exists"
-    else
-      echo "loading dev module"
-      echo "i2c-dev" >> /etc/modules
-    fi
-    echo "i2c-dev configuration complete"
+#    testresult=$(grep -c 'i2c-dev' /etc/modules)
+#    if [ ${testresult} -ne 0 ]
+#      then
+#        echo "i2c-dev already exists"
+#    else
+#      echo "loading dev module"
+#      echo "i2c-dev" >> /etc/modules
+#    fi
+#    echo "i2c-dev configuration complete"
 
-    echo "Copying icons to desktop"
-    cp /usr/lib/iicontrollibs/misc/icons/* /home/pi/Desktop
+#    echo "Copying icons to desktop"
+#    cp /usr/lib/iicontrollibs/misc/icons/* /home/pi/Desktop
 
-    echo "Changing desktop wallpaper"
+#    echo "Changing desktop wallpaper"
     cp /usr/lib/iicontrollibs/misc/desktop-items-0.conf /home/pi/.config/pcmanfm/LXDE-pi/
 #
 #    echo "Copying icons"
-#    cp /usr/lib/iicontrollibs/misc/updatecupidweblibs.desktop ~/
+    cp /usr/lib/iicontrollibs/misc/updatecupidweblibs.desktop ~/
     echo -e "${WHT}************************************${NC}"
     echo -e "${WHT}******* FINISHED  ADDITIONAL  ******${NC}"
     echo -e "${WHT}*******  INSTALL CONPONENTS  *******${NC}"

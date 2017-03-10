@@ -37,12 +37,16 @@ class sqliteDatabase(object):
         self.tablenames = gettablenames(self.path)
         return self.tablenames
 
-    def create_table(self, name, schema, queue=False, dropexisting=True):
+    def create_table(self, name, schema, queue=False, dropexisting=True, migrate=False):
         if schema.valid:
-            if dropexisting:
-                self.drop_table(name, queue=queue, quiet=True)
+            if migrate:
+                query = self.migrate_table(name, schema, queue=queue)
+            else:
+                if dropexisting:
+                    self.drop_table(name, queue=queue, quiet=True)
 
-            query = sqlite_create_table_query_from_schema(name, schema)
+                query = sqlite_create_table_query_from_schema(name, schema)
+
             if queue:
                 self.queue_queries([query])
             else:
@@ -68,23 +72,26 @@ class sqliteDatabase(object):
         sqlitemovetable(self.path, oldname, newname)
 
     def migrate_table(self, tablename, schema, data_loss_ok=False, queue=False):
-        try:
-            current_table = self.read_table(tablename)
-        except:
-            print('table ' + tablename + ' does not currently exist (or there was another error) ')
-            current_table = []
+        current_table = []
+        if tablename in self.get_table_names():
+            try:
+                current_table = self.read_table(tablename)
+            except:
+                print('table ' + tablename + ' rebuild error) ')
+                current_table = []
+        else:
+            print('Table does not exist. Continuing')
 
-        self.create_table(tablename, schema, queue=True)
-        # Check here to make sure we will not incur dataloss
+
 
         schema_columns = schema.columns()
         if current_table:
-            all_exist = all(key in schema_columns for key,value in current_table[0].iteritems())
+            all_exist = all(key in schema_columns for key in current_table[0])
 
             if not all_exist and not data_loss_ok:
                 print('NOT ALL KEYS EXIST IN SCHEMA AS IN TABLE YOU ARE MIGRATING FROM. OVERRIDE WITH data_loss_ok=True '
                       'kwarg or figure out why this is happening')
-                print('Existing keys: ' + str([key for key,value in current_table[0].iteritems()]))
+                print('Existing keys: ' + str([key for key in current_table[0]]))
                 print('Schema keys: ' + str(self.columns()))
                 return
             elif all_exist and data_loss_ok:
@@ -92,17 +99,21 @@ class sqliteDatabase(object):
         else:
             print('no table or tabledata exists :  ' + tablename)
 
+        self.create_table(tablename, schema, queue=True)
+        # Check here to make sure we will not incur dataloss
+
         for row in current_table:
             self.insert(tablename, row, queue=True)
-        if not queue:
+        if queue:
             self.execute_queue()
+
         return current_table
 
     def get_table_size(self, tablename):
         return gettablesize(self.path, tablename)
 
-    def read_table(self, tablename, **kwargs):
-        dbrows = readalldbrows(self.path, tablename, **kwargs)
+    def read_table(self, tablename, condition=None, **kwargs):
+        dbrows = readalldbrows(self.path, tablename, condition, **kwargs)
         return dbrows
 
     def read_table_row(self, tablename, row=0, **kwargs):
@@ -156,17 +167,19 @@ class sqliteDatabase(object):
         return value
 
     def insert(self, tablename, insert, replace=True, queue=False):
-        # Insert can be single insert or list
-
-        if not (isinstance(insert, list)):
-            insert_list = [insert]
+        # Insert can be single insert or list (or falsy to insert defaults)
+        if not insert:
+            queries = ["insert into '" + tablename + "'default values"]
         else:
-            insert_list = insert
+            if not (isinstance(insert, list)):
+                insert_list = [insert]
+            else:
+                insert_list = insert
 
-        queries = []
-        for insert in insert_list:
-            query = make_insert_from_dict(tablename, insert)
-            queries.append(query)
+            queries = []
+            for insert in insert_list:
+                query = make_insert_from_dict(tablename, insert)
+                queries.append(query)
 
         if queue:
             self.queue_queries(queries)
@@ -228,8 +241,8 @@ class tableSchema(object):
             print('not all required properties required supplied : ')
             print(self.requiredproperties)
         else:
-            for key, value in kwargs.iteritems():
-                setattr(self, key, value)
+            for key in kwargs:
+                setattr(self, key, kwargs[key])
 
 
 # This one is instantiated with a list of schema items
@@ -309,8 +322,8 @@ class sqliteTableSchema(object):
 def make_insert_from_dict(tablename, insert_dict, replace=True):
     values = []
     valuenames = []
-    for key, value in insert_dict.iteritems():
-        values.append(value)
+    for key in insert_dict:
+        values.append(insert_dict[key])
         valuenames.append(key)
     insert_query = makesqliteinsert(tablename, values, valuenames=valuenames, replace=replace)
 
@@ -476,6 +489,18 @@ def datarowtodict(database, table, datarow):
         dict[pragmanames[index]] = datum
         index += 1
     return dict
+
+
+def string_condition_from_lists(conditionnames, conditionvalues):
+    numconditions = len(conditionnames)
+    condition = ''
+
+    for index, (name, value) in enumerate(zip(conditionnames, conditionvalues)):
+        condition += "\"" + name + "\"='" + value + "'"
+        if index < numconditions - 1:
+            condition += ' and '
+
+    return condition
 
 
 def insertstringdicttablelist(database, tablename, datadictarray, droptable=False):
@@ -770,14 +795,9 @@ def makegetsinglevaluequery(table, valuename, condition=None):
             # print('oops')
             pass
         else:
-            query += ' where '
-            numconditions = len(conditionnames)
-            for index, (name, value) in enumerate(zip(conditionnames, conditionvalues)):
-                query += "\"" + name + "\"='" + value + "'"
-                if index < numconditions-1:
-                    query += ' and '
+            condition = string_condition_from_lists(conditionnames, conditionvalues)
             # print(query)
-    elif isinstance(condition, basestring):
+    if condition:
         query += ' where ' + condition
     return query
 
@@ -1131,7 +1151,7 @@ def dbvntovalue(dbvn, interprettype=False):
 
     from iiutilities.datalib import parsedbvn, getvartype
     dbvndict = parsedbvn(dbvn)
-    print(dbvndict)
+    # print(dbvndict)
     # try:
 
     value = getsinglevalue(dbvndict['dbpath'], dbvndict['tablename'], dbvndict['valuename'], dbvndict['condition'])

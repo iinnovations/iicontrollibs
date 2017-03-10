@@ -20,14 +20,51 @@ if top_folder not in sys.path:
 
 import cupid.pilib as pilib
 
+
 # Need to backward compatible this for Pi2 based on hardware version
-def write(message, port='/dev/serial0', baudrate=115200, timeout=1):
-    import serial
-    ser = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
-    ser.write(message)
+def write(message, port=None, baudrate=115200, timeout=1):
+
+    if not port:
+        print('NO PORT SPECIFIED')
+        return None
+    else:
+        import serial
+        ser = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
+        ser.write(message)
 
 
-def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, printmessages=False):
+def getsystemserialport():
+    from iiutilities.dblib import getsinglevalue
+    from iiutilities.utility import log as mylog
+    from cupid.pilib import dirs
+    from iiutilities import dblib
+    system_db = dblib.sqliteDatabase(dirs.dbs.system)
+
+    port = '/dev/ttyAMA0'
+    try:
+        versions = system_db.read_table('versions')
+        hw_version = ''
+        for version in versions:
+            print(version['item'])
+            if version['item'] == 'versionname':
+                print(version)
+                hw_version = version['version']
+    except:
+        mylog(dirs.dbs.system, 'Error retrieving hardware version in serial monitor. Reverting to /dev/tty/AMA0')
+        print('Error retrieving hardware version in serial monitor. Reverting to /dev/tty/AMA0')
+    else:
+        print(hw_version, port)
+
+        if hw_version in ['RPi 3 Model B', 'Pi 3 Model B']:
+            port = '/dev/ttyS0'
+
+    return port
+
+
+def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessages=False):
+
+    if not port:
+        port = getsystemserialport()
     import serial
     import cupid.pilib as pilib
     from iiutilities import datalib, dblib
@@ -71,14 +108,17 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
             #     print('null character')
 
             if len(ch) == 0 or ch == '\x0D':
-                print('LEN ZERO OR END CHAR: PROCESS TIME')
+                # print('LEN ZERO OR END CHAR: PROCESS TIME')
 
                 # rec'd nothing print all
-                if len(data) > 0:
+                if len(data) > 1:   # This will avoid processing endline characters and other trash.
                     s = ''
                     for x in data:
                         s += '%s' % x # ord(x)
 
+                    # clear data
+
+                    data = []
                     # Here for diagnostics
                     # print '%s [len = %d]' % (s, len(data))
 
@@ -98,6 +138,7 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
                     except Exception as ex:
                         template = "An exception of type {0} occured (line 99). Arguments:\n{1!r}"
                         message = template.format(type(ex).__name__, ex.args)
+                        print('exception: ')
                         print(message)
                     else:
                         for datadict, message in zip(datadicts, messages):
@@ -121,7 +162,7 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
                                         print(message)
                                     lograwmessages(message)
 
-                                dblib.sizesqlitetable(pilib.dirs.dbs.motes, 'readmessages', 1000)
+                                dblib.sizesqlitetable(pilib.dirs.dbs.motes, 'read', 1000)
                                 try:
                                     processremotedata(datadict, message)
                                 except Exception as ex:
@@ -148,7 +189,7 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
                     # print('no data, try sending')
                     pass
 
-                print('CLEARING DATA !!!')
+                # print('CLEARING DATA !!!')
                 data = []
                 # try:
                 #     utility.log(pilib.dirs.logs.serial, "Attempting send routine", 4, pilib.loglevels.serial)
@@ -159,7 +200,7 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
 
 
                 # See if there are messages to send.
-                print('LET US TRY SEND HANDLER')
+                # print('LET US TRY SEND HANDLER')
                 try:
                     runsendhandler(ser)
                 except Exception as e:
@@ -167,7 +208,7 @@ def monitor(port='/dev/ttyAMA0', baudrate=115200, timeout=1, checkstatus=True, p
                     message = template.format(type(ex).__name__, ex.args)
                     print message
                     utility.log(pilib.dirs.logs.serial, "Error in send routine: " + message, 1, 1)
-                print('SEND HANDLER DONE')
+                # print('SEND HANDLER DONE')
 
                 #
                 #     template = "An exception of type {0} occured. Arguments:\n{1!r}"
@@ -214,18 +255,21 @@ def runsendhandler(ser):
     from iiutilities import utility
 
     # print('looking for message to send')
+
+    motes_db = dblib.sqliteDatabase(pilib.dirs.dbs.motes)
+
     try:
-        lastqueuedmessage = dblib.getfirsttimerow(pilib.dirs.dbs.motes, 'queuedmessages', 'queuedtime')[0]
+        last_queued_message = motes_db.get_first_time_row('queued', 'queuedtime')
     except IndexError:
         # no rows
         # print('we have an error getting a queued message. Could be just no message.')
         pass
     else:
-        utility.log(pilib.dirs.logs.serial, 'Sending serial message: ' + lastqueuedmessage['message'], 1, 1)
+        utility.log(pilib.dirs.logs.serial, 'Sending serial message: ' + last_queued_message['message'], 1, 1)
         try:
             # print('going to send message:')
             # print(lastqueuedmessage['message'])
-            ser.write(lastqueuedmessage['message'].encode())
+            ser.write(last_queued_message['message'].encode())
             # sendserialmessage(ser, lastqueuedmessage['message'])
         except:
              utility.log(pilib.dirs.logs.serial, 'Error sending message', 1, 1)
@@ -233,10 +277,10 @@ def runsendhandler(ser):
             utility.log(pilib.dirs.logs.serial, 'Success sending message', 1, 1)
 
             conditionnames = ['queuedtime', 'message']
-            conditionvalues = [lastqueuedmessage['queuedtime'], lastqueuedmessage['message']]
-            delquery = dblib.makedeletesinglevaluequery('queuedmessages', {'conditionnames':conditionnames, 'conditionvalues':conditionvalues})
+            conditionvalues = [last_queued_message['queuedtime'], last_queued_message['message']]
+            delquery = dblib.makedeletesinglevaluequery('queued', {'conditionnames':conditionnames, 'conditionvalues':conditionvalues})
             dblib.sqlitequery(pilib.dirs.dbs.motes, delquery)
-            dblib.sqliteinsertsingle(pilib.dirs.dbs.motes, 'sentmessages', [lastqueuedmessage['queuedtime'], datalib.gettimestring(), lastqueuedmessage['message']])
+            dblib.sqliteinsertsingle(pilib.dirs.dbs.motes, 'sent', [last_queued_message['queuedtime'], datalib.gettimestring(), last_queued_message['message']])
     return
 
 
@@ -253,6 +297,7 @@ def processserialdata(data):
 
     print('processing data: ')
     print(data)
+    print('end data')
     # RF Message (deprecated, all are of serial form below)
     if data.strip().find('BEGIN RECEIVED') > 0:
         split1 = data.strip().split('BEGIN RECEIVED')
@@ -297,7 +342,7 @@ def lograwmessages(message):
     strmessage = str(message).replace('\x00','').strip()
     print('publishing message: ' + strmessage)
     # print(repr(strmessage))
-    sqliteinsertsingle(dirs.dbs.motes, 'readmessages', [gettimestring(), strmessage])
+    sqliteinsertsingle(dirs.dbs.motes, 'read', [gettimestring(), strmessage])
     # sqliteinsertsingle(dirs.dbs.motes, 'readmessages', [gettimestring(), 'nodeid:2,chan:02,sv:070.000,pv:071.000,RX_RSSI:_57'])
     # except:
     #     print('it did not go ok')
@@ -343,6 +388,8 @@ def processremotedata(datadict, stringmessage):
         runquery = False
         nodeid = datadict['nodeid']
         querylist = []
+        # We are going to use this to filter datadict entries into remote channels. More later.
+        allowedfieldnames = ['nodeid','sv','pv','htcool','run','treg','prop','p','i','d']
 
         # Command responses, including value requests
         if 'cmd' in datadict:
@@ -406,6 +453,14 @@ def processremotedata(datadict, stringmessage):
             else:
                 runquery = True
 
+        # Node status report
+        elif 'voltage' in datadict:
+            print(' I found le voltage')
+            msgtype = 'status'
+            keyvalue = datadict['voltage']
+            keyvaluename = 'voltage'
+            runquery= True
+
         elif 'owdev' in datadict:
             try:
                 msgtype = 'owdev'
@@ -422,11 +477,12 @@ def processremotedata(datadict, stringmessage):
                 print("oops")
             else:
                 runquery = True
+
         elif 'chan' in datadict:
             # insert or update remotes database value
             # first need to get existing entry if one exists
             msgtype = 'channel'
-            keyvalue = str(int(datadict['chan'])) # Zeroes bad
+            keyvalue = str(int(datadict['chan']))  # Zeroes bad
             keyvaluename = str(int(datadict['chan']))
 
             # conditions = '"nodeid"=2 and "msgtype"=\'channel\' and "keyvalue"=\'' + keyvalue + '\'"'
@@ -435,14 +491,18 @@ def processremotedata(datadict, stringmessage):
             # iterate over list to find correct enty
 
             # Here, get all remote entries for the specific node id
-            conditions = '"nodeid"=\''+ datadict['nodeid'] + '\' and "msgtype"=\'channel\''
+            conditions = '"nodeid"=\'' + datadict['nodeid'] + '\' and "msgtype"=\'channel\''
             chanentries = dblib.readalldbrows(pilib.dirs.dbs.control, 'remotes', conditions)
 
             # parse through to get data from newdata
             newdata = {}
+            import string
+            printable = set(string.printable)
             for key, value in datadict.iteritems():
                 if key not in ['chan','nodeid']:
-                    newdata[key] = value
+                    if key in allowedfieldnames:
+                        filteredvalue = filter(lambda x: x in printable, value)
+                        newdata[key] = filteredvalue
 
             updateddata = newdata.copy()
 
@@ -481,12 +541,21 @@ def processremotedata(datadict, stringmessage):
             dblib.sqlitemultquery(pilib.dirs.dbs.log, querylist)
 
         if runquery:
-            deletequery = dblib.makedeletesinglevaluequery('remotes', {'conditionnames': ['nodeid', 'keyvalue', 'keyvaluename'], 'conditionvalues': [nodeid , keyvalue, keyvaluename]})
-            insertquery = dblib.makesqliteinsert('remotes', [nodeid, msgtype, keyvaluename, keyvalue, stringmessage.replace('\x00', ''), datalib.gettimestring()], ['nodeid', 'msgtype', 'keyvaluename', 'keyvalue', 'data', 'time'])
-            querylist.append(deletequery)
-            querylist.append(insertquery)
-            dblib.sqlitemultquery(pilib.dirs.dbs.control, querylist)
-
+            control_db = dblib.sqliteDatabase(pilib.dirs.dbs.control)
+            # control_db.queue_query(dblib.makedeletesinglevaluequery('remotes', {'conditionnames': ['nodeid', 'keyvalue', 'keyvaluename'], 'conditionvalues': [nodeid , keyvalue, keyvaluename]}))
+            control_db.queue_query(dblib.makedeletesinglevaluequery('remotes', {'conditionnames': ['nodeid', 'keyvaluename'], 'conditionvalues': [nodeid , keyvaluename]}))
+            insert = {
+                'nodeid':nodeid,
+                'msgtype':msgtype,
+                'keyvaluename':keyvaluename,
+                'keyvalue':keyvalue,
+                'data':stringmessage.replace('\x00', ''),
+                'time':datalib.gettimestring()
+            }
+            # print(insert)
+            control_db.insert('remotes', insert, queue=True)
+            # print(control_db.queued_queries)
+            control_db.execute_queue()
             return
         else:
             # print('not running query')

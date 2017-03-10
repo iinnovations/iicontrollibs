@@ -92,6 +92,20 @@ loglevels.notifications = 5
 daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py', 'mote/serialhandler.py']
 daemonprocnames = ['updateio', 'picontrol', 'systemstatus', 'sessioncontrol', 'serialhandler']
 
+from iiutilities.dblib import sqliteTableSchema
+schema = Bunch()
+schema.channel_datalog = sqliteTableSchema([
+    {'name':'time'},
+    {'name':'controlinput'},
+    {'name':'controlvalue','type':'real'},
+    {'name':'setpointvalue','type':'real'},
+    {'name':'action','type':'real'},
+    {'name':'algorithm'},
+    {'name':'enabled','type':'real'},
+    {'name':'statusmsg'}
+])
+
+
 """
 Utility Functions
 
@@ -391,6 +405,39 @@ def gethashedentry(user, password):
     return hashedentry
 
 
+def check_action_auths(action, level):
+    action_auths_dict = {
+        'gettabledata':1,
+        'modifychannel':3,
+        'enablechannel':2,
+        'modifyaction':3,
+        'modifchannelalarm':3,
+        'enableaction':2,
+        'userdelete':5, 'useradd':5, 'usermodify':5,
+        'setvalue':5,
+        'setsystemflag':5,
+        'getmbtcpdata':2,
+        'getfiletext':5,
+        'dump':999
+    }
+    # Currently setup to blacklist only.
+    if action in action_auths_dict:
+        level_required = action_auths_dict[action]
+    else:
+        level_required = 0
+    try:
+        if int(level) >= level_required:
+            authorized = True
+        else:
+            authorized = False
+    except:
+        authorized = False
+
+    print('Action ' + action + ', ' + str(level) + ' provided, ' + str(level_required) + ' required : ' + str(authorized))
+
+    return authorized
+
+
 #############################################
 ## Authlog functions 
 #############################################
@@ -431,12 +478,18 @@ def setsinglecontrolvalue(database, table, valuename, value, condition=None):
             else:
                 utility.log(dirs.logs.control, "Channel retrieval went ok with " + condition, 1, loglevels.control)
 
+                """
+                This all needs to go into the picontrol section
+                Set a pending value in modify channel, then picontrol processes pending setpoint
+
+                """
                 if channeldata['type'] == 'remote' and channeldata['enabled']:
                     # Process setpointvalue send for remote here to make it as fast as possible.
                     # First we need to identify the node and channel by retrieving the interface
 
                     channelname = channeldata['name']
                     utility.log(dirs.logs.control, "Processing remote setpoint for channel " + channelname, 1, loglevels.io)
+
                     # Then go to the interfaces table to get the node and channel addresses
                     address = dblib.getsinglevalue(dirs.dbs.control, 'interfaces', 'address', "name='" + channelname + "'")
                     utility.log(dirs.logs.control, "Channel has address " + address, 1, loglevels.io)

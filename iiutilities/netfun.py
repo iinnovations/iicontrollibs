@@ -468,16 +468,25 @@ def readMBcoils(clientIP, coil, number=1):
 
 
 def writeMBcoils(clientIP, coil, valuelist):
-    from resource.pymodbus.client.sync import ModbusTcpClient
+    from resource.pymodbus.client.sync import ModbusTcpClient, ConnectionException
 
     client = ModbusTcpClient(clientIP)
-    client.write_coils(coil, valuelist)
-    result = client.read_coils(coil, len(valuelist))
-    client.close()
     try:
-        return result.bits[0:len(valuelist)]
-    except AttributeError:
-        return result
+        rawresult = client.write_coils(coil, valuelist)
+    except ConnectionException:
+        # print('we were unable to connect to the host')
+        statuscode = 7
+    else:
+        if 'exception_code' in rawresult.__dict__:
+            statuscode = rawresult.exception_code
+            values = []
+        else:
+            statuscode = 0
+            values = valuelist
+
+    client.close()
+    result = {'message': messagefrommbstatuscode(statuscode), 'statuscode': statuscode, 'values': values}
+    return result
 
 
 def readMBholdingregisters(clientIP, register, number=1):
@@ -528,20 +537,24 @@ def readMBinputregisters(clientIP, register, number=1):
 
 
 def writeMBholdingregisters(clientIP, register, valuelist):
-    from resource.pymodbus.client.sync import ModbusTcpClient
+    from resource.pymodbus.client.sync import ModbusTcpClient, ConnectionException
 
     client = ModbusTcpClient(clientIP)
-    client.write_registers(register, valuelist)
-    result = client.read_holding_registers(register, len(valuelist))
-    client.close()
     try:
-        return result.registers
-    except AttributeError:
-        # print('there are no registers!')
-        return result
-    except:
-        # print('other unhandled error')
-        return result
+        rawresult = client.write_registers(register, valuelist)
+    except ConnectionException:
+        statuscode = 7
+    else:
+        if 'exception_code' in rawresult.__dict__:
+            statuscode = rawresult.exception_code
+            values = []
+        else:
+            statuscode = 0
+            values = valuelist
+    # result = client.read_holding_registers(register, len(valuelist))
+    client.close()
+    result = {'message': messagefrommbstatuscode(statuscode), 'statuscode': statuscode, 'values': values}
+    return result
 
 
 def readMBcodedaddresses(clientIP, address, length=1, **kwargs):

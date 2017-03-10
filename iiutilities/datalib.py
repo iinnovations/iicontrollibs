@@ -77,6 +77,16 @@ def parseoptions(optionstring):
     return optionsdict
 
 
+# opposite of above
+def dicttojson(pass_dict):
+    jsonentry = ''
+    for key in pass_dict:
+        value = pass_dict[key]
+        jsonentry += key + ':' + str(value).replace('\x00','') + ','
+    jsonentry = jsonentry[:-1]
+    return jsonentry
+
+
 def gettimestring(timeinseconds=None):
     import time
     if timeinseconds:
@@ -337,6 +347,7 @@ def evaldbvnformula(formula, type='value'):
 
     from iiutilities.dblib import dbvntovalue
 
+    print(formula)
     #if type == 'value':
     # first we need to get all the values that are provided as db-coded entries.
     # We put the dbvn inside of brackets, e.g. [dbnmae:dbtable:dbvaluename:condition]
@@ -353,7 +364,7 @@ def evaldbvnformula(formula, type='value'):
         else:
             splitletsplit = splitlet.split(']')
             dbvn = splitletsplit[0]
-            # print('dbvn: ' + dbvn)
+            print('dbvn: ' + dbvn)
             try:
                 value = dbvntovalue(dbvn)
             except:
@@ -361,8 +372,8 @@ def evaldbvnformula(formula, type='value'):
             # print('value: ' + str(value))
             textform += str(value) + splitletsplit[1]
 
-    # print('EQN Text:')
-    # print('"' + textform + '"')
+    print('EQN Text:')
+    print('"' + textform + '"')
     result = calcastevalformula(textform)
     return result
 
@@ -392,8 +403,12 @@ def parsedbvn(dbvn):
 
     tablename = split[1].strip()
     valuename = split[2].strip()
+
+    # Have to beware of conditions with colons in them.
     if len(split) == 4:
         condition = split[3]
+    elif len(split) > 4:
+        condition = ':'.join(split[3:])
     else:
         condition = None
 

@@ -18,12 +18,174 @@ top_folder = \
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
+"""
+This library is for control functions. It has been ignored for some time and probably needs some love
+"""
 
-# This library is for control functions 
+"""
+WSGI helper functions
+"""
 
-#######################################################
-## Control Functions
-#######################################################
+
+def handle_modify_channel_alarm(d, output):
+
+    import pilib
+    from iiutilities import dblib
+
+    output['message'] += 'modifychannelalarm keyword found. '
+    required_keywords = ['database', 'valuename', 'value', 'actionname']
+    if not all(keyword in d for keyword in required_keywords):
+        output['message'] += 'Not all required keywords were found: ' + str(required_keywords) + '. '
+        return
+
+    allowed_valuenames = ['enabled', 'PV_low', 'PV_high', 'actiondetail']
+
+    if d['valuename'] not in allowed_valuenames:
+        output['message'] += 'Selected valuename is not allowed for this action. '
+        return
+
+    dbpath = pilib.dbnametopath(d['database'])
+    database = dblib.sqliteDatabase(dbpath)
+
+    action_condition = '"name"=\'' + d['actionname'] + "'"
+    if d['valuename'] in ['enabled','actiondetail']:
+
+        try:
+            if d['valuename'] == 'enabled':
+                set_value = int(d['value'])
+            else:
+                set_value = str(d['value'])
+        except:
+            output['message'] += 'Missing keys or bad value conversion. '
+        else:
+            output['message'] += 'Setting value' + str(set_value) + ' with condition ' + action_condition + '. '
+            try:
+                database.set_single_value('actions',d['valuename'],set_value, action_condition)
+            except:
+                output['message'] += 'Query error. '
+            else:
+                output['message'] += 'That appears to have worked. '
+
+    elif d['valuename'] in ['PV_high', 'PV_low']:
+        """
+        These values have to be set in the options field.
+        So we have to pull it out as a json string, put it into a dict, modify values, and then put it back as a string
+        """
+        from iiutilities.datalib import parseoptions, dicttojson
+
+        optionstring = database.get_single_value('actions','actiondata',action_condition)
+        output['message'] += 'Existing options: ' + optionstring + '. '
+        options = parseoptions(optionstring)
+
+        try:
+            set_value = float(d['value'])
+        except:
+            output['message'] += 'Bad value conversion. '
+            return
+
+        if not d['valuename'] in options:
+            output['message'] += 'Valuename does not exist in options. Creating. '
+
+        options[d['valuename']] = set_value
+
+        # Now rewrite to actions
+        optionstring = dicttojson(options)
+        output['message'] += 'New optionstring: ' + optionstring + '. '
+        try:
+            database.set_single_value('actions','actiondata',optionstring, action_condition)
+        except:
+            output['message'] += 'Query error. '
+        else:
+            output['message'] += 'That appears to have worked. '
+
+    return
+
+
+def handle_modify_channel(d, output):
+    import pilib
+    from iiutilities import dblib
+
+    output['message'] += 'modifychannelalarm keyword found. '
+    required_keywords = ['database', 'valuename', 'value', 'channelname']
+    if not all(keyword in d for keyword in required_keywords):
+        output['message'] += 'Not all required keywords were found: ' + str(required_keywords) + '. '
+        return
+
+    allowed_valuenames = ['enabled', 'setpointvalue']
+
+    if d['valuename'] not in allowed_valuenames:
+        output['message'] += 'Selected valuename is not allowed for this action. '
+        return
+
+    dbpath = pilib.dbnametopath(d['database'])
+    database = dblib.sqliteDatabase(dbpath)
+
+    channel_condition = '"name"=\'' + d['channelname'] + "'"
+    if d['valuename'] in allowed_valuenames:
+
+        try:
+            if d['valuename'] == 'enabled':
+                set_value = int(d['value'])
+            else:
+                set_value = float(d['value'])
+        except:
+            output['message'] += 'Missing keys or bad value conversion. '
+            return
+
+
+        """
+        For a channel, we will check type. If remote, we set as pending and then initiate processing the channel.
+
+        """
+        from iiutilities.datalib import parseoptions, dicttojson
+
+        # Handle error here.
+        the_channel = database.read_table('channels',channel_condition)[0]
+
+        if the_channel['type'] == 'remote':
+            output['message'] += 'Processing remote channel, setting pending value. '
+
+            if the_channel['pending']:
+                pending = parseoptions(the_channel['pending'])
+            else:
+                pending = {}
+
+            pending[d['valuename']] = set_value
+            pending_string = dicttojson(pending)
+            try:
+                database.set_single_value('channels', 'pending', pending_string, channel_condition)
+            except:
+                output['message'] +=  'Query error. '
+                return
+            else:
+                output['message'] += 'That appears to have worked. Now running channel processing on channel. '
+
+
+        else:
+
+            output['message'] += 'Setting local setpoint value. '
+            try:
+                database.set_single_value('channels','setpointvalue',set_value)
+            except:
+                output['message'] += 'Query error. '
+                return
+            else:
+                output['message'] += 'That appears to have worked. '
+
+        # Process channel now
+        from cupid.picontrol import process_channel
+        process_channel(channel_name=d['channelname'])
+
+        # Let's also update the input while we're at it
+
+
+
+    return
+
+"""
+Control Functions
+"""
+
 
 def runalgorithm(controldbpath, recipedbpath, channelname):
     from iiutilities.datalib import timestringtoseconds, gettimestring

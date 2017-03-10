@@ -89,9 +89,13 @@ class action:
 
     def determine_status(self):
         from iiutilities import dblib, datalib
+
         if self.conditiontype == 'logical':
             currstatus = datalib.evaldbvnformula(self.actiondatadict['condition'])
-            self.value = currstatus
+            print('CURRSTATUS',currstatus)
+            if currstatus == None:
+                self.statusmsg += 'None returned by evaldbvn. Setting status to False'
+            self.value = 0
             self.status = int(currstatus)
 
 
@@ -101,6 +105,21 @@ class action:
             # self.operator = self.actiondatadict['operator']
             # self.criterion = self.actiondatadict['criterion']
             self.status = int(datalib.calcastevalformula(str(self.value) + self.actiondatadict['operator'] + self.actiondatadict['criterion']))
+
+        elif self.conditiontype == 'channel':
+            from cupid import pilib
+            control_channel_name = self.actiondatadict['channel_name']
+            control_db = dblib.sqliteDatabase(pilib.dirs.dbs.control)
+            self.value = control_db.get_single_value('channels','controlvalue',condition='"name"=\'' + control_channel_name + "'")
+            self.status = 0
+
+            print(self.value)
+            print(self.actiondatadict)
+            if 'PV_low' in self.actiondatadict and self.value < float(self.actiondatadict['PV_low']):
+                self.status = 1
+
+            if 'PV_high' in self.actiondatadict and self.value > float(self.actiondatadict['PV_high']):
+                self.status = 1
 
 
         elif self.conditiontype == 'temporal':
@@ -132,6 +151,20 @@ class action:
         # print(self.conditiontype)
         # print(self.status)
 
+    def test(self):
+        from iiutilities import utility
+        if self.actiontype == 'email':
+            # process email action
+            self.statusmsg += 'Processing email alert. '
+            email = self.actiondetail
+
+            message = 'Test message for action ' + self.name
+
+            subject = 'CuPID Test Alert : ' + self.name
+            actionmail = utility.gmail(message=message, subject=subject, recipient=email)
+            actionmail.send()
+
+
     def onact(self):
         from iiutilities import dblib, datalib, utility
         from cupid import pilib
@@ -140,11 +173,28 @@ class action:
             # process email action
             self.statusmsg += 'Processing email alert. '
             email = self.actiondetail
-            # message = 'Alert is active for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + str(self.criterion) + ' with an operator of ' + self.operator + '. This alarm status has been on since ' + self.ontime + '.'
-            message = 'Alert for alarm ' + self.name + ' . On time of ' + self.ontime + '. Current time of ' \
-                      + datalib.gettimestring()
-            if self.conditiontype == 'value':
+
+            # Special messages
+            if self.conditiontype == 'channel':
+                message = 'Channel alarm for ' + self.name + ' is active with value of ' + str(self.value) + '. '
+                if 'PV_low' in self.actiondatadict:
+                    message += 'Low alarm: ' + str(self.actiondatadict['PV_low'] + '. ')
+                if 'PV_high' in self.actiondatadict:
+                    message += 'High alarm: ' + str(self.actiondatadict['PV_high'] + '. ')
+
+
+            elif self.conditiontype == 'value':
+
+                # message = 'Alert is active for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + str(self.criterion) + ' with an operator of ' + self.operator + '. This alarm status has been on since ' + self.ontime + '.'
+                message = 'Alert for alarm ' + self.name + ' . On time of ' + self.ontime + '. Current time of ' \
+                          + datalib.gettimestring()
+
                 message += ' Value: ' + str(self.value) + self.actiondatadict['operator'] + str(self.actiondatadict['criterion'])
+
+            else:
+                # message = 'Alert is active for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + str(self.criterion) + ' with an operator of ' + self.operator + '. This alarm status has been on since ' + self.ontime + '.'
+                message = 'Alert for alarm ' + self.name + ' . On time of ' + self.ontime + '. Current time of ' \
+                          + datalib.gettimestring()
 
             subject = 'CuPID Alert : Alarm On - ' + self.name
             actionmail = utility.gmail(message=message, subject=subject, recipient=email)
@@ -249,7 +299,7 @@ class action:
     def publish(self):
         from cupid import pilib
         from iiutilities import dblib
-        from iiutilities.utility import dicttojson
+        from iiutilities.datalib import dicttojson
         # reinsert updated action back into database
         valuelist=[]
         valuenames=[]

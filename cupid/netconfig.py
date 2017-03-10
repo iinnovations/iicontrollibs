@@ -117,7 +117,6 @@ def updatewirelessnetworks(interface='wlan0'):
             resetwlan(interface=interface)
         else:
             break
-<<<<<<< HEAD
 
     if networks:
         netinsert = []
@@ -125,15 +124,6 @@ def updatewirelessnetworks(interface='wlan0'):
             # print(network)
             netinsert.append({'ssid':network['ssid'],'strength':network['signallevel'], 'data':dicttojson(network)})
 
-=======
-
-    if networks:
-        netinsert = []
-        for network in networks:
-            # print(network)
-            netinsert.append({'ssid':network['ssid'],'strength':network['signallevel'], 'data':dicttojson(network)})
-
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
         dropcreatetexttablefromdict(dirs.dbs.system, 'wirelessnetworks', netinsert)
     else:
         sqliteemptytable(dirs.dbs.system, 'wirelessnetworks')
@@ -624,17 +614,12 @@ def runconfig(**kwargs):
     settings = {
         'debug':False, 'onboot':False
     }
-<<<<<<< HEAD
 
     settings.update(kwargs)
 
     if settings['debug']:
         pilib.set_debug()
 
-=======
-    settings.update(kwargs)
-
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
     utility.log(pilib.dirs.logs.network, 'Running network reconfig (setting lastnetreconfig). ', 0, pilib.loglevels.network)
     dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'lastnetreconfig', gettimestring())
 
@@ -661,7 +646,6 @@ def runconfig(**kwargs):
             setstationmode(netconfigdata)
         elif netconfigdata['mode'] == 'staticeth0stationdhcp':
             setstationmode(netconfigdata)
-<<<<<<< HEAD
 
         elif netconfigdata['mode'] == 'staticeth0_apwlan0_stadhcpwlan1':
             utility.log(pilib.dirs.logs.network, 'Setting staticeth0_apwlan0_stadhcpwlan1 mode ', 0, pilib.loglevels.network)
@@ -670,8 +654,6 @@ def runconfig(**kwargs):
             resetwlan(interface='wlan1')
             startapservices('wlan0')
 
-=======
->>>>>>> 4658da7edce3628e94d01808b4f389c7ceb428d4
         elif netconfigdata['mode'] in ['ap', 'tempap', 'eth0wlan0bridge']:
             utility.log(pilib.dirs.logs.network, 'Setting eth0wlan0 bridge (or bare ap mode). ', 0, pilib.loglevels.network)
             subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.ap', '/etc/network/interfaces'])
