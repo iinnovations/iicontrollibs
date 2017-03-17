@@ -632,7 +632,7 @@ def updatenetstatus(lastnetstatus=None):
     updateddictarray = []
     for interface in ifacesdictarray:
         if interface['name'] in wpainterfaces:
-            interface['wpastate'] = utility.dicttojson(getwpaclientstatus(interface['name']))
+            interface['wpastate'] = datalib.dicttojson(getwpaclientstatus(interface['name']))
         else:
             interface['wpastate'] = ''
         updateddictarray.append(interface)
@@ -837,7 +837,7 @@ def updatehardwareinfo(databasename='systemdb'):
         except:
             pass
 
-    dictstring = utility.dicttojson(dict)
+    dictstring = datalib.dicttojson(dict)
     dbpath = None
     try:
         dbpath = pilib.dbnametopath(databasename)

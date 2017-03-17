@@ -147,23 +147,24 @@ def application(environ, start_response):
                         elif 'row' in d:  # Handle table row
                             output['message'] += 'Row keyword. ' + str(d['row'])
                             thetime = time();
-                            output['data'] = the_database.read_table_rows(dbpath, d['tablename'], d['row'])
+                            output['data'] = the_database.read_table_rows(d['tablename'], d['row'])
                             output['querytime'] = time() - thetime
                         elif 'tablename' in d:  # Handle entire table
                             output['message'] += 'Tablename keyword: ' + d['tablename'] + '. '
                             thetime = time();
                             if 'condition' in d:
                                 if not d['condition'] == '':
-                                    output['data'] = the_database.read_table_rows(dbpath, d['tablename'], condition=d['condition'])
+                                    output['data'] = the_database.read_table_rows(d['tablename'], condition=d['condition'])
                                 else:
-                                    output['data'] = the_database.read_table_rows(dbpath, d['tablename'])
+                                    output['data'] = the_database.read_table_rows(d['tablename'])
                             else:
                                 try:
-                                    output['data'] = the_database.read_table_rows(dbpath, d['tablename'])
+                                    output['data'] = the_database.read_table_rows(d['tablename'])
                                 except:
                                     output['message'] += 'Error retrieving data. '
                                 else:
                                     output['message'] += 'Data query appears successful. '
+                                    # output['message'] += str(output['data'][0])
                             output['querytime'] = time() - thetime
 
                     else:

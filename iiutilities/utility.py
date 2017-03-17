@@ -925,7 +925,7 @@ class gmail:
         self.sender = sender
 
         if self.recipient.find(',') >=0:
-            self.recipients = self.recipient.split(',').strip()
+            self.recipients = self.recipient.split(',')
         else:
             self.recipients = [self.recipient]
 
@@ -946,7 +946,8 @@ class gmail:
         session.ehlo
         session.login(self.login, self.password)
         for recipient in self.recipients:
-            session.sendmail(self.sender, recipient, headers + '\r\n\r\n' + self.message)
+            if recipient:
+                session.sendmail(self.sender, recipient.strip(), headers + '\r\n\r\n' + self.message)
         session.quit()
 
 

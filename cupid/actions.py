@@ -197,8 +197,13 @@ class action:
                           + datalib.gettimestring()
 
             subject = 'CuPID Alert : Alarm On - ' + self.name
-            actionmail = utility.gmail(message=message, subject=subject, recipient=email)
-            actionmail.send()
+            try:
+                actionmail = utility.gmail(message=message, subject=subject, recipient=email)
+                actionmail.send()
+            except:
+                self.statusmsg += 'Error sending email. '
+            else:
+                self.statusmsg += 'Mail sent. '
 
         elif self.actiontype == 'indicator':
             # process indicator action
@@ -252,8 +257,13 @@ class action:
                     self.actiondatadict['criterion'])
 
             subject = 'CuPID Alert : Alarm Off - ' + self.name
-            actionmail = utility.gmail(message=message, subject=subject, recipient=email)
-            actionmail.send()
+            try:
+                actionmail = utility.gmail(message=message, subject=subject, recipient=email)
+                actionmail.send()
+            except:
+                self.statusmsg += 'Error sending email. '
+            else:
+                self.statusmsg += 'Mail sent. '
 
         elif self.actiontype == 'indicator':
             # process indicator action

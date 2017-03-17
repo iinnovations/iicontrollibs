@@ -47,10 +47,12 @@ class sqliteDatabase(object):
 
                 query = sqlite_create_table_query_from_schema(name, schema)
 
-            if queue:
-                self.queue_queries([query])
-            else:
-                self.query(query)
+            # We will get an empty query if no data items yet exist
+            if query:
+                if queue:
+                    self.queue_queries([query])
+                else:
+                    self.query(query)
         else:
             print('schema is invalid')
 
@@ -101,10 +103,13 @@ class sqliteDatabase(object):
 
         self.create_table(tablename, schema, queue=True)
         # Check here to make sure we will not incur dataloss
+        if current_table:
+            for row in current_table:
+                self.insert(tablename, row, queue=True)
 
-        for row in current_table:
-            self.insert(tablename, row, queue=True)
-        if queue:
+        # have we created some queries internally?
+        if not queue and self.queued_queries:
+            print(self.queued_queries)
             self.execute_queue()
 
         return current_table
@@ -707,7 +712,6 @@ def sqliteinsertsingle(database, table, valuelist, valuenames=None, replace=True
     return result
 
 
-
 def sqlitemultquery(database, querylist, **kwargs):
     import sqlite3 as lite
 
@@ -759,7 +763,8 @@ def sqlitequery(database, query, **kwargs):
         data = ''
         message = traceback.format_exc()
         status = 1
-        print('error with query: "' + query + '"')
+        print('error with query: ')
+        print(query)
         if not 'quiet' in kwargs:
             print(message)
     else:

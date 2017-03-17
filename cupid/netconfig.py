@@ -100,7 +100,7 @@ def setdefaultapsettings():
 
 def updatewirelessnetworks(interface='wlan0'):
     from iiutilities.netfun import getwirelessnetworks
-    from iiutilities.utility import dicttojson
+    from iiutilities.datalib import dicttojson
     from iiutilities.utility import log
     from iiutilities.dblib import dropcreatetexttablefromdict, sqliteemptytable
     from pilib import dirs

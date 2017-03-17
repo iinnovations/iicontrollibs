@@ -414,7 +414,7 @@ def check_action_auths(action, level):
         'modifchannelalarm':3,
         'enableaction':2,
         'userdelete':5, 'useradd':5, 'usermodify':5,
-        'setvalue':5,
+        'setvalue':4,
         'setsystemflag':5,
         'getmbtcpdata':2,
         'getfiletext':5,

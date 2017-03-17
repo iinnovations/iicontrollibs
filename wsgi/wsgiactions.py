@@ -310,25 +310,26 @@ def application(environ, start_response):
             from cupiddaemon import rundaemon
             rundaemon()
 
-        # elif action == 'setvalue':
-        #     utility.log(pilib.dirs.logs.control, "Setting value in wsgi", 1, 1)
-        #
-        #     # we use the auxiliary 'setsinglecontrolvalue' to add additional actions to update
-        #     if all(k in d for k in ('database', 'table', 'valuename', 'value')):
-        #         dbpath = pilib.dbnametopath(d['database'])
-        #         if dbpath:
-        #             output['message'] += 'Carrying out setvalue for value ' + d['valuename'] + ' on ' + d['table'] + ' in '  + dbpath
-        #             if 'condition' in d:
-        #                 pilib.setsinglecontrolvalue(dbpath, d['table'], d['valuename'], d['value'], d['condition'])
-        #             elif 'index' in d:
-        #                 condition = 'rowid= ' + d['index']
-        #                 pilib.setsinglecontrolvalue(dbpath, d['table'], d['valuename'], d['value'], condition)
-        #             else:
-        #                 pilib.setsinglecontrolvalue(dbpath, d['table'], d['valuename'], d['value'])
-        #         else:
-        #             output['message'] += 'Problem translating dbpath from friendly name: ' + d['database']
-        #     else:
-        #         output['message'] += 'Insufficient data for setvalue '
+        # TODO: Eliminate this scary thing.
+        elif action == 'setvalue':
+            utility.log(pilib.dirs.logs.control, "Setting value in wsgi", 1, 1)
+
+            # we use the auxiliary 'setsinglecontrolvalue' to add additional actions to update
+            if all(k in d for k in ('database', 'table', 'valuename', 'value')):
+                dbpath = pilib.dbnametopath(d['database'])
+                if dbpath:
+                    output['message'] += 'Carrying out setvalue for value ' + d['valuename'] + ' on ' + d['table'] + ' in '  + dbpath
+                    if 'condition' in d:
+                        pilib.setsinglecontrolvalue(dbpath, d['table'], d['valuename'], d['value'], d['condition'])
+                    elif 'index' in d:
+                        condition = 'rowid= ' + d['index']
+                        pilib.setsinglecontrolvalue(dbpath, d['table'], d['valuename'], d['value'], condition)
+                    else:
+                        pilib.setsinglecontrolvalue(dbpath, d['table'], d['valuename'], d['value'])
+                else:
+                    output['message'] += 'Problem translating dbpath from friendly name: ' + d['database']
+            else:
+                output['message'] += 'Insufficient data for setvalue '
         elif action == 'updateioinfo':
             if all(k in d for k in ['database', 'ioid', 'value']):
                 query = dblib.makesqliteinsert('ioinfo', [d['ioid'], d['value']], ['id', 'name'])
