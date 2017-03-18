@@ -164,6 +164,22 @@ def application(environ, start_response):
             test_action = action(actiondict)
             test_action.test()
 
+        elif action == 'update_network':
+            output['message'] += 'Update network keyword found. '
+            safe_database = dblib.sqliteDatabase(pilib.dirs.dbs.safe)
+            safe_database.set_single_value('wireless', 'password', d['password'], "SSID='" + d['ssid'] + "'")
+        elif action == 'add_network':
+            output['message'] += 'Add network keyword found. '
+            safe_database = dblib.sqliteDatabase(pilib.dirs.dbs.safe)
+            insert = {'SSID':d['ssid'], 'auto':1, 'priority':1}
+            if 'password' in d:
+                insert['password'] = d['password']
+            safe_database.insert('wireless',insert)
+        elif action == 'delete_network':
+            output['message'] += 'Delete network keyword found. '
+            safe_database = dblib.sqliteDatabase(pilib.dirs.dbs.safe)
+            safe_database.delete('wireless', "SSID='" + d['ssid'] + "'")
+
         # elif action == 'dump':
         #     # this has to go.
         #     if 'database' in d:

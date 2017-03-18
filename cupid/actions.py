@@ -104,7 +104,11 @@ class action:
             # self.value = datalib.evaldbvnformula(self.actiondatadict['dbvn'])
             # self.operator = self.actiondatadict['operator']
             # self.criterion = self.actiondatadict['criterion']
-            self.status = int(datalib.calcastevalformula(str(self.value) + self.actiondatadict['operator'] + self.actiondatadict['criterion']))
+            try:
+                self.status = int(datalib.calcastevalformula(str(self.value) + self.actiondatadict['operator'] + self.actiondatadict['criterion']))
+            # Should really throw an error here.
+            except:
+                self.status = 0
 
         elif self.conditiontype == 'channel':
             from cupid import pilib

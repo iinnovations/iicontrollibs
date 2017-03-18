@@ -180,6 +180,9 @@ def watchdognetstatus(allnetstatus=None):
     currenttime = datalib.gettimestring()
 
     runconfig = False
+
+    utility.log(pilib.dirs.logs.network, 'MODE: ' + netconfigdata['mode'],  3, pilib.loglevels.network)
+    print(' MODE : ' + netconfigdata['mode'])
     if netconfigdata['mode'] in ['ap', 'tempap']:
         utility.log(pilib.dirs.logs.network, 'AP Mode is set. ', 1, pilib.loglevels.network)
 
@@ -296,6 +299,7 @@ def watchdognetstatus(allnetstatus=None):
                 runconfig=True
 
     elif netconfigdata['mode'] in ['wlan0wlan1bridge', 'wlan1wlan0bridge']:
+        print(' I AM HERE ')
         if netconfigdata['mode'] == 'wlan0wlan1bridge':
             stationinterface = 'wlan0'
             apinterface = 'wlan1'
@@ -306,14 +310,18 @@ def watchdognetstatus(allnetstatus=None):
 
         # Check station address (not yet implemented) and wpa status (implemented)
         try:
+            print('CHECKING')
+
             stationifacedata = ifacedict[stationinterface]
         except KeyError:
             utility.log(pilib.dirs.logs.network, 'No stationiface data(' + stationinterface + ') present for mode ' + netconfigdata['mode'], 1, pilib.loglevels.network)
             statusmsg += 'No stationiface data(' + stationinterface + ') present for mode ' + netconfigdata['mode']
             runconfig = True
         else:
+            print('CHECKED')
             wpadata = datalib.parseoptions(stationifacedata['wpastate'])
             if wpadata['wpa_state'] == 'COMPLETED':
+                print('OK')
                 utility.log(pilib.dirs.logs.network, 'station interface ' + stationinterface + ' wpastatus appears ok. ', 3, pilib.loglevels.network)
 
                 # Update netstatus
@@ -326,6 +334,7 @@ def watchdognetstatus(allnetstatus=None):
                 dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'SSID', ssid)
 
             else:
+                print('NOT OK')
                 dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'SSID', '')
                 utility.log(pilib.dirs.logs.network, 'station interface for ' + stationinterface + ' does not appear ok judged by wpa_state. ', 1, pilib.loglevels.network)
                 statusmsg += 'station interface does not appear ok judged by wpa_state. '
@@ -582,7 +591,7 @@ def watchdognetstatus(allnetstatus=None):
     #
 
 
-def updatenetstatus(lastnetstatus=None):
+def updatenetstatus(lastnetstatus=None, quiet=True):
     import time
     from iiutilities import netfun
     from iiutilities import dblib
@@ -658,7 +667,8 @@ def updatenetstatus(lastnetstatus=None):
     netstatusdict = {}
 
     querylist=[]
-    pingresults = netfun.runping('8.8.8.8', quiet=True)
+
+    pingresults = netfun.runping('8.8.8.8', quiet=quiet)
 
     # pingresults = [20, 20, 20]
     pingresult = sum(pingresults) / float(len(pingresults))
@@ -867,6 +877,7 @@ def runsystemstatus(**kwargs):
 
     if 'debug' in kwargs and kwargs['debug']:
         print('DEBUG MODE')
+        quiet=False
         pilib.set_debug()
 
     # This doesn't update git libraries. It checks current versions and updates the database
@@ -898,7 +909,7 @@ def runsystemstatus(**kwargs):
         utility.log(pilib.dirs.logs.system, 'Completed network status. ', 3, pilib.loglevels.network)
 
     # Poll netstatus and return data
-    allnetstatus = updatenetstatus(lastnetstatus)
+    allnetstatus = updatenetstatus(lastnetstatus, quiet=quiet)
     # wpastatusdict = allnetstatus['wpastatusdict']
 
     # Keep reading system status?
@@ -927,7 +938,7 @@ def runsystemstatus(**kwargs):
             try:
                 utility.log(pilib.dirs.logs.system, 'Running updateifacestatus. ', 4, pilib.loglevels.system)
                 utility.log(pilib.dirs.logs.network, 'Running updateifacestatus', 4, pilib.loglevels.network)
-                allnetstatus = updatenetstatus(lastnetstatus)
+                allnetstatus = updatenetstatus(lastnetstatus, quiet=quiet)
             except:
                 utility.log(pilib.dirs.logs.network, 'Exception in updateifacestatus. ')
             else:
@@ -956,7 +967,6 @@ def runsystemstatus(**kwargs):
                 result = processapoverride(21)
 
             ''' Now we check network status depending on the configuration we have selected '''
-            ''' Now we check network status depending on the configuration we have selected '''
             utility.log(pilib.dirs.logs.system, 'Running interface configuration watchdog. ', 4,
                           pilib.loglevels.system)
             utility.log(pilib.dirs.logs.network, 'Running interface configuration. Mode: ' + netconfigdata['mode'], 4,
@@ -965,7 +975,7 @@ def runsystemstatus(**kwargs):
             result = watchdognetstatus()
 
         else:
-            utility.log(pilib.dirs.logs.system, 'Netconfig disabled. ', 1, pilib.loglevels.system)
+            utility.log(pilib.dirs.logs.system, 'Netconfig or netstatus disabled. ', 1, pilib.loglevels.system)
             dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'mode', 'manual')
             dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'statusmsg', 'netconfig is disabled')
 
@@ -1030,5 +1040,5 @@ def runsystemstatus(**kwargs):
 
 
 if __name__ == '__main__':
-    # runsystemstatus(debug=True, runonce=True)
-    runsystemstatus()
+    runsystemstatus(debug=True, runonce=True)
+    # runsystemstatus()

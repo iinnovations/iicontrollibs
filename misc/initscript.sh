@@ -15,16 +15,43 @@ elif [ "$1" = "install" ]
 
     # reconfig keys?
 
-    rm -r /etc/ssh/ssh*key
-    dpkg-reconfigure openssh-server
+    # rm -r /etc/ssh/ssh*key
+    # dpkg-reconfigure openssh-server
 
     # Enable uart
+    # This is done with raspi-config now, but this won't hurt
     /bin/sed -ie 's/enable_uart=0/enable_uart=1/g' /boot/config.txt
 
     apt-get update
-    apt-get install git
+    apt-get -y install git
     apt-get -y remove --purge wolfram-engine
-    apt-get -y install lsb-core
+    apt-get -y autoremove
+
+     # This is what should work (and WILL work once they update the repos)
+    #apt-get -y lsb-core
+
+    # remove, but leave requirements
+    apt-get -y remove lsb-core
+
+    echo "configuring hamachi"
+    # So we have a compatibility issue with the lsb-core in raspbian jessie. We should ideally:
+    # 1. Test for OS version (probably revert to previous raspbian here)
+    # 2. If using jessie, do the following
+    wget http://ftp.de.debian.org/debian/pool/main/l/lsb/lsb-core_4.1+Debian8+deb7u1_armhf.deb
+    dpkg -i lsb-core_4.1+Debian8+deb7u1_armhf.deb
+
+
+
+    # wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.139-1_armhf.deb
+    wget https://www.vpn.net/installers/logmein-hamachi_2.1.0.174-1_armhf.deb
+    dpkg -i logmein-hamachi_2.1.0.174-1_armhf.deb
+    rm logmein-hamachi_2.1.0.174-1_armhf.deb
+    # dpkg -i /usr/lib/iicontrollibs/resource/logmein-hamachi_2.1.0.139-1_armhf.deb
+    hamachi login
+    # hamachi do-join 283-153-722
+    #
+    echo "hamachi complete"
+
     apt-get -y install php5 sqlite3 php5-sqlite
     apt-get -y install python-dev python3 python-setuptools
     apt-get -y install swig libfuse-dev libusb-dev php5-dev
@@ -52,8 +79,8 @@ elif [ "$1" = "install" ]
     apt-get -y install php5-fpm
 
     apt-get -y install i2c-tools python-smbus
-    apt-get -y install hostapd
-    apt-get -y install isc-dhcp-server
+    apt-get -y install hostapdisc-dhcp-server
+    apt-get -y install
     update-rc.d -f isc-dhcp-server remove
 
     echo "installing pigpio"
@@ -64,6 +91,27 @@ elif [ "$1" = "install" ]
     make install
     cd ..
     rm -Rf PIGPIO
+
+    echo "testing for owfs"
+    testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
+    if [ ${testresult} -ne 0 ]
+      then
+        echo "owfs 2.9p5 already installed"
+    else
+        echo "installing owfs 2.9p5"
+        cd /usr/lib/iicontrollibs/resource
+        tar -xvf owfs-2.9p5.tar.gz
+        cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
+        ./configure
+        make install
+        cd ..
+        rm -R owfs-2.9p5
+    fi
+    echo "owfs complete"
+
+    echo "installing MAX31855 library"
+    cd /usr/lib/iicontrollibs/resource/Adafruit_Python_MAX31855-master
+    python setup.py install
 
     echo "installing asteval"
     pip install asteval
@@ -201,44 +249,6 @@ if [ "$2" = "full" -o "$1" = "full" ]
     echo "complete"
 
 
-    echo "configuring hamachi"
-    # So we have a compatibility issue with the lsb-core in raspbian jessie. We should ideally:
-    # 1. Test for OS version (probably revert to previous raspbian here)
-    # 2. If using jessie, do the following
-    # wget http://ftp.de.debian.org/debian/pool/main/l/lsb/lsb-core_4.1+Debian8+deb7u1_armhf.deb
-    # dpkg -i lsb-core_4.1+Debian8+deb7u1_armhf.deb
-
-    # This is what should work (and WILL work once they update the repos)
-    apt-get -y lsb-core
-
-    # wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.139-1_armhf.deb
-    wget https://www.vpn.net/installers/logmein-hamachi_2.1.0.174-1_armhf.deb
-    dpkg -i /usr/lib/iicontrollibs/resource/logmein-hamachi_2.1.0.139-1_armhf.deb
-    hamachi login
-    # hamachi do-join 283-153-722
-    #
-    echo "hamachi complete"
-
-    echo "testing for owfs"
-    testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
-    if [ ${testresult} -ne 0 ]
-      then
-        echo "owfs 2.9p5 already installed"
-    else
-        echo "installing owfs 2.9p5"
-        cd /usr/lib/iicontrollibs/resource
-        tar -xvf owfs-2.9p5.tar.gz
-        cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
-        ./configure
-        make install
-        cd ..
-        rm -R owfs-2.9p5
-    fi
-    echo "owfs complete"
-
-    echo "installing MAX31855 library"
-    cd /usr/lib/iicontrollibs/resource/Adafruit_Python_MAX31855-master
-    python setup.py install
 
     # get custom sources
     #    cp /usr/lib/iicontrollibs
@@ -294,8 +304,8 @@ if [ "$2" = "full" -o "$1" = "full" ]
 #        ln -sf /usr/sbin/hostapd.edimax /usr/sbin/hostapd
 #        chown root:root /usr/sbin/hostapd
 #        chmod 755 /usr/sbin/hostapd
-        echo "hostapd configuration complete"
-    fi
+#        echo "hostapd configuration complete"
+#    fi
 
 #    We now run hostapd directly
 #    echo "copying hostapd.conf"
