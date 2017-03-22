@@ -41,7 +41,7 @@ def owfsbuslist(owdir):
     return devices
 
 
-def owfsgetbusdevices(owdir):
+def owfsgetbusdevices(owdir, debug=False):
     from os import walk
 
     buslist = owfsbuslist(owdir)
@@ -56,7 +56,8 @@ def owfsgetbusdevices(owdir):
         for (dirpath, dirnames, filenames) in walk(devicepath):
             propsavailable = filenames
             break
-        print(propsavailable)
+        if debug:
+            print(propsavailable)
         for propavailable in propsavailable:
             if propavailable in initprops:
                 propvalue = open(devicepath + '/' + propavailable).read().strip()
@@ -178,10 +179,11 @@ def updateowfstable(database, tablename, busdevices, execute=True):
     return querylist
 
 
-def updateowfsdevices(busdevices, myProxy=None):
+def updateowfsdevices(busdevices, myProxy=None, debug=False):
     from cupid import pilib
     from iiutilities import dblib
     from iiutilities import datalib
+    from iiutilities import utility
 
     # get defaults
     defaults = dblib.readalldbrows(pilib.dirs.dbs.control, 'defaults')
@@ -259,12 +261,12 @@ def updateowfsdevices(busdevices, myProxy=None):
 
             # Is it time to read temperature?
             if device.time_since_last > device.pollfreq:
-                print('reading temperature')
+                utility.log(pilib.dirs.logs.io, 'reading temperature [' + device.name + '][' + device.id + ']' , 9, pilib.loglevels.io)
                 device.readprop('temperature', myProxy)
                 device.polltime = datalib.gettimestring()
                 device.value = device.temperature
             else:
-                pass
+                utility.log(pilib.dirs.logs.io, 'not time to poll', 9, pilib.loglevels.io, )
                 # print('not time to poll')
 
             device.unit = 'F'
@@ -296,44 +298,46 @@ def updateowfsinputentries(database, tablename, devices, execute=True):
 # available above)
 
 
-def runowfsupdate(debug=False, execute=True):
+def runowfsupdate(execute=True, debug=False):
     import time
+    from cupid import pilib
+    from iiutilities import utility
+
+    if debug:
+        pilib.set_debug()
 
     queries = []
-    from cupid.pilib import dirs
-    from iiutilities.dblib import sqlitemultquery
+    utility.log(pilib.dirs.logs.io, 'getting buses', 9, pilib.loglevels.io)
+    starttime = time.time()
+    busdevices = owfsgetbusdevices(pilib.dirs.onewire)
 
-    if debug:
-        print('getting buses')
-        starttime = time.time()
-    busdevices = owfsgetbusdevices(dirs.onewire)
+    utility.log(pilib.dirs.logs.io, 'done getting devices, took ' + str(time.time() - starttime), 9, pilib.loglevels.io)
+    utility.log(pilib.dirs.logs.io, 'updating device data', 9, pilib.loglevels.io)
 
-    if debug:
-        print('done getting devices, took ' + str(time.time() - starttime))
-        print('updating device data')
-        starttime = time.time()
+    starttime = time.time()
     updateddevices = updateowfsdevices(busdevices)
 
-    if debug:
-        print('done reading devices, took ' + str(time.time() - starttime))
-        print('your devices: ')
-        for device in busdevices:
-            print(device.id)
-        print('updating entries in owfstable')
-        starttime = time.time()
+    utility.log(pilib.dirs.logs.io, 'done reading devices, took ' + str(time.time() - starttime), 9, pilib.loglevels.io)
+    utility.log(pilib.dirs.logs.io, 'your devices: ', 9, pilib.loglevels.io)
+    for device in busdevices:
+        utility.log(pilib.dirs.logs.io, device.id)
+    utility.log(pilib.dirs.logs.io, 'updating entries in owfstable', 9, pilib.loglevels.io)
+    starttime = time.time()
 
-    owfstableentries = updateowfstable(dirs.dbs.control, 'owfs', updateddevices, execute=execute)
-    if debug:
-        print('done updating owfstable, took ' + str(time.time() - starttime))
+    owfstableentries = updateowfstable(pilib.dirs.dbs.control, 'owfs', updateddevices, execute=execute)
 
-    owfsinputentries = updateowfsinputentries(dirs.dbs.control, 'inputs', updateddevices, execute=execute)
+    utility.log(pilib.dirs.logs.io, 'done updating owfstable, took ' + str(time.time() - starttime), 9, pilib.loglevels.io)
+
+    owfsinputentries = updateowfsinputentries(pilib.dirs.dbs.control, 'inputs', updateddevices, execute=execute)
 
     queries.extend(owfstableentries)
     queries.extend(owfsinputentries)
-    if execute:
-        sqlitemultquery(dirs.dbs.control, queries)
+
     return busdevices, queries
 
 
 if __name__ == '__main__':
-    runowfsupdate()
+    if len(sys.argv) > 1 and sys.argv[1].lower() == 'debug':
+        runowfsupdate(debug=True)
+    else:
+        runowfsupdate()

@@ -299,7 +299,6 @@ def watchdognetstatus(allnetstatus=None):
                 runconfig=True
 
     elif netconfigdata['mode'] in ['wlan0wlan1bridge', 'wlan1wlan0bridge']:
-        print(' I AM HERE ')
         if netconfigdata['mode'] == 'wlan0wlan1bridge':
             stationinterface = 'wlan0'
             apinterface = 'wlan1'
@@ -310,7 +309,6 @@ def watchdognetstatus(allnetstatus=None):
 
         # Check station address (not yet implemented) and wpa status (implemented)
         try:
-            print('CHECKING')
 
             stationifacedata = ifacedict[stationinterface]
         except KeyError:
@@ -318,7 +316,6 @@ def watchdognetstatus(allnetstatus=None):
             statusmsg += 'No stationiface data(' + stationinterface + ') present for mode ' + netconfigdata['mode']
             runconfig = True
         else:
-            print('CHECKED')
             wpadata = datalib.parseoptions(stationifacedata['wpastate'])
             if wpadata['wpa_state'] == 'COMPLETED':
                 print('OK')
@@ -329,7 +326,6 @@ def watchdognetstatus(allnetstatus=None):
                     wpastatedata = utility.jsontodict(stationifacedata['wpastate'])
                     ssid = wpastatedata['ssid']
                 except:
-                    print('oops')
                     ssid = 'oops'
                 dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'SSID', ssid)
 

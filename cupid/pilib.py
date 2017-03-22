@@ -276,7 +276,7 @@ class pigpiod_gpio_counter(io_wrapper):
 
         import pigpio
         self.settings = {'edge':'falling', 'pullupdown':None, 'debounce_ms':20, 'event_min_ms':20,
-                         'watchdog_ms':1000, 'rate_period_ms':2000}
+                         'watchdog_ms':1000, 'rate_period_ms':2000, 'debug':False}
         self.settings.update(kwargs)
         for key,value in self.settings.iteritems():
             setattr(self, key, value)
@@ -315,7 +315,8 @@ class pigpiod_gpio_counter(io_wrapper):
                     self.ticks += 1
                     self.last_event_count = tick
                 else:
-                    print('debounce')
+                    if self.debug:
+                        print('debounce')
             else:
                 # print('event not long enough ( we waited to see ).')
                 pass
@@ -332,9 +333,9 @@ class pigpiod_gpio_counter(io_wrapper):
             seconds_delta = now - self.last_counts_time
             seconds_passed = seconds_delta.seconds + float(seconds_delta.microseconds) / 1000000
             self.rate = float(self.ticks - self.last_counts) / seconds_passed
-
-            print('COUNTING RATE')
-            print(self.last_counts, self.ticks)
+            if self.debug:
+                print('COUNTING RATE')
+                print(self.last_counts, self.ticks)
 
         self.last_counts = self.ticks
         self.last_counts_time = now
@@ -554,6 +555,7 @@ def reload_log_config():
 
 
 def set_debug():
+    print('** ENABLING DEBUG MODE **')
     for attr, value in loglevels.__dict__.iteritems():
         setattr(loglevels, attr, 9)
 

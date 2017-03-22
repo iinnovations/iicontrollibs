@@ -56,7 +56,6 @@ def updateiodata(**kwargs):
     settings.update(kwargs)
 
     if settings['debug']:
-        print('*** DEBUG MODE ***')
         pilib.set_debug()
 
     control_db = dblib.sqliteDatabase(settings['database'])
@@ -775,7 +774,7 @@ def process_ads1x15_interface(interface=None):
 
     if settings['type'] in ['diff','differential']:
         try:
-            value = float(adc.read_adc_difference(int(settings['channel']), gain=float(settings['gain']))) / 32768
+            return_dict['value'] = float(adc.read_adc_difference(int(settings['channel']), gain=float(settings['gain']))) / 32768
         except:
             utility.log(pilib.dirs.logs.io, 'Error reading ADS1115 differential value. ', 0, pilib.loglevels.io)
             return_dict['status'] = 1
@@ -784,12 +783,12 @@ def process_ads1x15_interface(interface=None):
         else:
             scalar = 4.096 / float(settings['gain'])
             return_dict['value'] *= scalar
-            return_dict['message'] = 'Read device at address ' + str((settings['address'])) + ', channel ' + str(settings['channel']) + ', type ' + settings['type'] + ', with gain ' + str(settings['gain']) + ' with value ' + str(value)
+            return_dict['message'] = 'Read device at address ' + str((settings['address'])) + ', channel ' + str(settings['channel']) + ', type ' + settings['type'] + ', with gain ' + str(settings['gain']) + ' with value ' + str(return_dict['value'])
 
 
     else:
         try:
-            value = float(adc.read_adc(int(settings['channel']), gain=float(settings['gain']))) / 32768
+            return_dict['value'] = float(adc.read_adc(int(settings['channel']), gain=float(settings['gain']))) / 32768
         except:
             utility.log(pilib.dirs.logs.io, 'Error reading ADS1115 differential value. ', 0, pilib.loglevels.io)
             return_dict['status'] = 1
@@ -799,7 +798,7 @@ def process_ads1x15_interface(interface=None):
         else:
             scalar = 4.096 / float(settings['gain'])
             return_dict['value'] *= scalar
-            return_dict['message'] = 'Read device at address ' + str((settings['address'])) + ', channel ' + str(settings['channel']) + ', type ' + settings['type'] + ', with gain ' + str(settings['gain']) + ' with value ' + str(value)
+            return_dict['message'] = 'Read device at address ' + str((settings['address'])) + ', channel ' + str(settings['channel']) + ', type ' + settings['type'] + ', with gain ' + str(settings['gain']) + ' with value ' + str(return_dict['value'])
 
     return return_dict
 
@@ -1313,5 +1312,8 @@ def processGPIOinterface(control_db, interface, last_data, io_info, defaults, **
 
 if __name__ == '__main__':
     from pilib import dirs
-    updateiodata(database=dirs.dbs.control, debug=True)
+    if len(sys.argv) > 1 and sys.argv[1].lower() == 'debug':
+        updateiodata(database=dirs.dbs.control, debug=True)
+    else:
+        updateiodata()
 

@@ -601,7 +601,7 @@ def rebuild_system_db(tablelist):
             {'name': 'requireWANaccess', 'type':'integer', 'default':1},
             {'name': 'WANretrytime', 'type':'integer', 'default':30},
             {'name': 'mode', 'default':'eth0wlan0bridge'},
-            {'name': 'hamachiwatchdogip', 'default':'self'},
+            {'name': 'hamachiwatchdogip', 'default':'25.11.87.7'},
             {'name': 'SSID'},
             {'name': 'aprevert'},
             {'name': 'addtype', 'default':'dhcp'},

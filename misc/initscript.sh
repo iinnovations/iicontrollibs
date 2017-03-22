@@ -28,7 +28,7 @@ elif [ "$1" = "install" ]
     apt-get -y autoremove
 
      # This is what should work (and WILL work once they update the repos)
-    #apt-get -y lsb-core
+    apt-get -y install lsb-core
 
     # remove, but leave requirements
     apt-get -y remove lsb-core
@@ -79,7 +79,7 @@ elif [ "$1" = "install" ]
     apt-get -y install php5-fpm
 
     apt-get -y install i2c-tools python-smbus
-    apt-get -y install hostapdisc-dhcp-server
+    apt-get -y install hostapd isc-dhcp-server
     apt-get -y install
     update-rc.d -f isc-dhcp-server remove
 
@@ -208,12 +208,13 @@ if [ "$2" = "full" -o "$1" = "full" ]
     git config --global user.email "info@interfaceinnovations.org"
     git config --global user.name "iinnovations"
     git remote add origin https://github.com/iinnovations/cupidweblib
-    chown -R pi:www-data .git
-    chmod -R 775 .git
+
     git reset --hard master
     git pull origin master
     chown -R pi:www-data *
     chmod -R 775 *
+    chown -R pi:www-data .git
+    chmod -R 775 .git
     echo "complete"
 
 
@@ -224,10 +225,11 @@ if [ "$2" = "full" -o "$1" = "full" ]
     git config --global user.email "info@interfaceinnovations.org"
     git config --global user.name "iinnovations"
     git remote add origin https://github.com/iinnovations/iicontrollibs
-    chown -R pi:www-data .git
-    chmod -R 775 .git
+
     git reset --hard master
     git pull origin master
+    chown -R pi:www-data .git
+    chmod -R 775 .git
     chown -R pi:www-data *
     chmod -R 775 *
     echo "complete"

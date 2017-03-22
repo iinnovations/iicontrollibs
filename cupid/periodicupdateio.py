@@ -35,12 +35,15 @@ Read from systemstatus to make sure we should be running
 
 def runperiodicio(**kwargs):
 
-    settings = {'force_run':False, 'run_once':False}
+    settings = {'force_run':False, 'run_once':False, 'debug':False}
     settings.update(kwargs)
     if settings['force_run']:
         updateioenabled = True
     else:
         updateioenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'updateioenabled')
+
+    if settings['debug']:
+        pilib.set_debug()
 
     if updateioenabled:
         import pigpio
@@ -62,7 +65,19 @@ def runperiodicio(**kwargs):
         # DEBUG
         runupdate = True
         if runupdate:
-            reply = updateio.updateiodata(database=pilib.dirs.dbs.control, piobject=pi, io_objects=io_objects)
+            try:
+                reply = updateio.updateiodata(database=pilib.dirs.dbs.control, piobject=pi, io_objects=io_objects)
+            except:
+                import traceback
+                formatted_lines = traceback.format_exc().splitlines()
+
+                error_mail = utility.gmail()
+                import socket
+                hostname = socket.gethostname()
+                error_mail.subject = 'Error running ioupdate on host ' + hostname + '. '
+                error_mail.message = error_mail.subject + ' Traceback: ' + '\n'.join(formatted_lines)
+                error_mail.send()
+
         else:
             utility.log(pilib.dirs.logs.io, 'DEBUG: Update IO disabled', 1, pilib.loglevels.io)
             utility.log(pilib.dirs.log.system, 'DEBUG: Update IO disabled', 1, pilib.loglevels.system)
@@ -204,6 +219,8 @@ def runperiodicio(**kwargs):
     dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'updateiostatus', '0')
 
 if __name__ == "__main__":
-    # runperiodicio(force_run=True, run_once=True)
-    runperiodicio()
+    if len(sys.argv) > 1 and sys.argv[1].lower() == 'debug':
+        runperiodicio(force_run=True, run_once=True, debug=True)
+    else:
+        runperiodicio()
 

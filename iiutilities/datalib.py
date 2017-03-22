@@ -343,11 +343,12 @@ def calcinputrate(input, numentries=2):
     return result
 
 
-def evaldbvnformula(formula, type='value'):
+def evaldbvnformula(formula, type='value', debug=False):
 
     from iiutilities.dblib import dbvntovalue
 
-    print(formula)
+    if debug:
+        print(formula)
     #if type == 'value':
     # first we need to get all the values that are provided as db-coded entries.
     # We put the dbvn inside of brackets, e.g. [dbnmae:dbtable:dbvaluename:condition]
@@ -364,7 +365,8 @@ def evaldbvnformula(formula, type='value'):
         else:
             splitletsplit = splitlet.split(']')
             dbvn = splitletsplit[0]
-            print('dbvn: ' + dbvn)
+            if debug:
+                print('dbvn: ' + dbvn)
             try:
                 value = dbvntovalue(dbvn)
             except:
@@ -372,8 +374,9 @@ def evaldbvnformula(formula, type='value'):
             # print('value: ' + str(value))
             textform += str(value) + splitletsplit[1]
 
-    print('EQN Text:')
-    print('"' + textform + '"')
+    if debug:
+        print('EQN Text:')
+        print('"' + textform + '"')
     result = calcastevalformula(textform)
     return result
 

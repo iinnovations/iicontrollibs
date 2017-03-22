@@ -22,7 +22,7 @@ if top_folder not in sys.path:
 from iiutilities import dblib, hamachidaemon
 from iiutilities import datalib, utility
 
-hamachidbpath = '/var/www/html/data/hamachi.db'
+hamachidbpath = '/var/www/html/hamachi/data/hamachi.db'
 
 
 def onlineofflinetobinary(status):
@@ -58,6 +58,7 @@ def updatehamachidatabase(path=hamachidbpath):
     # existing table is the options field, which will contain monitoring options, etc.
     defaultoptions = 'monitor:0'
     networklist = []
+
     for index,network in enumerate(hamachidata['networks']):
 
         netclientlist = []
@@ -84,7 +85,7 @@ def updatehamachidatabase(path=hamachidbpath):
             # Now match and grab options
             for client in hamachidata['clients'][index]:
                 # print(client['id'])
-                cliententry = {'id':client['id'], 'name':client['name'], 'hamachiip':client['hamachiip'], 'onlinestatus':onlineofflinetobinary(client['onlinestatus']), 'alldata': utility.dicttojson(client)}
+                cliententry = {'id':client['id'], 'name':client['name'], 'hamachiip':client['hamachiip'], 'onlinestatus':onlineofflinetobinary(client['onlinestatus']), 'alldata': datalib.dicttojson(client)}
                 if client['id'] in prevclientids:
                     # print('CLIENT MATCH')
 
@@ -97,7 +98,7 @@ def updatehamachidatabase(path=hamachidbpath):
 
         else:
             for client in hamachidata['clients'][index]:
-                cliententry = {'id':client['id'], 'name':client['name'], 'hamachiip':client['hamachiip'], 'onlinestatus':onlineofflinetobinary(client['onlinestatus']), 'alldata': utility.dicttojson(client), 'options':defaultoptions}
+                cliententry = {'id':client['id'], 'name':client['name'], 'hamachiip':client['hamachiip'], 'onlinestatus':onlineofflinetobinary(client['onlinestatus']), 'alldata': datalib.dicttojson(client), 'options':defaultoptions}
 
                 netclientlist.append(cliententry)
 
@@ -114,7 +115,7 @@ def rundaemon():
 
     hamachidata = updatehamachidatabase()
 
-    hamachidaemon.generatehamachipage(hamachidata, "/var/www/html/hamachilist.html")
+    hamachidaemon.generatehamachipage(hamachidata, "/var/www/html/hamachi/hamachilist.html")
 
     import socket
     hostname = socket.gethostname()
