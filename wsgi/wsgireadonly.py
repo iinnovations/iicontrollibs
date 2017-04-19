@@ -141,25 +141,25 @@ def application(environ, start_response):
                             output['message']+='Length keyword. '
                             if not 'start' in d:
                                 d['start'] = 0
-                            thetime = time();
+                            thetime = time()
                             output['data'] = the_database.read_table_rows(d['tablename'], d['start'], d['length'])
                             output['querytime'] = time() - thetime
                         elif 'row' in d:  # Handle table row
                             output['message'] += 'Row keyword. ' + str(d['row'])
-                            thetime = time();
+                            thetime = time()
                             output['data'] = the_database.read_table_rows(d['tablename'], d['row'])
                             output['querytime'] = time() - thetime
                         elif 'tablename' in d:  # Handle entire table
                             output['message'] += 'Tablename keyword: ' + d['tablename'] + '. '
-                            thetime = time();
+                            thetime = time()
                             if 'condition' in d:
                                 if not d['condition'] == '':
-                                    output['data'] = the_database.read_table_rows(d['tablename'], condition=d['condition'])
+                                    output['data'] = the_database.read_table(d['tablename'], condition=d['condition'])
                                 else:
-                                    output['data'] = the_database.read_table_rows(d['tablename'])
+                                    output['data'] = the_database.read_table(d['tablename'])
                             else:
                                 try:
-                                    output['data'] = the_database.read_table_rows(d['tablename'])
+                                    output['data'] = the_database.read_table(d['tablename'])
                                 except:
                                     output['message'] += 'Error retrieving data. '
                                 else:

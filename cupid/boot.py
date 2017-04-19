@@ -27,6 +27,11 @@ def runboot():
     import spilights
     from iiutilities import utility, dblib
 
+    try:
+        pilib.set_all_wal()
+    except:
+        print('error setting wal mode')
+
     interfaces = dblib.readalldbrows(pilib.dirs.dbs.control, 'interfaces')
 
     # Clear out status bits, if for no other reason to see the LEDs come on

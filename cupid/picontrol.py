@@ -413,6 +413,7 @@ def runpicontrol(runonce=False):
     from iiutilities import utility
     from cupid import pilib
     from iiutilities import datalib
+    import actions
     from cupid import controllib
 
     systemstatus = dblib.readalldbrows(pilib.dirs.dbs.system, 'systemstatus')[0]
@@ -449,8 +450,7 @@ def runpicontrol(runonce=False):
         systemstatus = dblib.readalldbrows(pilib.dirs.dbs.system, 'systemstatus')[0]
 
         # Note that these are also processed in cupiddaemon to catch things like whether this script is running
-        from actions import processactions
-        processactions()
+        # actions.processactions()
 
         # Wait for delay time
         #print('sleeping')
@@ -460,7 +460,10 @@ def runpicontrol(runonce=False):
 
         utility.log(pilib.dirs.logs.system, 'Picontrol Sleeping for ' + str(systemstatus['picontrolfreq']), 2, pilib.loglevels.system)
         utility.log(pilib.dirs.logs.control, 'Picontrol Sleeping for ' + str(systemstatus['picontrolfreq']), 2, pilib.loglevels.system)
+
+        print('sleeping')
         sleep(systemstatus['picontrolfreq'])
+        print('done sleeping')
 
     utility.log(pilib.dirs.logs.system, 'picontrol not enabled. exiting.', 1, pilib.loglevels.system)
 

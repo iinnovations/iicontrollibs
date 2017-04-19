@@ -87,6 +87,74 @@ def dicttojson(pass_dict):
     return jsonentry
 
 
+def get_illegal_text_items(**kwargs):
+    settings = {
+        'brackets_ok': False,
+        'colons_ok':False,
+        'spaces_ok':False,
+        'hyphens_ok':True,
+        'slashes_ok':False,
+        'commas_ok':False,
+        'periods_ok':False,
+        'arithmetic_ok':False
+    }
+    settings.update(kwargs)
+    bad_characters = ['"', "'"]
+    if not settings['brackets_ok']:
+        bad_characters.extend(['{', '}', '[', ']'])
+    if not settings['colons_ok']:
+        bad_characters.extend([':', ';'])
+    if not settings['spaces_ok']:
+        bad_characters.append(' ')
+    if not settings['slashes_ok']:
+        bad_characters.extend(['\\','/'])
+    if not settings['periods_ok']:
+        bad_characters.append('.')
+    if not settings['commas_ok']:
+        bad_characters.append(',')
+    if not settings['arithmetic_ok']:
+        bad_characters.extend(['*','-','+','='])
+
+    return bad_characters
+
+
+def find_all_string_locations(text, match_string, start_position=0):
+    match_positions = []
+    while text.find(match_string, start_position) >=0:
+        match_position = text.find(match_string, start_position)
+        match_positions.append(match_position)
+        start_position = match_position+1
+        # print(start_position)
+    return match_positions
+
+
+def clean_dirty_text(dirty_text, **kwargs):
+
+    test_results = test_questionable_text(dirty_text, **kwargs)
+    # print(test_results)
+    if test_results['isdirty']:
+        for match in test_results['matches']:
+            # print('replacing "' + match['character'] + '"')
+            dirty_text = dirty_text.replace(match['character'], '')
+
+    clean_text = dirty_text
+    return clean_text
+
+
+def test_questionable_text(text, **kwargs):
+    bad_characters = get_illegal_text_items(**kwargs)
+    questionable = False
+    questionable_matches = []
+    for character in bad_characters:
+        match_positions = find_all_string_locations(text, character)
+        if match_positions:
+            questionable = True
+            # print('Illegal character ' + character + ' found at position(s)' + str(match_positions))
+            questionable_matches.append({'character':character, 'match_positions':match_positions})
+
+    return {'isdirty':questionable, 'matches':questionable_matches}
+
+
 def gettimestring(timeinseconds=None):
     import time
     if timeinseconds:

@@ -47,7 +47,7 @@ def updateiodata(**kwargs):
         # print('WARNING, NO io_objects PASSED')
         io_objects ={}
 
-    allowedGPIOaddresses = [18, 23, 24, 25, 4, 17, 27, 22, 5, 6, 13, 19, 26, 16, 20, 21]
+    allowedGPIOaddresses = [18, 23, 24, 25, 4, 17, 27, 22, 5, 6, 13, 19, 26, 16, 20, 21, 35]
 
     logconfig = pilib.reload_log_config()
 

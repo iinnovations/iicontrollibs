@@ -92,11 +92,15 @@ class action:
 
         if self.conditiontype == 'logical':
             currstatus = datalib.evaldbvnformula(self.actiondatadict['condition'])
-            print('CURRSTATUS',currstatus)
+            # print('CURRSTATUS',currstatus)
             if currstatus == None:
                 self.statusmsg += 'None returned by evaldbvn. Setting status to False'
             self.value = 0
-            self.status = int(currstatus)
+            try:
+                self.status = int(currstatus)
+            except:
+                print('error parsing ' + str(currstatus))
+                self.status = 0
 
 
         elif self.conditiontype == 'value':
@@ -309,7 +313,7 @@ class action:
     def printvalues(self):
         for attr,value in self.__dict__.iteritems():
             print(str(attr) + ' : ' + str(value))
-
+    # @profile
     def publish(self):
         from cupid import pilib
         from iiutilities import dblib
@@ -327,14 +331,14 @@ class action:
             if attr not in ['actiondatadict', 'actionindex', 'actiondata']:
                 control_db.set_single_value('actions', attr, getattr(self, attr), condition='"actionindex"=\'' + self.actionindex +"'", queue=True)
 
-        # print(control_db.queued_queries)
+        print(len(control_db.queued_queries))
         control_db.execute_queue()
         # print(valuenames)
         # print(valuelist)
 
         # dblib.sqliteinsertsingle(pilib.dirs.dbs.control, 'actions', valuelist, valuenames)
         # setsinglevalue(dirs.dbs.control, 'actions', 'ontime', gettimestring(), 'rowid=' + str(self.rowid))
-
+    # @profile
     def process(self):
         from iiutilities import datalib
         if self.enabled:
@@ -366,8 +370,8 @@ class action:
                 self.statusmsg += 'Setting status offtime. '
                 self.offtime = datalib.gettimestring()
 
-            print('CURR STATUS',currstatus)
-            print('SELF.ACTIVE',self.active)
+            # print('CURR STATUS',currstatus)
+            # print('SELF.ACTIVE',self.active)
             # if status is true and alarm isn't yet active, see if ondelay exceeded
             if currstatus and not self.active:
                 # print(pilib.timestringtoseconds(currenttime))
@@ -379,8 +383,8 @@ class action:
                 else:
 
                     self.statusmsg += 'On delay not reached. '
-                    print('on',self.ontime)
-                    print('now',currenttime)
+                    # print('on',self.ontime)
+                    # print('now',currenttime)
 
             # if status is not true and alarm is active, see if offdelay exceeded
             if not currstatus and self.active:
@@ -438,7 +442,7 @@ class action:
             self.statusmsg += 'Action disabled.'
             self.status = 0
 
-
+# @profile
 def processactions():
 
     # Read database to get our actions
@@ -450,15 +454,14 @@ def processactions():
     for actiondict in actiondicts:
         alert = False
 
-
         # print("ACTIONDICT")
         # print(actiondatadict)
 
         thisaction = action(actiondict)
 
         thisaction.process()
-        print(thisaction.name)
-        print(thisaction.statusmsg)
+        # print(thisaction.name)
+        # print(thisaction.statusmsg)
         thisaction.publish()
 
 if __name__ == '__main__':

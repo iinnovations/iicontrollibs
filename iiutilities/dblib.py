@@ -121,6 +121,27 @@ class sqliteDatabase(object):
         dbrows = readalldbrows(self.path, tablename, condition, **kwargs)
         return dbrows
 
+    def read_database(self):
+        all_data = {}
+        for tablename in self.get_table_names():
+            all_data[tablename] = self.read_table(tablename)
+        return all_data
+
+    def read_table_smart(self, tablename, condition=None, **kwargs):
+        queries = ['pragma busy_timeout=2000', "pragma table_info ('" + tablename + "')",]
+        queries.append("select * from '" + tablename + "'")
+        results = self.queries(queries)
+        pragma_dict_list = process_pragma(results['data'][1])
+        pragmanames = [item['name'] for item in pragma_dict_list]
+
+        dictarray = []
+        for row in results['data'][2]:
+            dict = {}
+            for index, (datum, pragmaname) in enumerate(zip(row, pragmanames)):
+                dict[pragmanames[index]] = datum
+            dictarray.append(dict)
+        return dictarray
+
     def read_table_row(self, tablename, row=0, **kwargs):
         dbrow = readonedbrow(self.path, tablename, row, **kwargs)
         return dbrow
@@ -156,9 +177,6 @@ class sqliteDatabase(object):
         # maybe do some massaging
         return schema
 
-    def get_table_size(self, tablename):
-        return gettablesize(self.path, tablename)
-
     # Single table operations
     def set_single_value(self, tablename, valuename, value, condition=None, queue=False):
         query = makesinglevaluequery(tablename, valuename, value, condition)
@@ -170,6 +188,10 @@ class sqliteDatabase(object):
     def get_single_value(self, tablename, valuename, condition=None):
         value = getsinglevalue(self.path, tablename, valuename, condition)
         return value
+
+    def set_wal_mode(self):
+        query = 'pragma journal_mode=wal'
+        self.query(query)
 
     def insert(self, tablename, insert, replace=True, queue=False):
         # Insert can be single insert or list (or falsy to insert defaults)
@@ -448,16 +470,21 @@ def getandsetmetadata(database):
     sqlitemultquery(database, queryarray)
 
 
-def getpragma(database, table):
-    pragma = sqlitequery(database, 'pragma table_info ( \'' + table + '\')')['data']
+def process_pragma(pragma):
     pragmadictlist = []
     for item in pragma:
         pragmadictlist.append({
-            'name':item[1],
-            'type':item[2],
-            'default':item[4],
-            'primary':bool(item[5])
+            'name': item[1],
+            'type': item[2],
+            'default': item[4],
+            'primary': bool(item[5])
         })
+    return pragmadictlist
+
+
+def getpragma(database, table):
+    pragma = sqlitequery(database, 'pragma table_info ( \'' + table + '\')')['data']
+    pragmadictlist = process_pragma(pragma)
     return pragmadictlist
 
 
@@ -715,11 +742,12 @@ def sqliteinsertsingle(database, table, valuelist, valuenames=None, replace=True
 def sqlitemultquery(database, querylist, **kwargs):
     import sqlite3 as lite
 
-    con = lite.connect(database)
+    settings = {'break_on_error': False, 'quiet': False, 'timeout': 2}
+    settings.update(kwargs)
+
+    con = lite.connect(database, timeout=settings['timeout'])
     con.text_factory = str
 
-    settings = {'break_on_error':False}
-    settings.update(kwargs)
     with con:
         cur = con.cursor()
         data = []
@@ -731,10 +759,10 @@ def sqlitemultquery(database, querylist, **kwargs):
             except:
                 import traceback
                 dataitem = ''
-                trace_msg = 'Error with query: "' + query + '"\n\t' + traceback.format_exc()
+                trace_msg = 'Error with query on database ' + database + ' with query : "' + query + '"\n\t' + traceback.format_exc()
                 message += trace_msg
                 status = 1
-                if not 'quiet' in kwargs:
+                if not settings['quiet']:
                     print(trace_msg)
                 if settings['break_on_error']:
                     break
@@ -743,6 +771,7 @@ def sqlitemultquery(database, querylist, **kwargs):
 
             data.append(dataitem)
         con.commit()
+        # con.close()
 
     return {'data':data, 'message':message, 'status':status}
 
@@ -750,7 +779,10 @@ def sqlitemultquery(database, querylist, **kwargs):
 def sqlitequery(database, query, **kwargs):
     import sqlite3 as lite
 
-    con = lite.connect(database)
+    settings = {'timeout':2, 'quiet':False}
+    settings.update(kwargs)
+
+    con = lite.connect(database, timeout=settings['timeout'])
     con.text_factory = str
 
     try:
@@ -758,14 +790,16 @@ def sqlitequery(database, query, **kwargs):
             cur = con.cursor()
             cur.execute(query)
             data = cur.fetchall()
+            # cur.close()
     except:
         import traceback
         data = ''
         message = traceback.format_exc()
         status = 1
-        print('error with query: ')
-        print(query)
-        if not 'quiet' in kwargs:
+
+        if not settings['quiet']:
+            print('error with query on database ' + database + ' : ')
+            print(query)
             print(message)
     else:
         status = 0
@@ -845,10 +879,8 @@ def readalldbrows(database, table, condition=None, includerowids=True):
     dictarray = []
     for row in data:
         dict = {}
-        index = 0
-        for datum in row:
+        for index,(datum,pragmaname) in enumerate(zip(row,pragmanames)):
             dict[pragmanames[index]] = datum
-            index += 1
         dictarray.append(dict)
 
     return dictarray

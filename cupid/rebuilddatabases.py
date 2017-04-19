@@ -108,7 +108,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
                  'actiondata':'condition:[systemdb:systemstatus:systemstatusstatus]==1',
                 'enabled':1},
                 {'actionindex':2, 'name': 'WAN Access yellow', 'actiontype': 'output',
-                 'actiondetail': 'GPIO9', 'conditiontype': 'logical',
+                 'actiondetail': 'GPIO19', 'conditiontype': 'logical',
                  'actiondata': 'condition:[systemdb:netstatus:WANaccess]==1',
                  'enabled': 1},
                 {'actionindex':3, 'name': 'Update IO Status green', 'actiontype': 'output',
@@ -255,6 +255,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
             control_database.insert(tablename, {'id':'GPIO23','name':'GPIO23'}, queue=True)
             control_database.insert(tablename, {'id':'GPIO24','name':'GPIO24'}, queue=True)
             control_database.insert(tablename, {'id':'GPIO25','name':'GPIO25 (Boot ok)'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO35','name':'GPIO35 (Undervoltage)'}, queue=True)
             control_database.insert(tablename, {'id':'GPIO4','name':'GPIO4(MB Power)'}, queue=True)
             control_database.insert(tablename, {'id':'GPIO17','name':'GPIO17'}, queue=True)
             control_database.insert(tablename, {'id':'GPIO27','name':'GPIO27'}, queue=True)
@@ -319,6 +320,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
             {'name': 'length', 'type':'integer', 'default':1},
             {'name': 'bigendian', 'type':'boolean', 'default':1},
             {'name': 'reversebyte', 'type':'boolean', 'default':0},
+            {'name': 'reverseword', 'type':'boolean', 'default':0},
             {'name': 'format'},
             {'name': 'options'},
             {'name':'message'}
@@ -996,6 +998,24 @@ def rebuild_ap_data(SSID='cupidwifi', password='cupidpassword'):
     sqlitemultquery(dirs.dbs.safe, querylist)
 
 
+def rebuild_api_data():
+    from iiutilities import dblib
+    from cupid.pilib import dirs
+    api_id = raw_input('Enter API ID: ')
+    api_key = raw_input('Enter API Key: ')
+    api_schema = dblib.sqliteTableSchema([{'name':'id','primary':True},{'name':'key'}])
+    safe_db = dblib.sqliteDatabase(dirs.dbs.safe)
+    safe_db.create_table('api', api_schema, queue=True)
+    safe_db.insert('api',{'id':api_id, 'key':api_key}, queue=True)
+    safe_db.execute_queue()
+    
+    
+def rebuild_data_agent():
+    # We have a system data_agent table so that we can write to it without locking the io db.
+    
+    data_agent_schema
+    
+    
 def maketruetabledict(namelist):
     truetabledict = {}
     for name in namelist:

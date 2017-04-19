@@ -635,9 +635,25 @@ def newunmangle(d):
         value = d[key]
 
         keyassess = parsekeys(key)
-        # print(keyassess)
+        print(keyassess)
         if keyassess['depth'] == 0:
             unmangled[keyassess['root']] = value
+
+
+        # """ Test FUNCTION for arbitrary depth """
+        #
+        # depth = keyassess['depth']
+        # if keyassess['root'] not in unmangled:
+        #
+        #     unmangled[keyassess['root']] = {}
+        #     root_dict = unmangled[keyassess['root']]
+        #
+        #     for index in range(depth-1):
+        #         root_dict[keyassess['indices'][index]] = {}
+        #         root_dict = root_dict[keyassess['indices'][index]]
+        #
+        #
+        # """ End test function  """
 
         elif keyassess['depth'] == 1:
             if keyassess['root'] not in unmangled:
@@ -992,3 +1008,10 @@ def jsontodict(jsonstring):
     return outputdict
 
 
+def get_directory_listing(directory):
+
+    from os import walk
+
+    # returns on first, so not recursive
+    for (dirpath, dirnames, filenames) in walk(directory):
+        return {'dirnames':dirnames, 'filenames':filenames}

@@ -104,7 +104,16 @@ schema.channel_datalog = sqliteTableSchema([
     {'name':'enabled','type':'real'},
     {'name':'statusmsg'}
 ])
-
+schema.data_agent = sqliteTableSchema([
+    {'name':'data_id','primary':True},
+    {'name':'data_name'},
+    {'name':'send_freq', 'default':'0'},           # Seconds. Zero means whenever there is new data, send it
+    {'name':'last_send'},
+    {'name':'last_send_timestamp'},
+    {'name':'total_sends', 'type':'integer'},
+    {'name':'last_send_size','type':'integer'},
+    {'name':'cume_send_size','type':'integer'}
+])
 
 """
 Utility Functions
@@ -211,8 +220,23 @@ def processnotificationsqueue():
             log(dirs.logs.notifications, 'Notification appears to have failed. Status: ' + str(result['status']))
 
 
-""" IO functions
+def run_cupid_data_agent():
 
+    from iiutilities import dblib
+
+    # Get api info
+    safe_db = dblib.sqliteDatabase(dirs.dbs.safe)
+    api_info = safe_db.read_table('api')
+
+    if not api_info:
+        print('No API info found. Aborting. ')
+        return
+
+
+
+
+""" 
+IO functions
 """
 
 
@@ -390,6 +414,10 @@ class pigpiod_gpio_output(io_wrapper):
     def set_value(self, value):
         self.pi.write(self.gpio, value)
 
+"""
+Auths helpers
+"""
+
 
 def gethashedentry(user, password):
     import hashlib
@@ -439,9 +467,10 @@ def check_action_auths(action, level):
     return authorized
 
 
-#############################################
-## Authlog functions 
-#############################################
+"""
+Authlog functions
+"""
+
 
 def checklivesessions(authdb, user, expiry):
     import time
@@ -539,6 +568,26 @@ def setsinglecontrolvalue(database, table, valuename, value, condition=None):
     return response
 
 
+def set_all_wal():
+    db_paths = [
+        dirs.dbs.control,
+        dirs.dbs.log,
+        dirs.dbs.session,
+        dirs.dbs.recipe,
+        dirs.dbs.system,
+        dirs.dbs.motes,
+        dirs.dbs.info,
+        dirs.dbs.auths,
+        dirs.dbs.notifications,
+        dirs.dbs.safe,
+        dirs.dbs.users
+    ]
+    from iiutilities import dblib
+    for db_path in db_paths:
+        database = dblib.sqliteDatabase(db_path)
+        database.set_wal_mode()
+
+
 def reload_log_config():
     from iiutilities.dblib import readonedbrow
     logconfigdata = readonedbrow(dirs.dbs.system, 'logconfig')[0]
@@ -560,7 +609,7 @@ def set_debug():
         setattr(loglevels, attr, 9)
 
 
-# Attempt to update from database. If we are unsuccessful, the above are defaults
+# On import, Attempt to update from database. If we are unsuccessful, the above are defaults
 
 try:
     logconfig = reload_log_config()
