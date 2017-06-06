@@ -51,7 +51,7 @@ class sqliteDatabase(object):
         # Verify database exists
         self.path = path
         self.queued_queries = []
-        print('INITIALIZED with QUIET: {}'.format(settings['quiet']))
+        # print('INITIALIZED with QUIET: {}'.format(settings['quiet']))
 
     def get_table_names(self):
         self.tablenames = gettablenames(self.path, **self.settings)
