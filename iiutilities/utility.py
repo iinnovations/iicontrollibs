@@ -635,7 +635,7 @@ def newunmangle(d):
         value = d[key]
 
         keyassess = parsekeys(key)
-        # print(keyassess)
+        print(keyassess)
         if keyassess['depth'] == 0:
             unmangled[keyassess['root']] = value
 

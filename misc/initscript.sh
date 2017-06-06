@@ -20,7 +20,7 @@ elif [ "$1" = "install" ]
 
     # Enable uart
     # This is done with raspi-config now, but this won't hurt
-    /bin/sed -ie 's/enable_uart=0/enable_uart=1/g' /boot/config.txt
+    # /bin/sed -ie 's/enable_uart=0/enable_uart=1/g' /boot/config.txt
 
     apt-get update
     apt-get -y install git
@@ -80,7 +80,6 @@ elif [ "$1" = "install" ]
 
     apt-get -y install i2c-tools python-smbus
     apt-get -y install hostapd isc-dhcp-server
-    apt-get -y install
     update-rc.d -f isc-dhcp-server remove
 
     echo "installing pigpio"

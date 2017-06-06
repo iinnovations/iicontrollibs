@@ -1010,7 +1010,11 @@ def rebuild_api_data():
     api_id = raw_input('Enter API ID: ')
     api_key = raw_input('Enter API Key: ')
     api_schema = dblib.sqliteTableSchema([{'name':'id','primary':True},{'name':'key'}])
+<<<<<<< HEAD
     safe_db = pilib.cupidDatabase(dirs.dbs.safe)
+=======
+    safe_db = dblib.sqliteDatabase(dirs.dbs.safe)
+>>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
     safe_db.create_table('api', api_schema, queue=True)
     safe_db.insert('api',{'id':api_id, 'key':api_key}, queue=True)
     safe_db.execute_queue()
