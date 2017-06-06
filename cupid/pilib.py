@@ -71,6 +71,7 @@ dirs.logs.serial = dirs.log + 'serial.log'
 dirs.logs.notifications = dirs.log + 'notifications.log'
 dirs.logs.daemonproc = dirs.log + 'daemonproc.log'
 dirs.logs.error = dirs.log + 'error.log'
+dirs.logs.db = dirs.log + 'db.log'
 
 salt = 'a bunch of random characters and symbols for security'
 
@@ -92,11 +93,12 @@ loglevels.notifications = 5
 daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py', 'mote/serialhandler.py']
 daemonprocnames = ['updateio', 'picontrol', 'systemstatus', 'sessioncontrol', 'serialhandler']
 
-from iiutilities.dblib import sqliteTableSchema
+from iiutilities import dblib
+
+
 schema = Bunch()
-schema.channel_datalog = sqliteTableSchema([
+schema.channel_datalog = dblib.sqliteTableSchema([
     {'name':'time'},
-    {'name':'controlinput'},
     {'name':'controlvalue','type':'real'},
     {'name':'setpointvalue','type':'real'},
     {'name':'action','type':'real'},
@@ -104,7 +106,20 @@ schema.channel_datalog = sqliteTableSchema([
     {'name':'enabled','type':'real'},
     {'name':'statusmsg'}
 ])
-
+schema.standard_datalog = dblib.sqliteTableSchema([
+    {'name':'time', 'primary':True},
+    {'name':'value', 'type':'real'}
+])
+schema.data_agent = dblib.sqliteTableSchema([
+    {'name':'data_id','primary':True},
+    {'name':'data_name'},
+    {'name':'send_freq', 'default':'0'},           # Seconds. Zero means whenever there is new data, send it
+    {'name':'last_send'},
+    {'name':'last_send_timestamp'},
+    {'name':'total_sends', 'type':'integer'},
+    {'name':'last_send_size','type':'integer'},
+    {'name':'cume_send_size','type':'integer'}
+])
 
 """
 Utility Functions
@@ -122,6 +137,21 @@ Utility Functions
 #      we specify) are even readable. It also puts in place a clean way of selectively allowing access via user auths/keywords.
 
 """
+
+# This is a subclass to set default pilib logging options.
+
+
+class cupidDatabase(dblib.sqliteDatabase):
+
+    def __init__(self, *args, **kwargs):
+        settings = {
+            'log_errors':True,
+            'log_path':dirs.logs.db
+        }
+        settings.update(kwargs)
+
+        # This calls the parent init
+        super(cupidDatabase, self).__init__(*args, **settings)
 
 
 def dbnametopath(friendlyname):
@@ -179,7 +209,7 @@ def processnotificationsqueue():
     from iiutilities import dblib
     from iiutilities.utility import log
 
-    notifications_db = dblib.sqliteDatabase(dirs.dbs.notifications)
+    notifications_db = cupidDatabase(dirs.dbs.notifications)
     queuednotifications = notifications_db.read_table('queued')
 
     for notification in queuednotifications:
@@ -211,8 +241,23 @@ def processnotificationsqueue():
             log(dirs.logs.notifications, 'Notification appears to have failed. Status: ' + str(result['status']))
 
 
-""" IO functions
+def run_cupid_data_agent():
 
+    from iiutilities import dblib
+
+    # Get api info
+    safe_db = cupidDatabase(dirs.dbs.safe)
+    api_info = safe_db.read_table('api')
+
+    if not api_info:
+        print('No API info found. Aborting. ')
+        return
+
+
+
+
+""" 
+IO functions
 """
 
 
@@ -271,17 +316,21 @@ class io_wrapper(object):
 class pigpiod_gpio_counter(io_wrapper):
 
     def __init__(self, **kwargs):
+        import copy
         # inherit parent properties
         super(pigpiod_gpio_counter, self).__init__(**kwargs)
 
         import pigpio
-        self.settings = {'edge':'falling', 'pullupdown':None, 'debounce_ms':20, 'event_min_ms':20,
-                         'watchdog_ms':1000, 'rate_period_ms':2000, 'debug':False}
+        self.settings = {'edge':'falling', 'pullupdown':None, 'debounce_ms':10, 'event_min_ms':10,
+                         'watchdog_ms':1000, 'rate_period_ms':2000, 'debug':False, 'reset_ticks':30000,
+                         'busy':False, 'init_counts':0}
         self.settings.update(kwargs)
         for key,value in self.settings.iteritems():
             setattr(self, key, value)
 
         self.pi.set_mode(self.gpio, pigpio.INPUT)
+        self.pi.set_glitch_filter(self.gpio, self.settings['debounce_ms'] * 1000)
+
         if self.pullupdown in ['up', 'pullup']:
             self.pi.set_pull_up_down(self.gpio, pigpio.PUD_UP)
 
@@ -289,11 +338,15 @@ class pigpiod_gpio_counter(io_wrapper):
         self.pi.set_watchdog(self.gpio, self.watchdog_ms)
 
         self.busy = False
-        self.ticks = 0
+        self.ticks = copy.copy(self.settings['init_counts'])
         self.last_event_count = 0
 
-        self.last_counts = None
-        self.last_counts_time = None
+        self.last_counts = copy.copy(self.settings['init_counts'])
+        if self.settings['init_counts']:
+            from datetime import datetime
+            self.last_counts_time = datetime.now()
+        else:
+            self.last_counts_time = None
         self.rate = 0
 
     def _cbf(self, gpio, level, tick):
@@ -305,26 +358,41 @@ class pigpiod_gpio_counter(io_wrapper):
         # a tick event happened
         import time
 
-        if level == 0:  # Falling edge
-            time.sleep(0.001 * self.debounce_ms)
-            value = self.pi.read(self.gpio)
-            if value == 0:
-                # print('event length satisfied')
+        try:
+            if level == 0:  # Falling edge
+                # time.sleep(0.001 * self.debounce_ms)
+                # value = self.pi.read(self.gpio)
+                # if value == 0:
+                    # print('event length satisfied')
 
-                if tick - self.last_event_count > self.debounce_ms * 1000:
-                    self.ticks += 1
-                    self.last_event_count = tick
-                else:
-                    if self.debug:
-                        print('debounce')
-            else:
-                # print('event not long enough ( we waited to see ).')
+                    # if tick - self.last_event_count > self.debounce_ms * 1000:
+                self.ticks += 1
+                self.last_event_count = tick
+                    # else:
+                    #     if self.debug:
+                    #         print('debounce')
+                # else:
+                    # print('event not long enough ( we waited to see ).')
+                    # pass
+
+            elif level == 2:  # Watchdog timeout. We will calculate
                 pass
 
-        elif level == 2:  # Watchdog timeout. We will calculate
+            self.busy = False
+        except:
             pass
+            # import traceback
+            # print("*** ****************************************************")
+            # print("*** ****************************************************")
+            # print("*** ****************************************************")
+            # print("*** ****************************************************")
+            # print("*** ****************************************************")
+            # print("*** ****************************************************")
+            # print("*** ****************************************************")
+            # print('PROCESSING ERROR')
+            # errorstring = traceback.format_exc()
+            # print(errorstring)
 
-        self.busy = False
 
     def get_value(self):
         from datetime import datetime
@@ -340,6 +408,12 @@ class pigpiod_gpio_counter(io_wrapper):
         self.last_counts = self.ticks
         self.last_counts_time = now
 
+        if self.ticks > self.reset_ticks:
+            if self.debug:
+                print('RESETTINGS (count is ' + str(self.ticks) + ')')
+                print('reset_ticks : ' + str(self.reset_ticks))
+            self.last_counts -= self.reset_ticks
+            self.ticks -= self.reset_ticks
         # self.event_tick = 0  # reset event
         return self.ticks
 
@@ -390,6 +464,10 @@ class pigpiod_gpio_output(io_wrapper):
     def set_value(self, value):
         self.pi.write(self.gpio, value)
 
+"""
+Auths helpers
+"""
+
 
 def gethashedentry(user, password):
     import hashlib
@@ -439,9 +517,10 @@ def check_action_auths(action, level):
     return authorized
 
 
-#############################################
-## Authlog functions 
-#############################################
+"""
+Authlog functions
+"""
+
 
 def checklivesessions(authdb, user, expiry):
     import time
@@ -539,9 +618,31 @@ def setsinglecontrolvalue(database, table, valuename, value, condition=None):
     return response
 
 
-def reload_log_config():
-    from iiutilities.dblib import readonedbrow
-    logconfigdata = readonedbrow(dirs.dbs.system, 'logconfig')[0]
+def set_all_wal():
+    db_paths = [
+        dirs.dbs.control,
+        dirs.dbs.log,
+        dirs.dbs.session,
+        dirs.dbs.recipe,
+        dirs.dbs.system,
+        dirs.dbs.motes,
+        dirs.dbs.info,
+        dirs.dbs.auths,
+        dirs.dbs.notifications,
+        dirs.dbs.safe,
+        dirs.dbs.users
+    ]
+    from iiutilities import dblib
+    for db_path in db_paths:
+        database = cupidDatabase(db_path)
+        database.set_wal_mode()
+
+
+def reload_log_config(**kwargs):
+    settings = {'quiet':False}
+    settings.update(kwargs)
+    systemdb = cupidDatabase(dirs.dbs.system, **settings)
+    logconfigdata = systemdb.read_table_row('logconfig')[0]
 
     loglevels.network = logconfigdata['network']
     loglevels.io = logconfigdata['io']
@@ -560,10 +661,10 @@ def set_debug():
         setattr(loglevels, attr, 9)
 
 
-# Attempt to update from database. If we are unsuccessful, the above are defaults
+# On import, Attempt to update from database. If we are unsuccessful, the above are defaults
 
 try:
-    logconfig = reload_log_config()
+    logconfig = reload_log_config(quiet=True)
 except:
     pass
 else:

@@ -181,8 +181,8 @@ def rundaemon(**kwargs):
     unittestresults = cupidunittests.runalltests()
 
     # Get notifications so we know when to notify
-    system_database = dblib.sqliteDatabase(pilib.dirs.dbs.system)
-    notification_database = dblib.sqliteDatabase(pilib.dirs.dbs.notifications)
+    system_database = pilib.cupidDatabase(pilib.dirs.dbs.system)
+    notification_database = pilib.cupidDatabase(pilib.dirs.dbs.notifications)
 
     notifications = system_database.read_table('notifications')
 

@@ -45,7 +45,7 @@ def handle_modify_channel_alarm(d, output):
         return
 
     dbpath = pilib.dbnametopath(d['database'])
-    database = dblib.sqliteDatabase(dbpath)
+    database = pilib.cupidDatabase(dbpath)
 
     action_condition = '"name"=\'' + d['actionname'] + "'"
     if d['valuename'] in ['enabled','actiondetail']:
@@ -118,7 +118,7 @@ def handle_modify_channel(d, output):
         return
 
     dbpath = pilib.dbnametopath(d['database'])
-    database = dblib.sqliteDatabase(dbpath)
+    database = pilib.cupidDatabase(dbpath)
 
     channel_condition = '"name"=\'' + d['channelname'] + "'"
     if d['valuename'] in allowed_valuenames:
@@ -144,6 +144,7 @@ def handle_modify_channel(d, output):
 
         if the_channel['type'] == 'remote':
             output['message'] += 'Processing remote channel, setting pending value. '
+            print(output['message'])
 
             if the_channel['pending']:
                 pending = parseoptions(the_channel['pending'])

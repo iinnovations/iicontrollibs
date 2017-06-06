@@ -26,7 +26,12 @@ def application(environ, start_response):
     )
     formname = post.getvalue('name')
 
+
     output = {}
+    output['keys'] = ''
+
+    if 'REMOTE_ADDR' in environ:
+        output['remote_ip'] = environ['REMOTE_ADDR']
 
     d = {}
     for k in post.keys():
@@ -484,6 +489,10 @@ def application(environ, start_response):
                 from iiutilities.utility import gmail
                 mymail = gmail(subject="Quote generated")
                 mymail.message = 'Quote generated at ' + cleantime + '\r\n'
+
+                if 'remote_ip' in output:
+                    mymail.message = 'IP address ' + output['remote_ip'] + '\r\n'
+
                 mymail.message += bomresults['bomdescription']
                 mymail.recipient = 'quotes@interfaceinnovations.org'
                 mymail.sender = 'II Panelbuilder'

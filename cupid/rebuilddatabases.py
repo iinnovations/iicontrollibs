@@ -19,6 +19,8 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 from iiutilities.utility import Bunch
+from cupid import pilib
+
 tablenames = Bunch()
 
 tablenames.control = ['actions', 'modbustcp', 'labjack', 'defaults', 'indicators', 'inputs', 'outputs', 'owfs', 'ioinfo',
@@ -55,7 +57,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
     querylist = []
     runquery = False
 
-    control_database = dblib.sqliteDatabase(dirs.dbs.control)
+    control_database = pilib.cupidDatabase(dirs.dbs.control)
 
     ### Remotes table
     tablename = 'remotes'
@@ -77,7 +79,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
     tablename = 'actions'
     if tablename in tablelist:
         schema = dblib.sqliteTableSchema([
-            {'name': 'actionindex', 'primary':True},
+            {'name': 'actionindex', 'type':'integer','primary':True},
             {'name': 'name', 'unique':True, 'default':'myaction'},
             {'name': 'enabled', 'type':'boolean', 'default':0},
             {'name': 'actiontype', 'default':'email'},
@@ -108,7 +110,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
                  'actiondata':'condition:[systemdb:systemstatus:systemstatusstatus]==1',
                 'enabled':1},
                 {'actionindex':2, 'name': 'WAN Access yellow', 'actiontype': 'output',
-                 'actiondetail': 'GPIO9', 'conditiontype': 'logical',
+                 'actiondetail': 'GPIO19', 'conditiontype': 'logical',
                  'actiondata': 'condition:[systemdb:netstatus:WANaccess]==1',
                  'enabled': 1},
                 {'actionindex':3, 'name': 'Update IO Status green', 'actiontype': 'output',
@@ -255,6 +257,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
             control_database.insert(tablename, {'id':'GPIO23','name':'GPIO23'}, queue=True)
             control_database.insert(tablename, {'id':'GPIO24','name':'GPIO24'}, queue=True)
             control_database.insert(tablename, {'id':'GPIO25','name':'GPIO25 (Boot ok)'}, queue=True)
+            control_database.insert(tablename, {'id':'GPIO35','name':'GPIO35 (Undervoltage)'}, queue=True)
             control_database.insert(tablename, {'id':'GPIO4','name':'GPIO4(MB Power)'}, queue=True)
             control_database.insert(tablename, {'id':'GPIO17','name':'GPIO17'}, queue=True)
             control_database.insert(tablename, {'id':'GPIO27','name':'GPIO27'}, queue=True)
@@ -304,6 +307,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
             control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'16', 'id': 'GPIO16', 'name': 'GPIO 16', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
             control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'20', 'id': 'GPIO20', 'name': 'GPIO 20', 'options':'mode:input,pullupdown:pulldown,function:shutdown,functionstate:true','enabled':1},queue=True),
             control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'21', 'id': 'GPIO21', 'name': 'GPIO 21', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
+            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'35', 'id': 'GPIO35', 'name': 'Power Monitor','enabled':1},queue=True),
 
     """
     modbustcp Table
@@ -319,6 +323,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
             {'name': 'length', 'type':'integer', 'default':1},
             {'name': 'bigendian', 'type':'boolean', 'default':1},
             {'name': 'reversebyte', 'type':'boolean', 'default':0},
+            {'name': 'reverseword', 'type':'boolean', 'default':0},
             {'name': 'format'},
             {'name': 'options'},
             {'name':'message'}
@@ -390,12 +395,15 @@ def rebuild_control_db(tablelist=None, migrate=True):
     tablename = 'channels'
     if tablename in tablelist:
         schema = dblib.sqliteTableSchema([
-            {'name': 'channelindex','type':'integer','primary':True},
-            {'name':'type', 'default':'local'},
+            # {'name': 'channelindex','type':'integer','primary':True},
             {'name':'name', 'unique':True},
-            {'name':'controlinput','default':'none'},
-            {'name':'controlsetpoint','default':'none'},
-            {'name':'enabledinput'},
+            {'name':'index', 'type':'integer', 'primary':True},
+            {'name':'type', 'default':'local'},
+            {'name':'id', 'unique':True},
+            {'name':'pv_input','default':'none'},
+            {'name':'sv_input','default':'none'},
+            {'name':'output_input','default':'none'},
+            {'name':'enabled_input','default':'none'},
             {'name':'enabled','type':'boolean', 'default':0},
             {'name':'outputsenabled','type':'boolean', 'default':0},
             {'name':'controlupdatetime'},
@@ -426,7 +434,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
 
         if addentries:
             pass
-            # TODO: fix channl default entries
+            # TODO: fix channel default entries
             # control_database.insert(tablename, {'channelindex':1,'type':'remote','Kettle'})
             # querylist.append("insert into " + table + " values (1, 'local', 'channel 1', '', 'none', 0, 0, '', 'on/off 1', 'none',0,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'', '', '')")
             # querylist.append("insert into " + table + " values (1, 'remote', 'Kettle', 'none', 0, 0, '', 'on/off 1', 'none',1,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'', '', '')")
@@ -456,7 +464,7 @@ def rebuild_sessions_db(tablelist=tablenames.sessions, migrate=False):
     if not tablelist:
         tablelist = tablenames.sessions
 
-    session_database = dblib.sqliteDatabase(dirs.dbs.session)
+    session_database = pilib.cupidDatabase(dirs.dbs.session)
     print(session_database.path)
 
     ### Session limits
@@ -562,7 +570,7 @@ def rebuild_system_db(tablelist):
     from iiutilities import dblib
     from cupid.pilib import dirs
 
-    system_database = dblib.sqliteDatabase(dirs.dbs.system)
+    system_database = pilib.cupidDatabase(dirs.dbs.system)
     if not tablelist:
         tablelist = tablenames.system
 
@@ -759,7 +767,7 @@ logsettings
 """
 
 
-def rebuild_log_settings_db(tablelist):
+def rebuild_log_settings_db():
     from iiutilities.dblib import sqlitemultquery
     from cupid.pilib import dirs
 
@@ -781,7 +789,7 @@ def rebuild_recipes_db(tabledict):
     from iiutilities  import dblib
     from cupid.pilib import dirs
 
-    recipes_db = dblib.sqliteDatabase(dirs.dbs.recipe)
+    recipes_db = pilib.cupidDatabase(dirs.dbs.recipe)
 
     if 'recipes' in tabledict:
         tablename = 'stdreflow'
@@ -814,7 +822,7 @@ def rebuild_notifications_db(tablelist=None, migrate=True):
     if not tablelist:
         tablelist = tablenames.notifications
 
-    notifications_database = dblib.sqliteDatabase(dirs.dbs.notifications)
+    notifications_database = pilib.cupidDatabase(dirs.dbs.notifications)
 
     tablename = 'queued'
     if tablename in tablelist:
@@ -861,7 +869,7 @@ def rebuild_motes_db(tablelist):
     from cupid.pilib import dirs
     from iiutilities import dblib
 
-    motes_database = dblib.sqliteDatabase(dirs.dbs.motes)
+    motes_database = pilib.cupidDatabase(dirs.dbs.motes)
 
     tablename = 'read'
     if tablename in tablelist:
@@ -996,6 +1004,24 @@ def rebuild_ap_data(SSID='cupidwifi', password='cupidpassword'):
     sqlitemultquery(dirs.dbs.safe, querylist)
 
 
+def rebuild_api_data():
+    from iiutilities import dblib
+    from cupid.pilib import dirs
+    api_id = raw_input('Enter API ID: ')
+    api_key = raw_input('Enter API Key: ')
+    api_schema = dblib.sqliteTableSchema([{'name':'id','primary':True},{'name':'key'}])
+    safe_db = pilib.cupidDatabase(dirs.dbs.safe)
+    safe_db.create_table('api', api_schema, queue=True)
+    safe_db.insert('api',{'id':api_id, 'key':api_key}, queue=True)
+    safe_db.execute_queue()
+    
+    
+def rebuild_data_agent():
+    # We have a system data_agent table so that we can write to it without locking the io db.
+    
+    data_agent_schema
+    
+    
 def maketruetabledict(namelist):
     truetabledict = {}
     for name in namelist:
@@ -1042,8 +1068,10 @@ if __name__ == "__main__":
         elif sys.argv[1] in ['wirelessdata']:
             print('running rebuild wireless safedata')
             rebuild_wireless_data()
-        elif sys.argv[1] in 'logsettings':
+        elif sys.argv[1] in ['logsettings']:
             rebuild_log_settings_db()
+        elif sys.argv[1] in ['users']:
+            rebuild_users_data('defaults')
 
     else:
 

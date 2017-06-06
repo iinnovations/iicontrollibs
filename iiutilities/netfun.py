@@ -385,6 +385,26 @@ def checksharemount(sharepath):
     return status
 
 
+def post_data(url, data, headers=None):
+
+    from requests import post
+    from json import loads
+
+    if headers:
+        response = post(url, data=data, headers=headers)
+    else:
+        response = post(url, data=data)
+    try:
+        response_content_dict = loads(response._content)
+    except:
+        message += 'Error decoding response: '
+        message += response
+        response_content_dict = {}
+    else:
+        message = 'Appears to have executed ok. '
+
+    return {'response':response, 'response_content_dict':response_content_dict, 'message':message}
+
 #--------------------------------------------------#
 #
 #   MODBUS Read/write functions

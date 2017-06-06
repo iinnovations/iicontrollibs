@@ -42,6 +42,7 @@ partsaliases = {
         # Power supplies
         'ps24VDC1p4A':{'partid':'H001', 'pclass':'electronics','psubclass':'powersupplies', 'railwidth':3.07},
         'ps5VDC2p4A':{'partid':'H002', 'pclass':'electronics','psubclass':'powersupplies', 'railwidth':0.98},
+        'ps24VDC2p5A':{'partid':'H003', 'pclass':'electronics','psubclass':'powersupplies', 'railwidth':0.98},
 
         # Switches and indicators
         'ledswitch': {'partid': 'K007', 'pclass':'parts','psubclass':'switchesindicators','controlsload': 0.011 * 24/110}, #24V @ 11mA
@@ -344,8 +345,7 @@ def handlecard(componentsdict, custoptions, pointname, cardname, cardpointcount,
 def handlelevel(componentsdict, custoptions, leveltype, interfacetype, optionname):
 
     # Parts common to all level interfaces and sensors
-    addincpartsdict(componentsdict, 'dltb', 3)
-    addincpartsdict(custoptions[optionname]['bom'], 'dltb', 2)
+    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'dltb', 3)
 
     # Parts common to all level sensors
 
@@ -380,18 +380,17 @@ def handlelevel(componentsdict, custoptions, leveltype, interfacetype, optionnam
             # Cupid reads status from PLC
 
     if leveltype in ['optical','opticalwithtimer']:
-        addincpartsdicts([componentsdict,custoptions[optionname]['bom']], 'opticallevelsensor', option=optionname)
+        addincpartsdicts([componentsdict,custoptions[optionname]['bom']], 'opticallevelsensor')
     elif leveltype in ['mechanical', 'mechanicalwithtimer']:
-        addincpartsdicts([componentsdict,custoptions[optionname]['bom']], option=optionname)
+        addincpartsdicts([componentsdict,custoptions[optionname]['bom']])
     elif leveltype in ['tuningfork', 'tuningforkwithtimer']:
-        addincpartsdicts([componentsdict,custoptions[optionname]['bom']], 'tuningforklevelsensor', option=optionname)
+        addincpartsdicts([componentsdict,custoptions[optionname]['bom']], 'tuningforklevelsensor')
 
     if leveltype in ['mechanicalwithtimer', 'opticalwithtimer', 'tuningforkwithtimer']:
 
         # Only add if not touchscreen. If TS, just add commissioning time
         if interfacetype in ['4C', '16C']:
-            addincpartsdicts(componentsdict,'leveltimer', option=optionname)
-            addincpartsdicts(custoptions[optionname]['bom'],'leveltimer')
+            addincpartsdicts([componentsdict,custoptions[optionname]['bom']],'leveltimer', option=optionname)
 
             for adddict in componentsdict, custoptions[optionname]['bom']:
 
@@ -595,7 +594,11 @@ def paneltobom(**kwargs):
     custoptions[optionname] = {'bom':{}}
 
     # Controls 24VDC PS
-    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'ps24VDC1p4A', pclass='electronics',psubclass='powersupplies')
+    if paneldesc['interfacetype'] in ['4C', '16C']:
+        addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'ps24VDC1p4A', pclass='electronics',psubclass='powersupplies')
+    else:
+        addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'ps24VDC2p5A', pclass='electronics',psubclass='powersupplies')
+
 
     if paneldesc['paneltype'] == 'brewpanel':
 
@@ -705,8 +708,8 @@ def paneltobom(**kwargs):
                 componentsdict['loads']['outputsload'] += 0.5
                 # print('ADDING AC LOAD')
             elif vessel['controltype'] == 'dcoutput':
-                # Add 1A DC. PLENTY
-                componentsdict['loads']['outputsload'] += 1.0 * 24 / 110
+                # Add 1.5A DC
+                componentsdict['loads']['outputsload'] += 1.5 * 24 / 110
                 # print('ADDING DC LOAD')
 
             # else ... totally unknown.
@@ -769,16 +772,18 @@ def paneltobom(**kwargs):
                 optionname = 'Pump: ' + pump['name'] + ': ' + pump['controltype'] + ' (no VFD)'
             custoptions[optionname] = {'bom':{}}
 
+            # Add VFD
+            if pump['size'] == '1HP':
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'VFD-1HP-2083P')
+            elif pump['size'] == '2HP':
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'VFD-2HP-2083P')
+            elif pump['size'] == '3HP':
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'VFD-3HP-2083P')
+            elif pump['size'] == '5HP':
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'VFD-5HP-2083P')
+
             if pump['controltype'] in motorcontroltypes:
-                 # Add VFD
-                if pump['size'] == '1HP':
-                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'VFD-1HP-2083P')
-                elif pump['size'] == '2HP':
-                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'VFD-2HP-2083P')
-                elif pump['size'] == '3HP':
-                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'VFD-3HP-2083P')
-                elif pump['size'] == '5HP':
-                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'VFD-5HP-2083P')
+
 
                 if pump['controltype'] in ['vfdpanelonoff', 'vfdpanelonoffspeed', 'vfdpanelonoffreverse',
                              'vfdpanelonoffspeedreverse']:
@@ -1189,6 +1194,8 @@ def paneltobom(**kwargs):
     bomdescription += '\tControls:\t' + str(setprecision(componentsdict['loads']['controlsload'], loadprecision)) + '\r\n'
     bomdescription += '\tOutputs:\t' + str(setprecision(componentsdict['loads']['outputsload'], loadprecision)) + '\r\n'
     bomdescription += '\tTotal:\t' + str(setprecision(componentsdict['loads']['totalload'], loadprecision)) + '\r\n'
+
+    # TODO: Add DC PS for DC LOADS
 
     output['bomdescription'] = bomdescription
 

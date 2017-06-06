@@ -35,29 +35,43 @@ Read from systemstatus to make sure we should be running
 
 def runperiodicio(**kwargs):
 
-    settings = {'force_run':False, 'run_once':False, 'debug':False}
+    settings = {'force_run': False, 'run_once': False, 'debug': False, 'quiet':True, 'logerrors':True}
     settings.update(kwargs)
+
+    systemdb = pilib.cupidDatabase(pilib.dirs.dbs.system, **settings)
+    logdb = pilib.cupidDatabase(pilib.dirs.dbs.log, **settings)
+    controldb = pilib.cupidDatabase(pilib.dirs.dbs.control, **settings)
+
+
     if settings['force_run']:
         updateioenabled = True
     else:
-        updateioenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'updateioenabled')
+        updateioenabled = systemdb.get_single_value('systemstatus', 'updateioenabled')
+
 
     if settings['debug']:
         pilib.set_debug()
+        settings['quiet'] = False
 
     if updateioenabled:
         import pigpio
         pi = pigpio.pi()
         io_objects = {}
+        first_run=True
+
+    # print("quiet : {}, {}, {} ".format(systemdb.settings['quiet'], logdb.settings['quiet'], controldb.settings['quiet']))
 
     while updateioenabled:
+
+        # print(
+        # "quiet2 : {}, {}, {} ".format(systemdb.settings['quiet'], logdb.settings['quiet'], controldb.settings['quiet']))
 
         utility.log(pilib.dirs.logs.io, 'Running periodicupdateio', 3, pilib.loglevels.io)
         utility.log(pilib.dirs.logs.system, 'Running periodicupdateio', 3, pilib.loglevels.system)
 
         # Set last run time
-        dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'lastupdateiopoll', datalib.gettimestring())
-        dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'updateiostatus', '1')
+        systemdb.set_single_value('systemstatus', 'lastupdateiopoll', datalib.gettimestring())
+        systemdb.set_single_value('systemstatus', 'updateiostatus', '1')
 
         # Read and record everything as specified in dirs.dbs.control
         # Update database of inputs with read data
@@ -66,7 +80,7 @@ def runperiodicio(**kwargs):
         runupdate = True
         if runupdate:
             try:
-                reply = updateio.updateiodata(database=pilib.dirs.dbs.control, piobject=pi, io_objects=io_objects)
+                reply = updateio.updateiodata(piobject=pi, io_objects=io_objects, first_run=first_run, settings=settings)
             except:
                 import traceback
                 formatted_lines = traceback.format_exc().splitlines()
@@ -82,11 +96,8 @@ def runperiodicio(**kwargs):
             utility.log(pilib.dirs.logs.io, 'DEBUG: Update IO disabled', 1, pilib.loglevels.io)
             utility.log(pilib.dirs.log.system, 'DEBUG: Update IO disabled', 1, pilib.loglevels.system)
 
+        systemsdict = systemdb.read_table_row('systemstatus', 0)[0]
 
-        result = dblib.readonedbrow(pilib.dirs.dbs.system, 'systemstatus', 0)
-        systemsdict = result[0]
-        #print("here is the systems dict")
-        #print(systemsdict)
         readtime = systemsdict['updateiofreq']
 
         """
@@ -101,7 +112,7 @@ def runperiodicio(**kwargs):
         logpoints = 1000
 
         try:
-            logsettings = dblib.readalldbrows(pilib.dirs.dbs.log, 'logsettings')
+            logsettings = logdb.read_table('logsettings')
             for setting in logsettings:
                 if setting['item'] == 'defaultlogpoints':
                     logpoints = int(setting['value'])
@@ -114,7 +125,7 @@ def runperiodicio(**kwargs):
         Update controlvalues in channels
         """
 
-        channels = dblib.readalldbrows(pilib.dirs.dbs.control, 'channels')
+        channels = controldb.read_table('channels')
         for channel in channels:
             # Get controlinput for each channel
             channelname = channel['name']
@@ -126,48 +137,49 @@ def runperiodicio(**kwargs):
 
             if controlinput and controlinput not in ['none', 'None']:
 
-                controlvalue = dblib.getsinglevalue(pilib.dirs.dbs.control, 'inputs', 'value', "name='" + controlinput + "'")
-                controltime = dblib.getsinglevalue(pilib.dirs.dbs.control, 'inputs', 'polltime',
-                                                   "name='" + controlinput + "'")
+                values = controldb.get_values('inputs', ['value', 'polltime'], condition="name='" + controlinput + "'")
+                controlvalue = values['value']
+                controlvalue = values['polltime']
 
                 # Only update channel value if value was found
                 # print('CONTROLVALUE: ', controlvalue)
                 if controlvalue or controlvalue == 0:
                     # print('control value for channel ' + channelname + ' = ' + str(controlvalue))
-                    dblib.setsinglevalue(pilib.dirs.dbs.control, 'channels', 'controlvalue', str(controlvalue), "controlinput='" + controlinput + "'")
+                    controldb.set_single_value('channels', 'controlvalue', str(controlvalue), "controlinput='" + controlinput + "'", queue=True)
                     # pilib.sqlitequery(pilib.dirs.dbs.control, 'update channels set controlvalue=' + str(
                     #     controlvalue) + ' where controlinput = ' + "'" + controlinput + "'")
-                    dblib.setsinglevalue(pilib.dirs.dbs.control, 'channels', 'controlvaluetime', str(controltime), "controlinput='" + controlinput + "'")
+                    controldb.set_single_value('channels', 'controlvaluetime', str(controltime), "controlinput='" + controlinput + "'", queue=True)
                     # pilib.sqlitequery(pilib.dirs.dbs.control,
                     #                   'update channels set controlvaluetime=\'' + controltime + '\' where controlinput = ' + "'" + controlinput + "'")
 
             else:  # input is empty
-                dblib.setsinglevalue(pilib.dirs.dbs.control, 'channels', 'statusmessage', 'No controlinput found', "name='" + channelname + "'")
+                controldb.set_single_value('channels', 'statusmessage', 'No controlinput found', "name='" + channelname + "'", queue=True)
 
                 # disable channel
                 #pilib.sqlitequery(dirs.dbs.control,"update channels set enabled=0 where controlinput = \'" + controlinput + "'")
 
             if channel['controlsetpoint'] and channel['controlsetpoint'] not in ['none', 'None']:
 
-                value = dblib.getsinglevalue(pilib.dirs.dbs.control, 'inputs', 'value', "name='" + channel['controlsetpoint'] + "'")
+                value = controldb.set_single_value('inputs', 'value', "name='" + channel['controlsetpoint'] + "'", queue=True)
 
 
                 # Only update channel value if value was found
                 if value or value==0:
                     # print('control value for channel ' + channelname + ' = ' + str(controlvalue))
-                    dblib.setsinglevalue(pilib.dirs.dbs.control, 'channels', 'setpointvalue', str(value), "controlsetpoint='" + channel['controlsetpoint'] + "'")
+                    controldb.set_single_value('channels', 'setpointvalue', str(value), "controlsetpoint='" + channel['controlsetpoint'] + "'", queue=True)
 
             if channel['enabledinput'] and channel['enabledinput'] not in ['none', 'None']:
 
-                value = dblib.getsinglevalue(pilib.dirs.dbs.control, 'inputs', 'value', "name='" + channel['enabledinput'] + "'")
+                value = controldb.set_single_value('inputs', 'value', "name='" + channel['enabledinput'] + "'", queue=True)
 
 
                 # Only update channel value if value was found
                 if value or value==0:
                     # print('control value for channel ' + channelname + ' = ' + str(controlvalue))
-                    dblib.setsinglevalue(pilib.dirs.dbs.control, 'channels', 'enabled', str(value), "enabledinput='" + channel['enabledinput'] + "'")
+                    controldb.set_single_value('channels', 'enabled', str(value), "enabledinput='" + channel['enabledinput'] + "'", queue=True)
 
-
+        if controldb.queued_queries:
+            controldb.execute_queue()
 
         """
         Log value into tabled log
@@ -175,7 +187,7 @@ def runperiodicio(**kwargs):
         Get data for all sensors online
         """
 
-        inputsdata = dblib.readalldbrows(pilib.dirs.dbs.control, 'inputs')
+        inputsdata = controldb.read_table('inputs')
         for inputrow in inputsdata:
             logtablename = 'input_' + inputrow['id'] + '_log'
             utility.log(pilib.dirs.logs.io, 'Logging: ' + logtablename, 5, pilib.loglevels.io)
@@ -184,18 +196,30 @@ def runperiodicio(**kwargs):
             if datalib.isvalidtimestring(inputrow['polltime']):
                 # Create table if it doesn't exist
 
-                query = 'create table if not exists \'' + logtablename + '\' ( value real, time text primary key)'
-                dblib.sqlitequery(pilib.dirs.dbs.log, query)
+                # query = 'create table if not exists \'' + logtablename + '\' ( value real, time text primary key)'
+                # print('we are logging')
+
+                log_db = pilib.cupidDatabase(pilib.dirs.dbs.log, **settings)
+
+                # Includes 'if not exists' , so will not overwrite
+                log_db.create_table(logtablename, pilib.schema.standard_datalog, dropexisting=False, queue=True)
+                # dblib.sqlitequery(pilib.dirs.dbs.log, query)
 
                 # Enter row
-                query = dblib.makesqliteinsert(logtablename, [inputrow['value'], inputrow['polltime']],['value', 'time'])
-                dblib.sqlitequery(pilib.dirs.dbs.log, query)
+                insert = {'time':inputrow['polltime'], 'value':inputrow['value']}
+                log_db.insert(logtablename, insert, queue=True)
+
+                # query = dblib.makesqliteinsert(logtablename, [inputrow['value'], inputrow['polltime']],['value', 'time'])
+                # dblib.sqlitequery(pilib.dirs.dbs.log, query)
+
+                # print(log_db.queued_queries)
+                log_db.execute_queue()
 
                 # Clean log
-                dblib.cleanlog(pilib.dirs.dbs.log, logtablename)
+                log_db.clean_log(logtablename)
 
                 # Size log based on specified size
-                dblib.sizesqlitetable(pilib.dirs.dbs.log, logtablename, logpoints)
+                log_db.size_table(logtablename, logpoints)
             else:
                 pass
                 # print('invalid poll time')
@@ -214,13 +238,21 @@ def runperiodicio(**kwargs):
 
         if not settings['force_run']:
             # Read from systemstatus to make sure we should be running
-            updateioenabled = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'updateioenabled')
+            updateioenabled = systemdb.get_single_value('systemstatus', 'updateioenabled')
 
-    dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'updateiostatus', '0')
+        # Signal to io reads that we just started.
+        first_run = False
+
+    systemdb.set_single_value('systemstatus', 'updateiostatus', '0')
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1].lower() == 'debug':
-        runperiodicio(force_run=True, run_once=True, debug=True)
+    if len(sys.argv) > 1:
+        if sys.argv[1].lower() == 'debug':
+            runperiodicio(force_run=True, run_once=True, debug=True)
+        elif sys.argv[1].lower() == 'force':
+            runperiodicio(force_run=True)
+        elif sys.argv[1].lower() == 'force_once':
+            runperiodicio(force_run=True, run_once=True)
     else:
         runperiodicio()
 

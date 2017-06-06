@@ -639,6 +639,22 @@ def newunmangle(d):
         if keyassess['depth'] == 0:
             unmangled[keyassess['root']] = value
 
+
+        # """ Test FUNCTION for arbitrary depth """
+        #
+        # depth = keyassess['depth']
+        # if keyassess['root'] not in unmangled:
+        #
+        #     unmangled[keyassess['root']] = {}
+        #     root_dict = unmangled[keyassess['root']]
+        #
+        #     for index in range(depth-1):
+        #         root_dict[keyassess['indices'][index]] = {}
+        #         root_dict = root_dict[keyassess['indices'][index]]
+        #
+        #
+        # """ End test function  """
+
         elif keyassess['depth'] == 1:
             if keyassess['root'] not in unmangled:
                 unmangled[keyassess['root']] = {}
@@ -728,7 +744,7 @@ def reducedicttolist(mydict):
     for key in mydict:
         value = mydict[key]
         try:
-            int(key)
+            int(value)
         except:
             allintegers=False
 
@@ -760,13 +776,15 @@ def killprocbyname(name):
 
 
 def log(logfile, message, reqloglevel=1, currloglevel=1):
-    from iiutilities.datalib import gettimestring
-    if currloglevel >= reqloglevel:
-        logfile = open(logfile, 'a')
-        logfile.writelines([gettimestring() + ' : ' + message + '\n'])
-        logfile.close()
-    if currloglevel >= 9:
-        print(message)
+    # Allow passing None for logfile
+    if logfile:
+        from iiutilities.datalib import gettimestring
+        if currloglevel >= reqloglevel:
+            logfile = open(logfile, 'a')
+            logfile.writelines([gettimestring() + ' : ' + message + '\n'])
+            logfile.close()
+        if currloglevel >= 9:
+            print(message)
 
 
 def writetabletopdf(tabledata, **kwargs):
@@ -992,3 +1010,10 @@ def jsontodict(jsonstring):
     return outputdict
 
 
+def get_directory_listing(directory):
+
+    from os import walk
+
+    # returns on first, so not recursive
+    for (dirpath, dirnames, filenames) in walk(directory):
+        return {'dirnames':dirnames, 'filenames':filenames}

@@ -388,8 +388,9 @@ def watchdognetstatus(allnetstatus=None):
             try:
                 offlinetime = netstatus['offlinetime']
             except:
-                print('netstatus ERROR')
+                # print('netstatus ERROR')
                 utility.log(pilib.dirs.logs.network, 'Error gettng offlinetime. ', 2, pilib.loglevels.network)
+
 
             offlineperiod = datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(offlinetime)
 
