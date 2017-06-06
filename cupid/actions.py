@@ -101,10 +101,6 @@ class action:
             except:
                 print('error parsing ' + str(currstatus))
                 self.status = 0
-<<<<<<< HEAD
-=======
-
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
 
         elif self.conditiontype == 'value':
             self.value = dblib.dbvntovalue(self.actiondatadict['dbvn'])
@@ -341,11 +337,7 @@ class action:
             if attr not in ['actiondatadict', 'actionindex', 'actiondata']:
                 control_db.set_single_value('actions', attr, getattr(self, attr), condition='"actionindex"=\'' + str(self.actionindex) +"'", queue=True)
 
-<<<<<<< HEAD
         # print(len(control_db.queued_queries))
-=======
-        print(len(control_db.queued_queries))
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
         control_db.execute_queue()
         # print(valuenames)
         # print(valuelist)
@@ -460,11 +452,7 @@ class action:
             self.status = 0
 
 # @profile
-<<<<<<< HEAD
 def processactions(**kwargs):
-=======
-def processactions():
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
 
     # Read database to get our actions
     from iiutilities.dblib import readalldbrows
@@ -474,7 +462,6 @@ def processactions():
 
     for actiondict in actiondicts:
 
-<<<<<<< HEAD
         # if we only want to process one action, skip others.
         if 'name' in kwargs:
             if actiondict['name'] != kwargs['name']:
@@ -482,8 +469,6 @@ def processactions():
 
         alert = False
 
-=======
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
         # print("ACTIONDICT")
         # print(actiondatadict)
 

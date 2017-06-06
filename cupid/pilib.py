@@ -106,15 +106,11 @@ schema.channel_datalog = dblib.sqliteTableSchema([
     {'name':'enabled','type':'real'},
     {'name':'statusmsg'}
 ])
-<<<<<<< HEAD
 schema.standard_datalog = dblib.sqliteTableSchema([
     {'name':'time', 'primary':True},
     {'name':'value', 'type':'real'}
 ])
 schema.data_agent = dblib.sqliteTableSchema([
-=======
-schema.data_agent = sqliteTableSchema([
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
     {'name':'data_id','primary':True},
     {'name':'data_name'},
     {'name':'send_freq', 'default':'0'},           # Seconds. Zero means whenever there is new data, send it
@@ -250,27 +246,16 @@ def run_cupid_data_agent():
     from iiutilities import dblib
 
     # Get api info
-<<<<<<< HEAD
     safe_db = cupidDatabase(dirs.dbs.safe)
-=======
-    safe_db = dblib.sqliteDatabase(dirs.dbs.safe)
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
     api_info = safe_db.read_table('api')
 
     if not api_info:
         print('No API info found. Aborting. ')
         return
-<<<<<<< HEAD
 
 
 
 
-=======
-
-
-
-
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
 """ 
 IO functions
 """
@@ -649,7 +634,6 @@ def set_all_wal():
     ]
     from iiutilities import dblib
     for db_path in db_paths:
-<<<<<<< HEAD
         database = cupidDatabase(db_path)
         database.set_wal_mode()
 
@@ -659,15 +643,6 @@ def reload_log_config(**kwargs):
     settings.update(kwargs)
     systemdb = cupidDatabase(dirs.dbs.system, **settings)
     logconfigdata = systemdb.read_table_row('logconfig')[0]
-=======
-        database = dblib.sqliteDatabase(db_path)
-        database.set_wal_mode()
-
-
-def reload_log_config():
-    from iiutilities.dblib import readonedbrow
-    logconfigdata = readonedbrow(dirs.dbs.system, 'logconfig')[0]
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
 
     loglevels.network = logconfigdata['network']
     loglevels.io = logconfigdata['io']

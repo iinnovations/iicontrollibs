@@ -156,7 +156,6 @@ class sqliteDatabase(object):
         dbrows = readalldbrows(self.path, tablename, condition, **self.settings)
         return dbrows
 
-<<<<<<< HEAD
     def read_database(self, **kwargs):
         kwargs.update(self.settings)
         all_data = {}
@@ -165,15 +164,6 @@ class sqliteDatabase(object):
         return all_data
 
     def read_table_smart(self, tablename, condition=None):
-=======
-    def read_database(self):
-        all_data = {}
-        for tablename in self.get_table_names():
-            all_data[tablename] = self.read_table(tablename)
-        return all_data
-
-    def read_table_smart(self, tablename, condition=None, **kwargs):
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
         queries = ['pragma busy_timeout=2000', "pragma table_info ('" + tablename + "')",]
         queries.append("select * from '" + tablename + "'")
         results = self.queries(queries)
@@ -237,7 +227,6 @@ class sqliteDatabase(object):
         value = getsinglevalue(self.path, tablename, valuename, condition, **self.settings)
         return value
 
-<<<<<<< HEAD
     def get_values(self, tablename, valuenames, condition=None):
         query = 'select '
         for valuename in valuenames:
@@ -258,13 +247,10 @@ class sqliteDatabase(object):
 
         return return_dict
 
-=======
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
     def set_wal_mode(self):
         query = 'pragma journal_mode=wal'
         self.query(query)
 
-<<<<<<< HEAD
     def get_wal_mode(self):
         query = 'pragma journal_mode'
         reply = self.query(query)
@@ -274,9 +260,6 @@ class sqliteDatabase(object):
         if 'quiet' in kwargs:
             self.settings['quiet']=kwargs['quiet']
 
-=======
-    def insert(self, tablename, insert, replace=True, queue=False):
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
         # Insert can be single insert or list (or falsy to insert defaults)
         if not insert:
             queries = ["insert into '" + tablename + "'default values"]
@@ -573,24 +556,14 @@ def process_pragma(pragma):
     return pragmadictlist
 
 
-<<<<<<< HEAD
 def getpragma(database, table, **kwargs):
     pragma = sqlitequery(database, 'pragma table_info ( \'' + table + '\')', **kwargs)['data']
-=======
-def getpragma(database, table):
-    pragma = sqlitequery(database, 'pragma table_info ( \'' + table + '\')')['data']
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
     pragmadictlist = process_pragma(pragma)
     return pragmadictlist
 
 
-<<<<<<< HEAD
 def getpragmanames(database, table, **kwargs):
     pragma = getpragma(database, table, **kwargs)
-=======
-def getpragmanames(database, table):
-    pragma = getpragma(database, table)
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
     pragmanames = []
     for item in pragma:
         pragmanames.append(item['name'])
@@ -845,24 +818,16 @@ def sqlitemultquery(database, querylist, **kwargs):
     settings = {'break_on_error': False, 'quiet': False, 'timeout': 2}
     settings.update(kwargs)
 
-<<<<<<< HEAD
     if not settings['quiet']:
         pass
         # print('Quiet: {} '.format(settings['quiet']))
         # print(querylist)
-=======
-    settings = {'break_on_error': False, 'quiet': False, 'timeout': 2}
-    settings.update(kwargs)
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
 
     con = lite.connect(database, timeout=settings['timeout'])
     con.text_factory = str
 
-<<<<<<< HEAD
     messages = []
     statuses = []
-=======
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
     with con:
         cur = con.cursor()
         data = []
@@ -874,7 +839,6 @@ def sqlitemultquery(database, querylist, **kwargs):
             except:
                 import traceback
                 dataitem = ''
-<<<<<<< HEAD
                 trace_message = traceback.format_exc()
                 error_searched = status_error_from_sqlite_msg(trace_message)
                 error_searched['query'] = query
@@ -887,13 +851,6 @@ def sqlitemultquery(database, querylist, **kwargs):
                     from iiutilities.utility import log
                     log(kwargs['log_path'], error_searched['message'] + '\n\t Original message: ' + trace_message + ', query: ' + error_searched['query'])
 
-=======
-                trace_msg = 'Error with query on database ' + database + ' with query : "' + query + '"\n\t' + traceback.format_exc()
-                message += trace_msg
-                status = 1
-                if not settings['quiet']:
-                    print(trace_msg)
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
                 if settings['break_on_error']:
                     break
             else:
@@ -915,14 +872,11 @@ def sqlitequery(database, query, **kwargs):
     settings = {'timeout':2, 'quiet':False}
     settings.update(kwargs)
 
-<<<<<<< HEAD
     if not settings['quiet']:
         # print('Quiet: {} '.format(settings['quiet']))
         # print(query)
         pass
 
-=======
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
     con = lite.connect(database, timeout=settings['timeout'])
     con.text_factory = str
 
@@ -935,7 +889,6 @@ def sqlitequery(database, query, **kwargs):
     except:
         import traceback
         data = ''
-<<<<<<< HEAD
         trace_message = traceback.format_exc()
 
         error_searched = status_error_from_sqlite_msg(trace_message)
@@ -953,15 +906,6 @@ def sqlitequery(database, query, **kwargs):
 
         status = error_searched['status']
         message = error_searched['message']
-=======
-        message = traceback.format_exc()
-        status = 1
-
-        if not settings['quiet']:
-            print('error with query on database ' + database + ' : ')
-            print(query)
-            print(message)
->>>>>>> 00139bf30d72de3bf4e5bccb6861b6030afd2119
     else:
         status = 0
         message = 'all seems ok'
