@@ -142,7 +142,8 @@ class sqliteDatabase(object):
 
         # have we created some queries internally?
         if not queue and self.queued_queries:
-            print(self.queued_queries)
+            # print('why am I printing?')
+            # print(self.queued_queries)
             self.execute_queue()
 
         return current_table
