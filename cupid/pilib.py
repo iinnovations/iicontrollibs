@@ -40,10 +40,12 @@ from iiutilities.utility import Bunch
 dirs = Bunch()
 
 dirs.baselib = '/usr/lib/iicontrollibs/'
-dirs.database = '/var/www/data/'
+dirs.web = '/var/www/'
+dirs.database = dirs.web + 'data/'
 dirs.onewire = '/var/1wire/'
-dirs.output = '/var/www/data/'
+dirs.output = dirs.web + 'data/'
 dirs.log = '/var/log/cupid/'
+dirs.archive = dirs.database + 'archive/'
 
 dirs.dbs = Bunch()
 
@@ -95,16 +97,61 @@ daemonprocnames = ['updateio', 'picontrol', 'systemstatus', 'sessioncontrol', 's
 
 from iiutilities import dblib
 
-
 schema = Bunch()
+schema.channel = dblib.sqliteTableSchema([
+    # {'name': 'channelindex','type':'integer','primary':True},
+    {'name': 'name', 'unique': True},
+    {'name': 'index', 'type': 'integer', 'primary': True},
+    {'name': 'type', 'default': 'local'},
+    {'name': 'id', 'unique': True},
+    {'name': 'pv_input', 'default': 'none'},
+    {'name': 'sv_input', 'default': 'none'},
+    {'name': 'output_input', 'default': 'none'},
+    {'name': 'enabled_input', 'default': 'none'},
+    {'name': 'enabled', 'type': 'boolean', 'default': 0},
+    {'name': 'outputs_enabled', 'type': 'boolean', 'default': 0},
+    {'name': 'control_update_time'},
+    {'name': 'control_algorithm', 'default': 'on/off 1'},
+    {'name': 'control_recipe', 'default': 'none'},
+    {'name': 'recipe_stage', 'type': 'integer', 'default': 0},
+    {'name': 'recipe_start_time'},
+    {'name': 'recipe_stage_start_time'},
+    {'name': 'setpoint_value', 'type': 'real'},
+    {'name': 'process_value', 'type': 'real'},
+    {'name': 'process_value_time'},
+    {'name': 'positive_output'},
+    {'name': 'negative_output'},
+    {'name': 'action', 'type': 'real', 'default': 0},
+    {'name': 'mode', 'default': 'manual'},
+    {'name': 'status_message'},
+    {'name': 'log_options', 'default': 'mode:timespan,size:8,unit:hours'},
+    {'name': 'data'},
+    {'name': 'dataclasses'},
+    {'name': 'pending'}
+])
+schema.input = dblib.sqliteTableSchema([
+    {'name': 'id', 'options': 'primary'},
+    {'name': 'interface'},
+    {'name': 'type'},
+    {'name': 'address'},
+    {'name': 'name'},
+    {'name': 'value', 'type': 'real'},
+    {'name': 'unit'},
+    {'name': 'polltime'},
+    {'name': 'pollfreq'},
+    {'name': 'ontime'},
+    {'name': 'offtime'},
+    {'name': 'log_options', 'default': 'mode:timespan,size:8,unit:hours'}
+])
+
 schema.channel_datalog = dblib.sqliteTableSchema([
-    {'name':'time'},
-    {'name':'controlvalue','type':'real'},
-    {'name':'setpointvalue','type':'real'},
+    {'name':'time','primary':True},
+    {'name':'process_value','type':'real'},
+    {'name':'setpoint_value','type':'real'},
     {'name':'action','type':'real'},
     {'name':'algorithm'},
     {'name':'enabled','type':'real'},
-    {'name':'statusmsg'}
+    {'name':'status_msg'}
 ])
 schema.standard_datalog = dblib.sqliteTableSchema([
     {'name':'time', 'primary':True},
@@ -119,6 +166,15 @@ schema.data_agent = dblib.sqliteTableSchema([
     {'name':'total_sends', 'type':'integer'},
     {'name':'last_send_size','type':'integer'},
     {'name':'cume_send_size','type':'integer'}
+])
+schema.data_items = dblib.sqliteTableSchema([
+    {'name':'valuename','primary':True},
+    {'name':'value'}
+])
+schema.mote = dblib.sqliteTableSchema([
+    {'name':'time'},
+    {'name':'message','primary':True},
+    {'name':'value'}
 ])
 
 """
@@ -146,12 +202,36 @@ class cupidDatabase(dblib.sqliteDatabase):
     def __init__(self, *args, **kwargs):
         settings = {
             'log_errors':True,
-            'log_path':dirs.logs.db
+            'log_path':dirs.logs.db,
+            'quiet':True
         }
         settings.update(kwargs)
 
         # This calls the parent init
         super(cupidDatabase, self).__init__(*args, **settings)
+
+
+def table_name_to_type(tablename):
+    type = 'unknown'
+    subtype = 'unknown'
+    id = 'unknown'
+    try:
+        splits = tablename.split('_')
+        for test_type in ['input', 'channel']:
+            if splits[0] == test_type:
+                type = test_type
+
+        if splits[1].lower().find('gpio') >= 0:
+            subtype = 'gpio'
+        elif splits[1].lower().find('mote') >=0:
+            subtype = 'mote'
+        elif splits[1].lower().find('1wire') >=0:
+            subtype = '1wire'
+
+        id = '_'.join(splits[1:-1])
+    except:
+        pass
+    return {'type':type, 'subtype':subtype, 'id':id}
 
 
 def dbnametopath(friendlyname):
@@ -164,7 +244,6 @@ def dbnametopath(friendlyname):
 
 
 def processnotification(notification):
-    from cupid import pilib
     from iiutilities import datalib
     from iiutilities import utility
     from iiutilities.netfun import pingstatus
@@ -536,6 +615,66 @@ def checklivesessions(authdb, user, expiry):
 
     return activesessions
 
+"""
+WSGI helpers
+"""
+
+# This needs to be a subroutine, since it's very commonly used.
+def app_check_keywords(d, required_keywords, output):
+
+    if not all(required_keywords in d):
+        output['message'] += 'Not all required keywords found. '
+        for keyword in required_keywords:
+            if keyword not in d:
+                output['message'] += '{} not found. '.format(keyword)
+        return False
+    else:
+        return True
+
+
+def copy_log_to_archive(log_name, **kwargs):
+
+    settings = {
+        'archive_name': None,
+        'force_extension': True,
+        'extension':'.db',
+        'directory': dirs.archive
+    }
+    settings.update(kwargs)
+
+    from iiutilities.datalib import gettimestring
+
+    if not settings['archive_name']:
+        settings['archive_name'] = log_name + gettimestring() + '.db'
+
+    if settings['force_suffix'] and settings['archive_name'][-3:] != settings['suffix']:
+        settings['archive_name'] += '.db'
+
+    # Determine type by log name
+
+    from iiutilities.datalib import gettimestring
+    archive_db = dblib.sqliteDatabase(settings['directory'] + settings['archive_name'])
+    logs_db = dblib.sqliteDatabase(dirs.dbs.log)
+
+    existing_table = logs_db.read_table(log_name)
+    existing_schema = logs_db.get_schema(log_name)
+    archive_db.create_table('data', existing_schema, queue=True)
+    archive_db.insert('data', existing_table, queue=True)
+
+    archive_db.create_table('info', schema.data_items, queue=True)
+    archive_db.insert('info', {'valuename': 'created', 'value': gettimestring()}, queue=True)
+    archive_db.insert('info', {'valuename': 'name', 'value': log_name}, queue=True)
+
+    archive_db.execute_queue()
+
+
+def app_copy_log_to_archive(d,output):
+    required_keywords = ['log_name', 'archived_log_name']
+    if not app_check_keywords(d,required_keywords,output):
+        return
+
+    copy_log_to_archive(d['log_name'], d['archived_log_name'])
+
 
 # this is an auxiliary function that will carry out additional actions depending on
 # table values. For example, setting a 'pending' value when modifying setpoints
@@ -674,3 +813,63 @@ else:
         except:
             print ('Set attribute for "' + key + '" did not work')
 
+
+def getdatameta(database, **kwargs):
+    settings = {
+        'get_time_span':True
+    }
+    settings.update(kwargs)
+
+    tablenames = dblib.gettablenames(database)
+    if 'metadata' in tablenames:
+        tablenames.remove('metadata')
+    queryarray = []
+    for tablename in tablenames:
+        queryarray.append("select count(*) from '" + tablename + "'")
+    results = dblib.sqlitemultquery(database, queryarray, **kwargs)['data']
+    meta = []
+    for result, tablename in zip(results, tablenames):
+        this_meta = {}
+
+        this_meta['tablename'] = tablename
+        this_meta['numpoints'] = result[0][0]
+
+        # Quick hacky way to know if this is an archive log or not
+        if tablename == 'data':
+            from os.path import split
+            db_name = split(database)[1]
+            types = table_name_to_type(db_name)
+        else:
+            types = table_name_to_type(tablename)
+
+        this_meta['type'] = types['type']
+        this_meta['subtype'] = types['subtype']
+        this_meta['id'] = types['id']
+
+        if settings['get_time_span']:
+            timespan = dblib.gettimespan(database, tablename)['seconds']
+            this_meta['timespan'] = timespan
+
+        meta.append(this_meta)
+    return meta
+
+
+def get_and_set_logdb_metadata(database, **kwargs):
+
+    meta = getdatameta(database, **kwargs)
+
+    the_db = dblib.sqliteDatabase(database)
+    the_schema = dblib.sqliteTableSchema([
+        {'name':'tablename','primary':True},
+        {'name':'numpoints','type':'integer'},
+        {'name':'timespan','type':'real'},
+        {'name':'type'},
+        {'name':'subtype'},
+        {'name':'id'}
+    ])
+    the_db.create_table('metadata', the_schema, dropexisting=True, queue=True)
+    for meta_item in meta:
+        the_db.insert('metadata', {'tablename':meta_item['tablename'], 'numpoints':meta_item['numpoints'],
+                                   'timespan':meta_item['timespan'], 'type':meta_item['type'],
+                                   'subtype':meta_item['subtype'], 'id':meta_item['id']}, queue=True)
+    the_db.execute_queue()

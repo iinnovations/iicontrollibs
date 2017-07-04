@@ -17,19 +17,8 @@ top_folder = os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspec
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
-from git import *
-
-from cupid.pilib import dirs
-
-iicontrollibsrepodir = '/usr/lib/iicontrollibs'
-cupidweblibrepodir = '/var/www'
-defaultrepo = iicontrollibsrepodir
-versiondb = dirs.dbs.system
-versiontablename = "versions"
-librarydict = {iicontrollibsrepodir: 'iicontrollibs', cupidweblibrepodir: 'cupidweblibs'}
-
-
 def getrepoinfo(repodirectory):
+    from git import Repo
     repoinfo = {}
     repo = Repo(repodirectory)
     repoinfo['headcommit'] = repo.head.commit
@@ -37,21 +26,17 @@ def getrepoinfo(repodirectory):
     repoinfo['headcommithexsha'] = repo.head.commit.hexsha
     repoinfo['headcommitdate'] = repo.head.commit.committed_date
     repoinfo['headcommitmsg'] = repo.head.commit.message
-    repoinfo['name'] = librarydict[repodirectory]
+    repoinfo['repo'] = repo
     return repoinfo
 
 
-def updategitversions():
-    updaterepoversion(iicontrollibsrepodir)
-    updaterepoversion(cupidweblibrepodir)
-
-
-def updaterepoversion(repodirectory):
+def updaterepoversion(repodirectory, versiondb, versiontablename='versions'):
     repoinfo = getrepoinfo(repodirectory)
     addversionentry(versiondb, versiontablename, repoinfo)
 
 
 def pullrepo(repodirectory, originname):
+    from git import Repo
     repo = Repo(repodirectory)
     origin = repo.remotes.origin
     gitresponse = origin.pull(originname)
@@ -63,37 +48,28 @@ def stashrepo(repodirectory, originname):
     return gitresponse
 
 
-def addversionentry(database, table, entrydict):
-    from iiutilities.dblib import sqliteinsertsingle
+def addversionentry(database_path, tablename, entrydict):
+    import iiutilities.dblib as dblib
     from iiutilities.datalib import gettimestring
-    sqliteinsertsingle(database, table,
-                       [entrydict['name'], entrydict['headcommithexsha'], gettimestring(entrydict['headcommitdate']),
-                        gettimestring()])
-
-
-def updateiicontrollibs(stash=False):
-    repodirectory = iicontrollibsrepodir
-    originname = 'master'
-    if stash:
-        stashrepo(repodirectory, originname)
-    pullrepo(repodirectory, originname)
-    updaterepoversion(repodirectory)
-    print('update complete')
-
-
-def updatecupidweblib(stash=False):
-    repodirectory = cupidweblibrepodir
-    originname = 'master'
-    if stash:
-        stashrepo(repodirectory,originname)
-    pullrepo(repodirectory, originname)
-    updaterepoversion(repodirectory)
-    print('update complete')
-
+    versions_db = dblib.sqliteDatabase(database_path)
+    tablenames = versions_db.get_table_names()
+    if not tablename in tablenames:
+        versions_schema = dblib.sqliteTableSchema([
+            {'name': 'item', 'primary': True},
+            {'name': 'version'},
+            {'name': 'versiontime'},
+            {'name': 'updatetime'}
+        ])
+        versions_db.create_table(tablename, versions_schema)
+    insert = {'item':entrydict['repo'],
+              'version':entrydict['headcommithexsha'],
+              'versiontime':gettimestring(entrydict['headcommitdate']),
+              'updatetime': gettimestring()
+              }
+    versions_db.insert(tablename, insert)
 
 if __name__ == "__main__":
-    updaterepoversion(iicontrollibsrepodir)
-    updaterepoversion(cupidweblibrepodir)
+
     print('blurg')
     
 
