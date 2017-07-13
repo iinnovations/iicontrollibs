@@ -9,9 +9,9 @@ __maintainer__ = "Colin Reese"
 __email__ = "support@interfaceinnovations.org"
 __status__ = "Development"
 
+import inspect
 import os
 import sys
-import inspect
 
 top_folder = \
     os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
@@ -63,7 +63,7 @@ class sqliteDatabase(object):
                 query = self.migrate_table(name, schema, queue=queue)
             else:
                 if dropexisting:
-                    self.drop_table(name, queue=queue, quiet=True)
+                    self.drop_table(name, queue=queue)
 
                 query = sqlite_create_table_query_from_schema(name, schema)
 
@@ -119,6 +119,7 @@ class sqliteDatabase(object):
         else:
             print('Table does not exist. Continuing')
 
+
         schema_columns = schema.columns()
         if current_table:
             all_exist = all(key in schema_columns for key in current_table[0])
@@ -135,6 +136,7 @@ class sqliteDatabase(object):
             print('no table or tabledata exists :  ' + tablename)
 
         self.create_table(tablename, schema, queue=True)
+
         # Check here to make sure we will not incur dataloss
         if current_table:
             for row in current_table:
@@ -142,15 +144,16 @@ class sqliteDatabase(object):
 
         # have we created some queries internally?
         if not queue and self.queued_queries:
-            # print('why am I printing?')
-            # print(self.queued_queries)
+            print('Migrate queries: ')
+            print(self.queued_queries)
+
             self.execute_queue()
 
         return current_table
 
     def get_table_size(self, tablename, **kwargs):
         self.settings.update(kwargs)
-        return gettablesize(self.path, tablename **self.settings)
+        return gettablesize(self.path, tablename, **self.settings)
 
     def read_table(self, tablename, condition=None, **kwargs):
         self.settings.update(kwargs)
@@ -192,6 +195,10 @@ class sqliteDatabase(object):
     def get_last_time_row(self, tablename, timecolumn='time'):
         row = getlasttimerows(self.path, tablename, timecolumn, **self.settings)[0]
         return row
+
+    def get_last_time_rows(self, tablename, rows=1, timecolumn='time'):
+        rows = getlasttimerows(self.path, tablename, timecolumn, numrows=rows, **self.settings)
+        return rows
 
     def get_first_time_row(self, tablename, timecolumn='time'):
         row = getfirsttimerows(self.path, tablename, timecolumn, **self.settings)[0]
@@ -241,10 +248,12 @@ class sqliteDatabase(object):
 
         result = self.query(query)
 
-        print(result)
         return_dict = {}
-        for valuename, value in zip(valuenames, result['data'][0]):
-            return_dict[valuename] = value
+        try:
+            for valuename, value in zip(valuenames, result['data'][0]):
+                return_dict[valuename] = value
+        except:
+            pass
 
         return return_dict
 
@@ -296,8 +305,15 @@ class sqliteDatabase(object):
         else:
             self.query(query)
 
-    def size_table(self, tablename, logpoints):
-       sizesqlitetable(self.path, tablename, logpoints, **self.settings)
+    def size_table(self, tablename, **size_options):
+        # We have to split this up so that we can use our db options to enforce quiet, etc.
+        # Well, that did not totally work as we have to query against the database to get size in the size
+        # function. For now, we'll just merge options, but need to be aware that option names cannot collide.
+        size_options.update(self.settings)
+        size_options['dry_run'] = True
+        size_query = size_sqlite_table(self.path, tablename, **size_options)['query']
+        if size_query:
+            self.query(size_query, **self.settings)
 
     def empty_table(self, tablename, queue=False):
         query = makedeletesinglevaluequery(tablename, condition=None)
@@ -405,6 +421,12 @@ class sqliteTableSchema(object):
 
         self.items = items
 
+    def __repr__(self):
+        string_rep = ''
+        for item in self.items:
+            string_rep += '{}\n'.format(item)
+        return string_rep
+
     def columns(self):
         return [item['name'] for item in self.items]
 
@@ -505,7 +527,7 @@ def logtimevaluedata(database, tablename, timeinseconds, value, logsize=5000, lo
 
             # Size log based on specified size
 
-            sizesqlitetable(database, tablename, logsize)
+            size_sqlite_table(database, tablename, logsize)
         else:
             # print('not time yet')
             pass
@@ -522,28 +544,15 @@ def gettablenames(database, **kwargs):
     return tables
 
 
-def getdatameta(database, **kwargs):
-    tablenames = gettablenames(database)
-    queryarray = []
-    for tablename in tablenames:
-        queryarray.append("select count(*) from '" + tablename + "'")
-    results = sqlitemultquery(database, queryarray, **kwargs)['data']
-    meta = []
-    for result, tablename in zip(results, tablenames):
-        meta.append({'tablename':tablename, 'numpoints':result[0][0]})
-    return meta
-
-
-def getandsetmetadata(database, **kwargs):
-    meta = getdatameta(database)
-    queryarray = []
-    queryarray.append('drop table if exists metadata')
-    queryarray.append('create table metadata ( name text, numpoints int)')
-    for metaitem in meta:
-        queryarray.append("insert into metadata values ('" + str(metaitem['tablename']) + "','" + str(metaitem['numpoints']) + "')")
-        #print(queryarray)
-    sqlitemultquery(database, queryarray, **kwargs)
-
+def gettimespan(database, tablename, time_col='time'):
+    from datalib import timestringtoseconds
+    first_query = "select \"{}\" from '{}' order by \"{}\" asc limit 1".format(time_col, tablename, time_col)
+    last_query = "select \"{}\" from '{}' order by \"{}\" desc limit 1".format(time_col, tablename, time_col)
+    result = sqlitemultquery(database, [first_query, last_query])
+    first_time_string = result['data'][0][0][0]
+    last_time_string = result['data'][1][0][0]
+    timespan_float = timestringtoseconds(last_time_string) - timestringtoseconds(first_time_string)
+    return {'days':timespan_float / 3600 / 24, 'hours':timespan_float/3600, 'minutes':timespan_float/60, 'seconds':timespan_float}
 
 def process_pragma(pragma):
     pragmadictlist = []
@@ -806,8 +815,6 @@ def makesqliteinsert(table, valuelist, valuenames=None, replace=True):
 
 
 def sqliteinsertsingle(database, table, valuelist, valuenames=None, replace=True, **kwargs):
-    import sqlite3 as lite
-
     query = makesqliteinsert(table, valuelist, valuenames, replace)
     result = sqlitequery(database, query, **kwargs)
 
@@ -819,9 +826,9 @@ def sqlitemultquery(database, querylist, **kwargs):
     settings = {'break_on_error': False, 'quiet': False, 'timeout': 2}
     settings.update(kwargs)
 
-    if not settings['quiet']:
-        pass
-        # print('Quiet: {} '.format(settings['quiet']))
+    # if not settings['quiet']:
+    #     print('Quiet: {} on db {}, query {}'.format(settings['quiet'], database, querylist))
+
         # print(querylist)
 
     con = lite.connect(database, timeout=settings['timeout'])
@@ -873,10 +880,8 @@ def sqlitequery(database, query, **kwargs):
     settings = {'timeout':2, 'quiet':False}
     settings.update(kwargs)
 
-    if not settings['quiet']:
-        # print('Quiet: {} '.format(settings['quiet']))
-        # print(query)
-        pass
+    # if not settings['quiet']:
+    #     print('Quiet: {} on db {}, query {}'.format(settings['quiet'], database, query))
 
     con = lite.connect(database, timeout=settings['timeout'])
     con.text_factory = str
@@ -1108,27 +1113,13 @@ def cleanlog(databasename, logname, **kwargs):
 
 def sqliteduplicatetable(database, oldname, newname):
     # Get pragma to create table
-    oldcreatequery = sqlitequery(database, "SELECT sql FROM sqlite_master WHERE type='table' AND name='" + oldname + "'")['data'][0][0]
+    the_database = sqliteDatabase(database)
+    schema = the_database.get_schema(oldname)
 
-    # Check to see if it was created with quotes or not
-    # Gotta use quotes on new name for safety
-    if oldcreatequery.find('"' + oldname + '"') >= 0:
-        newcreatequery = oldcreatequery.replace('"' + oldname + '"', "'" + newname + "'")
-    elif oldcreatequery.find("'" + oldname + "'") >= 0:
-        newcreatequery = oldcreatequery.replace("'" + oldname + "'", "'" + newname + "'")
-    else:
-        newcreatequery = oldcreatequery.replace(oldname, "'" + newname + "'")
-
-    sqlitequery(database, newcreatequery)
-
-    # Now get all the old data and insert it
-    data=readalldbrows(database, oldname)
-
-    # We have to drop all records and insert string without the droptable, just in case it already exists.
-    # This way we retain the table structure
-    sqlitedeleteallrecords(database, newname)
-    insertstringdicttablelist(database, newname, data, droptable=False)
-
+    the_data = the_database.read_table(oldname)
+    the_database.create_table(newname, queue=True)
+    the_database.insert(the_data, queue=True)
+    the_database.execute_queue()
 
 def sqlitemovetable(database, oldname, newname, **kwargs):
     sqliteduplicatetable(database, oldname, newname=newname)
@@ -1136,13 +1127,13 @@ def sqlitemovetable(database, oldname, newname, **kwargs):
 
 
 def sqlitedeleteallrecords(database, table, **kwargs):
-    sqlitequery(database, 'delete from "' + table + '"')
+    sqlitequery(database, 'delete from "{}"'.format(table))
 
 
 def sqlitedroptable(database, table, **kwargs):
     if 'quiet' in kwargs:
         quiet = kwargs['quiet']
-    sqlitequery(database, 'drop table "' + table + '"', **kwargs)
+    sqlitequery(database, 'drop table "{}"'.format(table), **kwargs)
 
 
 def sqlitedropalltables(database, **kwargs):
@@ -1151,29 +1142,68 @@ def sqlitedropalltables(database, **kwargs):
     queries = []
     if existingtables:
         for table in existingtables:
-            queries.append('drop table "' + table + '"')
+            queries.append('drop table "{}"'.format(table))
         sqlitemultquery(database, queries, **kwargs)
 
 
 def gettablesize(databasename, tablename, **kwargs):
-    logsize = sqlitedatumquery(databasename, 'select count(*) from \'' + tablename + '\'', **kwargs)
+    logsize = sqlitedatumquery(databasename, "select count(*) from '{}'".format(tablename), **kwargs)
     return logsize
 
 
-def sizesqlitetable(databasename, tablename, size, **kwargs):
-    logsize = sqlitedatumquery(databasename, 'select count(*) from \'' + tablename + '\'', **kwargs)
+def size_sqlite_table(databasename, tablename, **kwargs):
+    settings = {
+        'method':'count',
+        'unit':'hours',          # If we specify method is time, units are in hours unless otherwise specified
+        'size':1000,
+        'time_column':'time',
+        'delete':'oldest',
+        'dry_run':False
+    }
+    settings.update(kwargs)
+    the_log_db = sqliteDatabase(databasename, **kwargs)
+    if settings['method'] == 'count':
+        logsize = the_log_db.get_table_size(tablename)
 
-    if logsize and (logsize > size):
-        logexcess = int(logsize) - int(size)
-        sqlitequery(databasename, 'delete from\'' + tablename + '\' order by time limit ' + str(logexcess), **kwargs)
-    else:
-        logexcess = -1
+        if logsize and (logsize > settings['size']):
+            log_excess = int(logsize) - int(settings['size'])
+        else:
+            log_excess = -1
 
-    return (logexcess)
+    elif settings['method'] == 'timespan':
+        from datalib import timestringtoseconds
+        first_time_string = the_log_db.get_first_time_row(tablename)[settings['time_column']]
+        first_time = timestringtoseconds(first_time_string)
+        log_excess = 0
+        time_threshold = settings['size']   # this would be seconds
+        if 'unit' == 'hours':
+            time_threshold = settings['size'] * 3600
+        elif 'unit' == 'minutes':
+            time_threshold = settings['size'] * 60
+        elif 'unit' == 'days':
+            time_threshold = settings['size'] * 3600 * 24
+
+        log_data = the_log_db.read_table(tablename)
+        for datum in log_data:
+            string_time = datum[settings['time_column']]
+            elapsed = timestringtoseconds(string_time) - first_time
+            if elapsed > time_threshold:
+                log_excess += 1
+
+    query = ''
+    if log_excess > 0:
+        if settings['delete'] == 'oldest':
+            # print('deleting {}'.format(log_excess))
+            query = "delete from '{}' order by {} limit {}".format(tablename, settings['time_column'], log_excess)
+
+        if not settings['dry_run'] and query:
+            the_log_db.query(query)
+
+    return {'excess':log_excess, 'query':query}
 
 
 def getfirsttimerows(database, tablename, timecolname='time', numrows=1, **kwargs):
-    query = 'select * from \'' + tablename + "' order by'" + timecolname + "' desc limit " + str(int(numrows))
+    query = 'select * from \'' + tablename + "' order by '" + timecolname + "' asc limit " + str(int(numrows))
     data = sqlitequery(database, query, **kwargs)['data']
     try:
         dictarray = []

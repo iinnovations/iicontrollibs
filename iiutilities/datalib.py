@@ -165,6 +165,12 @@ def test_questionable_text(text, **kwargs):
     return {'isdirty':questionable, 'matches':questionable_matches}
 
 
+def getmstimestring():
+    import datetime
+    timestring = datetime.datetime.now().strftime("%H:%M:%S.%f")
+    return timestring
+
+
 def gettimestring(timeinseconds=None):
     import time
     if timeinseconds:
