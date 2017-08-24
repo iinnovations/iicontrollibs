@@ -17,7 +17,10 @@ top_folder = os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspec
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 def getrepoinfo(repodirectory):
     from git import Repo
     repoinfo = {}

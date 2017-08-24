@@ -104,8 +104,13 @@ class sqliteDatabase(object):
         if self.queued_queries:
             self.execute_queue()
 
+<<<<<<< HEAD
     def move_table(self, oldname, newname, **kwargs):
         sqlitemovetable(self.path, oldname, newname, **kwargs)
+=======
+    def move_table(self, oldname, newname, **settings):
+        sqlitemovetable(self.path, oldname, newname)
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
     def migrate_table(self, tablename, schema, data_loss_ok=False, queue=False, **kwargs):
         self.settings.update(kwargs)
@@ -155,9 +160,15 @@ class sqliteDatabase(object):
         self.settings.update(kwargs)
         return gettablesize(self.path, tablename, **self.settings)
 
+<<<<<<< HEAD
     def read_table(self, tablename, **kwargs):
         self.settings.update(kwargs)
         dbrows = readalldbrows(self.path, tablename, **self.settings)
+=======
+    def read_table(self, tablename, condition=None, **kwargs):
+        self.settings.update(kwargs)
+        dbrows = readalldbrows(self.path, tablename, condition, **self.settings)
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
         return dbrows
 
     def read_database(self, **kwargs):
@@ -182,9 +193,15 @@ class sqliteDatabase(object):
             dictarray.append(dict)
         return dictarray
 
+<<<<<<< HEAD
     def read_table_row(self, tablename, **kwargs):
         self.settings.update(kwargs)
         dbrow = readonedbrow(self.path, tablename, **self.settings)
+=======
+    def read_table_row(self, tablename, row=0, **kwargs):
+        self.settings.update(kwargs)
+        dbrow = readonedbrow(self.path, tablename, row, **self.settings)
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
         return dbrow
 
     def read_table_rows(self, tablename, row=0, length=1, **kwargs):
@@ -232,7 +249,11 @@ class sqliteDatabase(object):
             self.query(query)
 
     def get_single_value(self, tablename, valuename, condition=None):
+<<<<<<< HEAD
         value = getsinglevalue(self.path, tablename, valuename, condition=condition, **self.settings)
+=======
+        value = getsinglevalue(self.path, tablename, valuename, condition, **self.settings)
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
         return value
 
     def get_values(self, tablename, valuenames, condition=None):
@@ -266,6 +287,7 @@ class sqliteDatabase(object):
         reply = self.query(query)
         return reply
 
+<<<<<<< HEAD
     def insert(self, tablename, insert, **kwargs):
         settings = {
             'replace':True,
@@ -275,6 +297,11 @@ class sqliteDatabase(object):
 
         if 'quiet' in kwargs:
             self.settings['quiet']=settings['quiet']
+=======
+    def insert(self, tablename, insert, replace=True, queue=False, **kwargs):
+        if 'quiet' in kwargs:
+            self.settings['quiet']=kwargs['quiet']
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
         # Insert can be single insert or list (or falsy to insert defaults)
         if not insert:
@@ -740,6 +767,7 @@ def sqlitecreateemptytablequery(tablename, valuenames, valuetypes, **kwargs):
     return constructorquery
 
 
+<<<<<<< HEAD
 def sqlitecreateemptytable(database, tablename, valuenames, valuetypes, **kwargs):
 
     settings = {
@@ -751,6 +779,10 @@ def sqlitecreateemptytable(database, tablename, valuenames, valuetypes, **kwargs
     }
     settings.update(kwargs)
 
+=======
+def sqlitecreateemptytable(database, tablename, valuenames, valuetypes, valueoptions=None, dropexisting=True,
+                           removequotes=True, removeslashes=True, execute=True, **kwargs):
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
     if len(valuenames) != len(valuetypes):
         print('Names and types are not of same length. Cannot continue. ')
         return None
@@ -768,12 +800,19 @@ def sqlitecreateemptytable(database, tablename, valuenames, valuetypes, **kwargs
             # Check to see if this will work out? Match fields, etc.
             pass
 
+<<<<<<< HEAD
     constructorquery = sqlitecreateemptytablequery(tablename, valuenames, valuetypes, **settings)
     if settings['execute']:
+=======
+    constructorquery = sqlitecreateemptytablequery(tablename, valuenames, valuetypes, valueoptions, dropexisting,
+                                                   removequotes, removeslashes)
+    if execute:
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
         sqlitequery(database, constructorquery, **kwargs)
     return constructorquery
 
 
+<<<<<<< HEAD
 def dropcreatetexttablefromdict(databasename, tablename, dictordictarray, **kwargs):
     settings = {
         'removequotes': True,
@@ -782,6 +821,9 @@ def dropcreatetexttablefromdict(databasename, tablename, dictordictarray, **kwar
     }
     settings.update(kwargs)
 
+=======
+def dropcreatetexttablefromdict(databasename, tablename, dictordictarray, removequotes=True, removeslashes=True, primarykey=None, **kwargs):
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
     querylist = []
     constructor = ''
     querylist.append('drop table if exists "' + tablename + '"')
@@ -959,6 +1001,10 @@ def sqlitequery(database, query, **kwargs):
         status = 0
         message = 'all seems ok'
         error_searched = {'status':status, 'message':message, 'type':None}
+<<<<<<< HEAD
+
+    return {'data':data, 'status':status, 'message':message, 'error':error_searched}
+=======
 
     return {'data':data, 'status':status, 'message':message, 'error':error_searched}
 
@@ -975,9 +1021,28 @@ def status_error_from_sqlite_msg(trace_message):
         status = 3
         message = '(3) table does not exist: ' + trace_message.split(':')[-1].strip()
         type = 'not_found'
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
     return {'status':status, 'message':message, 'type':type}
 
+<<<<<<< HEAD
+def status_error_from_sqlite_msg(trace_message):
+    status = 1
+    message = 'unmatched error type, text: ' + trace_message
+    type = 'unknown'
+    if trace_message.lower().find('lock') >= 0:
+        status = 2
+        message = '(2) lock error'
+        type = 'lock'
+    elif trace_message.lower().find('no such table') >= 0:
+        status = 3
+        message = '(3) table does not exist: ' + trace_message.split(':')[-1].strip()
+        type = 'not_found'
+
+    return {'status':status, 'message':message, 'type':type}
+
+=======
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
 def sqlitedatumquery(database, query, **kwargs):
     datarow = sqlitequery(database, query, **kwargs)['data']
@@ -988,10 +1053,15 @@ def sqlitedatumquery(database, query, **kwargs):
     return datum
 
 
+<<<<<<< HEAD
 def getsinglevalue(database, table, valuename, **kwargs):
     settings = {'condition':None}
     settings.update(kwargs)
     query = makegetsinglevaluequery(table, valuename, kwargs['condition'])
+=======
+def getsinglevalue(database, table, valuename, condition=None, **kwargs):
+    query = makegetsinglevaluequery(table, valuename, condition)
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
     # print(query)
     response = sqlitedatumquery(database, query, **kwargs)
     return response
@@ -1040,6 +1110,7 @@ def makedeletesinglevaluequery(table, condition=None):
     return query
 
 
+<<<<<<< HEAD
 def readalldbrows(database, table, **kwargs):
 
     settings = {
@@ -1047,14 +1118,23 @@ def readalldbrows(database, table, **kwargs):
         'includerowids':True
     }
     settings.update(kwargs)
+=======
+def readalldbrows(database, table, condition=None, includerowids=True, **kwargs):
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
     query = "select * from '" + table + "'"
     if settings['condition']:
         query += ' where ' + settings['condition']
 
+<<<<<<< HEAD
     data = sqlitequery(database, query, **settings)['data']
 
     pragmanames = getpragmanames(database, table, **settings)
+=======
+    data = sqlitequery(database, query, **kwargs)['data']
+
+    pragmanames = getpragmanames(database, table, **kwargs)
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
     dictarray = []
     for row in data:
@@ -1174,6 +1254,7 @@ def sqliteduplicatetable(database, oldname, newname):
     # Get pragma to create table
     the_database = sqliteDatabase(database)
     schema = the_database.get_schema(oldname)
+<<<<<<< HEAD
 
     the_data = the_database.read_table(oldname)
     the_database.create_table(newname, schema, queue=True)
@@ -1183,6 +1264,16 @@ def sqliteduplicatetable(database, oldname, newname):
 
 def sqlitemovetable(database, oldname, newname, **kwargs):
     sqliteduplicatetable(database, oldname, newname)
+=======
+
+    the_data = the_database.read_table(oldname)
+    the_database.create_table(newname, queue=True)
+    the_database.insert(the_data, queue=True)
+    the_database.execute_queue()
+
+def sqlitemovetable(database, oldname, newname, **kwargs):
+    sqliteduplicatetable(database, oldname, newname=newname)
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
     sqlitedroptable(database, oldname)
 
 
@@ -1224,6 +1315,7 @@ def size_sqlite_table(databasename, tablename, **kwargs):
     the_log_db = sqliteDatabase(databasename, **kwargs)
     if settings['method'] == 'count':
         logsize = the_log_db.get_table_size(tablename)
+<<<<<<< HEAD
 
         if logsize and (logsize > settings['size']):
             log_excess = int(logsize) - int(settings['size'])
@@ -1270,6 +1362,48 @@ def getfirsttimerows(database, tablename, **kwargs):
     settings.update(kwargs)
 
     query = 'select * from \'' + tablename + "' order by '" + settings['timecolname'] + "' asc limit " + str(int(settings['numrows']))
+=======
+
+        if logsize and (logsize > settings['size']):
+            log_excess = int(logsize) - int(settings['size'])
+        else:
+            log_excess = -1
+
+    elif settings['method'] == 'timespan':
+        from datalib import timestringtoseconds
+        first_time_string = the_log_db.get_first_time_row(tablename)[settings['time_column']]
+        first_time = timestringtoseconds(first_time_string)
+        log_excess = 0
+        time_threshold = settings['size']   # this would be seconds
+        if 'unit' == 'hours':
+            time_threshold = settings['size'] * 3600
+        elif 'unit' == 'minutes':
+            time_threshold = settings['size'] * 60
+        elif 'unit' == 'days':
+            time_threshold = settings['size'] * 3600 * 24
+
+        log_data = the_log_db.read_table(tablename)
+        for datum in log_data:
+            string_time = datum[settings['time_column']]
+            elapsed = timestringtoseconds(string_time) - first_time
+            if elapsed > time_threshold:
+                log_excess += 1
+
+    query = ''
+    if log_excess > 0:
+        if settings['delete'] == 'oldest':
+            # print('deleting {}'.format(log_excess))
+            query = "delete from '{}' order by {} limit {}".format(tablename, settings['time_column'], log_excess)
+
+        if not settings['dry_run'] and query:
+            the_log_db.query(query)
+
+    return {'excess':log_excess, 'query':query}
+
+
+def getfirsttimerows(database, tablename, timecolname='time', numrows=1, **kwargs):
+    query = 'select * from \'' + tablename + "' order by '" + timecolname + "' asc limit " + str(int(numrows))
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
     data = sqlitequery(database, query, **kwargs)['data']
     try:
         dictarray = []
@@ -1283,6 +1417,7 @@ def getfirsttimerows(database, tablename, **kwargs):
     return dictarray
 
 
+<<<<<<< HEAD
 def getlasttimerows(database, tablename, **kwargs):
     settings = {
         'timecolname': 'time',
@@ -1294,6 +1429,13 @@ def getlasttimerows(database, tablename, **kwargs):
     query = "select * from '" + tablename + "' order by \"" + settings['timecolname'] + "\" desc limit " + str(int(settings['numrows']))
     # print(query)
     data = sqlitequery(database, query, **settings)['data']
+=======
+def getlasttimerows(database, tablename, timecolname='time', numrows=1, **kwargs):
+    # print(database,tablename,timecolname,numrows)
+    query = "select * from '" + tablename + "' order by \"" + timecolname + "\" desc limit " + str(int(numrows))
+    # print(query)
+    data = sqlitequery(database, query, **kwargs)['data']
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
     try:
         dictarray = []
         for datum in data:
@@ -1360,6 +1502,7 @@ def makesinglevaluequery(table, valuename, value, condition=None):
     return query
 
 
+<<<<<<< HEAD
 def readonedbrow(database, table, **kwargs):
     settings = {
         'rownumber':0,
@@ -1371,6 +1514,13 @@ def readonedbrow(database, table, **kwargs):
         query += ' where ' + settings['condition']
 
     data = sqlitequery(database, query, **settings)['data']
+=======
+def readonedbrow(database, table, rownumber=0, condition=None, **kwargs):
+    query = "select * from '" + table + "'"
+    if condition:
+        query += ' where ' + condition
+    data = sqlitequery(database, query, **kwargs)['data']
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
     try:
         datarow = data[settings['rownumber']]
 
@@ -1382,6 +1532,7 @@ def readonedbrow(database, table, **kwargs):
     return dictarray
 
 
+<<<<<<< HEAD
 def readsomedbrows(database, table, **kwargs):
 
     settings = {
@@ -1390,6 +1541,9 @@ def readsomedbrows(database, table, **kwargs):
         'length':1
     }
     settings.update(kwargs)
+=======
+def readsomedbrows(database, table, start, length, condition=None, **kwargs):
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
     # User specifies length of data, and where to start, in terms of row index
     # If a negative number is the start argument, data is retrieved from the end of the data
@@ -1402,7 +1556,11 @@ def readsomedbrows(database, table, **kwargs):
     if settings['condition']:
         query += ' where ' + settings['condition']
 
+<<<<<<< HEAD
     datarows = sqlitequery(database, query, **settings)['data']
+=======
+    datarows = sqlitequery(database, query, **kwargs)['data']
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
     # This is the old code. Requires retrieving the entire table
 
@@ -1433,7 +1591,11 @@ def dbvntovalue(dbvn, interprettype=False, **kwargs):
     # print(dbvndict)
     # try:
 
+<<<<<<< HEAD
     value = getsinglevalue(dbvndict['dbpath'], dbvndict['tablename'], dbvndict['valuename'], condition=dbvndict['condition'], **kwargs)
+=======
+    value = getsinglevalue(dbvndict['dbpath'], dbvndict['tablename'], dbvndict['valuename'], dbvndict['condition'], **kwargs)
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
     # except:
     #     print('error getting value')
     #     print(dbvndict)

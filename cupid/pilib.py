@@ -75,6 +75,7 @@ dirs.logs.notifications = dirs.log + 'notifications.log'
 dirs.logs.daemonproc = dirs.log + 'daemonproc.log'
 dirs.logs.error = dirs.log + 'error.log'
 dirs.logs.db = dirs.log + 'db.log'
+<<<<<<< HEAD
 
 dbs = Bunch()
 
@@ -93,6 +94,8 @@ class cupidDatabase(dblib.sqliteDatabase):
 
 for db_item in dirs.__dict__:
     setattr(dirs.dbs, 'db_path', cupidDatabase(getattr(dirs, db_item)))
+=======
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
 salt = 'a bunch of random characters and symbols for security'
 
@@ -114,6 +117,11 @@ loglevels.notifications = 5
 daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py', 'mote/serialhandler.py']
 daemonprocnames = ['updateio', 'picontrol', 'systemstatus', 'sessioncontrol', 'serialhandler']
 
+<<<<<<< HEAD
+=======
+from iiutilities import dblib
+
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 schema = Bunch()
 schema.channel = dblib.sqliteTableSchema([
     # {'name': 'channelindex','type':'integer','primary':True},
@@ -214,6 +222,7 @@ Utility Functions
 # This is a subclass to set default pilib logging options.
 
 
+<<<<<<< HEAD
 def updateiicontrollibs(stash=False):
     from iiutilities.gitupdatelib import stashrepo, pullrepo, updaterepoversion
     repodirectory = dirs.baselib
@@ -234,6 +243,20 @@ def updatecupidweblib(stash=False):
     pullrepo(repodirectory, originname)
     updaterepoversion(repodirectory)
     print('update complete')
+=======
+class cupidDatabase(dblib.sqliteDatabase):
+
+    def __init__(self, *args, **kwargs):
+        settings = {
+            'log_errors':True,
+            'log_path':dirs.logs.db,
+            'quiet':True
+        }
+        settings.update(kwargs)
+
+        # This calls the parent init
+        super(cupidDatabase, self).__init__(*args, **settings)
+>>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
 
 def table_name_to_type(tablename):
