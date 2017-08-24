@@ -635,7 +635,7 @@ def newunmangle(d):
         value = d[key]
 
         keyassess = parsekeys(key)
-        print(keyassess)
+        # print(keyassess)
         if keyassess['depth'] == 0:
             unmangled[keyassess['root']] = value
 
@@ -744,7 +744,7 @@ def reducedicttolist(mydict):
     for key in mydict:
         value = mydict[key]
         try:
-            int(key)
+            int(value)
         except:
             allintegers=False
 
@@ -776,13 +776,15 @@ def killprocbyname(name):
 
 
 def log(logfile, message, reqloglevel=1, currloglevel=1):
-    from iiutilities.datalib import gettimestring
-    if currloglevel >= reqloglevel:
-        logfile = open(logfile, 'a')
-        logfile.writelines([gettimestring() + ' : ' + message + '\n'])
-        logfile.close()
-    if currloglevel >= 9:
-        print(message)
+    # Allow passing None for logfile
+    if logfile:
+        from iiutilities.datalib import gettimestring
+        if currloglevel >= reqloglevel:
+            logfile = open(logfile, 'a')
+            logfile.writelines([gettimestring() + ' : ' + message + '\n'])
+            logfile.close()
+        if currloglevel >= 9:
+            print(message)
 
 
 def writetabletopdf(tabledata, **kwargs):

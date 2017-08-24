@@ -26,7 +26,12 @@ def application(environ, start_response):
     )
     formname = post.getvalue('name')
 
+
     output = {}
+    output['keys'] = ''
+
+    if 'REMOTE_ADDR' in environ:
+        output['remote_ip'] = environ['REMOTE_ADDR']
 
     d = {}
     for k in post.keys():
@@ -168,6 +173,8 @@ def application(environ, start_response):
 
     if authverified or not wsgiauth:
         output['authorized'] = True
+    else:
+        output['authorized'] = False
 
     try:
         action = d['action']
@@ -274,6 +281,7 @@ def application(environ, start_response):
         elif action == 'addeditbomparts':
             output['message'] += 'addeditbomparts keyword found. '
             # Operate on partsdata
+            d['partsdata'] = json.loads(d['partsdata'])
             output = inventorylib.addeditpartlist(d, output)
             inventorylib.makebommetadata()
         elif action == 'getbomcalcs':
@@ -390,6 +398,11 @@ def application(environ, start_response):
             for key,value in d.iteritems():
                 # print(key, value)
                 pass
+
+            if 'paneldesc' in d:
+                import json
+                d['paneldesc'] = json.loads(d['paneldesc'])
+
             bomresults = panelbuilder.paneltobom(**d)
 
             output['data'] = {}
@@ -484,6 +497,10 @@ def application(environ, start_response):
                 from iiutilities.utility import gmail
                 mymail = gmail(subject="Quote generated")
                 mymail.message = 'Quote generated at ' + cleantime + '\r\n'
+
+                if 'remote_ip' in output:
+                    mymail.message = 'IP address ' + output['remote_ip'] + '\r\n'
+
                 mymail.message += bomresults['bomdescription']
                 mymail.recipient = 'quotes@interfaceinnovations.org'
                 mymail.sender = 'II Panelbuilder'

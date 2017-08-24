@@ -31,17 +31,16 @@ if top_folder not in sys.path:
 from iiutilities import datalib, dblib
 from cupid import pilib, controllib
 
-control_db = dblib.sqliteDatabase(pilib.dirs.dbs.control)
-log_db = dblib.sqliteDatabase(pilib.dirs.dbs.log)
-system_db = dblib.sqliteDatabase(pilib.dirs.dbs.log)
+control_db = pilib.cupidDatabase(pilib.dirs.dbs.control)
+log_db = pilib.cupidDatabase(pilib.dirs.dbs.log)
+system_db = pilib.cupidDatabase(pilib.dirs.dbs.system)
 
 default_control_algorithm = {'minofftime': 0, 'minontime': 0, 'ondelay': 0, 'offdelay': 0}
 
 
 def process_channel(**kwargs):
 
-    systemstatus = dblib.readalldbrows(pilib.dirs.dbs.system, 'systemstatus')[0]
-
+    systemstatus = system_db.read_table_row('systemstatus')[0]
     if 'channel' in kwargs:
         channel = kwargs['channel']
     elif 'channel_name' in kwargs:
@@ -52,79 +51,79 @@ def process_channel(**kwargs):
             print('wrong number of channels returned. aborting')
             return
 
-    statusmsg = ''
 
-    channelindex = str(int(channel['channelindex']))
-    channelname = channel['name']
+    # channelindex = str(int(channel['channelindex']))
     logtablename = 'channel' + '_' + channel['name'] + '_log'
     time = datalib.gettimestring()
     disableoutputs = True
+
+    status_msg = channel['name'] + ': '
 
     log_tablenames = log_db.get_table_names()
 
     # Channel enabled means different things for different types of channels
 
-    channel_condition = '"name"=\'' + channel['name'] + "'"
+    channel_condition = '"name"=\'{}\''.format(channel['name'])
 
     # Create log if it doesn't exist
     if logtablename not in log_tablenames:
-        log_db.create_table('logtablename', pilib.schema.channel_datalog)
+        log_db.create_table(logtablename, pilib.schema.channel_datalog)
 
     if channel['type'] == 'local':
 
         if channel['enabled']:
 
-            statusmsg = ''
+            status_msg = ''
             try:
-                setpointvalue = float(channel['setpointvalue'])
+                setpoint_value = float(channel['setpoint_value'])
             except:
                 channel['enabled'] = 0
-                statusmsg += 'Error with setpoint. Disabling'
+                status_msg += 'Error with setpoint. Disabling'
                 control_db.set_single_value('channels', 'enabled', 0, channel_condition)
 
             # Need to test for age of data. If stale or disconnected, invalidate
             try:
-                controlvalue = float(channel['controlvalue'])
+                process_value = float(channel['process_value'])
             except:
-                statusmsg += 'Invalid control value. Disabling channel. '
+                status_msg += 'Invalid control value. Disabling channel. '
                 channel['enabled'] = 0
                 control_db.set_single_value('channels', 'enabled', 0, channel_condition)
 
         # Move forward if still enabled after error-checking
         if channel['enabled']:
 
-            statusmsg += 'Channel Enabled. '
+            status_msg += 'Channel Enabled. '
 
             # TODO : look at channel auto mode.
             if channel['mode'] == 'auto':
-                statusmsg += 'Mode:Auto. '
+                status_msg += 'Mode:Auto. '
                 # print('running auto sequence')
 
                 # run algorithm on channel
 
-                response = controllib.runalgorithm(pilib.dirs.dbs.control, pilib.dirs.dbs.session, channelname)
+                response = controllib.runalgorithm(pilib.dirs.dbs.control, pilib.dirs.dbs.session, channel['name'])
                 action = response[0]
                 message = response[1]
 
-                statusmsg += ' ' + response[1] + ' '
-                statusmsg += 'Action: ' + str(action) + '. '
+                status_msg += ' ' + response[1] + ' '
+                status_msg += 'Action: ' + str(action) + '. '
 
                 # Set action in channel
 
-                controllib.setaction(pilib.dirs.dbs.control, channelname, action)
+                controllib.setaction(pilib.dirs.dbs.control, channel['name'], action)
 
             elif channel['mode'] == 'manual':
                 # print('manual mode')
-                statusmsg += 'Mode:Manual. '
-                action = controllib.getaction(pilib.dirs.dbs.control, channelname)
+                status_msg += 'Mode:Manual. '
+                action = controllib.getaction(pilib.dirs.dbs.control, channel['name'])
             else:
                 # print('error, mode= ' + mode)
-                statusmsg += 'Mode:Error. '
+                status_msg += 'Mode:Error. '
 
             if systemstatus['enableoutputs']:
-                statusmsg += 'System outputs enabled. '
-                if channel['outputsenabled']:
-                    statusmsg += 'Channel outputs enabled. '
+                status_msg += 'System outputs enabled. '
+                if channel['outputs_enabled']:
+                    status_msg += 'Channel outputs enabled. '
                     disableoutputs = False
 
                     # find out whether action is positive or negative or
@@ -137,18 +136,18 @@ def process_channel(**kwargs):
                     outputresetnames = []
                     if action > 0:
                         print("set positive output on")
-                        outputsetnames.append(channel['positiveoutput'])
-                        outputresetnames.append(channel['negativeoutput'])
+                        outputsetnames.append(channel['positive_output'])
+                        outputresetnames.append(channel['negative_output'])
                     elif action < 0:
                         print("set negative output on")
-                        outputsetnames.append(channel['negativeoutput'])
-                        outputresetnames.append(channel['positiveoutput'])
+                        outputsetnames.append(channel['negative_output'])
+                        outputresetnames.append(channel['positive_output'])
                     elif action == 0:
-                        statusmsg += 'No action. '
-                        outputresetnames.append(channel['positiveoutput'])
-                        outputresetnames.append(channel['negativeoutput'])
+                        status_msg += 'No action. '
+                        outputresetnames.append(channel['positive_output'])
+                        outputresetnames.append(channel['negative_output'])
                     else:
-                        statusmsg += 'Algorithm error. Doing nothing.'
+                        status_msg += 'Algorithm error. Doing nothing.'
 
                     # Check to see if outputs are ready to enable/disable
                     # If not, pull them from list of set/reset
@@ -157,7 +156,7 @@ def process_channel(**kwargs):
                     if len(control_algorithm) == 1:
                         algorithm = control_algorithm[0]
                     else:
-                        statusmsg += 'Algorithm Error: Not found (or multiple?). Using default. '
+                        status_msg += 'Algorithm Error: Not found (or multiple?). Using default. '
                         algorithm = default_control_algorithm
 
                     outputstoset = []
@@ -169,7 +168,7 @@ def process_channel(**kwargs):
                             'minofftime']:
                             outputstoset.append(outputname)
                         else:
-                            statusmsg += 'Output ' + outputname + ' not ready to enable. '
+                            status_msg += 'Output ' + outputname + ' not ready to enable. '
 
                     outputstoreset = []
                     for outputname in outputresetnames:
@@ -180,7 +179,7 @@ def process_channel(**kwargs):
                             'minontime']:
                             outputstoreset.append(outputname)
                         else:
-                            statusmsg += 'Output ' + outputname + ' not ready to disable. '
+                            status_msg += 'Output ' + outputname + ' not ready to disable. '
 
                     """ TODO: Change reference to controlinputs to name rather than id. Need to double-check
                     enforcement of no duplicates."""
@@ -200,9 +199,9 @@ def process_channel(**kwargs):
                                     control_db.set_single_value('outputs', 'ontime', time, id_condition, queue=True)
                                     # set value
                                     control_db.set_single_value('outputs', 'value', 1, id_condition, queue=True)
-                                    statusmsg += 'Output ' + output['name'] + ' enabled. '
+                                    status_msg += 'Output ' + output['name'] + ' enabled. '
                                 else:
-                                    statusmsg += 'Output ' + output['name'] + ' already enabled. '
+                                    status_msg += 'Output ' + output['name'] + ' already enabled. '
 
                             if output['name'] in outputstoreset:
                                 # check current status
@@ -213,59 +212,58 @@ def process_channel(**kwargs):
                                                                 queue=True)
                                     # set value
                                     control_db.set_single_value('outputs', 'value', 0, id_condition, queue=True)
-                                    statusmsg += 'Output ' + output['name'] + ' disabled. '
+                                    status_msg += 'Output ' + output['name'] + ' disabled. '
                                 else:
-                                    statusmsg += 'Output ' + output['name'] + ' already disabled. '
+                                    status_msg += 'Output ' + output['name'] + ' already disabled. '
 
                 else:
-                    statusmsg += 'Channel outputs disabled. '
+                    status_msg += 'Channel outputs disabled. '
                     action = 0
 
             else:
-                statusmsg += 'System outputs disabled. '
+                status_msg += 'System outputs disabled. '
                 action = 0
 
             # Insert entry into control log
-            insert = {'time': 'time', 'controlinput': channel['controlvalue'],
-                      'setpointvalue': channel['setpointvalue'],
-                      'action': channel['action'], 'algorithm': channel['algorithmname'],
+            insert = {'time': time, 'process_value': channel['process_value'],
+                      'setpoint_value': channel['setpoint_value'],
+                      'action': channel['action'], 'algorithm': channel['algorithm_name'],
                       'enabled': channel['enabled'],
-                      'statusmsg': statusmsg}
+                      'status_msg': status_msg}
             control_db.insert(logtablename, insert, queue=True)
 
-            # Size log
-            dblib.sizesqlitetable(pilib.dirs.dbs.log, logtablename, channel['logpoints'])
-            # print(statusmsg)
+            log_options = datalib.parseoptions(channel['log_options'])
+            log_db.size_table(logtablename, **log_options)
         else:
             # Chanel is disabled. Need to do active disable here.
             pass
 
     elif channel['type'] == 'remote':
-        statusmsg += 'Remote channel. '
+        status_msg += 'Remote channel. '
 
         if channel['pending']:
 
             from iiutilities.datalib import parseoptions, dicttojson
-            statusmsg += 'Processing pending action. '
+            status_msg += 'Processing pending action. '
             pending = parseoptions(channel['pending'])
 
-            if 'setpointvalue' in pending:
-
-                statusmsg += 'processing setpointvalue. '
+            if 'setpoint_value' in pending:
+                status_msg += 'processing setpoint_value. '
                 # Get control output and have a look at it.
-                input_name = channel['controlsetpoint']
+                input_name = channel['sv_input']
 
-                try:
-                    inputs = control_db.read_table('inputs', '"name"=\'' + input_name + "'")
-                except:
-                    statusmsg += 'Inputs query error. '
-                    return statusmsg
+                # try:
+                inputs = control_db.read_table('inputs', '"name"=\'' + input_name + "'")
+                # except:
+                #     status_msg += 'Inputs query error. '
+                #     return status_msg
 
                 if len(inputs) == 1:
                     input = inputs[0]
                 else:
-                    statusmsg += 'wrong number of query items returned, length: ' + str(len(inputs)) + '. '
-                    return statusmsg
+                    status_msg += 'wrong number of query items returned, length: ' + str(len(inputs)) + ' for query on input name: ' + input_name
+                    print('ERROR: ' + status_msg)
+                    return status_msg
 
 
                 # write_to_input(input, value)
@@ -292,39 +290,62 @@ def process_channel(**kwargs):
                     if input_mb_entry['options']:
                         input_options = parseoptions(input_mb_entry['options'])
                         if 'scale' in input_options:
-                            pending['setpointvalue'] = float(pending['setpointvalue'])/float(input_options['scale'])
+                            pending['setpoint_value'] = float(pending['setpoint_value'])/float(input_options['scale'])
 
                     try:
-                        result = netfun.writeMBcodedaddresses(address, register, [float(pending['setpointvalue'])], convert=input_mb_entry['format'])
+                        result = netfun.writeMBcodedaddresses(address, register, [float(pending['setpoint_value'])], convert=input_mb_entry['format'])
                     except:
-                        statusmsg += 'Error in modbus'
+                        status_msg += 'Error in modbus'
                     else:
                         if result['statuscode'] == 0:
 
-                            # Clear pending setpointvalue
-                            pending.pop('setpointvalue', None)
+                            # Clear pending setpoint_value
+                            pending.pop('setpoint_value', None)
                             pending_string = dicttojson(pending)
+                            print('setting pending in setpointvaleu mbtcp')
+
                             control_db.set_single_value('channels','pending',pending_string, channel_condition)
                         else:
-                            statusmsg += 'modbus write operation returned a non-zero status of ' + str(result['status'])
+                            status_msg += 'modbus write operation returned a non-zero status of ' + str(result['status'])
+
+                elif input['type'] == 'MOTE':
+                    mote_node = input['address'].split(':')[0]
+                    mote_address = input['address'].split(':')[1]
+                    if mote_node == '1':
+                        message = '~setsv;' + mote_address + ';' + str(pending['setpoint_value'])
+                    else:
+                        message = '~sendmsg;' + str(mote_node) + ';;~setsv;' + mote_address + ';' + str(pending['setpoint_value'])
+
+                    motes_db = pilib.cupidDatabase(pilib.dirs.dbs.motes)
+                    from time import sleep
+                    for i in range(2):
+                        time = datalib.gettimestring(datalib.timestringtoseconds(datalib.gettimestring()) + i)
+                        motes_db.insert('queued', {'queuedtime':time, 'message':message})
+
+                    # Clear pending setpoint_value
+                    pending.pop('setpoint_value', None)
+                    pending_string = dicttojson(pending)
+                    print('setting pending in setpoint_value mote')
+
+                    control_db.set_single_value('channels', 'pending', pending_string, channel_condition)
 
             if 'enabled' in pending:
-                statusmsg += 'processing enabledvalue. '
+                status_msg += 'processing enabledvalue. '
 
                 # Get control output and have a look at it.
-                input_name = channel['enabledinput']
+                input_name = channel['enabled_input']
 
                 try:
                     inputs = control_db.read_table('inputs', '"name"=\'' + input_name + "'")
                 except:
-                    statusmsg += 'Inputs query error. '
-                    return statusmsg
+                    status_msg += 'Inputs query error. '
+                    return status_msg
 
                 if len(inputs) == 1:
                     input = inputs[0]
                 else:
-                    statusmsg += 'wrong number of query items returned, length: ' + str(len(inputs)) + '. '
-                    return statusmsg
+                    status_msg += 'wrong number of query items returned, length: ' + str(len(inputs)) + '. '
+                    return status_msg
 
                 # write_to_input(input, value)
                 if input['type'] == 'MBTCP':
@@ -358,53 +379,74 @@ def process_channel(**kwargs):
                                                               [int(pending['enabled'])],
                                                               convert=input_mb_entry['format'])
                     except:
-                        statusmsg += 'Error in modbus'
+                        status_msg += 'Error in modbus'
                     else:
                         if result['statuscode'] == 0:
-                            statusmsg += 'That seems to have worked ok?'
-                            # Clear pending setpointvalue
+                            status_msg += 'That seems to have worked ok?'
+                            # Clear pending setpoint_value
                             pending.pop('enabled', None)
                             pending_string = dicttojson(pending)
+                            print('setting pending in enabled mbtcp')
                             control_db.set_single_value('channels', 'pending', pending_string,
                                                         channel_condition)
                         else:
-                            statusmsg += 'modbus write operation returned a non-zero status of ' + str(
+                            status_msg += 'modbus write operation returned a non-zero status of ' + str(
                                 result['status'])
 
+                elif input['type'] == 'MOTE':
+                    mote_node = input['address'].split(':')[0]
+                    mote_address = input['address'].split(':')[1]
+                    if mote_node == '1':
+                        message = '~setrun;' + mote_address + ';' + str(pending['enabled'])
+                    else:
+                        message = '~sendmsg;' + str(mote_node) + ';;~setrun;' + mote_address + ';' + str(
+                            pending['enabled'])
+
+                    motes_db = pilib.cupidDatabase(pilib.dirs.dbs.motes)
+                    from time import sleep
+                    for i in range(2):
+                        time = datalib.gettimestring(datalib.timestringtoseconds(datalib.gettimestring() + i))
+                        motes_db.insert('queued', {'queuedtime': time, 'message': message})
+
+                    # Clear pending setpoint_value
+                    pending.pop('enabled', None)
+                    pending_string = dicttojson(pending)
+
+                    control_db.set_single_value('channels', 'pending', pending_string, channel_condition)
+
+
         # Insert entry into control log
-        insert = {'time': 'time', 'controlinput': channel['controlvalue'],
-                  'setpointvalue': channel['setpointvalue'],
-                  'action': channel['action'], 'algorithm': channel['controlalgorithm'],
+        insert = {'time': time, 'process_value': channel['process_value'],
+                  'setpoint_value': channel['setpoint_value'],
+                  'action': channel['action'], 'algorithm': channel['control_algorithm'],
                   'enabled': channel['enabled'],
-                  'statusmsg': statusmsg}
-        log_db.insert(logtablename, insert, queue=True)
+                  'status_msg': status_msg}
+        # print(insert)
+        log_db.insert(logtablename, insert)
 
         # Size log
-        dblib.sizesqlitetable(pilib.dirs.dbs.log, logtablename, channel['logpoints'])
-
+        log_options = datalib.parseoptions(channel['log_options'])
+        log_db.size_table(logtablename, **log_options)
 
 
     # If active reset and we didn't set channel modes, disable outputs
     # Active reset is not yet explicitly declared, but implied
 
     if disableoutputs and channel['type'] not in ['remote']:
-        statusmsg += 'Disabling Outputs. '
-        for id in [channel['positiveoutput'], channel['negativeoutput']]:
+        status_msg += 'Disabling Outputs. '
+        for id in [channel['positive_output'], channel['negative_output']]:
             control_db.set_single_value('outputs','value',0,'"id"=\'' + id + "'", queue=True)
-            statusmsg += 'Outputs disabled for id=' + id + '. '
+            status_msg += 'Outputs disabled for id=' + id + '. '
 
     # Set status message for channel
-    # print(statusmsg)
-    control_db.set_single_value('channels', 'statusmessage', statusmsg, '"channelindex"=\'' + channelindex + "'",
-                                queue=True)
+    control_db.set_single_value('channels', 'status_message', status_msg, channel_condition, queue=True)
 
     # Set update time for channel
-    control_db.set_single_value('channels', 'controlupdatetime', time, '"channelindex"=\'' + channelindex + "'",
-                                queue=True)
+    control_db.set_single_value('channels', 'control_updatetime', time, channel_condition, queue=True)
 
     # Execute query
     control_db.execute_queue()
-    return statusmsg
+    return status_msg
 
 
 def runpicontrol(runonce=False):
@@ -416,11 +458,11 @@ def runpicontrol(runonce=False):
     import actions
     from cupid import controllib
 
-    systemstatus = dblib.readalldbrows(pilib.dirs.dbs.system, 'systemstatus')[0]
+    control_db = pilib.cupidDatabase(pilib.dirs.dbs.control)
+    log_db = pilib.cupidDatabase(pilib.dirs.dbs.log)
+    system_db = pilib.cupidDatabase(pilib.dirs.dbs.system)
 
-    control_db = dblib.sqliteDatabase(pilib.dirs.dbs.control)
-    log_db = dblib.sqliteDatabase(pilib.dirs.dbs.log)
-    system_db = dblib.sqliteDatabase(pilib.dirs.dbs.system)
+    systemstatus = system_db.read_table_row('systemstatus')[0]
 
     while systemstatus['picontrolenabled']:
 
@@ -445,9 +487,9 @@ def runpicontrol(runonce=False):
         for channel in channels:
             process_channel(channel=channel)
 
-
         # We do this system status again to refresh settings
-        systemstatus = dblib.readalldbrows(pilib.dirs.dbs.system, 'systemstatus')[0]
+
+        systemstatus = system_db.read_table_row('systemstatus')[0]
 
         # Note that these are also processed in cupiddaemon to catch things like whether this script is running
         # actions.processactions()

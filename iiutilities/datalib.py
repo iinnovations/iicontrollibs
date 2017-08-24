@@ -60,6 +60,16 @@ def datawithheaderstodictarray(dataarray, headerrows=1, strip=True, keystolowerc
 
 # Data functions
 
+def string_to_boolean(string):
+    try:
+        boolean=bool(int(string))
+    except:
+        if string.tolower() in ['f', 'false'] or not string:
+            boolean=False
+        else:
+            boolean=True
+    return boolean
+
 def parseoptions(optionstring):
     optionsdict = {}
     if optionstring:
@@ -155,6 +165,12 @@ def test_questionable_text(text, **kwargs):
     return {'isdirty':questionable, 'matches':questionable_matches}
 
 
+def getmstimestring():
+    import datetime
+    timestring = datetime.datetime.now().strftime("%H:%M:%S.%f")
+    return timestring
+
+
 def gettimestring(timeinseconds=None):
     import time
     if timeinseconds:
@@ -248,10 +264,10 @@ def setprecision(number, precision):
 def checkfloat(number):
     # Not functional
     bytes = valuetofloat32bytes(number, type='double')
-    print(bytes)
+    # print(bytes)
     value = float32bytestovalue(bytes)
-    print(value)
-    print(number)
+    # print(value)
+    # print(number)
 
 
 def typetoreadlength(type):
@@ -351,8 +367,8 @@ def valuetofloat32bytes(value, type='float', endian='big', byteorder='standard')
         return
 
     integers = [ord(c) for c in mybytearray]
-    print(integers)
-    print(mybytearray)
+    # print(integers)
+    # print(mybytearray)
 
     byte0 = mybytearray[0]*256 + mybytearray[1]
     byte1 = mybytearray[2]*256 + mybytearray[2]
@@ -391,7 +407,7 @@ def calcinputrate(input, numentries=2):
     # also average time
 
     logname = 'input_' + input + '_log'
-    entries = dblib.getlasttimerows(pilib.dirs.dbs.log, logname, numentries)
+    entries = dblib.getlasttimerows(pilib.dirs.dbs.log, logname, numrows=numentries)
     # print(entries)
 
     if len(entries) == numentries:
@@ -406,6 +422,54 @@ def calcinputrate(input, numentries=2):
         ratetimestring = gettimestring(ratetime)
 
         result = {'rate':rate, 'ratetime':ratetimestring}
+    else:
+        result = None
+    return result
+
+
+def calcaverage(input, points=5, countzero=True):
+
+    from iiutilities import dblib
+    from cupid import pilib
+
+    # just grab last entries of log, create point averaged around
+    # also average time
+
+    logname = 'input_' + input + '_log'
+    # print(logname)
+    entries = dblib.getlasttimerows(pilib.dirs.dbs.log, logname, timecolname='time', numrows=points)
+    # print(entries)
+
+    if len(entries) == points:
+
+        points_used = 0
+        sum_value = 0.0
+        average_seconds = 0
+        for entry in entries:
+            value = entry['value']
+            time_in_seconds = timestringtoseconds(entry['time'])
+            if countzero:
+                try:
+                    sum_value += float(value)
+                except:
+                    pass
+                else:
+                    average_seconds += time_in_seconds
+                    points_used += 1
+            else:
+                if value:
+                    try:
+                        sum_value += float(value)
+                    except:
+                        pass
+                    else:
+                        average_seconds += time_in_seconds
+                        points_used += 1
+
+        average = sum_value / points_used
+        average_time = gettimestring(average_seconds / points_used)
+
+        result = {'average':average, 'points':points_used, 'time':average_time}
     else:
         result = None
     return result

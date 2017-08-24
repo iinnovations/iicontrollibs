@@ -102,9 +102,10 @@ class action:
                 print('error parsing ' + str(currstatus))
                 self.status = 0
 
-
         elif self.conditiontype == 'value':
             self.value = dblib.dbvntovalue(self.actiondatadict['dbvn'])
+            print(self.actiondatadict['dbvn'])
+            print(self.value)
             # self.value = datalib.evaldbvnformula(self.actiondatadict['dbvn'])
             # self.operator = self.actiondatadict['operator']
             # self.criterion = self.actiondatadict['criterion']
@@ -112,17 +113,17 @@ class action:
                 self.status = int(datalib.calcastevalformula(str(self.value) + self.actiondatadict['operator'] + self.actiondatadict['criterion']))
             # Should really throw an error here.
             except:
+                print('ERROR in asteval')
+                print(str(self.value) + self.actiondatadict['operator'] + self.actiondatadict['criterion'])
                 self.status = 0
 
         elif self.conditiontype == 'channel':
             from cupid import pilib
             control_channel_name = self.actiondatadict['channel_name']
-            control_db = dblib.sqliteDatabase(pilib.dirs.dbs.control)
+            control_db = pilib.cupidDatabase(pilib.dirs.dbs.control)
             self.value = control_db.get_single_value('channels','controlvalue',condition='"name"=\'' + control_channel_name + "'")
             self.status = 0
 
-            print(self.value)
-            print(self.actiondatadict)
             if 'PV_low' in self.actiondatadict and self.value < float(self.actiondatadict['PV_low']):
                 self.status = 1
 
@@ -203,8 +204,10 @@ class action:
                 # message = 'Alert is active for ' + self.name + '. Criterion ' + self.variablename + ' in ' + self.tablename + ' has value ' + str(self.variablevalue) + ' with a criterion of ' + str(self.criterion) + ' with an operator of ' + self.operator + '. This alarm status has been on since ' + self.ontime + '.'
                 message = 'Alert for alarm ' + self.name + ' . On time of ' + self.ontime + '. Current time of ' \
                           + datalib.gettimestring()
+            import socket
+            hostname = socket.gethostname()
 
-            subject = 'CuPID Alert : Alarm On - ' + self.name
+            subject = 'CuPID ' + hostname + ' Alert : Alarm On - ' + self.name
             try:
                 actionmail = utility.gmail(message=message, subject=subject, recipient=email)
                 actionmail.send()
@@ -264,7 +267,10 @@ class action:
                 message += ' Value: ' + str(self.value) + self.actiondatadict['operator'] + str(
                     self.actiondatadict['criterion'])
 
-            subject = 'CuPID Alert : Alarm Off - ' + self.name
+            import socket
+            hostname = socket.gethostname()
+
+            subject = 'CuPID ' + hostname + ' Alert : Alarm Off - ' + self.name
             try:
                 actionmail = utility.gmail(message=message, subject=subject, recipient=email)
                 actionmail.send()
@@ -322,16 +328,16 @@ class action:
         valuelist=[]
         valuenames=[]
 
-        control_db = dblib.sqliteDatabase(pilib.dirs.dbs.control)
+        control_db = pilib.cupidDatabase(pilib.dirs.dbs.control)
 
         # We convert our actiondatadict back into a string
         self.actiondata = dicttojson(self.actiondatadict)
 
         for attr in self.__dict__:
             if attr not in ['actiondatadict', 'actionindex', 'actiondata']:
-                control_db.set_single_value('actions', attr, getattr(self, attr), condition='"actionindex"=\'' + self.actionindex +"'", queue=True)
+                control_db.set_single_value('actions', attr, getattr(self, attr), condition='"actionindex"=\'' + str(self.actionindex) +"'", queue=True)
 
-        print(len(control_db.queued_queries))
+        # print(len(control_db.queued_queries))
         control_db.execute_queue()
         # print(valuenames)
         # print(valuelist)
@@ -341,6 +347,9 @@ class action:
     # @profile
     def process(self):
         from iiutilities import datalib
+
+        # TODO: Always determine status. This loads the value into the indicators, etc.
+
         if self.enabled:
             act = False
 
@@ -443,7 +452,7 @@ class action:
             self.status = 0
 
 # @profile
-def processactions():
+def processactions(**kwargs):
 
     # Read database to get our actions
     from iiutilities.dblib import readalldbrows
@@ -452,6 +461,12 @@ def processactions():
     actiondicts = readalldbrows(dirs.dbs.control, 'actions')
 
     for actiondict in actiondicts:
+
+        # if we only want to process one action, skip others.
+        if 'name' in kwargs:
+            if actiondict['name'] != kwargs['name']:
+                continue
+
         alert = False
 
         # print("ACTIONDICT")

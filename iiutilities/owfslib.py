@@ -73,9 +73,16 @@ class owfsDevice():
             setattr(self, key, value)
 
     def readprop(self, propname, garbage=None):
-        # need some error-checking here
-        proppath = self.devicedir + '/' + propname
-        propvalue = open(proppath).read().strip()
+        try:
+            proppath = self.devicedir + '/' + propname
+            propvalue = open(proppath).read().strip()
+        except:
+            if hasattr(self, 'logpath'):
+                from iiutilities.utility import log
+                log(self.logpath, 'Error reading property ' + propname + ' for device ' + self.address)
+
+            propvalue = -1
+
         setattr(self, propname, propvalue)
         return propvalue
 
@@ -219,6 +226,7 @@ def updateowfsdevices(busdevices, myProxy=None, debug=False):
             device.offtime = previnputs[previnputids.index(device.sensorid)]['offtime']
             device.polltime = previnputs[previnputids.index(device.sensorid)]['polltime']
             device.value = previnputs[previnputids.index(device.sensorid)]['value']
+            device.log_options = previnputs[previnputids.index(device.sensorid)]['log_options']
         else:
             device.pollfreq = float(default_dict['inputpollfreq'])
             device.ontime = ''
@@ -278,19 +286,24 @@ def updateowfsdevices(busdevices, myProxy=None, debug=False):
 
 
 def updateowfsinputentries(database, tablename, devices, execute=True):
-    from cupid.pilib import dirs
-    from iiutilities.dblib import sqlitemultquery
+    from cupid.pilib import dirs, cupidDatabase
+    from iiutilities.dblib import sqlitemultquery, make_insert_from_dict
     querylist = []
     querylist.append("delete from '" + tablename + "' where interface='1wire'")
 
     for device in devices:
-        querylist.append("insert into inputs values ('" + device.sensorid +"','" + '1wire' + "','" +
-                        str(device.type) + "','" + str(device.id) + "','" + str(device.name) + "','" + str(device.value) + "','" + str(device.unit)+ "','" +
-                        str(device.polltime) + "'," + str(device.pollfreq) + ",'" + device.ontime + "','" + device.offtime + "')")
+        insert_dict = {'id':device.sensorid, 'interface':'1wire', 'type':str(device.type), 'address':str(device.id), 
+                  'name':str(device.name), 'value':str(device.value), 'unit':str(device.unit), 
+                  'polltime':str(device.polltime), 'pollfreq':str(device.pollfreq), 'ontime':device.ontime, 'offtime':device.offtime}
+        querylist.append(make_insert_from_dict('inputs', insert_dict))
+        # querylist.append("insert into inputs values ('" + device.sensorid +"','" + '1wire' + "','" +
+        #                 str(device.type) + "','" + str(device.id) + "','" + str(device.name) + "','" + str(device.value) + "','" + str(device.unit)+ "','" +
+        #                 str(device.polltime) + "'," + str(device.pollfreq) + ",'" + device.ontime + "','" + device.offtime + "')")
 
     # print(querylist)
     if execute:
-        sqlitemultquery(dirs.dbs.control, querylist)
+        control_db = cupidDatabase(dirs.dbs.control)
+        control_db.queries(querylist)
 
     return querylist
 
@@ -298,37 +311,44 @@ def updateowfsinputentries(database, tablename, devices, execute=True):
 # available above)
 
 
-def runowfsupdate(execute=True, debug=False):
+def runowfsupdate(execute=True, **kwargs):
     import time
-    from cupid import pilib
     from iiutilities import utility
 
-    if debug:
-        pilib.set_debug()
+    settings = {
+        'logpath':None,
+        'owfsdir':'/var/1wire',
+        'loglevel':1
+    }
+    settings.update(kwargs)
 
     queries = []
-    utility.log(pilib.dirs.logs.io, 'getting buses', 9, pilib.loglevels.io)
-    starttime = time.time()
-    busdevices = owfsgetbusdevices(pilib.dirs.onewire)
+    if settings['logpath']:
+        utility.log(settings['logpath'], 'getting buses', 9, settings['loglevel'])
 
-    utility.log(pilib.dirs.logs.io, 'done getting devices, took ' + str(time.time() - starttime), 9, pilib.loglevels.io)
-    utility.log(pilib.dirs.logs.io, 'updating device data', 9, pilib.loglevels.io)
+    starttime = time.time()
+    busdevices = owfsgetbusdevices(settings['owfsdir'])
+
+    utility.log(settings['logpath'], 'done getting devices, took ' + str(time.time() - starttime), 9, settings['loglevel'])
+    utility.log(settings['logpath'], 'updating device data', 9, settings['loglevel'])
 
     starttime = time.time()
     updateddevices = updateowfsdevices(busdevices)
 
-    utility.log(pilib.dirs.logs.io, 'done reading devices, took ' + str(time.time() - starttime), 9, pilib.loglevels.io)
-    utility.log(pilib.dirs.logs.io, 'your devices: ', 9, pilib.loglevels.io)
+    utility.log(settings['logpath'], 'done reading devices, took ' + str(time.time() - starttime), 9, settings['loglevel'])
+    utility.log(settings['logpath'], 'your devices: ', 9, settings['loglevel'])
+
     for device in busdevices:
-        utility.log(pilib.dirs.logs.io, device.id)
-    utility.log(pilib.dirs.logs.io, 'updating entries in owfstable', 9, pilib.loglevels.io)
+        utility.log(settings['logpath'], device.id)
+
+    utility.log(settings['logpath'], 'updating entries in owfstable', 9, settings['loglevel'])
     starttime = time.time()
 
-    owfstableentries = updateowfstable(pilib.dirs.dbs.control, 'owfs', updateddevices, execute=execute)
+    owfstableentries = updateowfstable(settings['logpath'], 'owfs', updateddevices, execute=execute)
 
-    utility.log(pilib.dirs.logs.io, 'done updating owfstable, took ' + str(time.time() - starttime), 9, pilib.loglevels.io)
+    utility.log(settings['logpath'], 'done updating owfstable, took ' + str(time.time() - starttime), 9, settings['loglevel'])
 
-    owfsinputentries = updateowfsinputentries(pilib.dirs.dbs.control, 'inputs', updateddevices, execute=execute)
+    owfsinputentries = updateowfsinputentries(settings['logpath'], 'inputs', updateddevices, execute=execute)
 
     queries.extend(owfstableentries)
     queries.extend(owfsinputentries)

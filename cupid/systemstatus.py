@@ -57,7 +57,7 @@ def updateiwstatus():
     insertstringdicttablelist(dirs.dbs.system, 'iwstatus', [iwdict], droptable=True)
 
 
-def watchdoghamachi(pingip='self', threshold=3000, debug=False):
+def watchdoghamachi(pingip='self', threshold=3000, debug=False, restart=True):
     from iiutilities.netfun import runping, restarthamachi, killhamachi, gethamachistatusdata
     from iiutilities import utility
     from iiutilities import dblib
@@ -69,13 +69,25 @@ def watchdoghamachi(pingip='self', threshold=3000, debug=False):
     try:
         # Turns out this is not going to work, as when it hangs, it hangs hard
         hamachistatusdata = gethamachistatusdata()
+    except Exception as e:
+
+        utility.log(pilib.dirs.logs.network, 'Error checking Hamachi via gethamachistatusdata with message:  ' + e.message, 1,
+                pilib.loglevels.network)
+        hamachistatusdata = {}
+
+    # We are having some issue with return on hamachi status check. This is not always a reason to restart hamachi
+    # We will carry on below and try to ping. if we can ping, we are good. if we need to self ping, this will still
+    # Throw errors. BUT, main point is that if we can ping our chosen hamachi address, we are good.
+
+    try:
 
         # So instead, we are going to test with a ping to another member on the network that
         # should always be online. This of course means that we have to make sure that it is, in fact, always
         # online
         if pingip in ['self', 'Self']:
             pingip = hamachistatusdata['address']
-        pingtimes = runping(pingip, numpings=5, quiet=True)
+
+        pingtimes = runping(pingip, numpings=15, quiet=True)
         pingmax = max(pingtimes)
         pingmin = min(pingtimes)
         pingave = sum(pingtimes)/len(pingtimes)
@@ -99,11 +111,15 @@ def watchdoghamachi(pingip='self', threshold=3000, debug=False):
 
     except Exception as e:
 
-        utility.log(pilib.dirs.logs.network, 'Error checking Hamachi with message:  ' + e.message, 1, pilib.loglevels.network)
+        utility.log(pilib.dirs.logs.network, 'Error checking Hamachi (second stage, pings) with message:  ' + e.message, 1, pilib.loglevels.network)
 
-        killhamachi()
-        restarthamachi()
-        print('blurg')
+        if restart:
+            utility.log(pilib.dirs.logs.network, 'Restarting hamachi:  ' + e.message, 1,
+                        pilib.loglevels.network)
+
+            killhamachi()
+            restarthamachi()
+        # print('blurg')
 
 
 def updatehamachistatus():
@@ -869,8 +885,7 @@ def runsystemstatus(**kwargs):
     from iiutilities import utility
     from iiutilities import dblib
     from iiutilities import datalib
-
-    from iiutilities.gitupdatelib import updategitversions
+    from iiutilities import gitupdatelib
 
     if 'debug' in kwargs and kwargs['debug']:
         print('DEBUG MODE')
@@ -881,7 +896,8 @@ def runsystemstatus(**kwargs):
 
     try:
         utility.log(pilib.dirs.logs.system, 'Checking git versions', 3, pilib.loglevels.system)
-        updategitversions()
+        gitupdatelib.updaterepoversion(pilib.dirs.baselib, pilib.dirs.dbs.system, versiontablename='versions')
+        gitupdatelib.updaterepoversion(pilib.dirs.web, pilib.dirs.dbs.system, versiontablename='versions')
     except:
         utility.log(pilib.dirs.logs.system, 'Error in git version check', 0, pilib.loglevels.system)
     else:

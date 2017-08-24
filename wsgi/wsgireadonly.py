@@ -58,6 +58,7 @@ def application(environ, start_response):
                 user_data = safe_database.read_table_row('users', condition=condition)[0]
             except:
                 output['message'] += 'Error in user sqlite query for session user "' + d['username'] + '". '
+                output['message'] += 'Condition {}'.format(condition)
                 output['message'] += 'Condition: ' + condition + '. Path: ' + pilib.dirs.dbs.safe
                 user_data = {'accesskeywords': 'demo', 'admin': False}
             else:
@@ -90,9 +91,6 @@ def application(environ, start_response):
                     output['data'] = dblib.gettablenames(dbpath)
                 except:
                     output['message'] += 'Error getting table names'
-            elif action == 'switchtablerows':
-                dbpath = pilib.dbnametopath(d['database'])
-                dblib.switchtablerows(dbpath, d['tablename'], d['row1'], d['row2'], d['uniqueindex'])
             elif action == 'modwsgistatus':
                 output['processgroup'] = repr(environ['mod_wsgi.process_group'])
                 output['multithread'] = repr(environ['wsgi.multithread'])
@@ -114,7 +112,7 @@ def application(environ, start_response):
                             if 'length' in d:
                                 fixedlength = int(d['length'])
                             else:
-                                fixedlength = 1
+                                fixedlength = 0
                             if 'lengths[]' in d:
                                 lengths = map(int, d['lengths[]'])
                             else:
@@ -125,6 +123,7 @@ def application(environ, start_response):
                                 starts = []
 
                             for index, table in enumerate(d['tablenames[]']):
+                                output['message'] += 'Reading table {}. '.format(table)
                                 try:
                                     length = lengths[index]
                                 except IndexError:
@@ -133,8 +132,12 @@ def application(environ, start_response):
                                     start = starts[index]
                                 except IndexError:
                                     start = fixedstart
-
-                                data.append(the_database.read_table_rows(table, start, length))
+                                if not fixedlength: # get all rows if length not specified
+                                    db_data = the_database.read_table(table)
+                                else:
+                                    db_data = the_database.read_table_rows(table, start, length)
+                                output['message'] += 'Read {} rows of data. '.format(len(db_data))
+                                data.append(db_data)
                                 output['data']=data
 
                         elif 'length' in d:  # Handle table row subset
@@ -150,10 +153,11 @@ def application(environ, start_response):
                             output['data'] = the_database.read_table_rows(d['tablename'], d['row'])
                             output['querytime'] = time() - thetime
                         elif 'tablename' in d:  # Handle entire table
-                            output['message'] += 'Tablename keyword: ' + d['tablename'] + '. '
+                            output['message'] += 'Tablename keyword: {}. '.format(d['tablename'])
                             thetime = time()
                             if 'condition' in d:
                                 if not d['condition'] == '':
+                                    output['message'] += 'Condition : "{}" .'.format(d['condition'])
                                     output['data'] = the_database.read_table(d['tablename'], condition=d['condition'])
                                 else:
                                     output['data'] = the_database.read_table(d['tablename'])
@@ -171,6 +175,32 @@ def application(environ, start_response):
                         output['message'] += 'Friendly name ' + d['database'] + ' unsuccessfully translated. '
                 else:
                     output['message'] += 'No database present in action request'
+
+            elif action =='get_archive_info':
+                from iiutilities.utility import get_directory_listing
+                directory_list = get_directory_listing(pilib.dirs.archive)
+                output['data'] = {}
+                output['data']['lognames'] = []
+                for filename in directory_list['filenames']:
+                    if filename[-3:] == '.db':
+                        output['data']['lognames'].append(filename[:-3])
+                    else:
+                        directory_list['filenames'].remove(filename)
+
+                output['data']['metadata'] = []
+                output['message'] += 'Retrieved db logs {}. '.format(directory_list['filenames'])
+                for filename, logname in zip(directory_list['filenames'], output['data']['lognames']):
+
+                    archive_db = dblib.sqliteDatabase(pilib.dirs.archive + filename)
+                    try:
+                        metadata = archive_db.read_table('metadata')[0]
+                    except:
+                        output['message'] += 'Error retrieving metadata for log table {}. '.format(filename)
+                        output['data']['metadata'].append({})
+                    else:
+                        metadata['name'] = logname
+                        output['data']['metadata'].append(metadata)
+
             else:
                 output['message'] = 'no command matched for action ' + action
     else:
