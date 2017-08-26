@@ -410,7 +410,6 @@ def updateiodata(**kwargs):
                         channel_number = node_entry['keyvalue']
                         node_id = node_entry['nodeid']
                         channel_address = '{}:{}'.format(node_id, channel_number)
-<<<<<<< HEAD
 
 
                         # Need to make up a channel id
@@ -426,23 +425,6 @@ def updateiodata(**kwargs):
                                           'sv_input':setpoint_input_name, 'pv_input':control_input_name,
                                           'enabled_input':enabled_input_name, 'name':channel_id}
 
-=======
-
-
-                        # Need to make up a channel id
-                        channel_id = 'MOTE_' + channel_address
-
-                        control_input_name = channel_id + '_pv'
-                        setpoint_input_name = channel_id + '_sv'
-                        enabled_input_name = channel_id + '_run'
-
-                        # These values will override anything existing
-                        newchanneldata = {'controlvaluetime': datalib.gettimestring(),
-                                          'data':node_entry['data'], 'type': 'remote','id':channel_id,
-                                          'sv_input':setpoint_input_name, 'pv_input':control_input_name,
-                                          'enabled_input':enabled_input_name, 'name':channel_id}
-
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
                         # svcmd is handled .... where?
                         if 'svcmd' in nodedata:
 
@@ -456,11 +438,7 @@ def updateiodata(**kwargs):
                             newchanneldata['pending'] = ''
 
                         findentries = ['sv', 'pv', 'prop', 'run']
-<<<<<<< HEAD
                         findentrydictnames = ['setpoint_value', 'process_value', 'action', 'enabled']
-=======
-                        findentrydictnames = ['setpointvalue', 'controlvalue', 'action', 'enabled']
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
 
                         # this updates the entries in the channel to be inserted, and also inserts the inputs
@@ -499,21 +477,12 @@ def updateiodata(**kwargs):
                         existingchannels = control_db.read_table('channels')
                         for channel in existingchannels:
                             if channel['id'] == newchannel['id']:
-<<<<<<< HEAD
                                 # print('updating')
                                 # print(channel['id'])
                                 newchannel.update(channel)
                                 # print(newchannel)
                         newchannel.update(newchanneldata)
                         # print(newchannel)
-=======
-                                print('updating')
-                                print(channel['id'])
-                                newchannel.update(channel)
-                                # print(newchannel)
-                        newchannel.update(newchanneldata)
-                        print(newchannel)
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
                         #
                         # keys = []
                         # values = []
@@ -521,7 +490,6 @@ def updateiodata(**kwargs):
                         #     keys.append(key)
                         #     values.append(value)
                         # control_db.settings['quiet'] = False
-<<<<<<< HEAD
                         control_db.insert('channels', newchannel)
                         # query = dblib.makesqliteinsert('channels', values, keys)
                         # print(query)
@@ -531,17 +499,6 @@ def updateiodata(**kwargs):
 
                         entryid = 'MOTE' + str(node_entry['nodeid']) + '_' + node_entry['keyvaluename']
 
-=======
-                        control_db.insert('channels',newchannel)
-                        # query = dblib.makesqliteinsert('channels', values, keys)
-                        # print(query)
-                        # dblib.sqlitequery(pilib.dirs.dbs.control, query)
-
-                    else: # Is NOT a channel
-
-                        entryid = 'MOTE' + str(node_entry['nodeid']) + '_' + node_entry['keyvaluename']
-
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
                         # THis breaks out all of the strictly json-encoded data.
                         datadict = datalib.parseoptions(node_entry['data'])
 

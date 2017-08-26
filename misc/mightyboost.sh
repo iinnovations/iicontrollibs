@@ -15,6 +15,7 @@ echo "in" > /sys/class/gpio/gpio$SHUTDOWN/direction
 BOOT=25
 echo "$BOOT" > /sys/class/gpio/export
 echo "out" > /sys/class/gpio/gpio$BOOT/direction
+echo `date "+%Y-%m-%dT%H.%M.%S"` ": Booting. " >> /var/log/cupid/events.log
 echo "1" > /sys/class/gpio/gpio$BOOT/value
 echo "ATXRaspi shutdown script started: asserted pins ($SHUTDOWN=input,LOW; $BOOT=output,HIGH). Waiting for GPIO$SHUTDOWN to become HIGH..."
 #This loop continuously checks if the shutdown button was pressed on ATXRaspi (GPIO7 to become HIGH), and issues a shutdown when that happens.
@@ -29,6 +30,7 @@ while [ 1 ]; do
       /bin/sleep 0.02
       if [ $(($(date +%s%N | cut -b1-13)-$pulseStart)) -gt $REBOOTPULSEMAXIMUM ]; then
         echo "ATXRaspi triggered a shutdown signal, halting Rpi ... "
+        echo `date "+%Y-%m-%dT%H.%M.%S"` ": mightyboost triggered a shutdown signal, halting Rpi ... " >> /var/log/cupid/events.log
         sudo poweroff
         exit
       fi
@@ -37,6 +39,7 @@ while [ 1 ]; do
     #pulse went LOW, check if it was long enough, and trigger reboot
     if [ $(($(date +%s%N | cut -b1-13)-$pulseStart)) -gt $REBOOTPULSEMINIMUM ]; then
       echo "ATXRaspi triggered a reboot signal, recycling Rpi ... "
+      echo `date "+%Y-%m-%dT%H.%M.%S"` ": mightyboost triggered a reboot signal, recycling Rpi ... " >> /var/log/cupid/events.log
       sudo reboot
       exit
     fi

@@ -33,11 +33,7 @@ from cupid import pilib, controllib
 
 control_db = pilib.cupidDatabase(pilib.dirs.dbs.control)
 log_db = pilib.cupidDatabase(pilib.dirs.dbs.log)
-<<<<<<< HEAD
 system_db = pilib.cupidDatabase(pilib.dirs.dbs.system)
-=======
-system_db = pilib.cupidDatabase(pilib.dirs.dbs.log)
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
 default_control_algorithm = {'minofftime': 0, 'minontime': 0, 'ondelay': 0, 'offdelay': 0}
 
@@ -61,11 +57,7 @@ def process_channel(**kwargs):
     time = datalib.gettimestring()
     disableoutputs = True
 
-<<<<<<< HEAD
     status_msg = channel['name'] + ': '
-=======
-    statusmsg = channelname + ': '
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
     log_tablenames = log_db.get_table_names()
 
@@ -233,15 +225,9 @@ def process_channel(**kwargs):
                 action = 0
 
             # Insert entry into control log
-<<<<<<< HEAD
             insert = {'time': time, 'process_value': channel['process_value'],
                       'setpoint_value': channel['setpoint_value'],
                       'action': channel['action'], 'algorithm': channel['algorithm_name'],
-=======
-            insert = {'time': time, 'controlvalue': channel['controlvalue'],
-                      'setpointvalue': channel['setpointvalue'],
-                      'action': channel['action'], 'algorithm': channel['algorithmname'],
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
                       'enabled': channel['enabled'],
                       'status_msg': status_msg}
             control_db.insert(logtablename, insert, queue=True)
@@ -261,39 +247,23 @@ def process_channel(**kwargs):
             status_msg += 'Processing pending action. '
             pending = parseoptions(channel['pending'])
 
-<<<<<<< HEAD
             if 'setpoint_value' in pending:
                 status_msg += 'processing setpoint_value. '
-=======
-            if 'setpointvalue' in pending:
-                statusmsg += 'processing setpointvalue. '
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
                 # Get control output and have a look at it.
                 input_name = channel['sv_input']
 
                 # try:
                 inputs = control_db.read_table('inputs', '"name"=\'' + input_name + "'")
                 # except:
-<<<<<<< HEAD
                 #     status_msg += 'Inputs query error. '
                 #     return status_msg
-=======
-                #     statusmsg += 'Inputs query error. '
-                #     return statusmsg
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
                 if len(inputs) == 1:
                     input = inputs[0]
                 else:
-<<<<<<< HEAD
                     status_msg += 'wrong number of query items returned, length: ' + str(len(inputs)) + ' for query on input name: ' + input_name
                     print('ERROR: ' + status_msg)
                     return status_msg
-=======
-                    statusmsg += 'wrong number of query items returned, length: ' + str(len(inputs)) + ' for query on input name: ' + input_name
-                    print('ERROR: ' + statusmsg)
-                    return statusmsg
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
 
                 # write_to_input(input, value)
@@ -358,28 +328,6 @@ def process_channel(**kwargs):
                     print('setting pending in setpoint_value mote')
 
                     control_db.set_single_value('channels', 'pending', pending_string, channel_condition)
-
-                elif input['type'] == 'MOTE':
-                    mote_node = input['address'].split(':')[0]
-                    mote_address = input['address'].split(':')[1]
-                    if mote_node == '1':
-                        message = '~setsv;' + mote_address + ';' + str(pending['setpointvalue'])
-                    else:
-                        message = '~sendmsg;' + str(mote_node) + ';;~setsv;' + mote_address + ';' + str(pending['setpointvalue'])
-
-                    motes_db = pilib.cupidDatabase(pilib.dirs.dbs.motes)
-                    from time import sleep
-                    for i in range(2):
-                        time = datalib.gettimestring(datalib.timestringtoseconds(datalib.gettimestring() + i))
-                        motes_db.insert('queued', {'queuedtime':time, 'message':message})
-
-                    # Clear pending setpointvalue
-                    pending.pop('setpointvalue', None)
-                    pending_string = dicttojson(pending)
-                    print('setting pending in setpointvalue mote')
-
-                    control_db.set_single_value('channels', 'pending', pending_string, channel_condition)
-
 
             if 'enabled' in pending:
                 status_msg += 'processing enabledvalue. '
@@ -460,11 +408,7 @@ def process_channel(**kwargs):
                         time = datalib.gettimestring(datalib.timestringtoseconds(datalib.gettimestring() + i))
                         motes_db.insert('queued', {'queuedtime': time, 'message': message})
 
-<<<<<<< HEAD
                     # Clear pending setpoint_value
-=======
-                    # Clear pending setpointvalue
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
                     pending.pop('enabled', None)
                     pending_string = dicttojson(pending)
 
@@ -472,19 +416,11 @@ def process_channel(**kwargs):
 
 
         # Insert entry into control log
-<<<<<<< HEAD
         insert = {'time': time, 'process_value': channel['process_value'],
                   'setpoint_value': channel['setpoint_value'],
                   'action': channel['action'], 'algorithm': channel['control_algorithm'],
                   'enabled': channel['enabled'],
                   'status_msg': status_msg}
-=======
-        insert = {'time': time, 'controlvalue': channel['controlvalue'],
-                  'setpointvalue': channel['setpointvalue'],
-                  'action': channel['action'], 'algorithm': channel['controlalgorithm'],
-                  'enabled': channel['enabled'],
-                  'statusmsg': statusmsg}
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
         # print(insert)
         log_db.insert(logtablename, insert)
 
@@ -503,12 +439,7 @@ def process_channel(**kwargs):
             status_msg += 'Outputs disabled for id=' + id + '. '
 
     # Set status message for channel
-<<<<<<< HEAD
     control_db.set_single_value('channels', 'status_message', status_msg, channel_condition, queue=True)
-=======
-    control_db.set_single_value('channels', 'statusmessage', statusmsg, '"channelindex"=\'' + channelindex + "'",
-                                queue=True)
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
     # Set update time for channel
     control_db.set_single_value('channels', 'control_updatetime', time, channel_condition, queue=True)
@@ -531,13 +462,7 @@ def runpicontrol(runonce=False):
     log_db = pilib.cupidDatabase(pilib.dirs.dbs.log)
     system_db = pilib.cupidDatabase(pilib.dirs.dbs.system)
 
-<<<<<<< HEAD
     systemstatus = system_db.read_table_row('systemstatus')[0]
-=======
-    control_db = pilib.cupidDatabase(pilib.dirs.dbs.control)
-    log_db = pilib.cupidDatabase(pilib.dirs.dbs.log)
-    system_db = pilib.cupidDatabase(pilib.dirs.dbs.system)
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
     while systemstatus['picontrolenabled']:
 

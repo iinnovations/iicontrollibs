@@ -302,7 +302,6 @@ def rebuild_control_db(**kwargs):
             control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'16', 'id': 'GPIO16', 'name': 'GPIO 16', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
             control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'20', 'id': 'GPIO20', 'name': 'GPIO 20', 'options':'mode:input,pullupdown:pulldown,function:shutdown,functionstate:true','enabled':1},queue=True),
             control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'21', 'id': 'GPIO21', 'name': 'GPIO 21', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'35', 'id': 'GPIO35', 'name': 'Power Monitor','enabled':1},queue=True),
 
     """
     modbustcp Table
@@ -388,46 +387,10 @@ def rebuild_control_db(**kwargs):
 
     ### Channels table
     tablename = 'channels'
-<<<<<<< HEAD
     if tablename in settings['tablelist']:
         schema = pilib.schema.channel
 
         if settings['migrate']:
-=======
-    if tablename in tablelist:
-        schema = dblib.sqliteTableSchema([
-            # {'name': 'channelindex','type':'integer','primary':True},
-            {'name':'name', 'unique':True},
-            {'name':'index', 'type':'integer', 'primary':True},
-            {'name':'type', 'default':'local'},
-            {'name':'id', 'unique':True},
-            {'name':'pv_input','default':'none'},
-            {'name':'sv_input','default':'none'},
-            {'name':'output_input','default':'none'},
-            {'name':'enabled_input','default':'none'},
-            {'name':'enabled','type':'boolean', 'default':0},
-            {'name':'outputsenabled','type':'boolean', 'default':0},
-            {'name':'controlupdatetime'},
-            {'name':'controlalgorithm', 'default':'on/off 1'},
-            {'name':'controlrecipe','default':'none'},
-            {'name':'recipestage','type':'integer', 'default':0},
-            {'name':'recipestarttime'},
-            {'name':'recipestagestarttime'},
-            {'name':'setpointvalue', 'type':'real'},
-            {'name':'controlvalue', 'type':'real'},
-            {'name':'controlvaluetime'},
-            {'name':'positiveoutput'},
-            {'name':'negativeoutput'},
-            {'name':'action','type':'real', 'default':0},
-            {'name':'mode','default':'manual'},
-            {'name':'statusmessage'},
-            {'name':'logpoints', 'type':'real', 'default':100},
-            {'name':'data'},
-            {'name':'dataclasses'},
-            {'name':'pending'}
-        ])
-        if migrate:
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
             print('MIGRATING')
             control_database.settings['quiet'] = False
             control_database.migrate_table(tablename, schema=schema, data_loss_ok=settings['data_loss_ok'])
@@ -473,12 +436,9 @@ def rebuild_sessions_db(**kwargs):
     }
     settings.update(kwargs)
 
-<<<<<<< HEAD
     if not settings['tablelist']:
         settings['tablelist'] = tablenames.sessions
 
-=======
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
     session_database = pilib.cupidDatabase(dirs.dbs.session)
     print(session_database.path)
 
@@ -585,7 +545,6 @@ def rebuild_system_db(**kwargs):
     from iiutilities import dblib
     from cupid.pilib import dirs
 
-<<<<<<< HEAD
     settings = {
         'tablelist': tablenames.sessions,
         'migrate': True,
@@ -596,11 +555,6 @@ def rebuild_system_db(**kwargs):
     system_database = pilib.cupidDatabase(dirs.dbs.system)
     if not settings['tablelist']:
         settings['tablelist'] = tablenames.system
-=======
-    system_database = pilib.cupidDatabase(dirs.dbs.system)
-    if not tablelist:
-        tablelist = tablenames.system
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
     tablename = 'netstatus'
     if tablename in settings['tablelist']:
@@ -790,25 +744,6 @@ def rebuild_system_db(**kwargs):
         if table not in table_names:
             print(table + ' DOES NOT EXIST')
 
-<<<<<<< HEAD
-=======
-"""
-logsettings
-"""
-
-
-def rebuild_log_settings_db():
-    from iiutilities.dblib import sqlitemultquery
-    from cupid.pilib import dirs
-
-    querylist = []
-    table = 'logsettings'
-    querylist.append('drop table if exists ' + table)
-    querylist.append(
-        "create table " + table + " ( item text primary key,  value text)")
-    querylist.append("insert into " + table + " values ( 'defaultlogpoints', '1000')")
-    sqlitemultquery(dirs.dbs.log, querylist)
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
 
 
 """
@@ -861,12 +796,9 @@ def rebuild_notifications_db(**kwargs):
     }
     settings.update(kwargs)
 
-<<<<<<< HEAD
     if not settings['tablelist']:
         settings['tablelist'] = tablenames.notifications
 
-=======
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
     notifications_database = pilib.cupidDatabase(dirs.dbs.notifications)
 
     tablename = 'queued'
@@ -914,7 +846,6 @@ def rebuild_motes_db(**kwargs):
     from cupid.pilib import dirs
     from iiutilities import dblib
 
-<<<<<<< HEAD
     settings = {
         'tablelist': tablenames.sessions,
         'migrate': True,
@@ -922,8 +853,6 @@ def rebuild_motes_db(**kwargs):
     }
     settings.update(kwargs)
 
-=======
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
     motes_database = pilib.cupidDatabase(dirs.dbs.motes)
 
     tablename = 'read'
@@ -1122,11 +1051,6 @@ if __name__ == "__main__":
         elif sys.argv[1] in ['wirelessdata']:
             print('running rebuild wireless safedata')
             rebuild_wireless_data()
-<<<<<<< HEAD
-=======
-        elif sys.argv[1] in ['logsettings']:
-            rebuild_log_settings_db()
->>>>>>> 25965dabc64705ae75ed210d4a405d0f767b7af1
         elif sys.argv[1] in ['users']:
             rebuild_users_data('defaults')
 

@@ -53,12 +53,15 @@ def application(environ, start_response):
             d['username'] = ''
 
         if d['username']:
+            condition = "name='" + d['username'] + "'"
+            user_data = safe_database.read_table_row('users', condition=condition)[0]
+
             try:
                 condition = "name='" + d['username'] + "'"
                 user_data = safe_database.read_table_row('users', condition=condition)[0]
             except:
                 output['message'] += 'Error in user sqlite query for session user "' + d['username'] + '". '
-                output['message'] += 'Condition {}'.format(condition)
+                # output['message'] += 'Condition {}'.format(condition)
                 output['message'] += 'Condition: ' + condition + '. Path: ' + pilib.dirs.dbs.safe
                 user_data = {'accesskeywords': 'demo', 'admin': False}
             else:
