@@ -173,6 +173,8 @@ def application(environ, start_response):
 
     if authverified or not wsgiauth:
         output['authorized'] = True
+    else:
+        output['authorized'] = False
 
     try:
         action = d['action']
@@ -279,6 +281,7 @@ def application(environ, start_response):
         elif action == 'addeditbomparts':
             output['message'] += 'addeditbomparts keyword found. '
             # Operate on partsdata
+            d['partsdata'] = json.loads(d['partsdata'])
             output = inventorylib.addeditpartlist(d, output)
             inventorylib.makebommetadata()
         elif action == 'getbomcalcs':
@@ -395,6 +398,11 @@ def application(environ, start_response):
             for key,value in d.iteritems():
                 # print(key, value)
                 pass
+
+            if 'paneldesc' in d:
+                import json
+                d['paneldesc'] = json.loads(d['paneldesc'])
+
             bomresults = panelbuilder.paneltobom(**d)
 
             output['data'] = {}

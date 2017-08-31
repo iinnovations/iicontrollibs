@@ -232,7 +232,7 @@ def reloaddatapaths(**kwargs):
         # Get path for alia
         message += 'Pathalias keyword ' + kwargs['pathalias'] + ' found. '
         relpath = dblib.getsinglevalue(sysvars.dirs.dbs.safe, 'pathaliases', 'path',
-                                       "alias='" + kwargs['pathalias'] + "'")
+                                       condition="alias='" + kwargs['pathalias'] + "'")
         message += 'relpath ' + relpath + ' retrieved. '
         sysvars.dirs.dataroot = '/var/www/html/inventory/data/' + relpath + '/'
         reload = True
@@ -241,10 +241,10 @@ def reloaddatapaths(**kwargs):
         # Set path to default for user
         message += 'user: ' + kwargs['user'] + '. '
         usermeta = datalib.parseoptions(
-            dblib.getsinglevalue(sysvars.dirs.dbs.safe, 'data', "user='" + kwargs['user'] + "'"))
+            dblib.getsinglevalue(sysvars.dirs.dbs.safe, 'data', condition="user='" + kwargs['user'] + "'"))
         message += 'database' + usermeta['database'] + '. '
         relpath = dblib.getsinglevalue(
-            dblib.getsinglevalue(sysvars.dirs.dbs.safe, 'pathaliases', 'path', "alias='" + usermeta['database']))
+            dblib.getsinglevalue(sysvars.dirs.dbs.safe, 'pathaliases', 'path', condition="alias='" + usermeta['database']))
         message += 'relpath: ' + relpath + '. '
         sysvars.dirs.dataroot = '/var/www/html/inventory/data/' + relpath + '/'
         reload = True
@@ -252,11 +252,11 @@ def reloaddatapaths(**kwargs):
         message += 'no keywords found. reverting to default: ' + sysvars.defaultdbalias + '. '
 
         try:
-            relpath = dblib.getsinglevalue(sysvars.dirs.dbs.safe, 'pathaliases', 'path', "alias='" +
+            relpath = dblib.getsinglevalue(sysvars.dirs.dbs.safe, 'pathaliases', 'path', condition="alias='" +
                                            sysvars.defaultdbalias + "'")
         except:
             message += 'error in relpath query on default for default from database: ' + sysvars.dirs.dbs.safe + '. '
-            message += 'query was: ' + dblib.makegetsinglevaluequery('pathaliases', 'path', "alias='" +
+            message += 'query was: ' + dblib.makegetsinglevaluequery('pathaliases', 'path', condition="alias='" +
                                                                      sysvars.defaultdbalias) + "'" + '. '
             message += 'reverting to empty relpath' + '. '
             relpath = ''
@@ -812,7 +812,7 @@ def recalcpartdata(**kwargs):
                 if item['marginmethod'] == 'type':
                     try:
                         item['margin'] = dblib.getsinglevalue(sysvars.dirs.dbs.system, 'calcs', 'value',
-                                                              "item='" + item['type'] + "margin'")
+                                                              condition="item='" + item['type'] + "margin'")
                         try:
                             item['margin'] = float(item['margin'])
                         except:
@@ -959,19 +959,19 @@ def addeditpartlist(d, output={'message': ''}):
     activedb = dblib.sqliteDatabase(activedbpath)
 
     # Determine whether or not the part already exists in the BOM
-    listparts = activedb.read_table(tablename)
+    existing_parts = activedb.read_table(tablename)
 
     # This is just columns
     # Eventually this should be more robust and actually enforce types by pragma
 
     ordercolumns = activedb.get_pragma_names(tablename)
 
-    for index, partdatum in enumerate(settings['partsdata']):
+    for index, part_to_modify in enumerate(settings['partsdata']):
         print(index)
         if settings['copystock'] in ['all', 'missing']:
             # Get the stock part entry for reference and backfill purposes
             try:
-                stockpart = dblib.readonedbrow(stockdbpath, 'stock', condition="partid='" + partdatum['partid'] + "'")[0]
+                stockpart = dblib.readonedbrow(stockdbpath, 'stock', condition="partid='" + part_to_modify['partid'] + "'")[0]
             except:
                 stockpart = None
                 pass
@@ -1016,15 +1016,17 @@ def addeditpartlist(d, output={'message': ''}):
         """
 
         partexists = False
-        for orderpart in listparts:
+        for existing_part in existing_parts:
 
-            newpart = {'partid': orderpart['partid']}
+            newpart = {'partid': existing_part['partid']}
             matchpart = False
-            print('orderpart, partid')
-            print(orderpart)
-            print(partdatum)
-            if orderpart['partid'] == partdatum['partid']:
-                output['message'] += 'Part ' + orderpart['partid'] + ' / ' + partdatum['partid'] + ' was found. '
+
+            print('existing part, part to modify')
+            print(existing_part)
+            print(part_to_modify)
+
+            if existing_part['partid'] == part_to_modify['partid']:
+                output['message'] += 'Part ' + existing_part['partid'] + ' / ' + part_to_modify['partid'] + ' was found. '
                 matchpart = True
                 partexists = True
 
@@ -1038,19 +1040,19 @@ def addeditpartlist(d, output={'message': ''}):
                         # print(partdatum['partid'] + ', ' + str(settings['addqty']))
                         if settings['addqty']:
                             # print('partdatum qty ' + str(partdatum['qty'] + ', orderpart qty ' + str(orderpart['qty'])))
-                            newpart['qty'] = float(partdatum['qty']) + float(orderpart['qty'])
+                            newpart['qty'] = float(part_to_modify['qty']) + float(existing_part['qty'])
                         else:
-                            newpart['qty'] = partdatum['qty']
+                            newpart['qty'] = part_to_modify['qty']
                     elif settings['copystock'] == 'all' and property != 'qty':
                         # get all part data from stock entry
                         # except qty, which is special
                         newpart[property] = stockpart[property]
                     else:
-                        if property in partdatum:
+                        if property in part_to_modify:
                             # print('property ' + property + ' found in partdata')
                             # make sure not empty
-                            if partdatum[property]:
-                                newpart[property] = partdatum[property]
+                            if part_to_modify[property]:
+                                newpart[property] = part_to_modify[property]
                                 continue
 
                         # Combined elif via continue
@@ -1064,8 +1066,8 @@ def addeditpartlist(d, output={'message': ''}):
 
                 # If we don't have a match, just copy existing properties, mapped appropriately
                 else:
-                    if property in orderpart:
-                        newpart[property] = orderpart[property]
+                    if property in existing_part:
+                        newpart[property] = existing_part[property]
                     else:
                         newpart[property] = ''
 
@@ -1076,9 +1078,9 @@ def addeditpartlist(d, output={'message': ''}):
 
         if not partexists:
             output['message'] += 'Part not found. Creating from scratch. '
-            if 'partid' in partdatum:
-                output['message'] += 'key partdata[partid] found in d with value ' + partdatum['partid'] + '. '
-                newpart = {'partid': partdatum['partid']}
+            if 'partid' in part_to_modify:
+                output['message'] += 'key partdata[partid] found in d with value ' + part_to_modify['partid'] + '. '
+                newpart = {'partid': part_to_modify['partid']}
 
                 for property in listpartproperties:
                     if settings['copystock'] == 'all' and property != 'qty':
@@ -1086,12 +1088,12 @@ def addeditpartlist(d, output={'message': ''}):
                         # except qty, which is special
                         newpart[property] = stockpart[property]
                     else:
-                        if property in partdatum:
+                        if property in part_to_modify:
                             # print('property ' + property + ' found')
 
                             # make sure not empty
-                            if partdatum[property]:
-                                newpart[property] = partdatum[property]
+                            if part_to_modify[property]:
+                                newpart[property] = part_to_modify[property]
                                 continue
                             else:
                                 # print('property empty.')
@@ -1123,12 +1125,12 @@ def addeditpartlist(d, output={'message': ''}):
             #     dblib.sqlitedeleteitem(activedb, tablename, "partid='" + thenewpart['partid'] + "'")
             # # print('THE NEW NPART')
             # # print(thenewpart)
-            try:
+            # try:
                 # assumes uniquekey and auto replace
-                activedb.insert(tablename, thenewpart)
+            activedb.insert(tablename, thenewpart)
                 # dblib.insertstringdicttablelist(activedb, tablename, [thenewpart], droptable=False)
-            except:
-                output['message'] += 'Error in query on "' + activedb + '" + and table "' + tablename + '. '
+            # except:
+            #     output['message'] += 'Error in query on "' + activedb.path + '" + and table "' + tablename + '. '
         else:
             output['message'] += 'Structure was not found to be inclusive. rebuilding. '
             dblib.insertstringdicttablelist(activedb, tablename, newparts, droptable=True)
@@ -2670,7 +2672,7 @@ def copyquotetoboms(d, output={'message': ''}):
     addeditpartlist({'bomname':d['name'], 'partsdata':quoteitems, 'copystock':'all'}, output)
 
     condition = "name='" + d['name'] + "'"
-    dblib.setsinglevalue(bomsdatabase, 'metadata', 'modifieddate', datalib.gettimestring(), condition)
+    dblib.setsinglevalue(bomsdatabase, 'metadata', 'modifieddate', datalib.gettimestring(), condition=condition)
 
     return output
 

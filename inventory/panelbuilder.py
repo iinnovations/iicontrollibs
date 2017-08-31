@@ -617,8 +617,13 @@ def paneltobom(**kwargs):
 
     elif paneldesc['paneltype'] == 'temppanel':
 
-        # CuPID remote for temppanel
-        addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'cupidbrewmote')
+        if paneldesc['interfacetype'] in ['10inchTS', '17inchTS']:
+            addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'cupidbrewpanel')
+
+        elif paneldesc['interfacetype'] in ['4C', '16C']:
+
+            # CuPID remote for temppanel
+            addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'cupidbrewpanel')
 
     # Commissioning time
     addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'laborcommissioning', 2)
@@ -675,6 +680,7 @@ def paneltobom(**kwargs):
         # Somehow need a way to attribute PLC options to TS option ... call it PLC/TS?
 
     for vessel in paneldesc['vessels']:
+        print(vessel)
         bomdescription += 'Control vessel: ' + vessel['name'] + ' : ' + vessel['controltype'] + '\n\r'
 
         if 'tempsensor' in vessel and vessel['tempsensor'] == '1p5TC8inTWRTD_20ft':
@@ -872,47 +878,90 @@ def paneltobom(**kwargs):
                 addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_24x20x08')
                 addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_24x20')
 
+            elif paneldesc['panelfinish'] == 'stainless':
+
+                # Should be provision for 20x20 in here if we want it ...
+                # THIS DOES NOT EXIST (no SS enclosure in this dimension yet)
+
+                bomdescription += 'Enclosure: 24x20x8, stainless steel \n\r'
+
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_24x20x08SS')
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_24x20')
+
         elif paneldesc['interfacetype'] in ['16C', '10inchTS']:
             if paneldesc['panelfinish'] == 'greystd':
-                bomdescription += 'Enclosure: 16x16x6, grey paint finish \n\r'
+                bomdescription += 'Enclosure: 20x20x6, grey paint finish \n\r'
 
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_16x16x06')
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_16x16')
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_20x20x06')
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_20x20')
+
+            elif paneldesc['panelfinish'] == 'stainless':
+
+                bomdescription += 'Enclosure: 20x20x6, stainless steel \n\r'
+
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_20x20x06SS')
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_20x20')
 
     if paneldesc['paneltype'] == 'temppanel':
         if paneldesc['interfacetype'] in ['16C']:
 
             if numvessels in [5] or int(numvessels) < 5:
                 # 12 x 12
-                bomdescription += 'Enclosure: 12x12x6, grey paint finish \n\r'
+                if paneldesc['panelfinish'] == 'greystd':
 
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_12x12x06')
+                    bomdescription += 'Enclosure: 12x12x6, grey paint finish \n\r'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_12x12x06')
+
+                elif paneldesc['panelfinish'] == 'stainless':
+
+                    bomdescription += 'Enclosure: 12x12x6 stainless \n\r'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_12x12x06SS')
+
                 addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_12x12')
 
             elif numvessels in [7,8,9,10]:
                 # 16 x 16
-                bomdescription += 'Enclosure: 16x16x6, grey paint finish \n\r'
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_16x16x06')
+                if paneldesc['panelfinish'] == 'greystd':
+                    bomdescription += 'Enclosure: 16x16x6, grey paint finish \n\r'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_16x16x06')
+
+                elif paneldesc['panelfinish'] == 'stainless':
+                    bomdescription += 'Enclosure: 16x16x6 stainless \n\r'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_16x16x06SS')
+
                 addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_16x16')
 
             elif numvessels in [11,12]:
                 # 20 x 20
-                bomdescription += 'Enclosure: 20x20x6, grey paint finish \n\r'
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_20x20x06')
+                if paneldesc['panelfinish'] == 'greystd':
+                    bomdescription += 'Enclosure: 20x20x6, grey paint finish \n\r'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_20x20x06')
+                elif paneldesc['panelfinish'] == 'stainless':
+                    bomdescription += 'Enclosure: 20x20x6, stainless \n\r'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_20x20x06SS')
+
                 addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_20x20')
 
         elif paneldesc['interfacetype'] in ['10inchTS']:
 
-            if numvessels in [5,6,7,8,9,10]:
+            if numvessels in [5,6]:
                 # 16 x 16
-                bomdescription += 'Enclosure: 16x16x6, grey paint finish'
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_16x16x06')
+                if paneldesc['panelfinish'] == 'greystd':
+                    bomdescription += 'Enclosure: 16x16x6, grey paint finish'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_16x16x06')
+                elif paneldesc['panelfinish'] == 'stainless':
+                    bomdescription += 'Enclosure: 16x16x6, stainless'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_16x16x06SS')
                 addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_16x16')
 
-            elif numvessels in [11,12,13,14,15,16,17,18,19,20]:
+            elif numvessels in [7,8,9,10,11,12,13,14,15,16,17,18,19,20]:
                 # 20 x 20
-                bomdescription += 'Enclosure: 20x20x6, grey paint finish'
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_20x20x06')
+                if paneldesc['panelfinish'] == 'greystd':
+                    bomdescription += 'Enclosure: 20x20x6, grey paint finish'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_20x20x06')
+                elif paneldesc['panelfinish'] == 'stainless':
+                    bomdescription += 'Enclosure: 20x20x6, stainless'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_20x20x06SS')
                 addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_20x20')
 
     if paneldesc['paneltype'] == 'brewpanel':

@@ -226,6 +226,7 @@ def updateowfsdevices(busdevices, myProxy=None, debug=False):
             device.offtime = previnputs[previnputids.index(device.sensorid)]['offtime']
             device.polltime = previnputs[previnputids.index(device.sensorid)]['polltime']
             device.value = previnputs[previnputids.index(device.sensorid)]['value']
+            device.log_options = previnputs[previnputids.index(device.sensorid)]['log_options']
         else:
             device.pollfreq = float(default_dict['inputpollfreq'])
             device.ontime = ''
@@ -285,19 +286,24 @@ def updateowfsdevices(busdevices, myProxy=None, debug=False):
 
 
 def updateowfsinputentries(database, tablename, devices, execute=True):
-    from cupid.pilib import dirs
-    from iiutilities.dblib import sqlitemultquery
+    from cupid.pilib import dirs, cupidDatabase
+    from iiutilities.dblib import sqlitemultquery, make_insert_from_dict
     querylist = []
     querylist.append("delete from '" + tablename + "' where interface='1wire'")
 
     for device in devices:
-        querylist.append("insert into inputs values ('" + device.sensorid +"','" + '1wire' + "','" +
-                        str(device.type) + "','" + str(device.id) + "','" + str(device.name) + "','" + str(device.value) + "','" + str(device.unit)+ "','" +
-                        str(device.polltime) + "'," + str(device.pollfreq) + ",'" + device.ontime + "','" + device.offtime + "')")
+        insert_dict = {'id':device.sensorid, 'interface':'1wire', 'type':str(device.type), 'address':str(device.id), 
+                  'name':str(device.name), 'value':str(device.value), 'unit':str(device.unit), 
+                  'polltime':str(device.polltime), 'pollfreq':str(device.pollfreq), 'ontime':device.ontime, 'offtime':device.offtime}
+        querylist.append(make_insert_from_dict('inputs', insert_dict))
+        # querylist.append("insert into inputs values ('" + device.sensorid +"','" + '1wire' + "','" +
+        #                 str(device.type) + "','" + str(device.id) + "','" + str(device.name) + "','" + str(device.value) + "','" + str(device.unit)+ "','" +
+        #                 str(device.polltime) + "'," + str(device.pollfreq) + ",'" + device.ontime + "','" + device.offtime + "')")
 
     # print(querylist)
     if execute:
-        sqlitemultquery(dirs.dbs.control, querylist)
+        control_db = cupidDatabase(dirs.dbs.control)
+        control_db.queries(querylist)
 
     return querylist
 
