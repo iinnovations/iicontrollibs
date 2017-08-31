@@ -188,16 +188,20 @@ class sqliteDatabase(object):
         return dbrow
 
     def read_table_rows(self, tablename, row=0, length=1, **kwargs):
+        settings = {
+            'start':row,
+            'length':length
+        }
         self.settings.update(kwargs)
-        dbrows = readsomedbrows(self.path, tablename, row, length, **self.settings)
+        dbrows = readsomedbrows(self.path, tablename, **self.settings)
         return dbrows
 
     def get_last_time_row(self, tablename, timecolumn='time'):
-        row = getlasttimerows(self.path, tablename, timecolumn, **self.settings)[0]
+        row = getlasttimerows(self.path, tablename, timecolname=timecolumn, **self.settings)[0]
         return row
 
     def get_last_time_rows(self, tablename, rows=1, timecolumn='time'):
-        rows = getlasttimerows(self.path, tablename, timecolumn, numrows=rows, **self.settings)
+        rows = getlasttimerows(self.path, tablename, timecolname=timecolumn, numrows=rows, **self.settings)
         return rows
 
     def get_first_time_row(self, tablename, timecolumn='time'):
