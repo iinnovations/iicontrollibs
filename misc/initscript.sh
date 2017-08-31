@@ -37,8 +37,10 @@ elif [ "$1" = "install" ]
     # So we have a compatibility issue with the lsb-core in raspbian jessie. We should ideally:
     # 1. Test for OS version (probably revert to previous raspbian here)
     # 2. If using jessie, do the following
-    wget http://ftp.de.debian.org/debian/pool/main/l/lsb/lsb-core_4.1+Debian8+deb7u1_armhf.deb
-    dpkg -i lsb-core_4.1+Debian8+deb7u1_armhf.deb
+    # wget http://ftp.de.debian.org/debian/pool/main/l/lsb/lsb-core_4.1+Debian8+deb7u1_armhf.deb
+    # dpkg -i lsb-core_4.1+Debian8+deb7u1_armhf.deb
+
+    # THIS HAS BEEN FIXED ^^ as of STRETCH
 
 
 
@@ -73,11 +75,9 @@ elif [ "$1" = "install" ]
 
     apt-get -y install nginx
     update-rc.d -f nginx remove
-
     apt-get -y install uwsgi
     apt-get -y install uwsgi-plugin-python
     apt-get -y install php5-fpm
-
     apt-get -y install i2c-tools python-smbus
     apt-get -y install hostapd isc-dhcp-server
     update-rc.d -f isc-dhcp-server remove
@@ -166,7 +166,7 @@ if [ "$2" = "full" -o "$1" = "full" ]
     chmod ug+x /usr/lib/iicontrollibs
 
     mkdir /var/wwwsafe
-    chown -R root:pi /var/wwwsafe
+    chown -R root:www-data /var/wwwsafe
     chmod -R 775 /var/wwwsafe
     chmod ug+x /var/wwwsafe
 
@@ -330,7 +330,7 @@ if [ "$2" = "full" -o "$1" = "full" ]
     cp /usr/lib/iicontrollibs/misc/desktop-items-0.conf /home/pi/.config/pcmanfm/LXDE-pi/
 #
 #    echo "Copying icons"
-    cp /usr/lib/iicontrollibs/misc/updatecupidweblibs.desktop ~/
+    cp /usr/lib/iicontrollibs/misc/icons/* ~/
     echo -e "${WHT}************************************${NC}"
     echo -e "${WHT}******* FINISHED  ADDITIONAL  ******${NC}"
     echo -e "${WHT}*******  INSTALL CONPONENTS  *******${NC}"

@@ -105,7 +105,6 @@ def handle_modify_channel(d, output):
     import pilib
     from iiutilities import dblib
 
-    output['message'] += 'modifychannelalarm keyword found. '
     required_keywords = ['database', 'valuename', 'value', 'channelname']
     if not all(keyword in d for keyword in required_keywords):
         output['message'] += 'Not all required keywords were found: ' + str(required_keywords) + '. '

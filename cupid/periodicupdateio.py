@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import pilib
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -122,61 +123,63 @@ def runperiodicio(**kwargs):
             # print('not found or other error. oops. ')
 
         """
-        Update controlvalues in channels
+        Update process_values in channels
         """
 
         channels = controldb.read_table('channels')
         for channel in channels:
-            # Get controlinput for each channel
+            # Get pv_input for each channel
             channelname = channel['name']
-            controlinput = channel['controlinput']
+            pv_input = channel['pv_input']
 
             # Get the input for the name from inputs info
             # Then get the value and readtime from the input if it
             # can be found
 
-            if controlinput and controlinput not in ['none', 'None']:
+            if pv_input and pv_input not in ['none', 'None']:
 
-                values = controldb.get_values('inputs', ['value', 'polltime'], condition="name='" + controlinput + "'")
-                controlvalue = values['value']
-                controlvalue = values['polltime']
+                values = controldb.get_values('inputs', ['value', 'polltime'], condition="name='" + pv_input + "'")
+                if values:
+                    process_value = values['value']
+                    process_value_time = values['polltime']
 
-                # Only update channel value if value was found
-                # print('CONTROLVALUE: ', controlvalue)
-                if controlvalue or controlvalue == 0:
-                    # print('control value for channel ' + channelname + ' = ' + str(controlvalue))
-                    controldb.set_single_value('channels', 'controlvalue', str(controlvalue), "controlinput='" + controlinput + "'", queue=True)
-                    # pilib.sqlitequery(pilib.dirs.dbs.control, 'update channels set controlvalue=' + str(
-                    #     controlvalue) + ' where controlinput = ' + "'" + controlinput + "'")
-                    controldb.set_single_value('channels', 'controlvaluetime', str(controltime), "controlinput='" + controlinput + "'", queue=True)
-                    # pilib.sqlitequery(pilib.dirs.dbs.control,
-                    #                   'update channels set controlvaluetime=\'' + controltime + '\' where controlinput = ' + "'" + controlinput + "'")
+                    # Only update channel value if value was found
+                    # print('process_value: ', process_value)
+                    if process_value or process_value == 0:
+                        # print('control value for channel ' + channelname + ' = ' + str(process_value))
+                        controldb.set_single_value('channels', 'process_value', str(process_value), "pv_input='" + pv_input + "'", queue=True)
+                        # pilib.sqlitequery(pilib.dirs.dbs.control, 'update channels set process_value=' + str(
+                        #     process_value) + ' where pv_input = ' + "'" + pv_input + "'")
+                        controldb.set_single_value('channels', 'process_value_time', str(process_value_time), "pv_input='" + pv_input + "'", queue=True)
+                        # pilib.sqlitequery(pilib.dirs.dbs.control,
+                        #                   'update channels set process_valuetime=\'' + controltime + '\' where pv_input = ' + "'" + pv_input + "'")
+                else:
+                    print('input not found. ')
 
             else:  # input is empty
-                controldb.set_single_value('channels', 'statusmessage', 'No controlinput found', "name='" + channelname + "'", queue=True)
+                controldb.set_single_value('channels', 'statusmessage', 'No pv_input found', "name='" + channelname + "'", queue=True)
 
                 # disable channel
-                #pilib.sqlitequery(dirs.dbs.control,"update channels set enabled=0 where controlinput = \'" + controlinput + "'")
+                #pilib.sqlitequery(dirs.dbs.control,"update channels set enabled=0 where pv_input = \'" + pv_input + "'")
 
-            if channel['controlsetpoint'] and channel['controlsetpoint'] not in ['none', 'None']:
+            if channel['sv_input'] and channel['sv_input'] not in ['none', 'None']:
 
-                value = controldb.set_single_value('inputs', 'value', "name='" + channel['controlsetpoint'] + "'", queue=True)
+                value = controldb.set_single_value('inputs', 'value', "name='" + channel['sv_input'] + "'", queue=True)
+
+                # Only update channel value if value was found
+                if value or value==0:
+                    # print('control value for channel ' + channelname + ' = ' + str(process_value))
+                    controldb.set_single_value('channels', 'setpoint_value', str(value), "sv_input='" + channel['sv_input'] + "'", queue=True)
+
+            if channel['enabled_input'] and channel['enabled_input'] not in ['none', 'None']:
+
+                value = controldb.set_single_value('inputs', 'value', "name='" + channel['enabled_input'] + "'", queue=True)
 
 
                 # Only update channel value if value was found
                 if value or value==0:
-                    # print('control value for channel ' + channelname + ' = ' + str(controlvalue))
-                    controldb.set_single_value('channels', 'setpointvalue', str(value), "controlsetpoint='" + channel['controlsetpoint'] + "'", queue=True)
-
-            if channel['enabledinput'] and channel['enabledinput'] not in ['none', 'None']:
-
-                value = controldb.set_single_value('inputs', 'value', "name='" + channel['enabledinput'] + "'", queue=True)
-
-
-                # Only update channel value if value was found
-                if value or value==0:
-                    # print('control value for channel ' + channelname + ' = ' + str(controlvalue))
-                    controldb.set_single_value('channels', 'enabled', str(value), "enabledinput='" + channel['enabledinput'] + "'", queue=True)
+                    # print('control value for channel ' + channelname + ' = ' + str(process_value))
+                    controldb.set_single_value('channels', 'enabled', str(value), "enabled_input='" + channel['enabled_input'] + "'", queue=True)
 
         if controldb.queued_queries:
             controldb.execute_queue()
@@ -219,7 +222,8 @@ def runperiodicio(**kwargs):
                 log_db.clean_log(logtablename)
 
                 # Size log based on specified size
-                log_db.size_table(logtablename, logpoints)
+                log_options = datalib.parseoptions(inputrow['log_options'])
+                log_db.size_table(logtablename, **log_options)
             else:
                 pass
                 # print('invalid poll time')
@@ -228,7 +232,7 @@ def runperiodicio(**kwargs):
         log metadata
         """
 
-        dblib.getandsetmetadata(pilib.dirs.dbs.log)
+        pilib.get_and_set_logdb_metadata(pilib.dirs.dbs.log)
 
         if not settings['run_once']:
             utility.log(pilib.dirs.logs.io, 'Sleeping for ' + str(readtime), 1, pilib.loglevels.io)

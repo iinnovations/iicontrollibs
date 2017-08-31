@@ -420,7 +420,7 @@ def updateiodata(**kwargs):
                         enabled_input_name = channel_id + '_run'
 
                         # These values will override anything existing
-                        newchanneldata = {'controlvaluetime': datalib.gettimestring(),
+                        newchanneldata = {'process_value_time': datalib.gettimestring(),
                                           'data':node_entry['data'], 'type': 'remote','id':channel_id,
                                           'sv_input':setpoint_input_name, 'pv_input':control_input_name,
                                           'enabled_input':enabled_input_name, 'name':channel_id}
@@ -438,7 +438,7 @@ def updateiodata(**kwargs):
                             newchanneldata['pending'] = ''
 
                         findentries = ['sv', 'pv', 'prop', 'run']
-                        findentrydictnames = ['setpointvalue', 'controlvalue', 'action', 'enabled']
+                        findentrydictnames = ['setpoint_value', 'process_value', 'action', 'enabled']
 
 
                         # this updates the entries in the channel to be inserted, and also inserts the inputs
@@ -477,12 +477,12 @@ def updateiodata(**kwargs):
                         existingchannels = control_db.read_table('channels')
                         for channel in existingchannels:
                             if channel['id'] == newchannel['id']:
-                                print('updating')
-                                print(channel['id'])
+                                # print('updating')
+                                # print(channel['id'])
                                 newchannel.update(channel)
                                 # print(newchannel)
                         newchannel.update(newchanneldata)
-                        print(newchannel)
+                        # print(newchannel)
                         #
                         # keys = []
                         # values = []
@@ -490,7 +490,7 @@ def updateiodata(**kwargs):
                         #     keys.append(key)
                         #     values.append(value)
                         # control_db.settings['quiet'] = False
-                        control_db.insert('channels',newchannel)
+                        control_db.insert('channels', newchannel)
                         # query = dblib.makesqliteinsert('channels', values, keys)
                         # print(query)
                         # dblib.sqlitequery(pilib.dirs.dbs.control, query)
@@ -1204,6 +1204,9 @@ def processGPIOinterface(control_db, interface, last_data, io_info, defaults, **
 
     querylist = []
     # Append to inputs and update name, even if it's an output (can read status as input)
+    if 'mode' not in options:
+        options['mode'] = 'input'
+
     if options['mode'] == 'output':
         utility.log(pilib.dirs.logs.io, 'Setting output mode for GPIO address' + str(address), 3, pilib.loglevels.io)
         try:

@@ -84,6 +84,8 @@ def application(environ, start_response):
     except KeyError:
         output['message'] = 'no action in request'
         action = ''
+    else:
+        output['message'] += '{} action keyword found'.format(action)
 
     if output['authorized'] and action:
         output['action_allowed'] = pilib.check_action_auths(action, user_data['authlevel'])
@@ -152,9 +154,34 @@ def application(environ, start_response):
 
         elif action == 'modifychannelalarm':
             controllib.handle_modify_channel_alarm(d, output)
+            from cupid.actions import processactions
+
+            # process only this action.
+            processactions(name=d['actionname'])
 
         elif action == 'modifychannel':
             controllib.handle_modify_channel(d, output)
+
+        elif action == 'getalarmscount':
+            control_db = dblib.sqliteDatabase(pilib.dirs.dbs.control)
+            actions = control_db.read_table('actions')
+            output['data'] = {'totalalarms':len(actions),'channelalarms':0, 'activealarms':0, 'activechannelalarms':0}
+            for action in actions:
+                if action['conditiontype'] == 'channel':
+                    output['data']['channelalarms'] += 1
+                    if action['active']:
+                        output['data']['activechannelalarms'] += 1
+
+                if action['active']:
+                    output['data']['activealarms'] += 1
+
+        elif action == 'copy_log_to_archive':
+            pilib.app_copy_log_to_archive(d, output)
+
+        elif action == 'getlogscount':
+            logtablenames = dblib.sqliteDatabase(pilib.dirs.dbs.log).get_table_names()
+            output['data'] = {'logscount':len(logtablenames)}
+
 
         elif action == 'test_action':
             output['message'] += 'Testing action. '
@@ -165,18 +192,17 @@ def application(environ, start_response):
             test_action.test()
 
         elif action == 'update_network':
-            output['message'] += 'Update network keyword found. '
             safe_database = dblib.sqliteDatabase(pilib.dirs.dbs.safe)
             safe_database.set_single_value('wireless', 'password', d['password'], "SSID='" + d['ssid'] + "'")
+
         elif action == 'add_network':
-            output['message'] += 'Add network keyword found. '
             safe_database = dblib.sqliteDatabase(pilib.dirs.dbs.safe)
             insert = {'SSID':d['ssid'], 'auto':1, 'priority':1}
             if 'password' in d:
                 insert['password'] = d['password']
             safe_database.insert('wireless',insert)
+
         elif action == 'delete_network':
-            output['message'] += 'Delete network keyword found. '
             safe_database = dblib.sqliteDatabase(pilib.dirs.dbs.safe)
             safe_database.delete('wireless', "SSID='" + d['ssid'] + "'")
 

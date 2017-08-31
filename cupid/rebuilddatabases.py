@@ -42,14 +42,21 @@ Main control database
 """
 
 
-def rebuild_control_db(tablelist=None, migrate=True):
+def rebuild_control_db(**kwargs):
 
     from iiutilities.dblib import sqlitemultquery
     from iiutilities import dblib
     from cupid.pilib import dirs
 
-    if not tablelist:
-        tablelist = tablenames.control
+    settings = {
+        'tablelist':None,
+        'migrate':True,
+        'data_loss_ok':False
+    }
+    settings.update(kwargs)
+
+    if not settings['tablelist']:
+        settings['tablelist'] = tablenames.control
 
     # Create databases entries or leave them empty?
     addentries = True
@@ -61,7 +68,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
 
     ### Remotes table
     tablename = 'remotes'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name':'nodeid'},
             {'name':'msgtype'},
@@ -70,14 +77,14 @@ def rebuild_control_db(tablelist=None, migrate=True):
             {'name':'data'},
             {'name':'time'}
         ])
-        if migrate:
-            control_database.migrate_table(tablename, schema=schema, queue=True)
+        if settings['migrate']:
+            control_database.migrate_table(tablename, schema=schema, queue=True, data_loss_ok=settings['data_loss_ok'])
         else:
             control_database.create_table(tablename, schema, queue=True)
 
     ### Actions table
     tablename = 'actions'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name': 'actionindex', 'type':'integer','primary':True},
             {'name': 'name', 'unique':True, 'default':'myaction'},
@@ -98,8 +105,8 @@ def rebuild_control_db(tablelist=None, migrate=True):
             {'name': 'lastactiontime'},
             {'name': 'statusmsg','default':'default msg'}
         ])
-        if migrate:
-            control_database.migrate_table(tablename, schema=schema, queue=True)
+        if settings['migrate']:
+            control_database.migrate_table(tablename, schema=schema, queue=True, data_loss_ok=settings['data_loss_ok'])
         else:
             control_database.create_table(tablename, schema, queue=True)
 
@@ -127,14 +134,14 @@ def rebuild_control_db(tablelist=None, migrate=True):
                 #  'enabled': 1},
                 {'actionindex': 5, 'name': 'Voltage monitor', 'actiontype': 'email',
                  'actiondetail': 'info@interfaceinnovations.org', 'conditiontype':'value', 'actionfrequency': 300,
-                 'actiondata': "dbvn:controldb:inputs:value:id='MOTE1_voltage',criterion:3.5,operator:<",'activereset':0,
+                 'actiondata': "dbvn:controldb:inputs:value:id='MOTE1_voltage',criterion:4.0,operator:<",'activereset':0,
                  'enabled': 1},
             ]
             control_database.insert(tablename, entries, queue=True)
 
     ### Indicators table
     tablename = 'indicators'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name':'name','primary':True},
             {'name':'interface'},
@@ -142,8 +149,8 @@ def rebuild_control_db(tablelist=None, migrate=True):
             {'name':'status', 'type':'boolean'},
             {'name':'detail'}
         ])
-        if migrate:
-            control_database.migrate_table(tablename, schema=schema, queue=True)
+        if settings['migrate']:
+            control_database.migrate_table(tablename, schema=schema, queue=True, data_loss_ok=settings['data_loss_ok'])
         else:
             control_database.create_table(tablename, schema, queue=True)
 
@@ -170,13 +177,13 @@ def rebuild_control_db(tablelist=None, migrate=True):
 
     ### Defaults table
     tablename = 'defaults'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name': 'valuename', 'primary': True},
             {'name': 'value'}
         ])
-        if migrate:
-            prev_table = control_database.migrate_table(tablename, schema=schema, queue=True)
+        if settings['migrate']:
+            prev_table = control_database.migrate_table(tablename, schema=schema, queue=True, data_loss_ok=settings['data_loss_ok'])
         else:
             prev_table = []
             control_database.create_table(tablename, schema, queue=True)
@@ -184,7 +191,9 @@ def rebuild_control_db(tablelist=None, migrate=True):
         # Insert only if it does not override existing entries, as reported by migrate (or empty for initialize)
         inserts = [
             {'valuename':'inputpollfreq', 'value':60},
-            {'valuename':'outputpollfreq', 'value':60}
+            {'valuename':'outputpollfreq', 'value':60},
+            {'valuename':'inputs_log_options', 'value':'mode:timespan,size:8,unit:hours'},
+            {'valuename':'channels_log_options', 'value':'mode:timespan,size:8,unit:hours'}
         ]
         for insert in inserts:
             if not any(insert['valuename'] in row['valuename'] for row in prev_table):
@@ -192,7 +201,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
 
     ### Outputs table
     tablename = 'outputs'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name':'id','options':'primary'},
             {'name':'interface'},
@@ -206,33 +215,19 @@ def rebuild_control_db(tablelist=None, migrate=True):
             {'name':'ontime'},
             {'name':'offtime'}
         ])
-        if migrate:
-            prev_table = control_database.migrate_table(tablename, schema=schema, queue=True)
+        if settings['migrate']:
+            prev_table = control_database.migrate_table(tablename, schema=schema, queue=True, data_loss_ok=settings['data_loss_ok'])
         else:
             control_database.create_table(tablename, schema, queue=True)
 
     ### Inputs table
     tablename = 'inputs'
-    if tablename in tablelist:
-        schema = dblib.sqliteTableSchema([
-            {'name': 'id', 'options': 'primary'},
-            {'name': 'interface'},
-            {'name': 'type'},
-            {'name': 'address'},
-            {'name': 'name'},
-            {'name': 'value', 'type': 'real'},
-            {'name': 'unit'},
-            {'name': 'polltime'},
-            {'name': 'pollfreq'},
-            {'name': 'ontime'},
-            {'name': 'offtime'}
-        ])
-        control_database.create_table(tablename, schema, queue=True)
-
+    if tablename in settings['tablelist']:
+        control_database.create_table(tablename, pilib.schema.input, queue=True)
 
     ### OWFS Table
     tablename = 'owfs'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name': 'address', 'options': 'primary'},
             {'name': 'family'},
@@ -244,7 +239,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
 
     ### Inputs Info Table
     tablename = 'ioinfo'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name': 'id', 'primary':True},
             {'name': 'name'},
@@ -273,7 +268,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
 
     ### Interfaces Table
     tablename = 'interfaces'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name': 'id', 'primary':True},
             {'name': 'interface'},
@@ -307,7 +302,6 @@ def rebuild_control_db(tablelist=None, migrate=True):
             control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'16', 'id': 'GPIO16', 'name': 'GPIO 16', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
             control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'20', 'id': 'GPIO20', 'name': 'GPIO 20', 'options':'mode:input,pullupdown:pulldown,function:shutdown,functionstate:true','enabled':1},queue=True),
             control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'21', 'id': 'GPIO21', 'name': 'GPIO 21', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
-            control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'35', 'id': 'GPIO35', 'name': 'Power Monitor','enabled':1},queue=True),
 
     """
     modbustcp Table
@@ -315,7 +309,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
     """
 
     tablename = 'modbustcp'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name': 'interfaceid'},
             {'name': 'register', 'type':'integer'},
@@ -341,7 +335,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
 
     ### LabJack table
     tablename = 'labjack'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name': 'interfaceid'},
             {'name': 'address', 'type': 'integer'},
@@ -355,7 +349,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
 
     ### Controlalgorithms table
     tablename = 'controlalgorithms'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name': 'name', 'primary':True},
             {'name': 'description'},
@@ -382,7 +376,7 @@ def rebuild_control_db(tablelist=None, migrate=True):
 
     ### Algorithmtypes
     tablename = 'algorithmtypes'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name':'name'}
         ])
@@ -393,41 +387,13 @@ def rebuild_control_db(tablelist=None, migrate=True):
 
     ### Channels table
     tablename = 'channels'
-    if tablename in tablelist:
-        schema = dblib.sqliteTableSchema([
-            # {'name': 'channelindex','type':'integer','primary':True},
-            {'name':'name', 'unique':True},
-            {'name':'index', 'type':'integer', 'primary':True},
-            {'name':'type', 'default':'local'},
-            {'name':'id', 'unique':True},
-            {'name':'pv_input','default':'none'},
-            {'name':'sv_input','default':'none'},
-            {'name':'output_input','default':'none'},
-            {'name':'enabled_input','default':'none'},
-            {'name':'enabled','type':'boolean', 'default':0},
-            {'name':'outputsenabled','type':'boolean', 'default':0},
-            {'name':'controlupdatetime'},
-            {'name':'controlalgorithm', 'default':'on/off 1'},
-            {'name':'controlrecipe','default':'none'},
-            {'name':'recipestage','type':'integer', 'default':0},
-            {'name':'recipestarttime'},
-            {'name':'recipestagestarttime'},
-            {'name':'setpointvalue', 'type':'real'},
-            {'name':'controlvalue', 'type':'real'},
-            {'name':'controlvaluetime'},
-            {'name':'positiveoutput'},
-            {'name':'negativeoutput'},
-            {'name':'action','type':'real', 'default':0},
-            {'name':'mode','default':'manual'},
-            {'name':'statusmessage'},
-            {'name':'logpoints', 'type':'real', 'default':100},
-            {'name':'data'},
-            {'name':'dataclasses'},
-            {'name':'pending'}
-        ])
-        if migrate:
+    if tablename in settings['tablelist']:
+        schema = pilib.schema.channel
+
+        if settings['migrate']:
             print('MIGRATING')
-            control_database.migrate_table(tablename, schema=schema)
+            control_database.settings['quiet'] = False
+            control_database.migrate_table(tablename, schema=schema, data_loss_ok=settings['data_loss_ok'])
             addentries = False
         else:
             control_database.create_table(tablename, schema, queue=True)
@@ -442,11 +408,13 @@ def rebuild_control_db(tablelist=None, migrate=True):
             # querylist.append("insert into " + table + " values (3, 'remote', 'HLT', 'none', 0, 0, '', 'on/off 1', 'none',1,0,0,65, '', '', 'none', 'none', 0, 'auto', '', 1000,'', '', '')")
 
     if control_database.queued_queries:
+        print('Executing queue:')
+        print(control_database.queued_queries)
         control_database.execute_queue()
 
     # Check to see everything was created properly. Eventually we can check schema, once we check the schema
     table_names = control_database.get_table_names()
-    for table in tablelist:
+    for table in settings['tablelist']:
         if table not in table_names:
             print(table + ' DOES NOT EXIST')
 
@@ -456,13 +424,20 @@ authlog
 """
 
 
-def rebuild_sessions_db(tablelist=tablenames.sessions, migrate=False):
+def rebuild_sessions_db(**kwargs):
 
     from iiutilities import dblib
     from cupid.pilib import dirs
 
-    if not tablelist:
-        tablelist = tablenames.sessions
+    settings = {
+        'tablelist':tablenames.sessions,
+        'migrate':True,
+        'data_loss_ok':False
+    }
+    settings.update(kwargs)
+
+    if not settings['tablelist']:
+        settings['tablelist'] = tablenames.sessions
 
     session_database = pilib.cupidDatabase(dirs.dbs.session)
     print(session_database.path)
@@ -470,13 +445,13 @@ def rebuild_sessions_db(tablelist=tablenames.sessions, migrate=False):
     ### Session limits
 
     tablename = 'sessionlimits'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name':'username', 'primary':True},
             {'name':'sessionsallowed', 'type':'integer', 'default':5}
         ])
-        if migrate:
-            prev_table = session_database.migrate_table(tablename, schema=schema, queue=True)
+        if settings['migrate']:
+            prev_table = session_database.migrate_table(tablename, schema=schema, queue=True, data_loss_ok=settings['data_loss_ok'])
         else:
             prev_table = []
             session_database.create_table(tablename, schema, queue=True)
@@ -496,14 +471,14 @@ def rebuild_sessions_db(tablelist=tablenames.sessions, migrate=False):
     ### Settings table
 
     tablename = 'settings'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name':'sessionlength', 'type':'real', 'default':600},
             {'name':'sessionlimitsenabled', 'type':'real', 'default':1},
             {'name':'updatefrequency','type':'real'}
         ])
-        if migrate:
-            prev_table = session_database.migrate_table(tablename, schema=schema, queue=True)
+        if settings['migrate']:
+            prev_table = session_database.migrate_table(tablename, schema=schema, queue=True, data_loss_ok=settings['data_loss_ok'])
         else:
             prev_table = []
             session_database.create_table(tablename, schema, queue=True)
@@ -514,7 +489,7 @@ def rebuild_sessions_db(tablelist=tablenames.sessions, migrate=False):
     ### Session table
 
     tablename = 'sessions'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name':'username'},
             {'name':'sessionid'},
@@ -523,28 +498,28 @@ def rebuild_sessions_db(tablelist=tablenames.sessions, migrate=False):
             {'name':'appip'},
             {'name':'realip'}
         ])
-        if migrate:
-            prev_table = session_database.migrate_table(tablename, schema=schema, queue=True)
+        if settings['migrate']:
+            prev_table = session_database.migrate_table(tablename, schema=schema, queue=True, data_loss_ok=settings['data_loss_ok'])
         else:
             session_database.create_table(tablename, schema, queue=True)
 
     ### Sessions summary
 
     tablename = 'sessionsummary'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name':'username', 'primary':True},
             {'name':'sessionsactive', 'type':'real'}
         ])
-        if migrate:
-            prev_table = session_database.migrate_table(tablename, schema=schema, queue=True)
+        if settings['migrate']:
+            prev_table = session_database.migrate_table(tablename, schema=schema, queue=True, data_loss_ok=settings['data_loss_ok'])
         else:
             session_database.create_table(tablename, schema, queue=True)
 
     ### Session log
 
     tablename = 'sessionlog'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name':'username'},
             {'name':'sessionid'},
@@ -553,8 +528,8 @@ def rebuild_sessions_db(tablelist=tablenames.sessions, migrate=False):
             {'name':'apparentIP'},
             {'name':'realIP'}
         ])
-        if migrate:
-            prev_table = session_database.migrate_table(tablename, schema=schema, queue=True)
+        if settings['migrate']:
+            prev_table = session_database.migrate_table(tablename, schema=schema, queue=True, data_loss_ok=settings['data_loss_ok'])
         else:
             session_database.create_table(tablename, schema, queue=True)
 
@@ -566,16 +541,23 @@ System control and information
 """
 
 
-def rebuild_system_db(tablelist):
+def rebuild_system_db(**kwargs):
     from iiutilities import dblib
     from cupid.pilib import dirs
 
+    settings = {
+        'tablelist': tablenames.sessions,
+        'migrate': True,
+        'data_loss_ok': False
+    }
+    settings.update(kwargs)
+
     system_database = pilib.cupidDatabase(dirs.dbs.system)
-    if not tablelist:
-        tablelist = tablenames.system
+    if not settings['tablelist']:
+        settings['tablelist'] = tablenames.system
 
     tablename = 'netstatus'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name':'WANaccess', 'type':'boolean', 'default':0},
             {'name':'WANaccessrestarts', 'type':'integer', 'default':0},
@@ -595,7 +577,7 @@ def rebuild_system_db(tablelist):
         system_database.insert_defaults(tablename, queue=True)
 
     tablename = 'wirelessnetworks'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name':'SSID', 'primary':True},
             {'name':'strength'},
@@ -604,7 +586,7 @@ def rebuild_system_db(tablelist):
         system_database.create_table(tablename, schema, queue=True)
 
     tablename = 'netconfig'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name': 'requireWANaccess', 'type':'integer', 'default':1},
             {'name': 'WANretrytime', 'type':'integer', 'default':30},
@@ -632,7 +614,7 @@ def rebuild_system_db(tablelist):
         system_database.insert_defaults(tablename, queue=True)
 
     tablename = 'systemflags'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name': 'name'},
             {'name': 'value', 'type': 'boolean', 'default': 0}
@@ -646,7 +628,7 @@ def rebuild_system_db(tablelist):
         ], queue=True)
 
     tablename = 'metadata'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name':'name'},
             {'name':'value'}
@@ -658,7 +640,7 @@ def rebuild_system_db(tablelist):
         ], queue=True)
 
     tablename = 'systemstatus'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name': 'systemstatusenabled', 'type': 'boolean', 'default': 1},
             {'name': 'systemstatusstatus', 'type': 'boolean', 'default': 0},
@@ -697,7 +679,7 @@ def rebuild_system_db(tablelist):
         system_database.insert_defaults(tablename, queue=True)
 
     tablename = 'logconfig'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name': 'network', 'type':'integer', 'default':4},
             {'name': 'io', 'type':'integer', 'default':4},
@@ -714,7 +696,7 @@ def rebuild_system_db(tablelist):
         system_database.insert_defaults(tablename, queue=True)
 
     tablename = 'notifications'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name': 'item'},
             {'name': 'enabled', 'type':'boolean', 'default':0},
@@ -728,7 +710,7 @@ def rebuild_system_db(tablelist):
         ], queue=True)
 
     tablename = 'uisettings'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name':'setting'},
             {'name':'group'},
@@ -743,7 +725,7 @@ def rebuild_system_db(tablelist):
         ], queue=True)
 
     tablename = 'versions'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name':'item', 'primary':True},
             {'name': 'version'},
@@ -758,26 +740,10 @@ def rebuild_system_db(tablelist):
 
     # Check to see everything was created properly. Eventually we can check schema, once we check the schema
     table_names = system_database.get_table_names()
-    for table in tablelist:
+    for table in settings['tablelist']:
         if table not in table_names:
             print(table + ' DOES NOT EXIST')
 
-"""
-logsettings
-"""
-
-
-def rebuild_log_settings_db():
-    from iiutilities.dblib import sqlitemultquery
-    from cupid.pilib import dirs
-
-    querylist = []
-    table = 'logsettings'
-    querylist.append('drop table if exists ' + table)
-    querylist.append(
-        "create table " + table + " ( item text primary key,  value text)")
-    querylist.append("insert into " + table + " values ( 'defaultlogpoints', '1000')")
-    sqlitemultquery(dirs.dbs.log, querylist)
 
 
 """
@@ -785,13 +751,17 @@ recipesdata
 """
 
 
-def rebuild_recipes_db(tabledict):
+def rebuild_recipes_db(**kwargs):
     from iiutilities  import dblib
     from cupid.pilib import dirs
 
     recipes_db = pilib.cupidDatabase(dirs.dbs.recipe)
 
-    if 'recipes' in tabledict:
+    settings = {
+        'tablelist':['recipes']
+    }
+    settings.update(kwargs)
+    if 'recipes' in settings['tablelist']:
         tablename = 'stdreflow'
         recipes_db.drop_table(tablename, queue=True)
         table_schema = dblib.sqliteTableSchema([
@@ -815,30 +785,37 @@ Notifications (mail, IFFFT, etc) data
 """
 
 
-def rebuild_notifications_db(tablelist=None, migrate=True):
+def rebuild_notifications_db(**kwargs):
     from iiutilities import dblib
     from cupid.pilib import dirs
 
-    if not tablelist:
-        tablelist = tablenames.notifications
+    settings = {
+        'tablelist': tablenames.sessions,
+        'migrate': True,
+        'data_loss_ok': False
+    }
+    settings.update(kwargs)
+
+    if not settings['tablelist']:
+        settings['tablelist'] = tablenames.notifications
 
     notifications_database = pilib.cupidDatabase(dirs.dbs.notifications)
 
     tablename = 'queued'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name':'queuedtime','primary':True},
             {'name':'type','default':'email'},
             {'name':'message'},
             {'name':'options'},
         ])
-        if migrate:
-            notifications_database.migrate_table(tablename, schema, queue=True)
+        if settings['migrate']:
+            notifications_database.migrate_table(tablename, schema, queue=True, data_loss_ok=settings['data_loss_ok'])
         else:
             notifications_database.create_table(tablename, schema, queue=True)
 
     tablename = 'sent'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name':'queuedtime','primary':True},
             {'name':'senttime'},
@@ -846,8 +823,8 @@ def rebuild_notifications_db(tablelist=None, migrate=True):
             {'name':'message'},
             {'name':'options'}
         ])
-        if migrate:
-            notifications_database.migrate_table(tablename, schema, queue=True)
+        if settings['migrate']:
+            notifications_database.migrate_table(tablename, schema, queue=True, data_loss_ok=settings['data_loss_ok'])
         else:
             notifications_database.create_table(tablename, schema, queue=True)
 
@@ -857,7 +834,7 @@ def rebuild_notifications_db(tablelist=None, migrate=True):
 
     # Check to see everything was created properly. Eventually we can check schema, once we check the schema
     table_names = notifications_database.get_table_names()
-    for table in tablelist:
+    for table in settings['tablelist']:
         if table not in table_names:
             print(table + ' DOES NOT EXIST')
 
@@ -865,14 +842,21 @@ def rebuild_notifications_db(tablelist=None, migrate=True):
 Motes raw data
 """
 
-def rebuild_motes_db(tablelist):
+def rebuild_motes_db(**kwargs):
     from cupid.pilib import dirs
     from iiutilities import dblib
+
+    settings = {
+        'tablelist': tablenames.sessions,
+        'migrate': True,
+        'data_loss_ok': False
+    }
+    settings.update(kwargs)
 
     motes_database = pilib.cupidDatabase(dirs.dbs.motes)
 
     tablename = 'read'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name': 'time', 'primary':True},
             {'name': 'message'}
@@ -880,7 +864,7 @@ def rebuild_motes_db(tablelist):
         motes_database.create_table(tablename, schema, queue=True)
 
     tablename = 'queued'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name': 'queuedtime', 'primary': True},
             {'name': 'message'}
@@ -888,7 +872,7 @@ def rebuild_motes_db(tablelist):
         motes_database.create_table(tablename, schema, queue=True)
 
     tablename = 'sent'
-    if tablename in tablelist:
+    if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
             {'name': 'queuedtime', 'primary': True},
             {'name': 'senttime'},
@@ -1019,8 +1003,8 @@ def rebuild_api_data():
 def rebuild_data_agent():
     # We have a system data_agent table so that we can write to it without locking the io db.
     
-    data_agent_schema
-    
+    # data_agent_schema
+    pass
     
 def maketruetabledict(namelist):
     truetabledict = {}
@@ -1044,32 +1028,29 @@ if __name__ == "__main__":
         setdefaultapsettings()
         rebuild_users_data('defaults')
 
-        rebuild_control_db(tablenames.control)
-        rebuild_system_db(tablenames.system)
-        rebuild_motes_db(tablenames.motes)
-        rebuild_notifications_db(tablenames.notifications)
-        rebuild_recipes_db(tablenames.recipes)
-        rebuild_sessions_db(tablenames.sessions)
-        rebuild_log_settings_db(tablenames.logsettings)
+        rebuild_control_db(tablelist=tablenames.control)
+        rebuild_system_db(tablelist=tablenames.system)
+        rebuild_motes_db(tablelist=tablenames.motes)
+        rebuild_notifications_db(tablelist=tablenames.notifications)
+        rebuild_recipes_db()
+        rebuild_sessions_db(tablelist=tablenames.sessions)
 
     elif len(sys.argv) > 1:
         if sys.argv[1] in tablenames.control:
             print('running rebuild control tables for ' + sys.argv[1])
-            rebuild_control_db([sys.argv[1]])
+            rebuild_control_db(tablelist=[sys.argv[1]])
         elif sys.argv[1] in tablenames.system:
             print('running rebuild system tables for ' + sys.argv[1])
-            rebuild_system_db([sys.argv[1]])
+            rebuild_system_db(tablelist=[sys.argv[1]])
         elif sys.argv[1] in tablenames.motes:
             print('running rebuild motes tables for ' + sys.argv[1])
-            rebuild_motes_db([sys.argv[1]])
+            rebuild_motes_db(tablelist=[sys.argv[1]])
         elif sys.argv[1] in ['notifications', 'Notifications']:
             print('running rebuilding notifications table')
             rebuild_notifications_db()
         elif sys.argv[1] in ['wirelessdata']:
             print('running rebuild wireless safedata')
             rebuild_wireless_data()
-        elif sys.argv[1] in ['logsettings']:
-            rebuild_log_settings_db()
         elif sys.argv[1] in ['users']:
             rebuild_users_data('defaults')
 

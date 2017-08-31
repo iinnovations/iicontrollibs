@@ -36,6 +36,7 @@ Answer:     Only things which may need to be changed at run-time by the user/adm
 """
 
 from iiutilities.utility import Bunch
+from iiutilities import dblib
 
 dirs = Bunch()
 
@@ -75,6 +76,24 @@ dirs.logs.daemonproc = dirs.log + 'daemonproc.log'
 dirs.logs.error = dirs.log + 'error.log'
 dirs.logs.db = dirs.log + 'db.log'
 
+dbs = Bunch()
+
+class cupidDatabase(dblib.sqliteDatabase):
+
+    def __init__(self, *args, **kwargs):
+        settings = {
+            'log_errors':True,
+            'log_path':dirs.logs.db,
+            'quiet':True
+        }
+        settings.update(kwargs)
+
+        # This calls the parent init
+        super(cupidDatabase, self).__init__(*args, **settings)
+
+for db_item in dirs.__dict__:
+    setattr(dirs.dbs, 'db_path', cupidDatabase(getattr(dirs, db_item)))
+
 salt = 'a bunch of random characters and symbols for security'
 
 maxlogsize = 1024  # kB
@@ -94,8 +113,6 @@ loglevels.notifications = 5
 
 daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py', 'mote/serialhandler.py']
 daemonprocnames = ['updateio', 'picontrol', 'systemstatus', 'sessioncontrol', 'serialhandler']
-
-from iiutilities import dblib
 
 schema = Bunch()
 schema.channel = dblib.sqliteTableSchema([
@@ -197,18 +214,26 @@ Utility Functions
 # This is a subclass to set default pilib logging options.
 
 
-class cupidDatabase(dblib.sqliteDatabase):
+def updateiicontrollibs(stash=False):
+    from iiutilities.gitupdatelib import stashrepo, pullrepo, updaterepoversion
+    repodirectory = dirs.baselib
+    originname = 'master'
+    if stash:
+        stashrepo(repodirectory, originname)
+    pullrepo(repodirectory, originname)
+    updaterepoversion(repodirectory)
+    print('update complete')
 
-    def __init__(self, *args, **kwargs):
-        settings = {
-            'log_errors':True,
-            'log_path':dirs.logs.db,
-            'quiet':True
-        }
-        settings.update(kwargs)
 
-        # This calls the parent init
-        super(cupidDatabase, self).__init__(*args, **settings)
+def updatecupidweblib(stash=False):
+    from iiutilities.gitupdatelib import stashrepo, pullrepo, updaterepoversion
+    repodirectory = dirs.web
+    originname = 'master'
+    if stash:
+        stashrepo(repodirectory,originname)
+    pullrepo(repodirectory, originname)
+    updaterepoversion(repodirectory)
+    print('update complete')
 
 
 def table_name_to_type(tablename):
@@ -710,7 +735,7 @@ def setsinglecontrolvalue(database, table, valuename, value, condition=None):
                     utility.log(dirs.logs.control, "Processing remote setpoint for channel " + channelname, 1, loglevels.io)
 
                     # Then go to the interfaces table to get the node and channel addresses
-                    address = dblib.getsinglevalue(dirs.dbs.control, 'interfaces', 'address', "name='" + channelname + "'")
+                    address = dblib.getsinglevalue(dirs.dbs.control, 'interfaces', 'address', condition ="name='" + channelname + "'")
                     utility.log(dirs.logs.control, "Channel has address " + address, 1, loglevels.io)
 
                     node = address.split(':')[0]
@@ -734,7 +759,7 @@ def setsinglecontrolvalue(database, table, valuename, value, condition=None):
                 # get existing pending entry
                 pendingvaluelist = []
 
-                pendingentry = dblib.getsinglevalue(database, table, 'pending', condition)
+                pendingentry = dblib.getsinglevalue(database, table, 'pending', condition=condition)
                 if pendingentry:
                     try:
                         pendingvaluelist = pendingentry.split(',')
@@ -757,7 +782,7 @@ def setsinglecontrolvalue(database, table, valuename, value, condition=None):
     return response
 
 
-def set_all_wal():
+def set_all_wal(wal=True):
     db_paths = [
         dirs.dbs.control,
         dirs.dbs.log,
@@ -771,10 +796,9 @@ def set_all_wal():
         dirs.dbs.safe,
         dirs.dbs.users
     ]
-    from iiutilities import dblib
     for db_path in db_paths:
         database = cupidDatabase(db_path)
-        database.set_wal_mode()
+        database.set_wal_mode(wal)
 
 
 def reload_log_config(**kwargs):

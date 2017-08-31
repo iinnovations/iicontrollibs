@@ -92,7 +92,7 @@ def setdefaultapsettings():
         networkname = 'cupidwifi'
         networkpassword = 'cupidpassword'
     else:
-        networkname = 'cupid' + hostname
+        networkname = 'cupid_' + hostname
         networkpassword = hostname + '_pwd'
 
     rebuild_ap_data(SSID=networkname, password=networkpassword)
