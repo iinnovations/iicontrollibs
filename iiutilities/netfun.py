@@ -338,7 +338,7 @@ def restart_uwsgi(directory='/usr/lib/iicontrollibs/uwsgi', quiet=True, killall=
     commandlist = ['/usr/bin/uwsgi', '--emperor', directory, '--daemonize', '/var/log/uwsgi.log']
     # print(commandlist)
 
-    subprocess.call(commandlist)
+    # subprocess.call(commandlist)
     if quiet:
         DEVNULL = open(os.devnull, 'wb')
         result = subprocess.Popen(commandlist, stdout=subprocess.PIPE, stderr=DEVNULL)
