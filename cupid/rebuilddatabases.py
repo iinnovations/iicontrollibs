@@ -596,9 +596,9 @@ def rebuild_system_db(**kwargs):
             {'name': 'aprevert'},
             {'name': 'addtype', 'default':'dhcp'},
             {'name': 'address', 'default':'192.168.1.30'},
-            {'name': 'gateway', 'default':'192.168.0.1'},
-            {'name': 'dhcpstart', 'default':'192.168.0.70'},
-            {'name': 'dhcpend', 'default':'192.168.0.99'},
+            {'name': 'gateway', 'default':'192.168.8.1'},
+            {'name': 'dhcpstart', 'default':'192.168.8.70'},
+            {'name': 'dhcpend', 'default':'192.168.8.99'},
             {'name': 'apreverttime', 'type':'integer','default':60},
             {'name': 'stationretrytime', 'type':'integer','default':300},
             {'name': 'laststationretry'},
@@ -698,15 +698,16 @@ def rebuild_system_db(**kwargs):
     tablename = 'notifications'
     if tablename in settings['tablelist']:
         schema = dblib.sqliteTableSchema([
-            {'name': 'item'},
+            {'name': 'item', 'primary':True},
             {'name': 'enabled', 'type':'boolean', 'default':0},
             {'name': 'options'},
             {'name': 'lastnotification'}
             ])
         system_database.create_table(tablename, schema, queue=True)
         system_database.insert(tablename, [
-            {'item':'unittests', 'enabled':1, 'options':'type:email,email:notifications@interfaceinnovations.org,frequency:600'},
-            {'item':'daemonkillproc', 'enabled':1, 'options':'type:email,email:notifications@interfaceinnovations.org,frequency:600'}
+            {'item':'unittests', 'enabled':1, 'options':'type:email,email:cupid_status@interfaceinnovations.org,frequency:600'},
+            {'item':'daemonkillproc', 'enabled':1, 'options':'type:email,email:cupid_status@interfaceinnovations.org,frequency:600'},
+            {'item':'boot', 'enabled':1, 'options':'type:email,email:cupid_status@interfaceinnovations.org,frequency:600'}
         ], queue=True)
 
     tablename = 'uisettings'

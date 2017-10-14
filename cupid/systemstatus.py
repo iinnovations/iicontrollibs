@@ -929,7 +929,7 @@ def runsystemstatus(**kwargs):
     while systemstatus['systemstatusenabled']:
 
         # Run notifications
-        pilib.processnotificationsqueue()
+        pilib.process_notifications_queue()
 
         currenttime = datalib.gettimestring()
         dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'lastsystemstatuspoll', datalib.gettimestring())

@@ -43,17 +43,18 @@ def get_client_tables(clientid='testclient', **kwargs):
     return {'results':results, 'tablenames':tablenames}
 
 
-def post_client_data(clientid='testclient', **kwargs):
+def post_client_data(**kwargs):
 
     from iiutilities.netfun import post_data
+
     json_headers = {'content-type': 'application/json'}
 
     settings = {
-        'id':'testclient',
+        'client_id':'test_client',
         'key':'demo',
         'url':'https://cupidcontrol.com/cupidapi',
         'action':'post_data',
-        'header_type':'json'
+        'header_type':'json',
     }
     settings.update(kwargs)
 
@@ -62,10 +63,10 @@ def post_client_data(clientid='testclient', **kwargs):
         return None
 
     data_dict = {
-        'id': settings['id'],
+        # 'id': settings['id'],
         'key': settings['key'],
         'action':settings['action'],
-        'post_clientid': clientid,
+        'post_client_id': settings['client_id'],
         'post_data':settings['post_data']
     }
     results = post_data(settings['url'], data_dict, headers=json_headers)
@@ -74,3 +75,12 @@ def post_client_data(clientid='testclient', **kwargs):
         tablenames = results['tablenames']
     return {'results':results, 'tablenames':tablenames}
 
+
+def test_post_client_data():
+    from iiutilities.datalib import gettimestring
+    from decimal import Decimal
+    data = {
+        'time':gettimestring(),
+        'value':Decimal(99)
+    }
+    post_client_data(**{'post_data':data})

@@ -22,7 +22,8 @@ elif [ "$1" = "install" ]
     # This is done with raspi-config now, but this won't hurt
     # /bin/sed -ie 's/enable_uart=0/enable_uart=1/g' /boot/config.txt
 
-    apt-get update
+    apt-get -y update
+    apt-get -y upgrade
     apt-get -y install git
     apt-get -y remove --purge wolfram-engine
     apt-get -y autoremove
@@ -75,6 +76,7 @@ elif [ "$1" = "install" ]
 
     apt-get -y install nginx
     update-rc.d -f nginx remove
+    update-rc.d -f dhcpd remove
     apt-get -y install uwsgi
     apt-get -y install uwsgi-plugin-python
     apt-get -y install php5-fpm
@@ -108,13 +110,22 @@ elif [ "$1" = "install" ]
     fi
     echo "owfs complete"
 
+    echo "installing asteval"
+    pip install asteval
+
+    echo -e "${WHT}************************************${NC}"
+    echo -e "${WHT}*****   STD  INSTALL  COMPLETE *****${NC}"
+    echo -e "${WHT}************************************${NC}"
+
+
+elif [ "$1" = "maxtc" ]
+  then
     echo "installing MAX31855 library"
     cd /usr/lib/iicontrollibs/resource/Adafruit_Python_MAX31855-master
     python setup.py install
 
-    echo "installing asteval"
-    pip install asteval
-
+elif [ "$1" = "spi" ]
+  then
     echo "installing spi-dev"
     wget https://github.com/Gadgetoid/py-spidev/archive/master.zip
     unzip master.zip
@@ -123,10 +134,6 @@ elif [ "$1" = "install" ]
     sudo python setup.py install
     cd ..
     rm -R py-spidev-master
-
-    echo -e "${WHT}************************************${NC}"
-    echo -e "${WHT}*****   STD  INSTALL  COMPLETE *****${NC}"
-    echo -e "${WHT}************************************${NC}"
 
 elif [ "$1" = "camera" ]
   then
@@ -199,6 +206,19 @@ if [ "$2" = "full" -o "$1" = "full" ]
       echo "AllowGroups sshers" >> /etc/ssh/sshd_config
     fi
     echo "sshd configuration complete"
+
+    echo "Disabling iface names"
+    testresult=$(grep -c 'net.ifnames=0' /boot/cmdline.txt)
+    if [ ${testresult} -ne 0 ]
+      then
+        echo "ifacenames already disabled"
+    else
+       cp /boot/cmdline.txt /boot/cmdline.txt.bak
+       echo -n 'net.ifnames=0 ' | cat - /boot/cmdline.txt.bak > /boot/cmdline.txt
+    fi
+    echo "sshd configuration complete"
+
+
 
     echo "Initializing web library repo"
     cd /var/www

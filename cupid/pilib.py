@@ -304,12 +304,12 @@ def processnotification(notification):
                 else:
                     result['status'] = 0
         else:
-            utility.log(dirs.logs.notifications, 'WAN access does not appear to be ok. Status is: ' + str(pingstatus['status']))
+            utility.log(dirs.logs.notifications, 'WAN access does not appear to be ok. Status is: ' + str(pingresult['status']))
 
     return result
 
 
-def processnotificationsqueue():
+def process_notifications_queue():
     from iiutilities import dblib
     from iiutilities.utility import log
 

@@ -98,6 +98,7 @@ partsaliases = {
 
         '1p5TC8inTWRTD_20ft':{'partid':'S003', 'pclass':'parts','psubclass':'sensors'},
         'plainrtd':{'partid':'S001', 'pclass':'parts','psubclass':'sensors'},
+        'rtdwithhead':{'partid':'S004', 'pclass':'parts','psubclass':'sensors'},
         'opticallevelsensor':{'partid':'S012', 'pclass':'parts','psubclass':'sensors'},
         'tuningforklevelsensor':{'partid':'S011', 'pclass':'parts','psubclass':'sensors'},
         'mechanicallevelsensor':{'partid':'S013', 'pclass':'parts','psubclass':'sensors'},

@@ -28,7 +28,7 @@ def runboot():
     from iiutilities import utility, dblib, datalib
 
     try:
-        pilib.set_all_wal()
+        pilib.set_all_wal(False)
     except:
         print('error setting wal mode')
 
@@ -58,7 +58,7 @@ def runboot():
                                  {'type': 'email', 'message': message,
                                   'options': 'email:' + notifications_email + ',subject:' + subject,
                                   'queuedtime': currenttime})
-    system_database.set_single_value('notifications', 'lastnotification', currenttime, "item='boot'")
+    system_database.set_single_value('notifications', 'lastnotification', currenttime, condition="item='boot'")
 
     # except Exception as e:
     #     error_message = 'EXCEPTION in notification: {}'.format(e.message)

@@ -156,12 +156,13 @@ class sqliteDatabase(object):
         return gettablesize(self.path, tablename, **self.settings)
 
     def read_table(self, tablename, **kwargs):
+        self.settings['condition'] = None
         self.settings.update(kwargs)
         dbrows = readalldbrows(self.path, tablename, **self.settings)
         return dbrows
 
     def read_database(self, **kwargs):
-        kwargs.update(self.settings)
+        self.settings.update(kwargs)
         all_data = {}
         for tablename in self.get_table_names():
             all_data[tablename] = self.read_table(tablename, **self.settings)
@@ -884,7 +885,7 @@ def sqliteinsertsingle(database, table, valuelist, valuenames=None, replace=True
 
 def sqlitemultquery(database, querylist, **kwargs):
     import sqlite3 as lite
-    settings = {'break_on_error': False, 'quiet': False, 'timeout': 2}
+    settings = {'break_on_error': False, 'quiet': False, 'timeout': 10}
     settings.update(kwargs)
 
     # if not settings['quiet']:
@@ -931,14 +932,13 @@ def sqlitemultquery(database, querylist, **kwargs):
         con.commit()
         # con.close()
 
-
     return {'data':data, 'messages':messages,'status':status, 'statuses':statuses}
 
 
 def sqlitequery(database, query, **kwargs):
     import sqlite3 as lite
 
-    settings = {'timeout':2, 'quiet':False}
+    settings = {'timeout':10, 'quiet':False}
     settings.update(kwargs)
 
     # if not settings['quiet']:
