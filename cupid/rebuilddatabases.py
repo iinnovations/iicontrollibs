@@ -20,6 +20,7 @@ if top_folder not in sys.path:
 
 from iiutilities.utility import Bunch
 from cupid import pilib
+import simplejson as json
 
 tablenames = Bunch()
 
@@ -27,7 +28,7 @@ tablenames.control = ['actions', 'modbustcp', 'labjack', 'defaults', 'indicators
                    'interfaces',
                    'controlalgorithms', 'algorithmtypes', 'channels', 'remotes']
 tablenames.system = ['systemstatus', 'logconfig', 'metadata', 'netconfig', 'netstatus', 'wirelessnetworks', 'versions',
-                  'systemflags', 'uisettings', 'notifications']
+                  'systemflags', 'uisettings', 'notifications', 'dataagent']
 tablenames.motes = ['read', 'queued', 'sent']
 tablenames.safe = ['wirelessdata', 'apdata']
 tablenames.notifications = ['queued', 'sent']
@@ -302,6 +303,7 @@ def rebuild_control_db(**kwargs):
             control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'16', 'id': 'GPIO16', 'name': 'GPIO 16', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
             control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'20', 'id': 'GPIO20', 'name': 'GPIO 20', 'options':'mode:input,pullupdown:pulldown,function:shutdown,functionstate:true','enabled':1},queue=True),
             control_database.insert(tablename, {'interface': 'GPIO', 'type': 'GPIO','address':'21', 'id': 'GPIO21', 'name': 'GPIO 21', 'options':'mode:input,pullupdown:pullup','enabled':1},queue=True),
+            control_database.insert(tablename, {'interface': 'MOTE', 'type': 'MOTE','address':'1', 'id': '', 'name': 'Gateway Mote', 'enabled':1},queue=True),
 
     """
     modbustcp Table
@@ -709,6 +711,23 @@ def rebuild_system_db(**kwargs):
             {'item':'daemonkillproc', 'enabled':1, 'options':'type:email,email:cupid_status@interfaceinnovations.org,frequency:600'},
             {'item':'boot', 'enabled':1, 'options':'type:email,email:cupid_status@interfaceinnovations.org,frequency:600'}
         ], queue=True)
+
+    ### Data Agent table
+    tablename = 'dataagent'
+    if tablename in settings['tablelist']:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'id', 'primary': True},
+            {'name': 'last_transmit'},
+            {'name': 'options'}
+        ])
+        if settings['migrate']:
+            system_database.migrate_table(tablename, schema=schema, queue=True,
+                                           data_loss_ok=settings['data_loss_ok'])
+        else:
+            system_database.create_table(tablename, schema, queue=True)
+
+        system_database.insert('dataagent', {'id':'MOTE1_vbat', 'last_transmit':'', 'options':json.dumps({'transmit_frequency':60})}, queue=True)
+        system_database.insert('dataagent', {'id':'MOTE1_vout', 'last_transmit':'', 'options':json.dumps({'transmit_frequency':60})}, queue=True)
 
     tablename = 'uisettings'
     if tablename in settings['tablelist']:

@@ -182,7 +182,7 @@ def updateiodata(**kwargs):
             condition = '"interface"=\'' + interface['interface'] + '\' and "type"=\'' + interface['type'] + '\' and "address"=\'' + interface['address'] + '\''
 
             # print(condition)
-            dblib.setsinglevalue(pilib.dirs.dbs.control, 'interfaces', 'id', entryid, condition)
+            dblib.setsinglevalue(pilib.dirs.dbs.control, 'interfaces', 'id', entryid, condition=condition)
 
             # Does this entry already exist in inputs?
             prev_meta = get_or_insert_iface_metadata(entryid, io_info, control_db)
@@ -338,7 +338,7 @@ def updateiodata(**kwargs):
 
             # print(condition)
             # Immediately?
-            control_db.set_single_value('interfaces', 'id', entryid, condition)
+            control_db.set_single_value('interfaces', 'id', entryid, condition=condition)
 
             utility.log(pilib.dirs.logs.io, 'Processing Mote interface ' + interface['name'] + ', id:' + entryid, 3,
                         pilib.loglevels.io)

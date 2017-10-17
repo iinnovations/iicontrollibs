@@ -91,8 +91,8 @@ class cupidDatabase(dblib.sqliteDatabase):
         # This calls the parent init
         super(cupidDatabase, self).__init__(*args, **settings)
 
-for db_item in dirs.__dict__:
-    setattr(dirs.dbs, 'db_path', cupidDatabase(getattr(dirs, db_item)))
+for db_name in dirs.dbs.__dict__:
+    setattr(dbs, db_name, cupidDatabase(getattr(dirs.dbs, db_name)))
 
 salt = 'a bunch of random characters and symbols for security'
 

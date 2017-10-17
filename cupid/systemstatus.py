@@ -886,6 +886,7 @@ def runsystemstatus(**kwargs):
     from iiutilities import dblib
     from iiutilities import datalib
     from iiutilities import gitupdatelib
+    from iiutilities import data_agent
 
     if 'debug' in kwargs and kwargs['debug']:
         print('DEBUG MODE')
@@ -930,6 +931,14 @@ def runsystemstatus(**kwargs):
 
         # Run notifications
         pilib.process_notifications_queue()
+
+        try:
+            data_agent.run_data_agent()
+        except:
+            utility.log(pilib.dirs.logs.system, 'Error running data agent. ', 1, pilib.loglevels.network)
+        else:
+            utility.log(pilib.dirs.logs.system, 'Data agent run successfully. ', 3, pilib.loglevels.network)
+
 
         currenttime = datalib.gettimestring()
         dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'lastsystemstatuspoll', datalib.gettimestring())
