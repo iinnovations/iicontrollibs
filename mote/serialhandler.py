@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -188,7 +188,7 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
                                 except Exception as e:
                                     template = "An exception of type {0} occured (line 142). Arguments:\n{1!r}"
                                     message = template.format(type(ex).__name__, ex.args)
-                                    print message
+                                    print(message)
 
                 else:
                     # no data, let's see if we should send message
@@ -212,7 +212,7 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
                 except Exception as e:
                     template = "An exception of type {0} occured in runsendhandler (line 142). Arguments:\n{1!r}"
                     message = template.format(type(ex).__name__, ex.args)
-                    print message
+                    print(message)
                     utility.log(pilib.dirs.logs.serial, "Error in send routine: " + message, 1, 1)
                 # print('SEND HANDLER DONE')
 

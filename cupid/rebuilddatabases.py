@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -438,9 +438,6 @@ def rebuild_sessions_db(**kwargs):
     }
     settings.update(kwargs)
 
-    if not settings['tablelist']:
-        settings['tablelist'] = tablenames.sessions
-
     session_database = pilib.cupidDatabase(dirs.dbs.session)
     print(session_database.path)
 
@@ -712,22 +709,7 @@ def rebuild_system_db(**kwargs):
             {'item':'boot', 'enabled':1, 'options':'type:email,email:cupid_status@interfaceinnovations.org,frequency:600'}
         ], queue=True)
 
-    ### Data Agent table
-    tablename = 'dataagent'
-    if tablename in settings['tablelist']:
-        schema = dblib.sqliteTableSchema([
-            {'name': 'id', 'primary': True},
-            {'name': 'last_transmit'},
-            {'name': 'options'}
-        ])
-        if settings['migrate']:
-            system_database.migrate_table(tablename, schema=schema, queue=True,
-                                           data_loss_ok=settings['data_loss_ok'])
-        else:
-            system_database.create_table(tablename, schema, queue=True)
 
-        system_database.insert('dataagent', {'id':'MOTE1_vbat', 'last_transmit':'', 'options':json.dumps({'transmit_frequency':60})}, queue=True)
-        system_database.insert('dataagent', {'id':'MOTE1_vout', 'last_transmit':'', 'options':json.dumps({'transmit_frequency':60})}, queue=True)
 
     tablename = 'uisettings'
     if tablename in settings['tablelist']:

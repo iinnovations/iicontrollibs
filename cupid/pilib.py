@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -47,6 +47,7 @@ dirs.onewire = '/var/1wire/'
 dirs.output = dirs.web + 'data/'
 dirs.log = '/var/log/cupid/'
 dirs.archive = dirs.database + 'archive/'
+dirs.safe = '/var/wwwsafe/'
 
 dirs.dbs = Bunch()
 
@@ -58,9 +59,11 @@ dirs.dbs.system = dirs.database + 'system.db'
 dirs.dbs.motes = dirs.database + 'motes.db'
 dirs.dbs.info = dirs.database + 'deviceinfo.db'
 dirs.dbs.auths = dirs.database + 'authslog.db'
+dirs.dbs.data_agent = '/var/wwwsafe/dataagent.db'
 dirs.dbs.notifications = dirs.database + 'notifications.db'
-dirs.dbs.safe = '/var/wwwsafe/safedata.db'
-dirs.dbs.users = '/var/wwwsafe/users.db'
+
+dirs.dbs.safe = dirs.safe + 'safedata.db'
+dirs.dbs.users = dirs.safe + 'users.db'
 
 dirs.logs = Bunch()
 

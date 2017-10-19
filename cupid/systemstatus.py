@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -289,7 +289,7 @@ def watchdognetstatus(allnetstatus=None):
             utility.log(pilib.dirs.logs.network, 'Checking dhcp server status on wlan0. ', 4, pilib.loglevels.network)
             try:
                 result = subprocess.check_output(['/usr/sbin/service', 'isc-dhcp-server', 'status'], stderr=subprocess.PIPE)
-            except Exception, e:
+            except:
                 # If not running, the subprocess call will throw an error
                 utility.log(pilib.dirs.logs.network, 'Error in reading dhcp server status. Assumed down. ', 1, pilib.loglevels.network)
                 statusmsg += 'dhcp server appears down. '
@@ -364,7 +364,7 @@ def watchdognetstatus(allnetstatus=None):
                 # Note that this does not check carefully that the dhcp server is running on the correct interface.
                 # We need a check on this.
                 result = subprocess.check_output(['/usr/sbin/service', 'isc-dhcp-server', 'status'], stderr=subprocess.PIPE)
-            except Exception, e:
+            except:
                 # If not running, the subprocess call will throw an error
                 utility.log(pilib.dirs.logs.network, 'Error in reading dhcp server status for interface ' + apinterface + ' Assumed down. ', 1, pilib.loglevels.network)
                 statusmsg += 'Error in reading dhcp server status. Assumed down. '
@@ -736,7 +736,7 @@ def processapoverride(pin):
     import pilib
 
     try:
-        GPIO.setmode(GPIO.BCM)
+        GPIO.set_mode(GPIO.BCM)
         GPIO.setwarnings(False)
         GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     except:

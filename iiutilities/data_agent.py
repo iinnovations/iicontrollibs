@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -12,10 +12,62 @@ __status__ = "Development"
 import inspect
 import os
 import sys
+import dblib
+import simplejson as json
 
 top_folder = os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
+
+from iiutilities.utility import Bunch
+
+da_vars = Bunch()
+da_vars.default_agent_item_options = {
+        'mode':'single',
+        'bunch_period':5.0,
+        'transmit_period':60.0,
+        'full_entry':True
+    }
+
+da_vars.schema = Bunch()
+da_vars.schema.send_items = dblib.sqliteTableSchema([
+    {'name': 'id', 'primary': True},
+    {'name': 'enabled', 'type':'boolean', 'default':1},
+    {'name': 'last_transmit'},
+    {'name': 'options'}
+])
+
+
+def rebuild_data_agent_db(**kwargs):
+
+    settings = {
+        'path':'/var/www/data/dataagent.db',
+        'tablelist':['send_items'],
+        'migrate':True,
+        'data_loss_ok':True
+    }
+    settings.update(kwargs)
+
+    data_agent_db = dblib.sqliteDatabase(settings['path'])
+
+    ### Data Agent table
+    tablename = 'send_items'
+    if tablename in settings['tablelist']:
+        print('rebuilding {}'.format(tablename))
+
+        if settings['migrate']:
+            data_agent_db.migrate_table(tablename, schema=da_vars.schema.send_items, queue=True,
+                                          data_loss_ok=settings['data_loss_ok'])
+        else:
+            data_agent_db.create_table(tablename, schema, queue=True)
+
+        data_agent_db.insert(tablename, {'id': 'MOTE1_vbat', 'last_transmit': '',
+                                             'options': json.dumps(da_vars.default_agent_item_options)}, queue=True)
+        data_agent_db.insert(tablename, {'id': 'MOTE1_vout', 'last_transmit': '',
+                                             'options': json.dumps(da_vars.default_agent_item_options)}, queue=True)
+
+    # TODO: Add more details settings tables here.
+    data_agent_db.execute_queue()
 
 
 def get_client_tables(clientid='testclient', **kwargs):
@@ -48,7 +100,6 @@ def post_client_data(**kwargs):
     # TODO: Build in return status on top of debug.
 
     from iiutilities.netfun import post_data
-    import simplejson as json
 
     json_headers = {'content-type': 'application/json'}
     # json_headers = {'content-type': 'application/x-www-form-urlencoded; charset=UTF-8'}
@@ -110,33 +161,65 @@ def test_post_client_data():
     return response
 
 
+def auto_populate_data_agent_send_items(**kwargs):
+    settings = {
+        'debug': False,
+        'agent_db_path': '/var/www/data/dataagent.db',
+        'inputs_db_path': '/var/www/data/control.db',
+        'inputs_table': 'inputs',
+        'empty_table': True,
+        'interface_includes': {
+            'gpio':False,
+            'mote':True,
+            '1wire':True
+        },
+        'tablename':'send_items'
+    }
+
+    settings.update(kwargs)
+    inputs_db = dblib.sqliteDatabase(settings['inputs_db_path'])
+    agent_db = dblib.sqliteDatabase(settings['agent_db_path'])
+    if settings['empty_table']:
+        agent_db.empty_table(settings['tablename'], queue=True)
+
+    for input_entry in inputs_db.read_table('inputs'):
+        insert_this_entry = False
+        if input_entry['interface'].lower() in settings['interface_includes'] and settings['interface_includes'][input_entry['interface'].lower()]:
+            insert_this_entry = True
+
+        if insert_this_entry:
+            agent_db.insert(settings['tablename'], {'id': input_entry['id'], 'last_transmit': '',
+                                               'options': json.dumps(da_vars.default_agent_item_options)}, queue=True)
+
+    agent_db.execute_queue()
+
+
 def run_data_agent(**kwargs):
 
-    from cupid import pilib
     from datalib import gettimestring, timestringtoseconds
-    import simplejson as json
 
     settings = {
-        'debug':False
+        'debug':False,
+        'agent_db_path':'/var/www/data/dataagent.db',
+        'inputs_db_path':'/var/www/data/control.db',
+        'inputs_table':'inputs'
     }
     settings.update(kwargs)
 
-    # get data_agent items
-    data_agent_entries = pilib.dbs.system.read_table('dataagent')
+    data_agent_db = dblib.sqliteDatabase(settings['agent_db_path'])
+    inputs_db = dblib.sqliteDatabase(settings['inputs_db_path'])
 
-    inputs = pilib.dbs.control.read_table('inputs')
+    # get data_agent items
+    data_agent_entries = data_agent_db.read_table('send_items')
+
+    inputs = inputs_db.read_table('inputs')
     inputs_dict = {}
     for input in inputs:
         inputs_dict[input['id']] = input
 
     current_time = gettimestring()
 
-    default_options = {
-        'mode':'single',
-        'bunch_period':5.0,
-        'transmit_period':60.0,
-        'full_entry':True
-    }
+
     post_data = {
         'post_time':current_time,
         'data':{}
@@ -151,34 +234,48 @@ def run_data_agent(**kwargs):
     """
 
     for entry in data_agent_entries:
-        options = json.loads(entry['options'])
+        if entry['enabled']:
+            if settings['debug']:
+                print('{} Enabled '.format(entry['id']))
+            options = json.loads(entry['options'])
 
-        default_options.update(options)
-        options = default_options
+            da_vars.default_agent_item_options.update(options)
+            options = da_vars.default_agent_item_options
 
-        # TODO: Build in other modes besides single.
-        # Build in modularity for other ordinates.
+            # TODO: Build in other modes besides single.
+            # Build in modularity for other ordinates.
 
-        send = False
-        if not entry['last_transmit']:
-            send = True
-        else:
-            elapsed_since_xmit = timestringtoseconds(current_time) - entry['lasttransmit']
-            if elapsed_since_xmit > options['transmit_period']:
+            send = False
+            if not entry['last_transmit']:
                 send = True
-            elif (elapsed_since_xmit + options['bunch_period']) > options['transmit_period']:
-                if entry['id'] in inputs_dict:
-                    # maybe send.
-                    if options['full_entry']:
-                        maybe_xmit[entry['id']] = [inputs_dict[entry['id']]]
-                    else:
-                        maybe_xmit[entry['id']] = [{'polltime':inputs_dict[entry['id']]['polltime'], 'value': inputs_dict[entry['id']]['value']}]
+            else:
+                elapsed_since_xmit = timestringtoseconds(current_time) - timestringtoseconds(entry['last_transmit'])
+                if elapsed_since_xmit > options['transmit_period']:
+                    send = True
+                elif (elapsed_since_xmit + options['bunch_period']) > options['transmit_period']:
+                    if entry['id'] in inputs_dict:
+                        # maybe send.
+                        if options['full_entry']:
+                            maybe_xmit[entry['id']] = [inputs_dict[entry['id']]]
+                        else:
+                            maybe_xmit[entry['id']] = [{'polltime':inputs_dict[entry['id']]['polltime'], 'value': inputs_dict[entry['id']]['value']}]
+        else:
+            if settings['debug']:
+                print('{} Disabled '.format(entry['id']))
+
         if send:
+            if settings['debug']:
+                print('Sending {}'.format(entry['id']))
+
             if entry['id'] in inputs_dict:
                 if options['full_entry']:
                     post_data['data'][entry['id']] = [inputs_dict[entry['id']]]
                 else:
                     post_data['data'][entry['id']] = [{'polltime':inputs_dict[entry['id']]['polltime'], 'value': inputs_dict[entry['id']]['value']}]
+
+        else:
+            if settings['debug']:
+                print('Not sending {}'.format(entry['id']))
     """
     Now determine whether we have data that definitely needs to be sent. If so, throw the bunch data in.
     """
@@ -192,17 +289,25 @@ def run_data_agent(**kwargs):
     try:
         response = post_client_data(**{'post_data':post_data})
     except:
+
         import traceback
         trace_message = traceback.format_exc()
         if settings['debug']:
             print('Error, traceback: \n{}'.format(trace_message))
+        return {'status':1, 'message':trace_message}
     else:
         if settings['debug']:
             print('SUCCESS')
 
+        # Now we need to mark entries as sent
+        for entry_name, entry in post_data['data'].items():
+            data_agent_db.set_single_value('send_items', 'last_transmit', current_time, condition="id='{}'".format(entry_name), queue=True)
+
+        data_agent_db.execute_queue()
+
     return response
 
 if __name__ == '__main__':
-    response = run_data_agent()
+    response = run_data_agent(debug=True)
     print('Full response: ')
     print(response)

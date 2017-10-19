@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -598,8 +598,9 @@ def resetwlan(interface='wlan0'):
     try:
         subprocess.check_output(['/sbin/ifconfig', interface, 'down'], stderr=subprocess.PIPE)
         subprocess.call(['/sbin/ifconfig', interface, 'up'], stderr=subprocess.PIPE)
-    except Exception, e:
-        utility.log(pilib.dirs.logs.network, 'Error resetting ' + interface + ' : ' + str(e), 0, pilib.loglevels.network)
+    except:
+        import traceback
+        utility.log(pilib.dirs.logs.network, 'Error resetting ' + interface + ' : ' +  traceback.format_exc(), 0, pilib.loglevels.network)
     else:
         utility.log(pilib.dirs.logs.network, 'Completed resetting ' + interface + '. ', 3, pilib.loglevels.network)
 

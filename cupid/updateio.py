@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -595,7 +595,7 @@ def updateiodata(**kwargs):
                     except:
                         utility.log(pilib.dirs.logs.io,
                                            "ERROR handling GPIO interface " + str(address) + '. ', 0,  pilib.loglevels.io)
-                        print traceback.format_exc()
+                        print(traceback.format_exc())
                         GPIOentries = []
                     else:
                         if settings['debug']:
@@ -811,7 +811,7 @@ def processlabjackentry(interface, entry):
                 result['status'] = 0
 
         if 'formula' in options:
-            from iiutilities.utility import calcastevalformula
+            from iiutilities.datalib import calcastevalformula
             try:
                 # print('translating ' + str(result['value']))
                 formula = options['formula'].replace('x', result['value'])
@@ -1173,7 +1173,7 @@ def processGPIOinterface(control_db, interface, last_data, io_info, defaults, **
 
     try:
         if method == 'rpigpio':
-            GPIO.setmode(GPIO.BCM)
+            GPIO.set_mode(GPIO.BCM)
             GPIO.setwarnings(False)
         elif method == 'pigpio':
             if 'piobject' in kwargs:

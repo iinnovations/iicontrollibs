@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -101,9 +101,111 @@ def handle_modify_channel_alarm(d, output):
     return
 
 
+def app_modify_channel(post, output):
+    import pilib
+
+    """
+    TODO: 
+    1. Fix all the actions to be methods of the channel object.
+    2. Make this function a wrapper of a general channel modifier function
+    3. Optimize so we are not using methods that require queries wherever possible. IOW, if mode hasn't changed since
+    we initialized the object, use channel.mode instead of channel.get_mode()
+    """
+
+    chan_action = post['chan_action']
+    channel_data_query = pilib.dbs.control.read_table_row('channels', condition="name='{}'".format(post['channelname']))
+    if not channel_data_query:
+        output['message'] += 'Channel {} not found. '.format(post['channel_name'])
+        return
+    else:
+        channel_data = channel_data_query[0]
+        this_channel = channel(channel_data)
+
+    if chan_action == 'spchange' and 'database' in post:
+        output['message'] += 'Spchanged. '
+        dbpath = pilib.dbnametopath(post['database'])
+        if dbpath:
+            if 'subaction' in post:
+                if post['subaction'] == 'incup':
+                    this_channel.inc_setpoint()
+                    output['message'] += 'incup. '
+                if post['subaction'] == 'incdown':
+                    this_channel.dec_setpoint()
+                    output['message'] += 'incdown. '
+                if post['subaction'] == 'setvalue':
+                    this_channel.set_setpoint(post['value'])
+                    output['message'] += 'Setvalue: {}'.format(post['value'])
+            else:
+                output['message'] += 'subaction not found. '
+        else:
+            output['message'] += 'Problem translating dbpath from friendly name: ' + post['database']
+    elif chan_action == 'togglemode' and 'database' in post:
+        this_channel.toggle_mode()
+    elif chan_action == 'setmode' and 'database' in post:
+        this_channel.set_mode(post['mode'])
+    elif chan_action == 'setrecipe':
+        this_channel.set_recipe(post['recipe'])
+    elif chan_action == 'setcontrolinput':
+        this_channel.set_control_input(post['controlinput'])
+    elif chan_action == 'enable':
+        this_channel.enable()
+    elif chan_action == 'disable':
+        this_channel.disable()
+    elif chan_action == 'toggle_enabled':
+        this_channel.toggle_enabled()
+    elif chan_action == 'enable_outputs':
+        this_channel.enable_outputs()
+    elif chan_action == 'disable_outputs':
+        this_channel.disable_outputs()
+    elif chan_action == 'toggle_outputs_enabled':
+        this_channel.toggle_outputs_enabled()
+
+    elif chan_action == 'manualactionchange' and 'subaction' in post:
+        if this_channel.get_mode() == 'manual':
+            if post['subaction'] == 'poson':
+                this_channel.set_action('100.0')
+            elif post['subaction'] == 'negon':
+                this_channel.set_action('-100.0')
+            else:
+                this_channel.set_action('0.0')
+    elif chan_action == 'setposoutput' and 'outputname' in post:
+        this_channel.set_pos_output(post['outputname'])
+    elif chan_action == 'setnegoutput' and 'channelname' in post:
+        this_channel.set_neg_output(post['outputname'])
+    elif chan_action == 'actiondown' and 'channelname' in post:
+        curchanmode = this_channel.get_mode()
+        if curchanmode == "manual":
+            curaction = this_channel.get_action()
+            if curaction == 100:
+                nextvalue = 0
+            elif curaction == 0:
+                nextvalue = -100
+            elif curaction == -100:
+                nextvalue = -100
+            else:
+                nextvalue = 0
+            this_channel.set_action(nextvalue)
+    elif chan_action == 'actionup' and 'channelname' in post:
+        curchanmode = this_channel.get_mode()
+        if curchanmode == "manual":
+            curaction = this_channel.get_action()
+            if curaction == 100:
+                nextvalue = 100
+            elif curaction == 0:
+                nextvalue = 100
+            elif curaction == -100:
+                nextvalue = 0
+            else:
+                nextvalue = 0
+            this_channel.set_action(nextvalue)
+
+
 def handle_modify_channel(d, output):
     import pilib
-    from iiutilities import dblib
+
+    """ 
+    This is being replaced by class-based functions
+    """
 
     required_keywords = ['database', 'valuename', 'value', 'channelname']
     if not all(keyword in d for keyword in required_keywords):
@@ -343,66 +445,87 @@ def runalgorithm(controldbpath, recipedbpath, channelname):
     return [action, message]
 
 
-# I think we need a channel class here. Not used yet, but in development.
+"""
+TODO: Fix this retro mess
+"""
 
 class channel:
-    def __init__(self,propertydict):
-        for key,value in propertydict.items():
+    def __init__(self, propertydict):
+        for key, value in propertydict.items():
             setattr(self,key,value)
 
-    def setsetpoint(self,setpointvalue):
+    def set_setpoint(self, setpointvalue):
         from pilib import dirs
         from iiutilities.dblib import sqlitequery
         sqlitequery(dirs.dbs.control, 'update channels set setpointvalue=\'' + str(setpointvalue) + '\' where name=\'' + channel.name + '\'')
 
-    def setaction(self,action):
+    def set_action(self, action):
          from pilib import dirs
          from iiutilities.dblib import sqlitequery
          sqlitequery(dirs.dbs.control,
             'update channels set action = \'' + str(action) + '\' where name = \'' + channel.name + '\'')
 
-    def setcontrolinput(self,inputid):
+    def set_control_input(self, inputid):
         from pilib import dirs
         from iiutilities.dblib import sqlitequery
         sqlitequery(dirs.dbs.control,
                 'update channels set controlinput = \'' + inputid + '\' where name = \'' + channel.name + '\'')
 
-    def getaction(self):
+    def get_action(self):
         from pilib import dirs
         from iiutilities.dblib import sqlitedatumquery
         self.action = sqlitedatumquery(dirs.dbs.control,'select action from channels where name=\'' + channel.name + '\'')
 
-    def getsetpointvalue(self):
+    def get_setpoint_value(self):
         from pilib import dirs
         from iiutilities.dblib import sqlitedatumquery
         self.setpointvalue = sqlitedatumquery(dirs.dbs.control, 'select setpointvalue from channels where name=\'' + channel.name + '\'')
 
-    def incsetpoint(self):
-        self.getsetpointvalue()
-        self.setsetpoint(self.setpointvalue+1)
+    def inc_setpoint(self):
+        self.get_setpoint_value()
+        self.set_setpoint(self.setpointvalue + 1)
 
-    def decsetpoint(self):
-        self.getsetpointvalue()
-        self.setsetpoint(self.setpointvalue-1)
+    def dec_setpoint(self):
+        self.get_setpoint_value()
+        self.set_setpoint(self.setpointvalue - 1)
 
-    def getmode(self):
+    def get_mode(self):
         from pilib import dirs
         from iiutilities.dblib import sqlitedatumquery
         self.mode = sqlitedatumquery(dirs.dbs.control, 'select mode from channels where name=\'' + channel.name + '\'')
 
-    def setmode(self,mode):
+    def set_mode(self, mode):
         from pilib import dirs
         from iiutilities.dblib import sqlitequery
         sqlitequery(dirs.dbs.control, 'update channels set mode=\'' + str(mode) + '\' where name=\'' + channel.name + '\'')
 
-    def togglemode(self,mode):
+    def toggle_mode(self, mode):
         from pilib import dirs
         from iiutilities.dblib import sqlitedatumquery
-        self.getmode()
+        self.get_mode()
         if self.mode == 'manual':
             self.mode = 'auto'
         else:
             self.mode = 'manual'
+
+    def set_recipe(self, recipe):
+        pass
+    def enable(self):
+        pass
+    def disable(self):
+        pass
+    def toggle_enabled(self):
+        pass
+    def enable_outputs(self):
+        pass
+    def disable_outputs(self):
+        pass
+    def toggle_outputs_enabled(self):
+        pass
+    def set_pos_output(self, output_name):
+        pass
+    def set_neg_output(self, output_name):
+        pass
 
 # This works fine, for now.
 
@@ -582,7 +705,7 @@ def disablealloutputs():
 def turnoffgpios(GPIOnumberlist):
     import RPi.GPIO as GPIO
 
-    GPIO.setmode(GPIO.BCM)
+    GPIO.set_mode(GPIO.BCM)
 
     for GPIOnumber in GPIOnumberlist:
         GPIO.setup(int(GPIOnumber), GPIO.OUT)

@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-import pilib
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
