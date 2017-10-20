@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -136,6 +136,48 @@ def getifacestatus():
 
 
 def getifconfigstatus():
+    """
+    We will eventually rekey this to pass back the dictionary. We are returning a list now to be backward
+    compatible with everything that calls it.
+    """
+    import netifaces
+    interfaces = netifaces.interfaces()
+    interface_list = []
+
+    for interface_name in interfaces:
+
+        this_interface_dict = {'name':'', 'hwaddress':'', 'address':'', 'ifaceindex':'', 'bcast':'', 'mask': '', 'flags':''}
+        this_interface_dict['name'] = interface_name
+        these_addresses = netifaces.ifaddresses(interface_name)
+
+        net_address_type = netifaces.AF_INET
+        hw_address_type = netifaces.AF_LINK
+
+        if net_address_type in these_addresses:
+            this_address = these_addresses[net_address_type][0]
+            # print(type(this_address))
+            for key,value in this_address.items():
+                pass
+                # print(key,value)
+            # print(this_address)
+            for item in [('addr','address'), ('netmask','netmask'), ('broadcast', 'bcast')]:
+                if item[0] in this_address:
+                    this_interface_dict[item[1]] = this_address[item[0]]
+                else:
+                    pass
+                    # print('{} not found '.format(item[0]))
+
+        if hw_address_type in these_addresses:
+            this_address = these_addresses[hw_address_type][0]
+            # print(this_address)
+            this_interface_dict['hwaddress'] = this_address['addr']
+
+        interface_list.append(this_interface_dict)
+    return interface_list
+
+
+# This no longer works on newest distro
+def getifconfigstatus_DEPRECATED():
     import subprocess
     import pilib
     from iiutilities import utility
@@ -145,8 +187,13 @@ def getifconfigstatus():
     ifaceindex = -1
     blankinterface = {'name':'', 'hwaddress':'', 'address':'', 'ifaceindex':'', 'bcast':'', 'mask': '', 'flags':''}
     for line in ifconfigdata:
-        if line.find('Link encap:') >= 0:
-            # print('item!')
+        if line:
+            print('First character: "{}"'.format(line[0]))
+        else:
+            continue
+        # if line.find('Link encap:') >= 0: This breaks in new jessie distro
+        if line[0].strip():
+            print('item!')
             ifaceindex += 1
             interfaces.append(blankinterface.copy())
             interfaces[ifaceindex]['ifaceindex'] = str(ifaceindex)
@@ -338,7 +385,7 @@ def restart_uwsgi(directory='/usr/lib/iicontrollibs/uwsgi', quiet=True, killall=
     commandlist = ['/usr/bin/uwsgi', '--emperor', directory, '--daemonize', '/var/log/uwsgi.log']
     # print(commandlist)
 
-    subprocess.call(commandlist)
+    # subprocess.call(commandlist)
     if quiet:
         DEVNULL = open(os.devnull, 'wb')
         result = subprocess.Popen(commandlist, stdout=subprocess.PIPE, stderr=DEVNULL)
@@ -384,6 +431,26 @@ def checksharemount(sharepath):
         status = False
     return status
 
+
+def post_data(url, data, headers=None):
+
+    from requests import post
+    import simplejson as json
+
+    if headers:
+        response = post(url, data=data, headers=headers)
+    else:
+        response = post(url, data=data)
+    # print('Response! : {}'.format(response._content))
+    try:
+        response_content_dict = json.loads(response._content.decode('utf-8'))
+    except:
+        message = 'Error decoding response: "{}"'.format(response._content)
+        response_content_dict = {}
+    else:
+        message = 'Appears to have executed ok. '
+
+    return {'response':response, 'response_content_dict':response_content_dict, 'message':message}
 
 #--------------------------------------------------#
 #

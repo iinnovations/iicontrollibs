@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -92,7 +92,7 @@ def pgrepstatus(regex, full=True):
 # This is in utilities, but we include it here in case we cannot import other things
 class gmail:
     def __init__(self, server='smtp.gmail.com', port=587, subject='default subject', message='default message',
-                 login='cupidmailer@interfaceinnovations.org', password='cupidmail', recipient='info@interfaceinnovations.org', sender='CuPID Mailer'):
+                 login='cupidmailer@interfaceinnovations.org', password='cupidmail', recipient='cupid_status@interfaceinnovations.org', sender='CuPID Mailer'):
         self.server = server
         self.port = port
         self.message = message
@@ -117,7 +117,6 @@ class gmail:
 
         session.ehlo()
         session.starttls()
-        session.ehlo
         session.login(self.login, self.password)
 
         session.sendmail(self.sender, self.recipient, headers + '\r\n\r\n' + self.message)
@@ -181,8 +180,8 @@ def rundaemon(**kwargs):
     unittestresults = cupidunittests.runalltests()
 
     # Get notifications so we know when to notify
-    system_database = dblib.sqliteDatabase(pilib.dirs.dbs.system)
-    notification_database = dblib.sqliteDatabase(pilib.dirs.dbs.notifications)
+    system_database = pilib.cupidDatabase(pilib.dirs.dbs.system)
+    notification_database = pilib.cupidDatabase(pilib.dirs.dbs.notifications)
 
     notifications = system_database.read_table('notifications')
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2014, Interface Innovations"
@@ -42,7 +42,7 @@ def runhamachicheck(pingIP='25.37.18.7'):
 
 def generatehamachipage(hamachidata=None, path=None):
     from iiutilities.netfun import gethamachidata
-    from iiutilities.datalib import parseoptions
+    from iiutilities.datalib import parseoptions, gettimestring
 
     if not hamachidata:
         hamachidata = gethamachidata()
@@ -77,6 +77,8 @@ def generatehamachipage(hamachidata=None, path=None):
             '<body>' +
             '<div data-role="page" id="demo-page" class="my-page" data-theme="d">' +
                 '<div role="main" class="ui-content">')
+        htmlstring += '<ul data-role="listview" data-inset=true><li data-role="list-divider">'
+        htmlstring += 'Updated : ' + gettimestring() + '</li></ul>'
 
         file.write(htmlstring)
     for network in hamachidata:
@@ -90,16 +92,16 @@ def generatehamachipage(hamachidata=None, path=None):
                 htmlstring += '<li>'
                 htmlstring += '<fieldset class="ui-grid-a"><div class="ui-block-a" style="width:50%">'
                 # htmlstring += client['name'] + ' : ' + client['hamachiip']
-                htmlstring += '<a href="http://' +  client['hamachiip'] +'">' + client['name'] + '</a> : ' + client['hamachiip']
+                htmlstring += '<a href="https://' +  client['hamachiip'] +'/">' + client['name'] + '</a> : ' + client['hamachiip']
 
                 options = parseoptions(client['options'])
 
                 htmlstring+='</div>'
 
                 if client['onlinestatus']:
-                    htmlstring += '<div class="online" style="width:60px; float:right; text-align:center; border-radius:0.4em; border-width:1px; border-style:solid; border-color:#333333">Online</div>'
+                    htmlstring += '<div class="online" style="width:60px; float:right; text-shadow:none; text-align:center; border-radius:0.3em; border-width:1.2px; border-style:solid; border-color:#333333">Online</div>'
                 else:
-                    htmlstring += '<div class="offline" style="width:60px; float:right; text-align:center; border-radius:0.4em; border-width:1px; border-style:solid; border-color:#333333">Offline</div>'
+                    htmlstring += '<div class="offline" style="width:60px; float:right; text-shadow:none; text-align:center; border-radius:0.3em; border-width:1.2px; border-style:solid; border-color:#333333">Offline</div>'
 
                 if 'monitor' in options:
                     if options['monitor'] == '1':

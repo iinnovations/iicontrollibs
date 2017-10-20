@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -60,6 +60,16 @@ def datawithheaderstodictarray(dataarray, headerrows=1, strip=True, keystolowerc
 
 # Data functions
 
+def string_to_boolean(string):
+    try:
+        boolean=bool(int(string))
+    except:
+        if string.tolower() in ['f', 'false'] or not string:
+            boolean=False
+        else:
+            boolean=True
+    return boolean
+
 def parseoptions(optionstring):
     optionsdict = {}
     if optionstring:
@@ -85,6 +95,80 @@ def dicttojson(pass_dict):
         jsonentry += key + ':' + str(value).replace('\x00','') + ','
     jsonentry = jsonentry[:-1]
     return jsonentry
+
+
+def get_illegal_text_items(**kwargs):
+    settings = {
+        'brackets_ok': False,
+        'colons_ok':False,
+        'spaces_ok':False,
+        'hyphens_ok':True,
+        'slashes_ok':False,
+        'commas_ok':False,
+        'periods_ok':False,
+        'arithmetic_ok':False
+    }
+    settings.update(kwargs)
+    bad_characters = ['"', "'"]
+    if not settings['brackets_ok']:
+        bad_characters.extend(['{', '}', '[', ']'])
+    if not settings['colons_ok']:
+        bad_characters.extend([':', ';'])
+    if not settings['spaces_ok']:
+        bad_characters.append(' ')
+    if not settings['slashes_ok']:
+        bad_characters.extend(['\\','/'])
+    if not settings['periods_ok']:
+        bad_characters.append('.')
+    if not settings['commas_ok']:
+        bad_characters.append(',')
+    if not settings['arithmetic_ok']:
+        bad_characters.extend(['*','-','+','='])
+
+    return bad_characters
+
+
+def find_all_string_locations(text, match_string, start_position=0):
+    match_positions = []
+    while text.find(match_string, start_position) >=0:
+        match_position = text.find(match_string, start_position)
+        match_positions.append(match_position)
+        start_position = match_position+1
+        # print(start_position)
+    return match_positions
+
+
+def clean_dirty_text(dirty_text, **kwargs):
+
+    test_results = test_questionable_text(dirty_text, **kwargs)
+    # print(test_results)
+    if test_results['isdirty']:
+        for match in test_results['matches']:
+            # print('replacing "' + match['character'] + '"')
+            dirty_text = dirty_text.replace(match['character'], '')
+
+    clean_text = dirty_text
+    return clean_text
+
+
+def test_questionable_text(text, **kwargs):
+    bad_characters = get_illegal_text_items(**kwargs)
+    questionable = False
+    questionable_matches = []
+    for character in bad_characters:
+        match_positions = find_all_string_locations(text, character)
+        if match_positions:
+            questionable = True
+            # print('Illegal character ' + character + ' found at position(s)' + str(match_positions))
+            questionable_matches.append({'character':character, 'match_positions':match_positions})
+
+    return {'isdirty':questionable, 'matches':questionable_matches}
+
+
+def getmstimestring():
+    import datetime
+    timestring = datetime.datetime.now().strftime("%H:%M:%S.%f")
+    return timestring
 
 
 def gettimestring(timeinseconds=None):
@@ -180,10 +264,10 @@ def setprecision(number, precision):
 def checkfloat(number):
     # Not functional
     bytes = valuetofloat32bytes(number, type='double')
-    print(bytes)
+    # print(bytes)
     value = float32bytestovalue(bytes)
-    print(value)
-    print(number)
+    # print(value)
+    # print(number)
 
 
 def typetoreadlength(type):
@@ -283,8 +367,8 @@ def valuetofloat32bytes(value, type='float', endian='big', byteorder='standard')
         return
 
     integers = [ord(c) for c in mybytearray]
-    print(integers)
-    print(mybytearray)
+    # print(integers)
+    # print(mybytearray)
 
     byte0 = mybytearray[0]*256 + mybytearray[1]
     byte1 = mybytearray[2]*256 + mybytearray[2]
@@ -323,7 +407,7 @@ def calcinputrate(input, numentries=2):
     # also average time
 
     logname = 'input_' + input + '_log'
-    entries = dblib.getlasttimerows(pilib.dirs.dbs.log, logname, numentries)
+    entries = dblib.getlasttimerows(pilib.dirs.dbs.log, logname, numrows=numentries)
     # print(entries)
 
     if len(entries) == numentries:
@@ -343,11 +427,60 @@ def calcinputrate(input, numentries=2):
     return result
 
 
-def evaldbvnformula(formula, type='value'):
+def calcaverage(input, points=5, countzero=True):
+
+    from iiutilities import dblib
+    from cupid import pilib
+
+    # just grab last entries of log, create point averaged around
+    # also average time
+
+    logname = 'input_' + input + '_log'
+    # print(logname)
+    entries = dblib.getlasttimerows(pilib.dirs.dbs.log, logname, timecolname='time', numrows=points)
+    # print(entries)
+
+    if len(entries) == points:
+
+        points_used = 0
+        sum_value = 0.0
+        average_seconds = 0
+        for entry in entries:
+            value = entry['value']
+            time_in_seconds = timestringtoseconds(entry['time'])
+            if countzero:
+                try:
+                    sum_value += float(value)
+                except:
+                    pass
+                else:
+                    average_seconds += time_in_seconds
+                    points_used += 1
+            else:
+                if value:
+                    try:
+                        sum_value += float(value)
+                    except:
+                        pass
+                    else:
+                        average_seconds += time_in_seconds
+                        points_used += 1
+
+        average = sum_value / points_used
+        average_time = gettimestring(average_seconds / points_used)
+
+        result = {'average':average, 'points':points_used, 'time':average_time}
+    else:
+        result = None
+    return result
+
+
+def evaldbvnformula(formula, type='value', debug=False):
 
     from iiutilities.dblib import dbvntovalue
 
-    print(formula)
+    if debug:
+        print(formula)
     #if type == 'value':
     # first we need to get all the values that are provided as db-coded entries.
     # We put the dbvn inside of brackets, e.g. [dbnmae:dbtable:dbvaluename:condition]
@@ -364,7 +497,8 @@ def evaldbvnformula(formula, type='value'):
         else:
             splitletsplit = splitlet.split(']')
             dbvn = splitletsplit[0]
-            print('dbvn: ' + dbvn)
+            if debug:
+                print('dbvn: ' + dbvn)
             try:
                 value = dbvntovalue(dbvn)
             except:
@@ -372,8 +506,9 @@ def evaldbvnformula(formula, type='value'):
             # print('value: ' + str(value))
             textform += str(value) + splitletsplit[1]
 
-    print('EQN Text:')
-    print('"' + textform + '"')
+    if debug:
+        print('EQN Text:')
+        print('"' + textform + '"')
     result = calcastevalformula(textform)
     return result
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -47,19 +47,24 @@ def updateiodata(**kwargs):
         # print('WARNING, NO io_objects PASSED')
         io_objects ={}
 
-    allowedGPIOaddresses = [18, 23, 24, 25, 4, 17, 27, 22, 5, 6, 13, 19, 26, 16, 20, 21]
+    allowedGPIOaddresses = [18, 23, 24, 25, 4, 17, 27, 22, 5, 6, 13, 19, 26, 16, 20, 21, 35]
 
-    logconfig = pilib.reload_log_config()
 
     # Defaults
-    settings = {'database':pilib.dirs.dbs.control, 'debug':False}
+    settings = {'debug':False, 'first_run':True, 'quiet':True, 'logerrors':True}
     settings.update(kwargs)
 
-    if settings['debug']:
-        print('*** DEBUG MODE ***')
-        pilib.set_debug()
 
-    control_db = dblib.sqliteDatabase(settings['database'])
+    if settings['debug']:
+        pilib.set_debug()
+        settings['quiet'] = False
+
+    db_settings = {}
+
+    logconfig = pilib.reload_log_config(**settings)
+    control_db = pilib.cupidDatabase(pilib.dirs.dbs.control, **settings)
+    systemdb = pilib.cupidDatabase(pilib.dirs.dbs.system, **settings)
+
     io_info = control_db.read_table('ioinfo')
 
     tables = control_db.get_table_names()
@@ -117,12 +122,14 @@ def updateiodata(**kwargs):
     # Unfortunately, we need to keep track of the IDs we are creating, so we don't run them over as we go
 
     interfaceids = []
-    for interface in interfaces:
+    for interface_index, interface in enumerate(interfaces):
+        interface_enabled = datalib.string_to_boolean(interface['enabled'])
+
         # print(interface)
         if interface['interface'] == 'I2C':
             utility.log(pilib.dirs.logs.io, 'Processing I2C interface ' + interface['name'], 3,
                         pilib.loglevels.io)
-            if interface['enabled']:
+            if interface_enabled:
                 utility.log(pilib.dirs.logs.io, 'I2C Interface ' + interface['name'] + ' enabled', 3,
                             pilib.loglevels.io)
                 if interface['type'] == 'DS2483':
@@ -145,7 +152,7 @@ def updateiodata(**kwargs):
         elif interface['interface'] == 'USB':
             utility.log(pilib.dirs.logs.io, 'Processing USB interface ' + interface['name'], 3,
                         pilib.loglevels.io)
-            if interface['enabled']:
+            if interface_enabled:
                 utility.log(pilib.dirs.logs.io, 'USB Interface ' + interface['name'] + ' enabled', 3,
                             pilib.loglevels.io)
                 if interface['type'] == 'DS9490':
@@ -175,7 +182,7 @@ def updateiodata(**kwargs):
             condition = '"interface"=\'' + interface['interface'] + '\' and "type"=\'' + interface['type'] + '\' and "address"=\'' + interface['address'] + '\''
 
             # print(condition)
-            dblib.setsinglevalue(pilib.dirs.dbs.control, 'interfaces', 'id', entryid, condition)
+            dblib.setsinglevalue(pilib.dirs.dbs.control, 'interfaces', 'id', entryid, condition=condition)
 
             # Does this entry already exist in inputs?
             prev_meta = get_or_insert_iface_metadata(entryid, io_info, control_db)
@@ -218,6 +225,45 @@ def updateiodata(**kwargs):
                     # print('BAD RATE COUNTER VALUE')
                     utility.log(pilib.dirs.logs.io, 'Rate data returned None. Beginning of data set?')
 
+            elif interface['type'] == 'average':
+
+                # All we do here is specify an input ID to grab the log from
+                # try:
+                options = datalib.parseoptions(interface['options'])
+
+                if 'countzero' in options and options['countzero']:
+                    countzero = True
+                else:
+                    countzero = False
+
+                points = 5
+                if 'points' in options and options['points']:
+                    try:
+                        points = int(options['points'])
+                    except:
+                        pass
+
+                result = datalib.calcaverage(options['inputid'], points=points, countzero=countzero)
+
+                if result:
+                    value = result['average']
+                    readtime = result['time']
+
+
+                    # TODO: Handle pollfreq appropriately.
+                    input_entry = {'id':entryid, 'interface':interface['interface'], 'type':interface['type'],
+                                                'address':interface['address'], 'name':name, 'value':value,
+                                                'polltime':str(readtime), 'pollfreq':defaultinputpollfreq}
+                    control_db.insert('inputs', input_entry, queue=True)
+
+                    # query = dblib.makesqliteinsert('inputs', [entryid, interface['interface'], interface['type'],
+                    #       interface['address'], name, str(value), '', str(readtime),
+                    #       str(defaultinputpollfreq), '', ''])
+                    # querylist.append(query)
+                else:
+                    # print('BAD RATE COUNTER VALUE')
+                    utility.log(pilib.dirs.logs.io, 'Rate data returned None. Beginning of data set?')
+
             if interface['type'] in ['value', 'formula']:
                 """
                 At the moment, both single value and complex formula translation are done here. These may fork as
@@ -242,6 +288,7 @@ def updateiodata(**kwargs):
                     options = datalib.parseoptions(interface['options'])
                     # print(options['formula'])
                     value = datalib.evaldbvnformula(options['formula'])
+                    # print(value)
 
                     if 'minvalue' in options:
                         try:
@@ -283,18 +330,19 @@ def updateiodata(**kwargs):
             try:
                 entryid = interface['interface'] + '_' + interface['type'] + '_' + interface['address']
             except:
-                print('error with entryid + ',interface['interface'], interface['type'], interface['address'])
+                utility.log(pilib.dirs.logs.io, 'error with entryid {}, {}, {}, '.format(interface['interface'], interface['type'], interface['address']))
+
             interfaceids.append(entryid)
 
             condition = '"interface"=\'' + interface['interface'] + '\' and "type"=\'' + interface['type'] + '\' and "address"=\'' + interface['address'] + '\''
 
             # print(condition)
             # Immediately?
-            control_db.set_single_value('interfaces', 'id', entryid, condition)
+            control_db.set_single_value('interfaces', 'id', entryid, condition=condition)
 
             utility.log(pilib.dirs.logs.io, 'Processing Mote interface ' + interface['name'] + ', id:' + entryid, 3,
                         pilib.loglevels.io)
-            if interface['enabled']:
+            if interface_enabled:
                 utility.log(pilib.dirs.logs.io, 'Mote Interface ' + interface['name'] + ', id:' + entryid + ' enabled', 3,
                             pilib.loglevels.io)
 
@@ -327,7 +375,7 @@ def updateiodata(**kwargs):
                 node.
 
                 This pulls out all mote entries that have nodeid and keyvalue that match the interface address
-                We should just find one, ideally
+                We should just find one, ideally, or a bunch if we have selected all (*)
                 '''
 
                 if keyvalue == '*':
@@ -336,22 +384,50 @@ def updateiodata(**kwargs):
                     condition = "\"nodeid\"='" + nodeid + "' and \"keyvalue\"='" + keyvalue + "'"
                     nodeentries = control_db.read_table('remotes', condition=condition)
 
-                # print(nodeentries)
-                # print("WE FOUND MOTE")
-                # print(condition)
-                # print(len(nodeentries))
+                """
+                Here is where things have just changed. We now want to get type from the mote entry, 
+                rather than the interface. The mote entries should be self-describing
+                
+               
+                """
 
-                if interface['type'] == 'channel':
-                    # print('channel')
-                    if len(nodeentries) == 1:
-                        # print('one entry found')
+                # if interface['type'] == 'channel':
+                #     # print('channel')
+                for node_entry in nodeentries:
+                    # print('NODE ENTRY: {}'.format(node_entry))
+                    entry_type = node_entry['msgtype']
 
-                        nodeentry = nodeentries[0]
-                        nodedata = datalib.parseoptions(nodeentry['data'])
+                    if entry_type == 'channel':
+                        """
+                        We need to do two things here: 
+                        1. Create input entries for all of the channel items contained 
+                        2. Create the channel entry in the channels table
+                        """
 
-                        newchanneldata = {'name':interface['name'],'controlvaluetime': datalib.gettimestring(), 'data':nodeentry['data'], 'type': 'remote'}
+                        # control_db.insert('inputs', input_entry, queue=True)
 
+                        nodedata = datalib.parseoptions(node_entry['data'])
+                        channel_number = node_entry['keyvalue']
+                        node_id = node_entry['nodeid']
+                        channel_address = '{}:{}'.format(node_id, channel_number)
+
+
+                        # Need to make up a channel id
+                        channel_id = 'MOTE_' + channel_address
+
+                        control_input_name = channel_id + '_pv'
+                        setpoint_input_name = channel_id + '_sv'
+                        enabled_input_name = channel_id + '_run'
+
+                        # These values will override anything existing
+                        newchanneldata = {'process_value_time': datalib.gettimestring(),
+                                          'data':node_entry['data'], 'type': 'remote','id':channel_id,
+                                          'sv_input':setpoint_input_name, 'pv_input':control_input_name,
+                                          'enabled_input':enabled_input_name, 'name':channel_id}
+
+                        # svcmd is handled .... where?
                         if 'svcmd' in nodedata:
+
                             # Delete from node data
                             nodedata.pop('svcmd',None)
 
@@ -361,103 +437,114 @@ def updateiodata(**kwargs):
                             # Nuke pending entry
                             newchanneldata['pending'] = ''
 
-                        findentries = ['sv', 'pv', 'prop']
-                        findentrydictnames = ['setpointvalue', 'controlvalue', 'action', 'pending']
+                        findentries = ['sv', 'pv', 'prop', 'run']
+                        findentrydictnames = ['setpoint_value', 'process_value', 'action', 'enabled']
 
-                        # Insert if found, otherwise leave untouched.
+
+                        # this updates the entries in the channel to be inserted, and also inserts the inputs
                         for entry, entryname in zip(findentries, findentrydictnames):
                             if entry in nodedata:
                                 newchanneldata[entryname] = nodedata[entry]
 
-                        # Find existing channel so we can get existing data, settings, etc., and retain channel ordering
-                        # TODO: Reorder starting at 1 for when things get wonky
 
-                        newchannel = {}
+                                # now treat each mote type entry specially
+                                # if entrytype == 'channel':
+
+                                # This creates entries for all of the channel sub values.
+                                # The channel should just be a conditional, with these generated automatically anyway
+                                # This is likely repeated code
+
+                                entryid = channel_id + '_' + entry
+
+                                default_name = '[MOTE' + str(node_entry['nodeid']) + '] ' + node_entry['keyvaluename']
+                                address = node_entry['nodeid']
+                                # entry_meta = get_or_insert_iface_metadata(entryid, io_info, control_db, default_name)
+
+                                mote_insert = {'id': entryid, 'interface': interface['interface'],
+                                               'type': 'MOTE',
+                                               'address': channel_address, 'name': entryid, 'value': nodedata[entry],
+                                               'polltime': node_entry['time'], 'pollfreq': 15}
+                                control_db.insert('inputs', mote_insert, queue=True)
+
+                        """
+                        Also retain existing name, other settings. But should name not come from ioinfo?
+                        Find existing channel so we can get existing data, settings, etc., and retain channel ordering
+                        
+                        TODO: Reorder starting at 1 for when things get wonky
+                        """
+
+                        newchannel = {'id':channel_id}
                         existingchannels = control_db.read_table('channels')
                         for channel in existingchannels:
-                            if channel['name'] == interface['name']:
+                            if channel['id'] == newchannel['id']:
                                 # print('updating')
-                                # print(channel)
+                                # print(channel['id'])
                                 newchannel.update(channel)
                                 # print(newchannel)
                         newchannel.update(newchanneldata)
-                        # # print(newchannel)
+                        # print(newchannel)
                         #
                         # keys = []
                         # values = []
                         # for key, value in newchannel.iteritems():
                         #     keys.append(key)
                         #     values.append(value)
-
-                        control_db.insert('channels',newchannel)
+                        # control_db.settings['quiet'] = False
+                        control_db.insert('channels', newchannel)
                         # query = dblib.makesqliteinsert('channels', values, keys)
                         # print(query)
                         # dblib.sqlitequery(pilib.dirs.dbs.control, query)
-                    else:
-                        # print('multiple entries found for channel. not appropriate')
-                        pass
-                else:
-                    # Create queries for table insertion
-                    # TODO: process mote pollfreq, ontime, offtime
-                    for nodeentry in nodeentries:
+
+                    else: # Is NOT a channel
+
+                        entryid = 'MOTE' + str(node_entry['nodeid']) + '_' + node_entry['keyvaluename']
 
                         # THis breaks out all of the strictly json-encoded data.
-                        datadict = datalib.parseoptions(nodeentry['data'])
-                        try:
-                            entrytype = nodeentry['msgtype']
+                        datadict = datalib.parseoptions(node_entry['data'])
 
-                            # now treat each mote type entry specially
-                            # if entrytype == 'channel':
+                        default_name = '[MOTE' + str(node_entry['nodeid']) + '] ' + node_entry['keyvaluename']
+                        address = node_entry['nodeid']
+                        entry_meta = get_or_insert_iface_metadata(entryid, io_info, control_db, default_name)
+                        entry_options = datalib.parseoptions(entry_meta['options'])
 
-                            entryid = 'MOTE' + str(nodeentry['nodeid']) + '_' + nodeentry['keyvaluename']
-
-                            default_name = '[MOTE' + str(nodeentry['nodeid']) + '] ' + nodeentry['keyvaluename']
-                            address = nodeentry['nodeid']
-                            entry_meta = get_or_insert_iface_metadata(id, io_info, control_db, default_name)
-                            entry_options = datalib.parseoptions(entry_meta['options'])
-
-                        except KeyError:
-                            print('OOPS KEY ERROR')
-                            pass
-                        else:
-                            if entrytype == 'iovalue':
+                        if entry_type == 'iovalue':
+                            if 'scale' in entry_options:
+                                entryvalue = str(float(entry_options['scale']) * float(datadict['ioval']))
+                            elif 'formula' in entry_options:
+                                x = float(datadict['ioval'])
+                                try:
+                                    entryvalue = eval(entry_options['formula'])
+                                except:
+                                    entryvalue = float(datadict['ioval'])
+                            else:
+                                entryvalue = float(datadict['ioval'])
+                        elif entry_type == 'owdev':
+                            if 'owtmpasc' in datadict:
                                 if 'scale' in entry_options:
-                                    entryvalue = str(float(entry_options['scale']) * float(datadict['ioval']))
+                                    entryvalue = str(float(entry_options['scale']) * float(datadict['owtmpasc']))
                                 elif 'formula' in entry_options:
-                                    x = float(datadict['ioval'])
+                                    x = float(datadict['owtmpasc'])
                                     try:
                                         entryvalue = eval(entry_options['formula'])
                                     except:
-                                        entryvalue = float(datadict['ioval'])
+                                        entryvalue = float(datadict['owtmpasc'])
                                 else:
-                                    entryvalue = float(datadict['ioval'])
-                            elif entrytype == 'owdev':
-                                if 'owtmpasc' in datadict:
-                                    if 'scale' in entry_options:
-                                        entryvalue = str(float(entry_options['scale']) * float(datadict['owtmpasc']))
-                                    elif 'formula' in entry_options:
-                                        x = float(datadict['owtmpasc'])
-                                        try:
-                                            entryvalue = eval(entry_options['formula'])
-                                        except:
-                                            entryvalue = float(datadict['owtmpasc'])
-                                    else:
-                                        entryvalue = datadict['owtmpasc']
-                                else:
-                                    entryvalue = -1
+                                    entryvalue = datadict['owtmpasc']
                             else:
-                                entryvalue = nodeentry['keyvalue']
+                                entryvalue = -1
+                        else:
+                            entryvalue = node_entry['keyvalue']
 
-                            # TODO: Properly handle pollfreq for motes
-                            mote_insert = {'id': entryid, 'interface': interface['interface'], 'type': interface['type'],
-                                   'address': address, 'name': entry_meta['name'], 'value': entryvalue,
-                                   'polltime': nodeentry['time'], 'pollfreq':15}
-                            # print('ENTRY')
-                            # print(mote_insert)
-                            control_db.insert('inputs', mote_insert, queue=True)
-                            # moteentries.append("insert into inputs values ('" + entryid + "','" + interface['interface'] + "','" +
-                            #     interface['type'] + "','" + str(address) + "','" + entryname + "','" + str(entryvalue) + "','','" +
-                            #      nodeentry['time'] + "','" + str(15) + "','" + '' + "','" + '' + "')")
+                        # TODO: Properly handle pollfreq for motes
+                        mote_insert = {'id': entryid, 'interface': interface['interface'], 'type': interface['type'],
+                               'address': address, 'name': entry_meta['name'], 'value': entryvalue,
+                               'polltime': node_entry['time'], 'pollfreq':15}
+                        # print('ENTRY')
+                        # print(mote_insert)
+                        control_db.insert('inputs', mote_insert, queue=True)
+                        # moteentries.append("insert into inputs values ('" + entryid + "','" + interface['interface'] + "','" +
+                        #     interface['type'] + "','" + str(address) + "','" + entryname + "','" + str(entryvalue) + "','','" +
+                        #      nodeentry['time'] + "','" + str(15) + "','" + '' + "','" + '' + "')")
 
             else:
                 utility.log(pilib.dirs.logs.io, 'Mote Interface ' + interface['name'] + ' disnabled', 3,
@@ -465,7 +552,7 @@ def updateiodata(**kwargs):
         elif interface['interface'] == 'LAN':
             utility.log(pilib.dirs.logs.io, 'Processing LAN interface ' + interface['name'], 3,
                         pilib.loglevels.io)
-            if interface['enabled']:
+            if interface_enabled:
                 utility.log(pilib.dirs.logs.io, 'LAN Interface ' + interface['name'] + ' enabled', 3,
                             pilib.loglevels.io)
                 if interface['type'] == 'MBTCP':
@@ -494,7 +581,7 @@ def updateiodata(**kwargs):
                 utility.log(pilib.dirs.logs.io, 'GPIO address key not found for ' + interface['name'], 1,
                             pilib.loglevels.io)
                 continue
-            if interface['enabled']:
+            if interface_enabled:
 
                 utility.log(pilib.dirs.logs.io, 'Processing GPIO interface ' + str(interface['address']), 3,
                             pilib.loglevels.io)
@@ -503,11 +590,12 @@ def updateiodata(**kwargs):
                     utility.log(pilib.dirs.logs.io, 'GPIO address' + str(address) + ' allowed. Processing.', 4,
                                 pilib.loglevels.io)
                     try:
-                        GPIOentries = processGPIOinterface(control_db, interface, last_data, io_info, defaults, piobject=pi, io_objects=io_objects)
+                        GPIOentries = processGPIOinterface(control_db, interface, last_data, io_info, defaults, piobject=pi,
+                                                           io_objects=io_objects, first_run=settings['first_run'], interface_index=interface_index)
                     except:
                         utility.log(pilib.dirs.logs.io,
                                            "ERROR handling GPIO interface " + str(address) + '. ', 0,  pilib.loglevels.io)
-                        print traceback.format_exc()
+                        print(traceback.format_exc())
                         GPIOentries = []
                     else:
                         if settings['debug']:
@@ -524,12 +612,13 @@ def updateiodata(**kwargs):
                             pilib.loglevels.io)
         elif interface['interface'] == 'SPI0':
             utility.log(pilib.dirs.logs.io, 'Processing SPI0', 1, pilib.loglevels.io)
-            if interface['enabled']:
+            if interface_enabled:
+                print('ENABLED ??!! "' + str(interface_enabled) + '"')
                 utility.log(pilib.dirs.logs.io, 'SPI0 enabled', 1, pilib.loglevels.io)
                 if interface['type'] == 'SPITC':
                     utility.log(pilib.dirs.logs.io, 'Processing SPITC on SPI0', 3, pilib.loglevels.io)
                     import readspi
-
+                    print("I AM RUNNING SPITC WTFFFF")
                     tcdict = readspi.getpigpioMAX31855temp(0,0)
 
                     # Convert to F for now
@@ -548,7 +637,7 @@ def updateiodata(**kwargs):
 
         elif interface['interface'] == 'SPI1':
             utility.log(pilib.dirs.logs.io, 'Processing SPI1', 1, pilib.loglevels.io)
-            if interface['enabled']:
+            if interface_enabled:
                 utility.log(pilib.dirs.logs.io, 'SPI1 enabled', 1, pilib.loglevels.io)
                 if interface['type'] == 'CuPIDlights':
                     utility.log(pilib.dirs.logs.io, 'Processing CuPID Lights on SPI1', 1, pilib.loglevels.io)
@@ -562,12 +651,12 @@ def updateiodata(**kwargs):
                 utility.log(pilib.dirs.logs.io, 'SPI1 disaabled', 1, pilib.loglevels.io)
 
     # Set tables
-    dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'lastupdateiopoll', datalib.gettimestring())
+    systemdb.set_single_value('systemstatus', 'lastupdateiopoll', datalib.gettimestring())
 
     if owfsupdate:
         from iiutilities.owfslib import runowfsupdate
         utility.log(pilib.dirs.logs.io, 'Running owfsupdate', 1, pilib.loglevels.io)
-        devices, owfsentries = runowfsupdate(execute=False)
+        devices, owfsentries = runowfsupdate(execute=False, logpath=pilib.dirs.logs.io)
         control_db.queue_queries(owfsentries)
     else:
         utility.log(pilib.dirs.logs.io, 'owfsupdate disabled', 3, pilib.loglevels.io)
@@ -586,7 +675,7 @@ def updateiodata(**kwargs):
             control_db.clear_queue()
 
 
-def get_or_insert_iface_metadata(id, io_infos, control_db, default_name=None):
+def get_or_insert_iface_metadata(text_id, io_infos, control_db, default_name=None):
 
     """
     Ok, so we want to choose name for input in order:
@@ -596,16 +685,16 @@ def get_or_insert_iface_metadata(id, io_infos, control_db, default_name=None):
 
     entry = {}
     for io_info in io_infos:
-        if io_info['id'] == id:
+        if io_info['id'] == text_id:
             entry = io_info
             break
 
     if not entry:
-        name = id
+        name = text_id
         if default_name:
             name = default_name
 
-        entry = {'name': name, 'id':id, 'options':''}
+        entry = {'name': name, 'id':text_id, 'options':''}
         control_db.insert('ioinfo', entry)
 
     return entry
@@ -698,10 +787,10 @@ def processlabjackentry(interface, entry):
         if 'formula' in options:
             from iiutilities.datalib import calcastevalformula
             try:
-                # print('translating ' + str(result['value']))
+                print('translating ' + str(result['value']))
                 formula = options['formula'].replace('x', str(result['value']))
                 result['value'] = calcastevalformula(formula)
-                # print(' to ' + str(result['value']))
+                print(' to ' + str(result['value']))
             except:
                 # print('error in formula')
                  pass
@@ -722,7 +811,7 @@ def processlabjackentry(interface, entry):
                 result['status'] = 0
 
         if 'formula' in options:
-            from iiutilities.utility import calcastevalformula
+            from iiutilities.datalib import calcastevalformula
             try:
                 # print('translating ' + str(result['value']))
                 formula = options['formula'].replace('x', result['value'])
@@ -753,7 +842,7 @@ def process_ads1x15_interface(interface=None):
     else:
         print('using default options')
         options = {}
-    settings = {'gain':1, 'channel':0, 'type':'single', 'address':'1:0x48'}
+    settings = {'gain':1, 'channel':0, 'type':'single', 'address':'1:0x48', 'data_rate':8}
     settings.update(options)
 
     settings['busnum'] = int(settings['address'].split(':')[0])
@@ -775,8 +864,11 @@ def process_ads1x15_interface(interface=None):
 
     if settings['type'] in ['diff','differential']:
         try:
-            value = float(adc.read_adc_difference(int(settings['channel']), gain=float(settings['gain']))) / 32768
+            # print('doing diff with data_rate ' + str(settings['data_rate']))
+            return_dict['value'] = float(adc.read_adc_difference(int(settings['channel']), gain=int(settings['gain']), data_rate=settings['data_rate'])) / 32768
+            # print('raw value ' + str(return_dict['value']))
         except:
+            # print('error')
             utility.log(pilib.dirs.logs.io, 'Error reading ADS1115 differential value. ', 0, pilib.loglevels.io)
             return_dict['status'] = 1
             return_dict['message'] = 'Error reading device at address ' + str((settings['address'])) + ', channel ' + str(settings['channel']) + ', type ' + settings['type'] + ', with gain ' + str(settings['gain'])
@@ -784,12 +876,12 @@ def process_ads1x15_interface(interface=None):
         else:
             scalar = 4.096 / float(settings['gain'])
             return_dict['value'] *= scalar
-            return_dict['message'] = 'Read device at address ' + str((settings['address'])) + ', channel ' + str(settings['channel']) + ', type ' + settings['type'] + ', with gain ' + str(settings['gain']) + ' with value ' + str(value)
+            return_dict['message'] = 'Read device at address ' + str((settings['address'])) + ', channel ' + str(settings['channel']) + ', type ' + settings['type'] + ', with gain ' + str(settings['gain']) + ' with value ' + str(return_dict['value'])
 
 
     else:
         try:
-            value = float(adc.read_adc(int(settings['channel']), gain=float(settings['gain']))) / 32768
+            return_dict['value'] = float(adc.read_adc(int(settings['channel']), gain=float(settings['gain']))) / 32768
         except:
             utility.log(pilib.dirs.logs.io, 'Error reading ADS1115 differential value. ', 0, pilib.loglevels.io)
             return_dict['status'] = 1
@@ -799,7 +891,7 @@ def process_ads1x15_interface(interface=None):
         else:
             scalar = 4.096 / float(settings['gain'])
             return_dict['value'] *= scalar
-            return_dict['message'] = 'Read device at address ' + str((settings['address'])) + ', channel ' + str(settings['channel']) + ', type ' + settings['type'] + ', with gain ' + str(settings['gain']) + ' with value ' + str(value)
+            return_dict['message'] = 'Read device at address ' + str((settings['address'])) + ', channel ' + str(settings['channel']) + ', type ' + settings['type'] + ', with gain ' + str(settings['gain']) + ' with value ' + str(return_dict['value'])
 
     return return_dict
 
@@ -1014,7 +1106,7 @@ def processMBinterface(control_db, interface, last_data, io_info, defaults):
                                     pass
                                 else:
                                     # Update ioinfo
-                                    dblib.sqliteinsertsingle(pilib.dirs.dbs.control, 'ioinfo', [mbid, options['name']], ['id', 'name'])
+                                    control_db.insert('ioinfo', {'id':mbid, 'name':options['name']})
                                     # mbname = dblib.sqlitedatumquery(pilib.dirs.dbs.control,
                                     #                                 "select name from ioinfo where id='" + mbid + "'")
                                     mb_name = options['name']
@@ -1081,7 +1173,7 @@ def processGPIOinterface(control_db, interface, last_data, io_info, defaults, **
 
     try:
         if method == 'rpigpio':
-            GPIO.setmode(GPIO.BCM)
+            GPIO.set_mode(GPIO.BCM)
             GPIO.setwarnings(False)
         elif method == 'pigpio':
             if 'piobject' in kwargs:
@@ -1092,6 +1184,7 @@ def processGPIOinterface(control_db, interface, last_data, io_info, defaults, **
                 utility.log(pilib.dirs.logs.io,
                        'Instantiating pigpio. ', 4, pilib.loglevels.io)
                 pi = pigpio.pi()
+
     except:
         utility.log(pilib.dirs.logs.io,
                        'Error setting up GPIO. ', 1, pilib.loglevels.io)
@@ -1111,6 +1204,9 @@ def processGPIOinterface(control_db, interface, last_data, io_info, defaults, **
 
     querylist = []
     # Append to inputs and update name, even if it's an output (can read status as input)
+    if 'mode' not in options:
+        options['mode'] = 'input'
+
     if options['mode'] == 'output':
         utility.log(pilib.dirs.logs.io, 'Setting output mode for GPIO address' + str(address), 3, pilib.loglevels.io)
         try:
@@ -1253,23 +1349,44 @@ def processGPIOinterface(control_db, interface, last_data, io_info, defaults, **
         querylist.append(dblib.make_insert_from_dict('inputs', input_entry))
 
     elif options['mode'] == 'counter':
-        settings = {'edge': 'falling', 'pullupdown': None, 'debounce_ms': 50, 'event_min_ms': 50, 'watchdog_ms': 100}
+        settings = {'edge': 'falling', 'pullupdown': None, 'debounce_ms': 10, 'event_min_ms': 10,
+                    'count_zero':True, 'watchdog_ms': 100}
         settings.update(options)
 
         # check io_objects to see if the object already exists. if not, instantiate it
         # We name the objects after the id for now
+        # print('the value is ' + str(last_data.inputs[previnputids.index(interface['id'])]['value']))
         if interface['id'] in kwargs['io_objects']:
-            pass
-            # print('WE FOUNd THE OBJECT')
+            # print('previously stored value: ')
+            prev_value = last_data.inputs[previnputids.index(interface['id'])]['value']
+            # print(prev_value)
+            value = kwargs['io_objects'][interface['id']].get_value()
+            value_message = 'VALUE IS ' + str(value)
+            rate = kwargs['io_objects'][interface['id']].get_rate()
+            rate_message = 'RATE IS ' + str(rate)
 
-        else:
-            io_object = pilib.pigpiod_gpio_counter(**{'gpio':address, 'pi':pi, 'options':options, 'type': 'counter'})
+            # Reinit for safe keeping
+            # need to cancel first:
+            # try:
+            kwargs['io_objects'][interface['id']]._cb.cancel()
+
+            io_object = pilib.pigpiod_gpio_counter(**{'gpio': address, 'pi': pi, 'options': options,
+                                                      'type': 'counter', 'reset_ticks': 20000, 'init_counts': int(value)})
             kwargs['io_objects'][interface['id']] = io_object
+        else:
+            io_object = pilib.pigpiod_gpio_counter(**{'gpio':address, 'pi':pi, 'options':options,
+                                                      'type': 'counter', 'reset_ticks':20000})
+            kwargs['io_objects'][interface['id']] = io_object
+            value = kwargs['io_objects'][interface['id']].get_value()
+            value_message = '** INIT VALUE IS ' + str(value)
+            rate = kwargs['io_objects'][interface['id']].get_rate()
+            rate_message = 'RATE IS ' + str(rate)
 
-        value = kwargs['io_objects'][interface['id']].get_value()
-        # print('VALUE IS ' + str(value))
-        rate = kwargs['io_objects'][interface['id']].get_rate()
-        # print('RATE IS ' + str(rate))
+        # print(value_message)
+        utility.log(pilib.dirs.logs.io, value_message)
+
+        # print(rate_message)
+        utility.log(pilib.dirs.logs.io, rate_message)
 
         # Get input settings and keep them if the GPIO previously existed
         if interface['id'] in previnputids:
@@ -1295,23 +1412,44 @@ def processGPIOinterface(control_db, interface, last_data, io_info, defaults, **
         input_entry = {'id': interface['id'], 'interface': interface['interface'], 'type': interface['type'],
                         'address': interface['address'], 'name': name, 'value': value,
                         'polltime': polltime, 'pollfreq': pollfreq}
+        # print('INPUT ENTRY')
+        # print(input_entry)
         querylist.append(dblib.make_insert_from_dict('inputs', input_entry))
 
-        rate_id = interface['id'] + '_rate'
-        entry_meta = get_or_insert_iface_metadata(rate_id, io_info, control_db)
-        name = entry_meta['name']
-        input_entry = {'id': rate_id, 'interface': interface['interface'], 'type': interface['type'],
-                       'address': interface['address'], 'name': name, 'value': rate,
-                       'polltime': polltime, 'pollfreq': pollfreq}
-        querylist.append(dblib.make_insert_from_dict('inputs', input_entry))
+        if rate or settings['count_zero']:
+            # Do NOT process rate on first run.
+            if 'first_run' not in kwargs or not kwargs['first_run']:
+                # print('YES')
+                utility.log(pilib.dirs.logs.io, 'not first run', 4, pilib.loglevels.io)
+                rate_id = interface['id'] + '_rate'
+                entry_meta = get_or_insert_iface_metadata(rate_id, io_info, control_db)
+                name = entry_meta['name']
+                rate_input_entry = {'id': rate_id, 'interface': interface['interface'], 'type': interface['type'],
+                               'address': interface['address'], 'name': name, 'value': rate,
+                               'polltime': polltime, 'pollfreq': pollfreq}
+                querylist.append(dblib.make_insert_from_dict('inputs', rate_input_entry))
+                # print('RATE INPUT ENTRY')
+                # print(rate_input_entry)
+                # print(dblib.make_insert_from_dict('inputs', rate_input_entry))
+                # print(querylist)
+                # print('**** **** *** end ')
+
+                # print(querylist)
+            else:
+                # print('NO')
+                utility.log(pilib.dirs.logs.io,'not processing rate on first run', 3, pilib.loglevels.io)
+        else:
+            utility.log(pilib.dirs.logs.io, 'not counting zero entry', 3, pilib.loglevels.io)
 
     if method == 'pigpio' and 'piobject' not in kwargs:
         pi.stop()
-
     return querylist
 
 
 if __name__ == '__main__':
     from pilib import dirs
-    updateiodata(database=dirs.dbs.control, debug=True)
+    if len(sys.argv) > 1 and sys.argv[1].lower() == 'debug':
+        updateiodata(debug=True)
+    else:
+        updateiodata()
 

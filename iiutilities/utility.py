@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -320,7 +320,101 @@ def rotate_log_by_size(logname, numlogs=5, logsize=1024):
     return {'message': returnmessage, 'logmessage': logmessage, 'statuscode': statuscode}
 
 
+
+def insertuser(database, username, password, salt, **kwargs):
+
+    from iiutilities import dblib, datalib
+    entry = {'name':username,'password':password, 'email':'','accesskeywords':'','authlevel':1,'temp':'','admin':0}
+    entry.update(kwargs)
+
+    # entries = [{'name': 'creese', 'password': 'mydata', 'email': 'colin.reese@interfaceinnovations.org',
+    #             'accesskeywords': 'iiinventory,demo', 'authlevel': 5, 'temp': '', 'admin': 1},
+    #            {'name': 'iwalker', 'password': 'iwalker', 'email': 'colin.reese@interfaceinnovations.org',
+    #             'accesskeywords': 'demo', 'authlevel': 4, 'temp': '', 'admin': 0},
+    #            {'name': 'demo', 'password': 'demo', 'email': 'info@interfaceinnovations.org',
+    #             'accesskeywords': 'demo', 'authlevel': 2, 'temp': '', 'admin': 0},
+    #            {'name': 'mbertram', 'password': 'mbertram', 'email': 'info@interfaceinnovations.org',
+    #             'accesskeywords': 'demo', 'authlevel': 2, 'temp': '', 'admin': 0}]
+
+    existingentries = dblib.readalldbrows(database, 'users')
+    usercount = len(existingentries)
+    existingindices = [existingentry['id'] for existingentry in existingentries]
+    existingnames = [existingentry['id'] for existingentry in existingentries]
+
+    print('EXISTING ENTRIES:')
+    print(existingentries)
+
+    newindex = usercount+1
+    while newindex in existingindices:
+        newindex += 1
+
+    table = 'users'
+
+    hashedentry = datalib.gethashedentry(entry['name'], entry['password'], salt=salt)
+
+
+    query = dblib.makesqliteinsert(table, [newindex, entry['name'], hashedentry, entry['email'],
+                                                    entry['accesskeywords'], entry['authlevel'], '',
+                                                    entry['admin']])
+
+    print(database)
+    print(salt)
+    print(query)
+    dblib.sqlitequery(database, query)
+
+
+def parsekeys(key):
+    import re
+
+    depth = key.count('[')
+    depth2 = key.count(']')
+
+    if depth != depth2:
+        # print('we have a depth calculation problem with key ' + key)
+        return None
+
+    # print ('depth is ' + str(depth) + ' for key ' + key)
+    if depth > 0:
+        indices = re.findall('\[(.*?)\]', key)
+        # print('indices:')
+        # print (indices)
+
+        islist = []
+        for index in indices:
+            # Empty index means list, i.e. []
+            if not index:
+                islist.append(True)
+            else:
+                try:
+                    anindex = int(index)
+                except:
+                    islist.append(False)
+                else:
+                    islist.append(True)
+
+        # If index is empty, we got a level 1 list, e.g. partids[]
+        if indices[0]:
+            root=key[0:key.index(indices[0])-1]
+        else:
+            root=key[0:key.index('[')]
+    else:
+        indices=[]
+        root=key
+        islist = []
+    # print('root')
+    # print(root)
+
+    return({'root':root,'depth':depth,'indices':indices, 'islist':islist})
+
+"""
+These are no longer necessary with the use of json-encoded string API data
+"""
+
+
 def unmangleAPIdata(d):
+    """
+    These are no longer necessary with the use of json-encoded string API data
+    """
 
     """
     Objects come through as arrays with string indices
@@ -502,93 +596,6 @@ def unmangleAPIdata(d):
 
     return unmangled
 
-
-def insertuser(database, username, password, salt, **kwargs):
-
-    from iiutilities import dblib, datalib
-    entry = {'name':username,'password':password, 'email':'','accesskeywords':'','authlevel':1,'temp':'','admin':0}
-    entry.update(kwargs)
-
-    # entries = [{'name': 'creese', 'password': 'mydata', 'email': 'colin.reese@interfaceinnovations.org',
-    #             'accesskeywords': 'iiinventory,demo', 'authlevel': 5, 'temp': '', 'admin': 1},
-    #            {'name': 'iwalker', 'password': 'iwalker', 'email': 'colin.reese@interfaceinnovations.org',
-    #             'accesskeywords': 'demo', 'authlevel': 4, 'temp': '', 'admin': 0},
-    #            {'name': 'demo', 'password': 'demo', 'email': 'info@interfaceinnovations.org',
-    #             'accesskeywords': 'demo', 'authlevel': 2, 'temp': '', 'admin': 0},
-    #            {'name': 'mbertram', 'password': 'mbertram', 'email': 'info@interfaceinnovations.org',
-    #             'accesskeywords': 'demo', 'authlevel': 2, 'temp': '', 'admin': 0}]
-
-    existingentries = dblib.readalldbrows(database, 'users')
-    usercount = len(existingentries)
-    existingindices = [existingentry['id'] for existingentry in existingentries]
-    existingnames = [existingentry['id'] for existingentry in existingentries]
-
-    print('EXISTING ENTRIES:')
-    print(existingentries)
-
-    newindex = usercount+1
-    while newindex in existingindices:
-        newindex += 1
-
-    table = 'users'
-
-    hashedentry = datalib.gethashedentry(entry['name'], entry['password'], salt=salt)
-
-
-    query = dblib.makesqliteinsert(table, [newindex, entry['name'], hashedentry, entry['email'],
-                                                    entry['accesskeywords'], entry['authlevel'], '',
-                                                    entry['admin']])
-
-    print(database)
-    print(salt)
-    print(query)
-    dblib.sqlitequery(database, query)
-
-
-def parsekeys(key):
-    import re
-
-    depth = key.count('[')
-    depth2 = key.count(']')
-
-    if depth != depth2:
-        # print('we have a depth calculation problem with key ' + key)
-        return None
-
-    # print ('depth is ' + str(depth) + ' for key ' + key)
-    if depth > 0:
-        indices = re.findall('\[(.*?)\]', key)
-        # print('indices:')
-        # print (indices)
-
-        islist = []
-        for index in indices:
-            # Empty index means list, i.e. []
-            if not index:
-                islist.append(True)
-            else:
-                try:
-                    anindex = int(index)
-                except:
-                    islist.append(False)
-                else:
-                    islist.append(True)
-
-        # If index is empty, we got a level 1 list, e.g. partids[]
-        if indices[0]:
-            root=key[0:key.index(indices[0])-1]
-        else:
-            root=key[0:key.index('[')]
-    else:
-        indices=[]
-        root=key
-        islist = []
-    # print('root')
-    # print(root)
-
-    return({'root':root,'depth':depth,'indices':indices, 'islist':islist})
-
-
 def testunmangle():
     sampledict = {
         'paneldesc[paneltype]':'brewpanel',
@@ -622,6 +629,9 @@ def testunmangle():
 
 
 def newunmangle(d):
+    """
+    These are no longer necessary with the use of json-encoded string API data
+    """
 
     # NB this will barf if you send in a dict key with the same value as a list, e.g.
     # mydict['key'] = 'some value'
@@ -638,6 +648,22 @@ def newunmangle(d):
         # print(keyassess)
         if keyassess['depth'] == 0:
             unmangled[keyassess['root']] = value
+
+
+        # """ Test FUNCTION for arbitrary depth """
+        #
+        # depth = keyassess['depth']
+        # if keyassess['root'] not in unmangled:
+        #
+        #     unmangled[keyassess['root']] = {}
+        #     root_dict = unmangled[keyassess['root']]
+        #
+        #     for index in range(depth-1):
+        #         root_dict[keyassess['indices'][index]] = {}
+        #         root_dict = root_dict[keyassess['indices'][index]]
+        #
+        #
+        # """ End test function  """
 
         elif keyassess['depth'] == 1:
             if keyassess['root'] not in unmangled:
@@ -728,7 +754,7 @@ def reducedicttolist(mydict):
     for key in mydict:
         value = mydict[key]
         try:
-            int(key)
+            int(value)
         except:
             allintegers=False
 
@@ -740,6 +766,34 @@ def reducedicttolist(mydict):
         return returnlist
     else:
         return mydict
+
+
+"""
+proc handling
+"""
+
+def findprocstatuses(procstofind):
+    import subprocess
+    statuses = []
+    for proc in procstofind:
+        # print(proc)
+        status = False
+        try:
+            result = subprocess.check_output(['pgrep','-fc',proc])
+            # print(result)
+        except:
+            # print('ERROR')
+            pass
+        else:
+            if int(result) > 0:
+                # print("FOUND")
+                status = True
+            else:
+                pass
+                # print("NOT FOUND")
+        statuses.append(status)
+    # print(statuses)
+    return statuses
 
 
 def killprocbyname(name):
@@ -760,14 +814,20 @@ def killprocbyname(name):
 
 
 def log(logfile, message, reqloglevel=1, currloglevel=1):
-    from iiutilities.datalib import gettimestring
-    if currloglevel >= reqloglevel:
-        logfile = open(logfile, 'a')
-        logfile.writelines([gettimestring() + ' : ' + message + '\n'])
-        logfile.close()
-    if currloglevel >= 9:
-        print(message)
+    # Allow passing None for logfile
+    if logfile:
+        from iiutilities.datalib import gettimestring
+        if currloglevel >= reqloglevel:
+            logfile = open(logfile, 'a')
+            logfile.writelines([gettimestring() + ' : ' + message + '\n'])
+            logfile.close()
+        if currloglevel >= 9:
+            print(message)
 
+
+"""
+PDF handling functions. This should maybe be in datalib.
+"""
 
 def writetabletopdf(tabledata, **kwargs):
 
@@ -913,7 +973,7 @@ def writedbtabletopdf(**kwargs):
 
 class gmail:
     def __init__(self, server='smtp.gmail.com', port=587, subject='default subject', message='default message',
-                 login='cupidmailer@interfaceinnovations.org', password='cupidmail', recipient='info@interfaceinnovations.org', sender='CuPID Mailer'):
+                 login='cupidmailer@interfaceinnovations.org', password='cupidmail', recipient='cupid_status@interfaceinnovations.org', sender='CuPID Mailer'):
         self.server = server
         self.port = port
         self.message = message
@@ -951,29 +1011,9 @@ class gmail:
         session.quit()
 
 
-def findprocstatuses(procstofind):
-    import subprocess
-    statuses = []
-    for proc in procstofind:
-        # print(proc)
-        status = False
-        try:
-            result = subprocess.check_output(['pgrep','-fc',proc])
-            # print(result)
-        except:
-            # print('ERROR')
-            pass
-        else:
-            if int(result) > 0:
-                # print("FOUND")
-                status = True
-            else:
-                pass
-                # print("NOT FOUND")
-        statuses.append(status)
-    # print(statuses)
-    return statuses
-
+"""
+This should be in datalib.
+"""
 
 def jsontodict(jsonstring):
     splits = jsonstring.split(',')
@@ -992,3 +1032,46 @@ def jsontodict(jsonstring):
     return outputdict
 
 
+def get_directory_listing(directory):
+
+    from os import walk
+
+    # returns on first, so not recursive
+    for (dirpath, dirnames, filenames) in walk(directory):
+        return {'dirnames':dirnames, 'filenames':filenames}
+
+
+def test_traceback_functions():
+    try:
+        print(x)
+    except:
+        """Block below is used all over the place for trace reporting."""
+        import traceback
+        mytraceback_var = traceback.format_exc()
+
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+
+        print("*** print_tb:")
+        traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
+        print("*** print_exception:")
+        # exc_type below is ignored on 3.5 and later
+        traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                  limit=2, file=sys.stdout)
+        print("*** print_exc:")
+        traceback.print_exc(limit=2, file=sys.stdout)
+        print("*** format_exc, first and last line:")
+        formatted_lines = traceback.format_exc().splitlines()
+        print(formatted_lines[0])
+        print(formatted_lines[-1])
+        print("*** format_exception:")
+        # exc_type below is ignored on 3.5 and later
+        print(repr(traceback.format_exception(exc_type, exc_value,
+                                              exc_traceback)))
+        print("*** extract_tb:")
+        print(repr(traceback.extract_tb(exc_traceback)))
+        print("*** format_tb:")
+        print(repr(traceback.format_tb(exc_traceback)))
+        print("*** tb_lineno:", exc_traceback.tb_lineno)
+
+
+        return mytraceback_var

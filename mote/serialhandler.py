@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -41,6 +41,8 @@ def getsystemserialport():
     system_db = dblib.sqliteDatabase(dirs.dbs.system)
 
     port = '/dev/ttyAMA0'
+    versions = system_db.read_table('versions')
+
     try:
         versions = system_db.read_table('versions')
         hw_version = ''
@@ -72,6 +74,10 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
     from time import mktime, localtime
     from time import sleep
 
+    motes_db = dblib.sqliteDatabase(pilib.dirs.dbs.motes)
+    control_db = dblib.sqliteDatabase(pilib.dirs.dbs.control)
+    system_db = dblib.sqliteDatabase(pilib.dirs.dbs.system)
+
     data = []
 
     stringmessage = ''
@@ -82,7 +88,7 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
         logfile.write('\n' + datalib.gettimestring() + ": Initializing serial log\n")
 
     if checkstatus:
-        systemstatus = dblib.readonedbrow(pilib.dirs.dbs.control, 'systemstatus')[0]
+        systemstatus =system_db.read_table_row('systemstatus')[0]
         runhandler = systemstatus['serialhandlerenabled']
         checktime = mktime(localtime())
         checkfrequency = 15  # seconds
@@ -162,11 +168,11 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
                                         print(message)
                                     lograwmessages(message)
 
-                                dblib.sizesqlitetable(pilib.dirs.dbs.motes, 'read', 1000)
+                                motes_db.size_table('read', **{'size':1000})
                                 try:
                                     processremotedata(datadict, message)
                                 except Exception as ex:
-                                    template = "An exception of type {0} occured (line 127). Arguments:\n{1!r}"
+                                    template = "An exception of type {0} occured  in process remote data. Arguments:\n{1!r}"
                                     message = template.format(type(ex).__name__, ex.args)
                                     print(message)
 
@@ -182,7 +188,7 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
                                 except Exception as e:
                                     template = "An exception of type {0} occured (line 142). Arguments:\n{1!r}"
                                     message = template.format(type(ex).__name__, ex.args)
-                                    print message
+                                    print(message)
 
                 else:
                     # no data, let's see if we should send message
@@ -206,7 +212,7 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
                 except Exception as e:
                     template = "An exception of type {0} occured in runsendhandler (line 142). Arguments:\n{1!r}"
                     message = template.format(type(ex).__name__, ex.args)
-                    print message
+                    print(message)
                     utility.log(pilib.dirs.logs.serial, "Error in send routine: " + message, 1, 1)
                 # print('SEND HANDLER DONE')
 
@@ -281,6 +287,7 @@ def runsendhandler(ser):
             delquery = dblib.makedeletesinglevaluequery('queued', {'conditionnames':conditionnames, 'conditionvalues':conditionvalues})
             dblib.sqlitequery(pilib.dirs.dbs.motes, delquery)
             dblib.sqliteinsertsingle(pilib.dirs.dbs.motes, 'sent', [last_queued_message['queuedtime'], datalib.gettimestring(), last_queued_message['message']])
+            dblib.size_sqlite_table(pilib.dirs.dbs.motes, 'sent', 1000)
     return
 
 
@@ -337,12 +344,14 @@ def processserialdata(data):
 def lograwmessages(message):
     from cupid.pilib import dirs
     from iiutilities.datalib import gettimestring
-    from iiutilities.dblib import sqliteinsertsingle
+    from iiutilities.dblib import sqliteinsertsingle, size_sqlite_table
     # try:
     strmessage = str(message).replace('\x00','').strip()
-    print('publishing message: ' + strmessage)
+    if strmessage not in ['END RECEIVED', 'BEGIN RECEIVED']:
+    # print('publishing message: ' + strmessage)
     # print(repr(strmessage))
-    sqliteinsertsingle(dirs.dbs.motes, 'read', [gettimestring(), strmessage])
+        sqliteinsertsingle(dirs.dbs.motes, 'read', [gettimestring(), strmessage])
+        size_sqlite_table(dirs.dbs.motes, 'read', size=1000)
     # sqliteinsertsingle(dirs.dbs.motes, 'readmessages', [gettimestring(), 'nodeid:2,chan:02,sv:070.000,pv:071.000,RX_RSSI:_57'])
     # except:
     #     print('it did not go ok')
@@ -363,6 +372,13 @@ limitations
 def processremotedata(datadict, stringmessage):
     import cupid.pilib as pilib
     from iiutilities import dblib, datalib, utility
+
+    control_db = dblib.sqliteDatabase(pilib.dirs.dbs.control)
+    motes_db = dblib.sqliteDatabase(pilib.dirs.dbs.motes)
+    log_db = dblib.sqliteDatabase(pilib.dirs.dbs.log)
+
+    print('PROCESSING REMOTE DATA')
+    print(datadict)
     if 'nodeid' in datadict:
 
         """
@@ -387,11 +403,73 @@ def processremotedata(datadict, stringmessage):
         """
         runquery = False
         nodeid = datadict['nodeid']
-        querylist = []
+
         # We are going to use this to filter datadict entries into remote channels. More later.
         allowedfieldnames = ['nodeid','sv','pv','htcool','run','treg','prop','p','i','d']
 
+        control_db = dblib.sqliteDatabase(pilib.dirs.dbs.control)
+
         # Command responses, including value requests
+
+
+        # Node status values
+
+        value_types = ['vbat', 'vout', 'autoboot', 'output', 'batterylow', 'sigbootok', 'sigshutoff']
+        # sprintf(buff, "nodeid:1,vbat:%01d.%02d,vout:%01d.%02d,autoboot:%01d,output:%01d", wholevoltage, fractvoltage,
+        #        wholevoltage2, fractvoltage2, autobootenabled, outputstate);
+        # Serial.println(buff);
+        # sprintf(buff, "batterylow:%01d,sigbootok:%01d,sigshutoff:%01d", batteryLow, bootok, sigshutoff);
+
+        for value_type in value_types:
+            if value_type in datadict:
+
+                insert = {
+                    'nodeid': nodeid,
+                    'msgtype': 'nodestatus',
+                    'keyvaluename': value_type,
+                    'keyvalue': datadict[value_type],
+                    'data': stringmessage.replace('\x00', ''),
+                    'time': datalib.gettimestring()
+                }
+                control_db.query(dblib.makedeletesinglevaluequery('remotes',
+                                                                        {'conditionnames': ['nodeid', 'keyvaluename'],
+                                                                         'conditionvalues': [nodeid, insert['keyvaluename']]}), queue=True)
+                control_db.insert('remotes', insert, queue=True)
+
+        # Node system events
+
+        if 'event' in datadict:
+            insert = {
+                'nodeid': nodeid,
+                'msgtype': 'event',
+                'keyvaluename': datadict['event'],
+                'keyvalue': datalib.gettimestring(),
+                'data': stringmessage.replace('\x00', ''),
+                'time': datalib.gettimestring()
+            }
+            control_db.query(dblib.makedeletesinglevaluequery('remotes',
+                                                                    {'conditionnames': ['nodeid', 'keyvaluename'],
+                                                                     'conditionvalues': [nodeid, insert['keyvaluename']]}),
+                                                                        queue=True)
+            control_db.insert('remotes', insert, queue=True)
+
+            # Also queue an email message to cupid_status
+            import socket
+            hostname = socket.gethostname()
+
+            message = 'CuPID system event : {} \r\n\r\n'.format(insert['keyvaluename'])
+            notifications_email = 'cupid_status@interfaceinnovations.org'
+            subject = 'CuPID : {} : {} '.format(hostname, insert['keyvaluename'])
+            notification_database = pilib.cupidDatabase(pilib.dirs.dbs.notifications)
+            system_database = pilib.cupidDatabase(pilib.dirs.dbs.system)
+
+            currenttime = datalib.gettimestring()
+            notification_database.insert('queued',
+                                         {'type': 'email', 'message': message,
+                                          'options': 'email:' + notifications_email + ',subject:' + subject,
+                                          'queuedtime': currenttime})
+            system_database.set_single_value('notifications', 'lastnotification', currenttime, condition="item='boot'")
+
         if 'cmd' in datadict:
             if datadict['cmd'] == 'lp':
                 # Remove command key and process remaining data
@@ -399,8 +477,7 @@ def processremotedata(datadict, stringmessage):
                 motetablename = 'node_' + nodeid + '_status'
 
                 # Create table if it doesn't exist
-                query = 'create table if not exists \'' + motetablename + '\' ( time text, message text primary key, value text)'
-                dblib.sqlitequery(pilib.dirs.dbs.motes, query)
+                motes_db.create_table(motetablename, pilib.schema.mote, queue=True)
 
                 for key in datadict:
                     thetime = datalib.gettimestring()
@@ -429,15 +506,20 @@ def processremotedata(datadict, stringmessage):
 
                         querylist = []
                         for value in valuelist:
-                            querylist.append(dblib.makesqliteinsert(motetablename, [thetime, base + str(index), value]))
+                            query = dblib.makesqliteinsert(motetablename, [thetime, base + str(index), value])
+                            motes_db.query(query, queue=True)
+                            # querylist.append(dblib.makesqliteinsert(motetablename, [thetime, base + str(index), value]))
                             index += 1
-                        dblib.sqlitemultquery(pilib.dirs.dbs.motes, querylist)
+
 
                     # Update table entry. Each entry has a unique key
                     # updatetime, keyname, data
                     else:
-                        dblib.sqliteinsertsingle(pilib.dirs.dbs.motes, motetablename, [thetime, key, datadict[key]])
-                        print('inserted ' + thetime + ' ' + key + ' ' + datadict[key])
+                        motes_db.insert(motetablename, {'time':thetime, 'message':key, 'value':datadict[key]}, queue=True)
+                        # print('inserted ' + thetime + ' ' + key + ' ' + datadict[key])
+
+                    if motes_db.queued_queries:
+                        motes_db.execute_queue()
 
         # This is for values that are reported by the node
         elif 'ioval' in datadict:
@@ -451,15 +533,7 @@ def processremotedata(datadict, stringmessage):
             except:
                 print('oops')
             else:
-                runquery = True
-
-        # Node status report
-        elif 'voltage' in datadict:
-            print(' I found le voltage')
-            msgtype = 'status'
-            keyvalue = datadict['voltage']
-            keyvaluename = 'voltage'
-            runquery= True
+                control_db.insert()
 
         elif 'owdev' in datadict:
             try:
@@ -492,7 +566,7 @@ def processremotedata(datadict, stringmessage):
 
             # Here, get all remote entries for the specific node id
             conditions = '"nodeid"=\'' + datadict['nodeid'] + '\' and "msgtype"=\'channel\''
-            chanentries = dblib.readalldbrows(pilib.dirs.dbs.control, 'remotes', conditions)
+            chanentries = control_db.read_table('remotes', conditions)
 
             # parse through to get data from newdata
             newdata = {}
@@ -526,36 +600,28 @@ def processremotedata(datadict, stringmessage):
             # Ok, so here we are. We have either added new data to old data, or we have the new data alone.
             # We take our dictionary and convert it back to json and put it in the text entry
 
-            updatedjsonentry = utility.dicttojson(updateddata)
+            updatedjsonentry = datalib.dicttojson(updateddata)
 
             conditions += 'and "keyvalue"=\'' + keyvalue +'\''
             deletequery = dblib.makedeletesinglevaluequery('remotes', conditions)
 
             # hardcode this for now, should supply valuename list.
             addquery = dblib.makesqliteinsert('remotes', [datadict['nodeid'], 'channel', keyvalue, 'channel', updatedjsonentry, datalib.gettimestring()])
-            dblib.sqlitemultquery(pilib.dirs.dbs.control, [deletequery, addquery])
+            print(deletequery)
+            print(addquery)
+
+            control_db.queries([deletequery, addquery])
 
         elif 'scalevalue' in datadict:
-            querylist.append('create table if not exists scalevalues (value float, time string)')
-            querylist.append(dblib.makesqliteinsert('scalevalues', [datadict['scalevalue'], datalib.gettimestring()], ['value', 'time']))
-            dblib.sqlitemultquery(pilib.dirs.dbs.log, querylist)
+            # TODO : What is this?
+            # querylist.append('create table if not exists scalevalues (value float, time string)')
+            # querylist.append(dblib.makesqliteinsert('scalevalues', [datadict['scalevalue'], datalib.gettimestring()], ['value', 'time']))
+            # log_db.queries(querylist)
+            pass
 
-        if runquery:
-            control_db = dblib.sqliteDatabase(pilib.dirs.dbs.control)
-            # control_db.queue_query(dblib.makedeletesinglevaluequery('remotes', {'conditionnames': ['nodeid', 'keyvalue', 'keyvaluename'], 'conditionvalues': [nodeid , keyvalue, keyvaluename]}))
-            control_db.queue_query(dblib.makedeletesinglevaluequery('remotes', {'conditionnames': ['nodeid', 'keyvaluename'], 'conditionvalues': [nodeid , keyvaluename]}))
-            insert = {
-                'nodeid':nodeid,
-                'msgtype':msgtype,
-                'keyvaluename':keyvaluename,
-                'keyvalue':keyvalue,
-                'data':stringmessage.replace('\x00', ''),
-                'time':datalib.gettimestring()
-            }
-            # print(insert)
-            control_db.insert('remotes', insert, queue=True)
-            # print(control_db.queued_queries)
+        if control_db.queued_queries:
             control_db.execute_queue()
+
             return
         else:
             # print('not running query')
@@ -563,5 +629,6 @@ def processremotedata(datadict, stringmessage):
     return
 
 if __name__ == '__main__':
+    # Need to include an option for only debug. See other scripts for examples.
     monitor(checkstatus=False, printmessages=True)
     # monitor()

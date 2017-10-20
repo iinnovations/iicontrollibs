@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -42,6 +42,7 @@ partsaliases = {
         # Power supplies
         'ps24VDC1p4A':{'partid':'H001', 'pclass':'electronics','psubclass':'powersupplies', 'railwidth':3.07},
         'ps5VDC2p4A':{'partid':'H002', 'pclass':'electronics','psubclass':'powersupplies', 'railwidth':0.98},
+        'ps24VDC2p5A':{'partid':'H003', 'pclass':'electronics','psubclass':'powersupplies', 'railwidth':0.98},
 
         # Switches and indicators
         'ledswitch': {'partid': 'K007', 'pclass':'parts','psubclass':'switchesindicators','controlsload': 0.011 * 24/110}, #24V @ 11mA
@@ -97,6 +98,7 @@ partsaliases = {
 
         '1p5TC8inTWRTD_20ft':{'partid':'S003', 'pclass':'parts','psubclass':'sensors'},
         'plainrtd':{'partid':'S001', 'pclass':'parts','psubclass':'sensors'},
+        'rtdwithhead':{'partid':'S004', 'pclass':'parts','psubclass':'sensors'},
         'opticallevelsensor':{'partid':'S012', 'pclass':'parts','psubclass':'sensors'},
         'tuningforklevelsensor':{'partid':'S011', 'pclass':'parts','psubclass':'sensors'},
         'mechanicallevelsensor':{'partid':'S013', 'pclass':'parts','psubclass':'sensors'},
@@ -344,8 +346,7 @@ def handlecard(componentsdict, custoptions, pointname, cardname, cardpointcount,
 def handlelevel(componentsdict, custoptions, leveltype, interfacetype, optionname):
 
     # Parts common to all level interfaces and sensors
-    addincpartsdict(componentsdict, 'dltb', 3)
-    addincpartsdict(custoptions[optionname]['bom'], 'dltb', 2)
+    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'dltb', 3)
 
     # Parts common to all level sensors
 
@@ -380,18 +381,17 @@ def handlelevel(componentsdict, custoptions, leveltype, interfacetype, optionnam
             # Cupid reads status from PLC
 
     if leveltype in ['optical','opticalwithtimer']:
-        addincpartsdicts([componentsdict,custoptions[optionname]['bom']], 'opticallevelsensor', option=optionname)
+        addincpartsdicts([componentsdict,custoptions[optionname]['bom']], 'opticallevelsensor')
     elif leveltype in ['mechanical', 'mechanicalwithtimer']:
-        addincpartsdicts([componentsdict,custoptions[optionname]['bom']], option=optionname)
+        addincpartsdicts([componentsdict,custoptions[optionname]['bom']])
     elif leveltype in ['tuningfork', 'tuningforkwithtimer']:
-        addincpartsdicts([componentsdict,custoptions[optionname]['bom']], 'tuningforklevelsensor', option=optionname)
+        addincpartsdicts([componentsdict,custoptions[optionname]['bom']], 'tuningforklevelsensor')
 
     if leveltype in ['mechanicalwithtimer', 'opticalwithtimer', 'tuningforkwithtimer']:
 
         # Only add if not touchscreen. If TS, just add commissioning time
         if interfacetype in ['4C', '16C']:
-            addincpartsdicts(componentsdict,'leveltimer', option=optionname)
-            addincpartsdicts(custoptions[optionname]['bom'],'leveltimer')
+            addincpartsdicts([componentsdict,custoptions[optionname]['bom']],'leveltimer', option=optionname)
 
             for adddict in componentsdict, custoptions[optionname]['bom']:
 
@@ -595,7 +595,11 @@ def paneltobom(**kwargs):
     custoptions[optionname] = {'bom':{}}
 
     # Controls 24VDC PS
-    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'ps24VDC1p4A', pclass='electronics',psubclass='powersupplies')
+    if paneldesc['interfacetype'] in ['4C', '16C']:
+        addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'ps24VDC1p4A', pclass='electronics',psubclass='powersupplies')
+    else:
+        addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'ps24VDC2p5A', pclass='electronics',psubclass='powersupplies')
+
 
     if paneldesc['paneltype'] == 'brewpanel':
 
@@ -614,8 +618,13 @@ def paneltobom(**kwargs):
 
     elif paneldesc['paneltype'] == 'temppanel':
 
-        # CuPID remote for temppanel
-        addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'cupidbrewmote')
+        if paneldesc['interfacetype'] in ['10inchTS', '17inchTS']:
+            addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'cupidbrewpanel')
+
+        elif paneldesc['interfacetype'] in ['4C', '16C']:
+
+            # CuPID remote for temppanel
+            addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'cupidbrewpanel')
 
     # Commissioning time
     addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'laborcommissioning', 2)
@@ -672,6 +681,7 @@ def paneltobom(**kwargs):
         # Somehow need a way to attribute PLC options to TS option ... call it PLC/TS?
 
     for vessel in paneldesc['vessels']:
+        print(vessel)
         bomdescription += 'Control vessel: ' + vessel['name'] + ' : ' + vessel['controltype'] + '\n\r'
 
         if 'tempsensor' in vessel and vessel['tempsensor'] == '1p5TC8inTWRTD_20ft':
@@ -705,8 +715,8 @@ def paneltobom(**kwargs):
                 componentsdict['loads']['outputsload'] += 0.5
                 # print('ADDING AC LOAD')
             elif vessel['controltype'] == 'dcoutput':
-                # Add 1A DC. PLENTY
-                componentsdict['loads']['outputsload'] += 1.0 * 24 / 110
+                # Add 1.5A DC
+                componentsdict['loads']['outputsload'] += 1.5 * 24 / 110
                 # print('ADDING DC LOAD')
 
             # else ... totally unknown.
@@ -769,16 +779,18 @@ def paneltobom(**kwargs):
                 optionname = 'Pump: ' + pump['name'] + ': ' + pump['controltype'] + ' (no VFD)'
             custoptions[optionname] = {'bom':{}}
 
+            # Add VFD
+            if pump['size'] == '1HP':
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'VFD-1HP-2083P')
+            elif pump['size'] == '2HP':
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'VFD-2HP-2083P')
+            elif pump['size'] == '3HP':
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'VFD-3HP-2083P')
+            elif pump['size'] == '5HP':
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'VFD-5HP-2083P')
+
             if pump['controltype'] in motorcontroltypes:
-                 # Add VFD
-                if pump['size'] == '1HP':
-                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'VFD-1HP-2083P')
-                elif pump['size'] == '2HP':
-                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'VFD-2HP-2083P')
-                elif pump['size'] == '3HP':
-                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'VFD-3HP-2083P')
-                elif pump['size'] == '5HP':
-                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'VFD-5HP-2083P')
+
 
                 if pump['controltype'] in ['vfdpanelonoff', 'vfdpanelonoffspeed', 'vfdpanelonoffreverse',
                              'vfdpanelonoffspeedreverse']:
@@ -867,47 +879,90 @@ def paneltobom(**kwargs):
                 addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_24x20x08')
                 addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_24x20')
 
+            elif paneldesc['panelfinish'] == 'stainless':
+
+                # Should be provision for 20x20 in here if we want it ...
+                # THIS DOES NOT EXIST (no SS enclosure in this dimension yet)
+
+                bomdescription += 'Enclosure: 24x20x8, stainless steel \n\r'
+
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_24x20x08SS')
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_24x20')
+
         elif paneldesc['interfacetype'] in ['16C', '10inchTS']:
             if paneldesc['panelfinish'] == 'greystd':
-                bomdescription += 'Enclosure: 16x16x6, grey paint finish \n\r'
+                bomdescription += 'Enclosure: 20x20x6, grey paint finish \n\r'
 
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_16x16x06')
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_16x16')
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_20x20x06')
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_20x20')
+
+            elif paneldesc['panelfinish'] == 'stainless':
+
+                bomdescription += 'Enclosure: 20x20x6, stainless steel \n\r'
+
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_20x20x06SS')
+                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_20x20')
 
     if paneldesc['paneltype'] == 'temppanel':
         if paneldesc['interfacetype'] in ['16C']:
 
             if numvessels in [5] or int(numvessels) < 5:
                 # 12 x 12
-                bomdescription += 'Enclosure: 12x12x6, grey paint finish \n\r'
+                if paneldesc['panelfinish'] == 'greystd':
 
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_12x12x06')
+                    bomdescription += 'Enclosure: 12x12x6, grey paint finish \n\r'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_12x12x06')
+
+                elif paneldesc['panelfinish'] == 'stainless':
+
+                    bomdescription += 'Enclosure: 12x12x6 stainless \n\r'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_12x12x06SS')
+
                 addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_12x12')
 
             elif numvessels in [7,8,9,10]:
                 # 16 x 16
-                bomdescription += 'Enclosure: 16x16x6, grey paint finish \n\r'
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_16x16x06')
+                if paneldesc['panelfinish'] == 'greystd':
+                    bomdescription += 'Enclosure: 16x16x6, grey paint finish \n\r'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_16x16x06')
+
+                elif paneldesc['panelfinish'] == 'stainless':
+                    bomdescription += 'Enclosure: 16x16x6 stainless \n\r'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_16x16x06SS')
+
                 addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_16x16')
 
             elif numvessels in [11,12]:
                 # 20 x 20
-                bomdescription += 'Enclosure: 20x20x6, grey paint finish \n\r'
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_20x20x06')
+                if paneldesc['panelfinish'] == 'greystd':
+                    bomdescription += 'Enclosure: 20x20x6, grey paint finish \n\r'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_20x20x06')
+                elif paneldesc['panelfinish'] == 'stainless':
+                    bomdescription += 'Enclosure: 20x20x6, stainless \n\r'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_20x20x06SS')
+
                 addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_20x20')
 
         elif paneldesc['interfacetype'] in ['10inchTS']:
 
-            if numvessels in [5,6,7,8,9,10]:
+            if numvessels in [5,6]:
                 # 16 x 16
-                bomdescription += 'Enclosure: 16x16x6, grey paint finish'
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_16x16x06')
+                if paneldesc['panelfinish'] == 'greystd':
+                    bomdescription += 'Enclosure: 16x16x6, grey paint finish'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_16x16x06')
+                elif paneldesc['panelfinish'] == 'stainless':
+                    bomdescription += 'Enclosure: 16x16x6, stainless'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_16x16x06SS')
                 addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_16x16')
 
-            elif numvessels in [11,12,13,14,15,16,17,18,19,20]:
+            elif numvessels in [7,8,9,10,11,12,13,14,15,16,17,18,19,20]:
                 # 20 x 20
-                bomdescription += 'Enclosure: 20x20x6, grey paint finish'
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_20x20x06')
+                if paneldesc['panelfinish'] == 'greystd':
+                    bomdescription += 'Enclosure: 20x20x6, grey paint finish'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_20x20x06')
+                elif paneldesc['panelfinish'] == 'stainless':
+                    bomdescription += 'Enclosure: 20x20x6, stainless'
+                    addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'encl_20x20x06SS')
                 addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'enclpan_20x20')
 
     if paneldesc['paneltype'] == 'brewpanel':
@@ -1189,6 +1244,8 @@ def paneltobom(**kwargs):
     bomdescription += '\tControls:\t' + str(setprecision(componentsdict['loads']['controlsload'], loadprecision)) + '\r\n'
     bomdescription += '\tOutputs:\t' + str(setprecision(componentsdict['loads']['outputsload'], loadprecision)) + '\r\n'
     bomdescription += '\tTotal:\t' + str(setprecision(componentsdict['loads']['totalload'], loadprecision)) + '\r\n'
+
+    # TODO: Add DC PS for DC LOADS
 
     output['bomdescription'] = bomdescription
 

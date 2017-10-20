@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -25,7 +25,12 @@ def runboot():
 
     import pilib
     import spilights
-    from iiutilities import utility, dblib
+    from iiutilities import utility, dblib, datalib
+
+    try:
+        pilib.set_all_wal(False)
+    except:
+        print('error setting wal mode')
 
     interfaces = dblib.readalldbrows(pilib.dirs.dbs.control, 'interfaces')
 
@@ -34,6 +39,33 @@ def runboot():
         dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', statusvalue, 0)
 
     systemstatus = dblib.readonedbrow(pilib.dirs.dbs.system, 'systemstatus')[0]
+
+
+    # Queue a message indicating we are rebooting
+    # TODO: Make this an actions option, or put it somewhere.
+    # try:
+    import socket
+    hostname = socket.gethostname()
+
+    message = 'CuPID is booting:\r\n\r\n'
+    notifications_email = 'cupid_status@interfaceinnovations.org'
+    subject = 'CuPID : ' + hostname + ' : booting'
+    notification_database = pilib.cupidDatabase(pilib.dirs.dbs.notifications)
+    system_database = pilib.cupidDatabase(pilib.dirs.dbs.system)
+
+    currenttime = datalib.gettimestring()
+    notification_database.insert('queued',
+                                 {'type': 'email', 'message': message,
+                                  'options': 'email:' + notifications_email + ',subject:' + subject,
+                                  'queuedtime': currenttime})
+    system_database.set_single_value('notifications', 'lastnotification', currenttime, condition="item='boot'")
+
+    # except Exception as e:
+    #     error_message = 'EXCEPTION in notification: {}'.format(e.message)
+    #     print (error_message)
+    #     utility.log(pilib.dirs.logs.system, error_message)
+    # else:
+    #     utility.log(pilib.dirs.logs.system, 'Boot notificaiton complete. ')
 
 
     # Start pigpiod

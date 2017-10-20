@@ -16,19 +16,30 @@ def application(environ, start_response):
     from iiutilities import dblib
     from time import time
 
-    post_env = environ.copy()
-    post_env['QUERY_STRING'] = ''
-    post = cgi.FieldStorage(
-        fp=environ['wsgi.input'],
-        environ=post_env,
-        keep_blank_values=True
-    )
+    # post_env = environ.copy()
+    # post_env['QUERY_STRING'] = ''
+    # post = cgi.FieldStorage(
+    #     fp=environ['wsgi.input'],
+    #     environ=post_env,
+    #     keep_blank_values=True
+    # )
+    #
+    # formname = post.getvalue('name')
+    # output = {}
+    # post = {}
+    # for k in post.keys():
+    #     post[k] = post.getvalue(k)
 
-    formname = post.getvalue('name')
+    try:
+        request_body_size = int(environ.get('CONTENT_LENGTH', 0))
+    except ValueError:
+        request_body_size = 0
+
+    request_body = environ['wsgi.input'].read(request_body_size)
+    post = json.loads(request_body.decode('utf-8'))
+
     output = {}
-    d = {}
-    for k in post.keys():
-        d[k] = post.getvalue(k)
+    output['message'] = ''
 
     status = '200 OK'
     # Run stuff as requested
@@ -46,25 +57,29 @@ def application(environ, start_response):
         import hashlib
 
         safe_database = dblib.sqliteDatabase(pilib.dirs.dbs.users)
-        if 'username' in d and d['username']:
-            output['message'] += 'Session user is ' + d['username'] + '. '
+        if 'username' in post and post['username']:
+            output['message'] += 'Session user is ' + post['username'] + '. '
         else:
             output['message'] += 'No session user found. '
-            d['username'] = ''
+            post['username'] = ''
 
-        if d['username']:
+        if post['username']:
+            condition = "name='" + post['username'] + "'"
+            user_data = safe_database.read_table_row('users', condition=condition)[0]
+
             try:
-                condition = "name='" + d['username'] + "'"
+                condition = "name='" + post['username'] + "'"
                 user_data = safe_database.read_table_row('users', condition=condition)[0]
             except:
-                output['message'] += 'Error in user sqlite query for session user "' + d['username'] + '". '
+                output['message'] += 'Error in user sqlite query for session user "' + post['username'] + '". '
+                # output['message'] += 'Condition {}'.format(condition)
                 output['message'] += 'Condition: ' + condition + '. Path: ' + pilib.dirs.dbs.safe
                 user_data = {'accesskeywords': 'demo', 'admin': False}
             else:
                 # Get session hpass to verify credentials
-                hashedpassword = d['hpass']
+                hashedpassword = post['hpass']
                 hname = hashlib.new('sha1')
-                hname.update(d['username'])
+                hname.update(post['username'])
                 hashedname = hname.hexdigest()
                 hentry = hashlib.new('md5')
                 hentry.update(hashedname + pilib.salt + hashedpassword)
@@ -80,51 +95,49 @@ def application(environ, start_response):
         output['message'] += 'WSGI authorization not enabled. '
     if authverified or not wsgiauth:
         try:
-            action = d['action']
+            action = post['action']
         except KeyError:
             output['message'] = 'no action in request'
         else:
             if action == 'gettablenames':
-                dbpath = pilib.dbnametopath(d['database'])
+                dbpath = pilib.dbnametopath(post['database'])
                 try:
                     output['data'] = dblib.gettablenames(dbpath)
                 except:
                     output['message'] += 'Error getting table names'
-            elif action == 'switchtablerows':
-                dbpath = pilib.dbnametopath(d['database'])
-                dblib.switchtablerows(dbpath, d['tablename'], d['row1'], d['row2'], d['uniqueindex'])
             elif action == 'modwsgistatus':
                 output['processgroup'] = repr(environ['mod_wsgi.process_group'])
                 output['multithread'] = repr(environ['wsgi.multithread'])
             elif action == 'gettabledata':
                 output['message']+='Gettabledata. '
-                if 'database' in d:
-                    dbpath = pilib.dbnametopath(d['database'])
+                if 'database' in post:
+                    dbpath = pilib.dbnametopath(post['database'])
                     if dbpath:
-                        output['message'] += 'Friendly name ' + d['database'] + ' translated to path ' + dbpath + ' successfully. '
+                        output['message'] += 'Friendly name ' + post['database'] + ' translated to path ' + dbpath + ' successfully. '
 
                         the_database = dblib.sqliteDatabase(dbpath)
-                        if 'tablenames[]' in d:  # Get multiple tables
+                        if 'tablenames' in post:  # Get multiple tables
                             output['message'] += 'Multiple tables. '
                             data = []
-                            if 'start' in d:
-                                fixedstart = int(d['start'])
+                            if 'start' in post:
+                                fixedstart = int(post['start'])
                             else:
                                 fixedstart = 0
-                            if 'length' in d:
-                                fixedlength = int(d['length'])
+                            if 'length' in post:
+                                fixedlength = int(post['length'])
                             else:
-                                fixedlength = 1
-                            if 'lengths[]' in d:
-                                lengths = map(int, d['lengths[]'])
+                                fixedlength = 0
+                            if 'lengths' in post:
+                                lengths = map(int, post['lengths[]'])
                             else:
                                 lengths = []
-                            if 'starts[]' in d:
-                                starts = map(int, d['starts'])
+                            if 'starts' in post:
+                                starts = map(int, post['starts'])
                             else:
                                 starts = []
 
-                            for index, table in enumerate(d['tablenames[]']):
+                            for index, table in enumerate(post['tablenames']):
+                                output['message'] += 'Reading table {}. '.format(table)
                                 try:
                                     length = lengths[index]
                                 except IndexError:
@@ -133,33 +146,38 @@ def application(environ, start_response):
                                     start = starts[index]
                                 except IndexError:
                                     start = fixedstart
-
-                                data.append(the_database.read_table_rows(table, start, length))
+                                if not fixedlength: # get all rows if length not specified
+                                    db_data = the_database.read_table(table)
+                                else:
+                                    db_data = the_database.read_table_rows(table, start, length)
+                                output['message'] += 'Read {} rows of data. '.format(len(db_data))
+                                data.append(db_data)
                                 output['data']=data
 
-                        elif 'length' in d:  # Handle table row subset
+                        elif 'length' in post:  # Handle table row subset
                             output['message']+='Length keyword. '
-                            if not 'start' in d:
-                                d['start'] = 0
-                            thetime = time();
-                            output['data'] = the_database.read_table_rows(d['tablename'], d['start'], d['length'])
+                            if not 'start' in post:
+                                post['start'] = 0
+                            thetime = time()
+                            output['data'] = the_database.read_table_rows(post['tablename'], post['start'], post['length'])
                             output['querytime'] = time() - thetime
-                        elif 'row' in d:  # Handle table row
-                            output['message'] += 'Row keyword. ' + str(d['row'])
-                            thetime = time();
-                            output['data'] = the_database.read_table_rows(d['tablename'], d['row'])
+                        elif 'row' in post:  # Handle table row
+                            output['message'] += 'Row keyword. ' + str(post['row'])
+                            thetime = time()
+                            output['data'] = the_database.read_table_rows(post['tablename'], post['row'])
                             output['querytime'] = time() - thetime
-                        elif 'tablename' in d:  # Handle entire table
-                            output['message'] += 'Tablename keyword: ' + d['tablename'] + '. '
-                            thetime = time();
-                            if 'condition' in d:
-                                if not d['condition'] == '':
-                                    output['data'] = the_database.read_table_rows(d['tablename'], condition=d['condition'])
+                        elif 'tablename' in post:  # Handle entire table
+                            output['message'] += 'Tablename keyword: {}. '.format(post['tablename'])
+                            thetime = time()
+                            if 'condition' in post:
+                                if not post['condition'] == '':
+                                    output['message'] += 'Condition : "{}" .'.format(post['condition'])
+                                    output['data'] = the_database.read_table(post['tablename'], condition=post['condition'])
                                 else:
-                                    output['data'] = the_database.read_table_rows(d['tablename'])
+                                    output['data'] = the_database.read_table(post['tablename'])
                             else:
                                 try:
-                                    output['data'] = the_database.read_table_rows(d['tablename'])
+                                    output['data'] = the_database.read_table(post['tablename'])
                                 except:
                                     output['message'] += 'Error retrieving data. '
                                 else:
@@ -168,9 +186,35 @@ def application(environ, start_response):
                             output['querytime'] = time() - thetime
 
                     else:
-                        output['message'] += 'Friendly name ' + d['database'] + ' unsuccessfully translated. '
+                        output['message'] += 'Friendly name ' + post['database'] + ' unsuccessfully translated. '
                 else:
                     output['message'] += 'No database present in action request'
+
+            elif action =='get_archive_info':
+                from iiutilities.utility import get_directory_listing
+                directory_list = get_directory_listing(pilib.dirs.archive)
+                output['data'] = {}
+                output['data']['lognames'] = []
+                for filename in directory_list['filenames']:
+                    if filename[-3:] == '.db':
+                        output['data']['lognames'].append(filename[:-3])
+                    else:
+                        directory_list['filenames'].remove(filename)
+
+                output['data']['metadata'] = []
+                output['message'] += 'Retrieved db logs {}. '.format(directory_list['filenames'])
+                for filename, logname in zip(directory_list['filenames'], output['data']['lognames']):
+
+                    archive_db = dblib.sqliteDatabase(pilib.dirs.archive + filename)
+                    try:
+                        metadata = archive_db.read_table('metadata')[0]
+                    except:
+                        output['message'] += 'Error retrieving metadata for log table {}. '.format(filename)
+                        output['data']['metadata'].append({})
+                    else:
+                        metadata['name'] = logname
+                        output['data']['metadata'].append(metadata)
+
             else:
                 output['message'] = 'no command matched for action ' + action
     else:
@@ -178,14 +222,14 @@ def application(environ, start_response):
 
     if output['data']:
         newetag = hashlib.md5(str(output['data'])).hexdigest()
-        if 'etag' in d:
-            if newetag == d['etag']:
+        if 'etag' in post:
+            if newetag == post['etag']:
                 status = '304 Not Modified'
                 output['data'] = ''
     else:
         newetag=''
 
-    if 'datasize' in d:
+    if 'datasize' in post:
         output['datasize'] = sys.getsizeof(output['data'])
 
     output['etag'] = newetag

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -39,7 +39,7 @@ limit the number of sessions per user
 
 # Determine whether this process is enabled:
 
-enabled = dblib.sqlitedatumquery(pilib.dirs.dbs.control, 'select sessioncontrolenabled from \'systemstatus\'')
+enabled = dblib.sqlitedatumquery(pilib.dirs.dbs.system, 'select sessioncontrolenabled from \'systemstatus\'')
 
 while enabled:
     #print('enabled')
@@ -83,5 +83,5 @@ while enabled:
     polltime = dblib.sqlitedatumquery(pilib.dirs.dbs.session, 'select updatefrequency from \'settings\'')
 
     time.sleep(polltime)
-    enabled = dblib.sqlitedatumquery(pilib.dirs.dbs.control, 'select sessioncontrolenabled from \'systemstatus\'')
+    enabled = dblib.sqlitedatumquery(pilib.dirs.dbs.system, 'select sessioncontrolenabled from \'systemstatus\'')
 

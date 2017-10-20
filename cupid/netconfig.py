@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -19,7 +19,7 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 
-def updatedhcpd(path='/etc/dhcp/dhcpd.conf', interface='wlan0', gateway='192.168.0.1', dhcpstart='192.168.0.70', dhcpend='192.168.0.99'):
+def updatedhcpd(path='/etc/dhcp/dhcpd.conf', interface='wlan0', gateway='192.168.8.1', dhcpstart='192.168.8.70', dhcpend='192.168.8.99'):
     from iiutilities import dblib
     from cupid import pilib
     try:
@@ -37,7 +37,7 @@ def updatedhcpd(path='/etc/dhcp/dhcpd.conf', interface='wlan0', gateway='192.168
     try:
         subnet = '.'.join(gateway.split['.'][:-1]) + '.0'
     except:
-        subnet = '192.168.0.0'
+        subnet = '192.168.8.0'
 
     filestring = 'ddns-update-style none;\noption domain-name "example.org";\n'
     filestring += 'option domain-name-servers ns1.example.org, ns2.example.org;\n'
@@ -92,7 +92,7 @@ def setdefaultapsettings():
         networkname = 'cupidwifi'
         networkpassword = 'cupidpassword'
     else:
-        networkname = 'cupid' + hostname
+        networkname = 'cupid_' + hostname
         networkpassword = hostname + '_pwd'
 
     rebuild_ap_data(SSID=networkname, password=networkpassword)
@@ -596,10 +596,11 @@ def resetwlan(interface='wlan0'):
 
     utility.log(pilib.dirs.logs.network, 'Resetting ' + interface + ' . ', 3, pilib.loglevels.network)
     try:
-        subprocess.check_output(['/sbin/ifdown', '--force', interface], stderr=subprocess.PIPE)
-        subprocess.call(['/sbin/ifup', interface], stderr=subprocess.PIPE)
-    except Exception, e:
-        utility.log(pilib.dirs.logs.network, 'Error resetting ' + interface + ' : ' + str(e), 0, pilib.loglevels.network)
+        subprocess.check_output(['/sbin/ifconfig', interface, 'down'], stderr=subprocess.PIPE)
+        subprocess.call(['/sbin/ifconfig', interface, 'up'], stderr=subprocess.PIPE)
+    except:
+        import traceback
+        utility.log(pilib.dirs.logs.network, 'Error resetting ' + interface + ' : ' +  traceback.format_exc(), 0, pilib.loglevels.network)
     else:
         utility.log(pilib.dirs.logs.network, 'Completed resetting ' + interface + '. ', 3, pilib.loglevels.network)
 

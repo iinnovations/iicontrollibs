@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 __author__ = "Colin Reese"
 __copyright__ = "Copyright 2016, Interface Innovations"
@@ -57,7 +57,7 @@ def updateiwstatus():
     insertstringdicttablelist(dirs.dbs.system, 'iwstatus', [iwdict], droptable=True)
 
 
-def watchdoghamachi(pingip='self', threshold=3000, debug=False):
+def watchdoghamachi(pingip='self', threshold=3000, debug=False, restart=True):
     from iiutilities.netfun import runping, restarthamachi, killhamachi, gethamachistatusdata
     from iiutilities import utility
     from iiutilities import dblib
@@ -69,13 +69,25 @@ def watchdoghamachi(pingip='self', threshold=3000, debug=False):
     try:
         # Turns out this is not going to work, as when it hangs, it hangs hard
         hamachistatusdata = gethamachistatusdata()
+    except Exception as e:
+
+        utility.log(pilib.dirs.logs.network, 'Error checking Hamachi via gethamachistatusdata with message:  ' + e.message, 1,
+                pilib.loglevels.network)
+        hamachistatusdata = {}
+
+    # We are having some issue with return on hamachi status check. This is not always a reason to restart hamachi
+    # We will carry on below and try to ping. if we can ping, we are good. if we need to self ping, this will still
+    # Throw errors. BUT, main point is that if we can ping our chosen hamachi address, we are good.
+
+    try:
 
         # So instead, we are going to test with a ping to another member on the network that
         # should always be online. This of course means that we have to make sure that it is, in fact, always
         # online
         if pingip in ['self', 'Self']:
             pingip = hamachistatusdata['address']
-        pingtimes = runping(pingip, numpings=5, quiet=True)
+
+        pingtimes = runping(pingip, numpings=15, quiet=True)
         pingmax = max(pingtimes)
         pingmin = min(pingtimes)
         pingave = sum(pingtimes)/len(pingtimes)
@@ -99,11 +111,15 @@ def watchdoghamachi(pingip='self', threshold=3000, debug=False):
 
     except Exception as e:
 
-        utility.log(pilib.dirs.logs.network, 'Error checking Hamachi with message:  ' + e.message, 1, pilib.loglevels.network)
+        utility.log(pilib.dirs.logs.network, 'Error checking Hamachi (second stage, pings) with message:  ' + e.message, 1, pilib.loglevels.network)
 
-        killhamachi()
-        restarthamachi()
-        print('blurg')
+        if restart:
+            utility.log(pilib.dirs.logs.network, 'Restarting hamachi:  ' + e.message, 1,
+                        pilib.loglevels.network)
+
+            killhamachi()
+            restarthamachi()
+        # print('blurg')
 
 
 def updatehamachistatus():
@@ -273,7 +289,7 @@ def watchdognetstatus(allnetstatus=None):
             utility.log(pilib.dirs.logs.network, 'Checking dhcp server status on wlan0. ', 4, pilib.loglevels.network)
             try:
                 result = subprocess.check_output(['/usr/sbin/service', 'isc-dhcp-server', 'status'], stderr=subprocess.PIPE)
-            except Exception, e:
+            except:
                 # If not running, the subprocess call will throw an error
                 utility.log(pilib.dirs.logs.network, 'Error in reading dhcp server status. Assumed down. ', 1, pilib.loglevels.network)
                 statusmsg += 'dhcp server appears down. '
@@ -299,7 +315,6 @@ def watchdognetstatus(allnetstatus=None):
                 runconfig=True
 
     elif netconfigdata['mode'] in ['wlan0wlan1bridge', 'wlan1wlan0bridge']:
-        print(' I AM HERE ')
         if netconfigdata['mode'] == 'wlan0wlan1bridge':
             stationinterface = 'wlan0'
             apinterface = 'wlan1'
@@ -310,7 +325,6 @@ def watchdognetstatus(allnetstatus=None):
 
         # Check station address (not yet implemented) and wpa status (implemented)
         try:
-            print('CHECKING')
 
             stationifacedata = ifacedict[stationinterface]
         except KeyError:
@@ -318,7 +332,6 @@ def watchdognetstatus(allnetstatus=None):
             statusmsg += 'No stationiface data(' + stationinterface + ') present for mode ' + netconfigdata['mode']
             runconfig = True
         else:
-            print('CHECKED')
             wpadata = datalib.parseoptions(stationifacedata['wpastate'])
             if wpadata['wpa_state'] == 'COMPLETED':
                 print('OK')
@@ -329,7 +342,6 @@ def watchdognetstatus(allnetstatus=None):
                     wpastatedata = utility.jsontodict(stationifacedata['wpastate'])
                     ssid = wpastatedata['ssid']
                 except:
-                    print('oops')
                     ssid = 'oops'
                 dblib.setsinglevalue(pilib.dirs.dbs.system, 'netstatus', 'SSID', ssid)
 
@@ -352,7 +364,7 @@ def watchdognetstatus(allnetstatus=None):
                 # Note that this does not check carefully that the dhcp server is running on the correct interface.
                 # We need a check on this.
                 result = subprocess.check_output(['/usr/sbin/service', 'isc-dhcp-server', 'status'], stderr=subprocess.PIPE)
-            except Exception, e:
+            except:
                 # If not running, the subprocess call will throw an error
                 utility.log(pilib.dirs.logs.network, 'Error in reading dhcp server status for interface ' + apinterface + ' Assumed down. ', 1, pilib.loglevels.network)
                 statusmsg += 'Error in reading dhcp server status. Assumed down. '
@@ -392,8 +404,9 @@ def watchdognetstatus(allnetstatus=None):
             try:
                 offlinetime = netstatus['offlinetime']
             except:
-                print('netstatus ERROR')
+                # print('netstatus ERROR')
                 utility.log(pilib.dirs.logs.network, 'Error gettng offlinetime. ', 2, pilib.loglevels.network)
+
 
             offlineperiod = datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(offlinetime)
 
@@ -723,7 +736,7 @@ def processapoverride(pin):
     import pilib
 
     try:
-        GPIO.setmode(GPIO.BCM)
+        GPIO.set_mode(GPIO.BCM)
         GPIO.setwarnings(False)
         GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     except:
@@ -872,8 +885,8 @@ def runsystemstatus(**kwargs):
     from iiutilities import utility
     from iiutilities import dblib
     from iiutilities import datalib
-
-    from iiutilities.gitupdatelib import updategitversions
+    from iiutilities import gitupdatelib
+    from iiutilities import data_agent
 
     if 'debug' in kwargs and kwargs['debug']:
         print('DEBUG MODE')
@@ -884,7 +897,8 @@ def runsystemstatus(**kwargs):
 
     try:
         utility.log(pilib.dirs.logs.system, 'Checking git versions', 3, pilib.loglevels.system)
-        updategitversions()
+        gitupdatelib.updaterepoversion(pilib.dirs.baselib, pilib.dirs.dbs.system, versiontablename='versions')
+        gitupdatelib.updaterepoversion(pilib.dirs.web, pilib.dirs.dbs.system, versiontablename='versions')
     except:
         utility.log(pilib.dirs.logs.system, 'Error in git version check', 0, pilib.loglevels.system)
     else:
@@ -916,7 +930,15 @@ def runsystemstatus(**kwargs):
     while systemstatus['systemstatusenabled']:
 
         # Run notifications
-        pilib.processnotificationsqueue()
+        pilib.process_notifications_queue()
+
+        try:
+            data_agent.run_data_agent()
+        except:
+            utility.log(pilib.dirs.logs.system, 'Error running data agent. ', 1, pilib.loglevels.network)
+        else:
+            utility.log(pilib.dirs.logs.system, 'Data agent run successfully. ', 3, pilib.loglevels.network)
+
 
         currenttime = datalib.gettimestring()
         dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'lastsystemstatuspoll', datalib.gettimestring())

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 from serial import Serial
 import time
@@ -24,8 +24,8 @@ for i, a in enumerate(range(33, 126)):
     #print "outStr = " + outStr
 
     if(inStr == outStr):
-        print "WORKED! for length of %d" % (i+1)
+        print( "WORKED! for length of %d" % (i+1))
     else:
-        print "failed"
+        print( "failed")
 
 serialPort.close()

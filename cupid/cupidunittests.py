@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 import os, sys, inspect
 
@@ -199,6 +199,7 @@ def testfunction(functionname, settings):
 def testmodules(modulenames, settings):
     resultdictarray=[]
     for modulename in modulenames:
+        print('testing module: ' + modulename)
         resultdictarray.append(testmodule(modulename, settings))
     return resultdictarray
 
@@ -206,6 +207,7 @@ def testmodules(modulenames, settings):
 def testfunctions(functionnames, settings):
     resultdictarray=[]
     for function in functionnames:
+        print('testing function: ' + function)
         resultdictarray.append(testfunction(function, settings))
     return resultdictarray
 
@@ -213,7 +215,7 @@ def testfunctions(functionnames, settings):
 def teststdmodules(settings):
     modules = ['cupid.actions', 'cupid.boot', 'cupid.camera', 'cupid.controllib', 'cupid.cupiddaemon',
                'cupid.netconfig', 'cupid.periodicupdateio', 'cupid.pilib', 'cupid.picontrol', 'cupid.rebuilddatabases',
-               'cupid.sessioncontrol', 'cupid.systemstatus', 'cupid.updateio']
+               'cupid.systemstatus', 'cupid.updateio']
     modules.extend(['iiutilities.datalib', 'iiutilities.dblib', 'iiutilities.gitupdatelib', 'iiutilities.netfun',
                     'iiutilities.owfslib', 'iiutilities.utility'])
     results = testmodules(modules, settings)

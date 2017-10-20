@@ -14,19 +14,30 @@ def application(environ, start_response):
     if top_folder not in sys.path:
         sys.path.insert(0, top_folder)
 
-    post_env = environ.copy()
-    post_env['QUERY_STRING'] = ''
-    post = cgi.FieldStorage(
-        fp=environ['wsgi.input'],
-        environ=post_env,
-        keep_blank_values=True
-    )
+    # post_env = environ.copy()
+    # post_env['QUERY_STRING'] = ''
+    # post = cgi.FieldStorage(
+    #     fp=environ['wsgi.input'],
+    #     environ=post_env,
+    #     keep_blank_values=True
+    # )
+    #
+    # formname=post.getvalue('name')
+    # data={}
+    # post = {}
+    # for k in post.keys():
+    #     post[k] = post.getvalue(k)
 
-    formname=post.getvalue('name')
-    data={}
-    d = {}
-    for k in post.keys():
-        d[k] = post.getvalue(k)
+    try:
+        request_body_size = int(environ.get('CONTENT_LENGTH', 0))
+    except ValueError:
+        request_body_size = 0
+
+    request_body = environ['wsgi.input'].read(request_body_size)
+    post = json.loads(request_body.decode('utf-8'))
+
+    output = {}
+    output['message'] = ''
 
     status = '200 OK'
 
@@ -47,23 +58,23 @@ def application(environ, start_response):
             statusdict[interface['id'] + 'mode'] = options['mode']
 
     # Execute commands
-    if 'action' in d:
+    if 'action' in post:
         querylist = []
-        if d['action'] == 'toggleGPIOmode':
+        if post['action'] == 'toggleGPIOmode':
             print('stuff')
-        elif d['action'] == 'toggleGPIOvalue':
+        elif post['action'] == 'toggleGPIOvalue':
             outputs = dblib.readalldbrows(pilib.dirs.dbs.control, 'outputs')
             for output in outputs:
-                if output['id'] == d['GPIOid']:
+                if output['id'] == post['GPIOid']:
                     curval = output['value']
                     if curval == 0:
                         setval = 1
                     else:
                         setval = 0
-                    querylist.append('update outputs set value= ' + str(setval) + ' where id=\'' + d['GPIOid'] + '\'')
-        elif d['action'] == 'wptoggleGPIOvalue':
+                    querylist.append('update outputs set value= ' + str(setval) + ' where id=\'' + post['GPIOid'] + '\'')
+        elif post['action'] == 'wptoggleGPIOvalue':
             try:
-                BCMpin = int(d['BCMpin'])
+                BCMpin = int(post['BCMpin'])
             except KeyError:
                 data['message'] = 'No pin sent with command'
             else:
@@ -76,9 +87,9 @@ def application(environ, start_response):
                 else:
                     call(['gpio','-g','write',str(BCMpin),'0'])
 
-        elif d['action'] == 'wptoggleGPIOmode':
+        elif post['action'] == 'wptoggleGPIOmode':
             try:
-                BCMpin = int(d['BCMpin'])
+                BCMpin = int(post['BCMpin'])
             except KeyError:
                 data['message'] = 'No pin sent with command'
             else:
@@ -96,7 +107,7 @@ def application(environ, start_response):
                 else:
                     call(['gpio','-g','mode',BCMpin,'out'])
 
-        elif d['action'] == 'wpgetgpiostatus':
+        elif post['action'] == 'wpgetgpiostatus':
             from cupid.pilib import getgpiostatus
             data = getgpiostatus()
 
