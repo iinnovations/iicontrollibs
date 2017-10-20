@@ -280,6 +280,8 @@ if [ "$2" = "full" -o "$1" = "full" ]
 
     echo "Creating default databases"
     /usr/lib/iicontrollibs/cupid/rebuilddatabases.py DEFAULTS
+    cd /usr/lib/iicontrollibs/iiutilities
+    python3 -c 'import data_agent; rebuild_data_agent_db()'
     chmod g+s /var/www/data
     chmod -R 775 /var/www/data
     chown -R root:www-data /var/www/data
