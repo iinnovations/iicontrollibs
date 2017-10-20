@@ -33,7 +33,7 @@ def doGpio(address,method,mode):
 
     if method == 'rpigpio':
         import RPi.GPIO as GPIO
-        GPIO.setmode(GPIO.BCM)
+        GPIO.set_mode(GPIO.BCM)
         GPIO.setwarnings(True)
 
     if mode == 'output':

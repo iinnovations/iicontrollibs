@@ -13,21 +13,31 @@ def application(environ, start_response):
 
     from iiutilities.datalib import gettimestring
     from iiutilities.dblib import sqlitequery
-    import cupid.controllib as controllib
 
-    post_env = environ.copy()
-    post_env['QUERY_STRING'] = ''
-    post = cgi.FieldStorage(
-        fp=environ['wsgi.input'],
-        environ=post_env,
-        keep_blank_values=True
-    )
+    # post_env = environ.copy()
+    # post_env['QUERY_STRING'] = ''
+    # post = cgi.FieldStorage(
+    #     fp=environ['wsgi.input'],
+    #     environ=post_env,
+    #     keep_blank_values=True
+    # )
+    #
+    # formname=post.getvalue('name')
+    #
+    # post={}
+    # for k in post.keys():
+    #     post[k] = post.getvalue(k)
 
-    formname=post.getvalue('name')
+    try:
+        request_body_size = int(environ.get('CONTENT_LENGTH', 0))
+    except ValueError:
+        request_body_size = 0
 
-    d={}
-    for k in post.keys():
-        d[k] = post.getvalue(k)
+    request_body = environ['wsgi.input'].read(request_body_size)
+    post = json.loads(request_body.decode('utf-8'))
+
+    output = {}
+    output['message'] = ''
 
     status = '200 OK'
 

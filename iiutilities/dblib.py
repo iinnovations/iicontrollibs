@@ -577,7 +577,7 @@ def gettablenames(database, **kwargs):
 
 
 def gettimespan(database, tablename, time_col='time'):
-    from datalib import timestringtoseconds
+    from iiutilities.datalib import timestringtoseconds
     first_query = "select \"{}\" from '{}' order by \"{}\" asc limit 1".format(time_col, tablename, time_col)
     last_query = "select \"{}\" from '{}' order by \"{}\" desc limit 1".format(time_col, tablename, time_col)
     result = sqlitemultquery(database, [first_query, last_query])
@@ -1243,13 +1243,14 @@ def size_sqlite_table(databasename, tablename, **kwargs):
     if settings['method'] == 'count':
         logsize = the_log_db.get_table_size(tablename)
 
+        settings['size'] = int(settings['size'])
         if logsize and (logsize > settings['size']):
-            log_excess = int(logsize) - int(settings['size'])
+            log_excess = logsize - settings['size']
         else:
             log_excess = -1
 
     elif settings['method'] == 'timespan':
-        from datalib import timestringtoseconds
+        from iiutilities.datalib import timestringtoseconds
         first_time_string = the_log_db.get_first_time_row(tablename)[settings['time_column']]
         first_time = timestringtoseconds(first_time_string)
         log_excess = 0

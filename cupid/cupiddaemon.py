@@ -117,7 +117,6 @@ class gmail:
 
         session.ehlo()
         session.starttls()
-        session.ehlo
         session.login(self.login, self.password)
 
         session.sendmail(self.sender, self.recipient, headers + '\r\n\r\n' + self.message)

@@ -60,8 +60,8 @@ elif [ "$1" = "install" ]
     apt-get -y install swig libfuse-dev libusb-dev php5-dev
 
     apt-get -y install python-pip
-    pip install rpi.gpio
-    pip install gitpython
+    pip3 install rpi.gpio
+    pip3 install gitpython
     apt-get -y install python-serial
     apt-get -y install python-gtk2
     apt-get -y install automake
@@ -79,6 +79,8 @@ elif [ "$1" = "install" ]
     update-rc.d -f dhcpd remove
     apt-get -y install uwsgi
     apt-get -y install uwsgi-plugin-python
+    apt-get -y install uwsgi-plugin-python3
+
     apt-get -y install php5-fpm
     apt-get -y install i2c-tools python-smbus
     apt-get -y install hostapd isc-dhcp-server
@@ -111,7 +113,15 @@ elif [ "$1" = "install" ]
     echo "owfs complete"
 
     echo "installing asteval"
-    pip install asteval
+    pip3 install asteval
+
+    cd /usr/lib/iicontrollibs/resource
+    tar xvf netifaces-0.10.6.tar.gz
+    cd netifaces-0.10.6
+    python setup.py install
+    python3 setup.py install
+    cd ..
+    rm -rf netifaces-0.10.6
 
     echo -e "${WHT}************************************${NC}"
     echo -e "${WHT}*****   STD  INSTALL  COMPLETE *****${NC}"
@@ -123,6 +133,21 @@ elif [ "$1" = "maxtc" ]
     echo "installing MAX31855 library"
     cd /usr/lib/iicontrollibs/resource/Adafruit_Python_MAX31855-master
     python setup.py install
+
+elif [ "$1" = "update" ]
+  then
+    echo "updating"
+    pip3 install rpi.gpio
+    pip3 install gitpython
+    apt-get -y install uwsgi-plugin-python3
+    pip3 install asteval
+    cd /usr/lib/iicontrollibs/resource
+    tar xvf netifaces-0.10.6.tar.gz
+    cd netifaces-0.10.6
+    python setup.py install
+    python3 setup.py install
+    cd ..
+    rm -rf netifaces-0.10.6
 
 elif [ "$1" = "spi" ]
   then

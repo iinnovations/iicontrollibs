@@ -20,7 +20,6 @@ if top_folder not in sys.path:
 
 
 from iiutilities import utility
-from iiutilities import dblib
 from iiutilities import datalib
 from cupid import pilib
 from cupid import updateio
@@ -96,7 +95,7 @@ def runperiodicio(**kwargs):
             utility.log(pilib.dirs.logs.io, 'DEBUG: Update IO disabled', 1, pilib.loglevels.io)
             utility.log(pilib.dirs.log.system, 'DEBUG: Update IO disabled', 1, pilib.loglevels.system)
 
-        systemsdict = systemdb.read_table_row('systemstatus', 0)[0]
+        systemsdict = systemdb.read_table_row('systemstatus')[0]
 
         readtime = systemsdict['updateiofreq']
 
