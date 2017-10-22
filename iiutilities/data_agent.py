@@ -12,13 +12,16 @@ __status__ = "Development"
 import inspect
 import os
 import sys
-from iiutilities import dblib
-import simplejson as json
+try:
+    import simplejson as json
+except:
+    import json
 
 top_folder = os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
+from iiutilities import dblib
 from iiutilities.utility import Bunch
 
 da_vars = Bunch()

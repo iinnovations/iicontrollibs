@@ -18,29 +18,33 @@ top_folder = \
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
-
-def readhardwarefileintoversions():
-
-    from iiutilities import utility
-    from cupid import pilib
-    from iiutilities import dblib
-
-    devicefile = '/var/wwwsafe/devicedata'
-    try:
-        file = open(devicefile)
-        lines = file.readlines()
-        devicedict = {}
-        for line in lines:
-            split = line.split(':')
-            try:
-                devicedict[split[0].strip()] = split[1].strip()
-            except:
-                utility.log(pilib.dirs.logs.system, 'Device data parse error', 1, pilib.loglevels.system)
-        dblib.sqlitequery(pilib.dirs.dbs.system,
-                          dblib.makesqliteinsert('versions', ['hardware', devicedict['hardware']], ['item', 'version']))
-    except:
-        utility.log(pilib.dirs.logs.system, 'Error opening devicedata file to parse', 1,
-                      pilib.loglevels.system)
+try:
+    import simplejson as json
+except:
+    import json
+#
+# def readhardwarefileintoversions():
+#
+#     from iiutilities import utility
+#     from cupid import pilib
+#     from iiutilities import dblib
+#
+#     devicefile = '/var/wwwsafe/devicedata'
+#     try:
+#         file = open(devicefile)
+#         lines = file.readlines()
+#         devicedict = {}
+#         for line in lines:
+#             split = line.split(':')
+#             try:
+#                 devicedict[split[0].strip()] = split[1].strip()
+#             except:
+#                 utility.log(pilib.dirs.logs.system, 'Device data parse error', 1, pilib.loglevels.system)
+#         dblib.sqlitequery(pilib.dirs.dbs.system,
+#                           dblib.makesqliteinsert('versions', ['hardware', devicedict['hardware']], ['item', 'version']))
+#     except:
+#         utility.log(pilib.dirs.logs.system, 'Error opening devicedata file to parse', 1,
+#                       pilib.loglevels.system)
 
 
 def updateiwstatus():
@@ -69,9 +73,11 @@ def watchdoghamachi(pingip='self', threshold=3000, debug=False, restart=True):
     try:
         # Turns out this is not going to work, as when it hangs, it hangs hard
         hamachistatusdata = gethamachistatusdata()
-    except Exception as e:
-
-        utility.log(pilib.dirs.logs.network, 'Error checking Hamachi via gethamachistatusdata with message:  ' + e.message, 1,
+    except:
+        import traceback
+        error_message = traceback.format_exc()
+        print(error_message)
+        utility.log(pilib.dirs.logs.network, 'Error checking Hamachi via gethamachistatusdata with message:  {}'.format(error_message), 1,
                 pilib.loglevels.network)
         hamachistatusdata = {}
 
@@ -179,6 +185,7 @@ def watchdognetstatus(allnetstatus=None):
 
     if not allnetstatus:
         allnetstatus = updatenetstatus()
+        print(allnetstatus)
 
     netconfigdata = allnetstatus['netconfigdata']
     netstatus = allnetstatus['netstatusdict']
@@ -254,13 +261,13 @@ def watchdognetstatus(allnetstatus=None):
             statusmsg += 'No stationiface data(' + stationinterface + ') present for mode ' + netconfigdata['mode']
             runconfig = True
         else:
-            wpadata = datalib.parseoptions(stationifacedata['wpastate'])
+            wpadata = json.loads(stationifacedata['wpastate'])
             if wpadata['wpa_state'] == 'COMPLETED' and stationifacedata['address']:
                 utility.log(pilib.dirs.logs.network, 'station interface ' + stationinterface + ' wpastatus appears ok with address ' + str(stationifacedata['address']), 3, pilib.loglevels.network)
 
                 # Update netstatus
                 try:
-                    wpastatedata = utility.jsontodict(stationifacedata['wpastate'])
+                    wpastatedata = json.loads(stationifacedata['wpastate'])
                     ssid = wpastatedata['ssid']
                 except:
                     print('oops')
@@ -332,14 +339,14 @@ def watchdognetstatus(allnetstatus=None):
             statusmsg += 'No stationiface data(' + stationinterface + ') present for mode ' + netconfigdata['mode']
             runconfig = True
         else:
-            wpadata = datalib.parseoptions(stationifacedata['wpastate'])
+            wpadata = json.loads(stationifacedata['wpastate'])
             if wpadata['wpa_state'] == 'COMPLETED':
                 print('OK')
                 utility.log(pilib.dirs.logs.network, 'station interface ' + stationinterface + ' wpastatus appears ok. ', 3, pilib.loglevels.network)
 
                 # Update netstatus
                 try:
-                    wpastatedata = utility.jsontodict(stationifacedata['wpastate'])
+                    wpastatedata = json.loads(stationifacedata['wpastate'])
                     ssid = wpastatedata['ssid']
                 except:
                     ssid = 'oops'
@@ -654,7 +661,7 @@ def updatenetstatus(lastnetstatus=None, quiet=True):
     updateddictarray = []
     for interface in ifacesdictarray:
         if interface['name'] in wpainterfaces:
-            interface['wpastate'] = datalib.dicttojson(getwpaclientstatus(interface['name']))
+            interface['wpastate'] = json.dumps(getwpaclientstatus(interface['name']))
         else:
             interface['wpastate'] = ''
         updateddictarray.append(interface)
@@ -849,18 +856,21 @@ def updatehardwareinfo(databasename='systemdb'):
     from cupid import pilib
     from iiutilities import datalib
     from iiutilities import dblib
-    from iiutilities import utility
+    import json
 
-    data = check_output(['cat','/proc/cpuinfo'])
+    data = check_output(['cat','/proc/cpuinfo']).decode('utf-8')
     items = data.split('\n')
-    dict = {}
+    hw_dict = {}
     for item in items:
         try:
-            dict[item.split(':')[0].strip()] = item.split(':')[1].strip()
+            hw_dict[item.split(':')[0].strip()] = item.split(':')[1].strip()
         except:
             pass
 
-    dictstring = datalib.dicttojson(dict)
+    print('HW DICT')
+    print(hw_dict)
+
+    dictstring = json.dumps(hw_dict)
     dbpath = None
     try:
         dbpath = pilib.dbnametopath(databasename)
@@ -872,8 +882,8 @@ def updatehardwareinfo(databasename='systemdb'):
         time = datalib.gettimestring()
         dblib.sqliteinsertsingle(dbpath,'versions',['cpuinfo', dictstring, time, ''],['item', 'version', 'updatetime', 'versiontime'],)
 
-    if 'Revision' in dict and dbpath:
-        versiondetail = piversiontoversionname(dict['Revision'])
+    if 'Revision' in hw_dict and dbpath:
+        versiondetail = piversiontoversionname(hw_dict['Revision'])
         dblib.sqliteinsertsingle(dbpath, 'versions', ['versionname', versiondetail['versionname'], time, ''],['item', 'version', 'updatetime', 'versiontime'],)
         dblib.sqliteinsertsingle(dbpath, 'versions', ['memory', versiondetail['memory'], time, ''],['item', 'version', 'updatetime', 'versiontime'],)
     return dictstring

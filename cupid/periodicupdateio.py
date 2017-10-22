@@ -250,7 +250,7 @@ def runperiodicio(**kwargs):
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1].lower() == 'debug':
-            runperiodicio(force_run=True, run_once=True, debug=True)
+            runperiodicio(force_run=True, debug=True)
         elif sys.argv[1].lower() == 'force':
             runperiodicio(force_run=True)
         elif sys.argv[1].lower() == 'force_once':

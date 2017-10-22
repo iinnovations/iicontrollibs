@@ -799,7 +799,7 @@ def findprocstatuses(procstofind):
 def killprocbyname(name):
     import subprocess
     try:
-        result = subprocess.check_output(['pgrep','hamachi'])
+        result = subprocess.check_output(['pgrep','hamachi']).decode('utf-8')
     except:
         # Error thrown means hamachi is not running
         print('catching error')

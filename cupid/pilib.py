@@ -416,7 +416,7 @@ class io_wrapper(object):
             print('You did not provide all required parameters: ' + str(self.required_properties))
         self.settings = {}
         self.settings.update(kwargs)
-        for key,value in self.settings.iteritems():
+        for key,value in self.settings.items():
             setattr(self, key, value)
 
 
@@ -432,7 +432,7 @@ class pigpiod_gpio_counter(io_wrapper):
                          'watchdog_ms':1000, 'rate_period_ms':2000, 'debug':False, 'reset_ticks':30000,
                          'busy':False, 'init_counts':0}
         self.settings.update(kwargs)
-        for key,value in self.settings.iteritems():
+        for key,value in self.settings.items():
             setattr(self, key, value)
 
         self.pi.set_mode(self.gpio, pigpio.INPUT)
@@ -538,7 +538,7 @@ class pigpiod_gpio_input(io_wrapper):
         self.settings = {'pullupdown': None}
         self.settings.update(kwargs)
 
-        for key, value in self.settings.iteritems():
+        for key, value in self.settings.items():
             setattr(self, key, value)
 
         self.pi.set_mode(self.gpio, pigpio.INPUT)
@@ -560,7 +560,7 @@ class pigpiod_gpio_output(io_wrapper):
         self.settings = {}
         self.settings.update(kwargs)
 
-        for key, value in self.settings.iteritems():
+        for key, value in self.settings.items():
             setattr(self, key, value)
 
         self.pi.set_mode(self.gpio, pigpio.OUTPUT)
@@ -807,9 +807,10 @@ def set_all_wal(wal=True):
 def reload_log_config(**kwargs):
     settings = {'quiet':False}
     settings.update(kwargs)
-    systemdb = cupidDatabase(dirs.dbs.system, **settings)
-    logconfigdata = systemdb.read_table_row('logconfig')[0]
 
+    logconfig_query_result = dbs.system.read_table_row('logconfig')[0]
+
+    logconfigdata = logconfig_query_result
     loglevels.network = logconfigdata['network']
     loglevels.io = logconfigdata['io']
     loglevels.system = logconfigdata['system']
@@ -823,7 +824,7 @@ def reload_log_config(**kwargs):
 
 def set_debug():
     print('** ENABLING DEBUG MODE **')
-    for attr, value in loglevels.__dict__.iteritems():
+    for attr, value in loglevels.__dict__.items():
         setattr(loglevels, attr, 9)
 
 

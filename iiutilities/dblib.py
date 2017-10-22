@@ -436,7 +436,8 @@ class sqliteTableSchema(object):
                 item['options'] = ''
 
         if primary == 0:
-            print('warning: no primary key provided for schema.')
+            pass
+            # print('warning: no primary key provided for schema.')
         elif primary > 1:
             print('invalid schema: multiple primary keys found')
             for item in items:

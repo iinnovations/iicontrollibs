@@ -92,7 +92,7 @@ def dicttojson(pass_dict):
     jsonentry = ''
     for key in pass_dict:
         value = pass_dict[key]
-        jsonentry += key + ':' + str(value).replace('\x00','') + ','
+        jsonentry += key + b':' + str(value).replace(b'\x00',b'') + b','
     jsonentry = jsonentry[:-1]
     return jsonentry
 
@@ -554,15 +554,35 @@ def parsedbvn(dbvn):
 
 def gethashedentry(user, password, salt='randomsalt'):
 
+    if type(user) == type('string'):
+        user_bytes = user.encode('utf-8')
+    elif type(user) == type('string'.encode('utf-8')):
+        user_bytes = user
+    else:
+        return
+
+    if type(password) == type('string'):
+        password_bytes = password.encode('utf-8')
+    elif type(password) == type('string'.encode('utf-8')):
+        password_bytes = password
+    else:
+        return
+
     import hashlib
      # Create hashed, salted password entry
     hpass = hashlib.new('sha1')
-    hpass.update(password)
+    hpass.update(password_bytes)
     hashedpassword = hpass.hexdigest()
     hname = hashlib.new('sha1')
-    hname.update(user)
+    hname.update(user_bytes)
     hashedname = hname.hexdigest()
     hentry = hashlib.new('md5')
-    hentry.update(hashedname + salt + hashedpassword)
+
+    # for item in [hashedname, salt, hashedpassword, hentry]:
+    #     print(item, type(item))
+        # print(type(item))
+    # hentry.update('{}{}{}'.format(hashedname,salt,hashedpassword))
+    hentry.update('{}{}{}'.format(hashedname, salt, hashedpassword).encode('utf-8'))
+
     hashedentry = hentry.hexdigest()
     return hashedentry

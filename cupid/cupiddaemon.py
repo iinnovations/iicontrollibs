@@ -124,10 +124,22 @@ class gmail:
 
 
 def runallprocs():
-    from subprocess import Popen
+    import subprocess
+
+    # TODO: Convert this to threading.
+    # import threading
     from cupid import pilib
+    FNULL = open(os.devnull, 'w')
+
     for index, proc in enumerate(pilib.daemonprocs):
-        proc = Popen([pilib.dirs.baselib + pilib.daemonprocs[index], '&'])
+        full_process_name = pilib.dirs.baselib + pilib.daemonprocs[index]
+
+        subprocess.call([full_process_name, '&'], stdout=FNULL, stderr=FNULL)
+        # proc = Popen([pilib.dirs.baselib + pilib.daemonprocs[index], '&'])
+
+        # thread = threading.Thread(target=self.run, args=())
+        # thread.daemon = True  # Daemonize thread
+        # thread.start()
 
 
 def rundaemon(**kwargs):

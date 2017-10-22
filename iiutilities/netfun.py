@@ -40,7 +40,7 @@ def runping(pingAddress='8.8.8.8', numpings=1, quiet=False):
             else:
                 result = subprocess.Popen(['fping', '-c', '1', pingAddress], stdout=subprocess.PIPE)
 
-            pingresult = result.stdout.read()
+            pingresult = result.stdout.read().decode('utf-8')
             # print(pingresult)
         except:
             print('there is problem with your pinging')
@@ -277,7 +277,7 @@ def getwpaclientstatus(interface='wlan0'):
     resultdict = {}
     try:
         log(dirs.logs.network, 'Attempting WPA client status read for interface ' + interface, 4, loglevels.network)
-        result = subprocess.check_output(['/sbin/wpa_cli', 'status', '-i', interface], stderr=subprocess.PIPE)
+        result = subprocess.check_output(['/sbin/wpa_cli', 'status', '-i', interface], stderr=subprocess.PIPE).decode('utf-8')
     except:
         log(dirs.logs.network, 'Unabe to read wpa client status on interface ' + interface +  ' .', 0, loglevels.network)
         resultdict['wpa_state'] = 'None'
@@ -338,7 +338,7 @@ def gethamachidata():
 def gethamachistatusdata():
     from subprocess import Popen, PIPE
     rawoutput = Popen(['hamachi',], stdout=PIPE)
-    output = rawoutput.stdout.read()
+    output = rawoutput.stdout.read().decode('utf-8')
     lines = output.split('\n')
     statusdict = {}
     # print(lines)
@@ -435,7 +435,10 @@ def checksharemount(sharepath):
 def post_data(url, data, headers=None):
 
     from requests import post
-    import simplejson as json
+    try:
+        import simplejson as json
+    except:
+        import json
 
     if headers:
         response = post(url, data=data, headers=headers)
