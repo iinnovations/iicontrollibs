@@ -92,7 +92,7 @@ def dicttojson(pass_dict):
     jsonentry = ''
     for key in pass_dict:
         value = pass_dict[key]
-        jsonentry += key + b':' + str(value).replace(b'\x00',b'') + b','
+        jsonentry += key + ':' + str(value).replace('\x00','') + ','
     jsonentry = jsonentry[:-1]
     return jsonentry
 
