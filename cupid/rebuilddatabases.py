@@ -20,7 +20,6 @@ if top_folder not in sys.path:
 
 from iiutilities.utility import Bunch
 from cupid import pilib
-import simplejson as json
 
 tablenames = Bunch()
 
@@ -892,7 +891,8 @@ userstabledata
 
 
 def rebuild_users_data(argument=None):
-    from pilib import gethashedentry, dirs
+    from cupid.pilib import dirs
+    from iiutilities.datalib import gethashedentry
     from iiutilities.dblib import sqlitemultquery
 
     querylist = []
@@ -921,14 +921,14 @@ def rebuild_users_data(argument=None):
     else:
         while enteringusers:
             validentry = True
-            userinput = raw_input("Enter username or Q to stop: ")
+            userinput = input("Enter username or Q to stop: ")
             if userinput == 'Q':
                 print('exiting ...')
                 break
-            passone = raw_input("Enter password: ")
-            passtwo = raw_input("Confirm password: ")
-            emailentry = raw_input("Enter user email")
-            authlevelentry = raw_input("Enter authorization level (0-5)")
+            passone = input("Enter password: ")
+            passtwo = input("Confirm password: ")
+            emailentry = input("Enter user email")
+            authlevelentry = input("Enter authorization level (0-5)")
 
             if passone != passtwo:
                 validentry = False
@@ -993,8 +993,8 @@ def rebuild_ap_data(SSID='cupidwifi', password='cupidpassword'):
 def rebuild_api_data():
     from iiutilities import dblib
     from cupid.pilib import dirs
-    api_id = raw_input('Enter API ID: ')
-    api_key = raw_input('Enter API Key: ')
+    api_id = input('Enter API ID: ')
+    api_key = input('Enter API Key: ')
     api_schema = dblib.sqliteTableSchema([{'name':'id','primary':True},{'name':'key'}])
     safe_db = pilib.cupidDatabase(dirs.dbs.safe)
     safe_db.create_table('api', api_schema, queue=True)
@@ -1062,7 +1062,7 @@ if __name__ == "__main__":
         tablestorebuild = []
         execute = False
         for table in tablenames.motes:
-            answer = raw_input('Rebuild ' + table + ' table (y/N)?')
+            answer = input('Rebuild ' + table + ' table (y/N)?')
             if answer == 'y':
                 execute = True
                 tablestorebuild.append(table)
@@ -1073,7 +1073,7 @@ if __name__ == "__main__":
         tablestorebuild = []
         execute = False
         for table in tablenames.control:
-            answer = raw_input('Rebuild ' + table + ' table (y/N)?')
+            answer = input('Rebuild ' + table + ' table (y/N)?')
             if answer == 'y':
                 execute = True
                 tablestorebuild.append(table)
@@ -1084,31 +1084,31 @@ if __name__ == "__main__":
         tablestorebuild = []
         execute = False
         for table in tablenames.system:
-            answer = raw_input('Rebuild ' + table + ' table (y/N)?')
+            answer = input('Rebuild ' + table + ' table (y/N)?')
             if answer == 'y':
                 execute = True
                 tablestorebuild.append(table)
         if execute:
             rebuild_system_db(maketruetabledict(tablestorebuild))
 
-        answer = raw_input('Rebuild wireless table (y/N)?')
+        answer = input('Rebuild wireless table (y/N)?')
         if answer == 'y':
             rebuild_wireless_data()
 
-        answer = raw_input('Rebuild AP table (y/N)?')
+        answer = input('Rebuild AP table (y/N)?')
         if answer == 'y':
             rebuild_ap_data()
 
-        answer = raw_input('Rebuild users table (y/N)?')
+        answer = input('Rebuild users table (y/N)?')
         if answer == 'y':
             rebuild_users_data()
 
         recipetabledict = {}
-        answer = raw_input('Rebuild recipes table (y/N)?')
+        answer = input('Rebuild recipes table (y/N)?')
         if answer == 'y':
             recipetabledict['recipes'] = True
         rebuild_recipes_db(recipetabledict)
 
-        answer = raw_input('Rebuild sessions table (y/N)?')
+        answer = input('Rebuild sessions table (y/N)?')
         if answer == 'y':
             rebuild_sessions_db()

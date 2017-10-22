@@ -576,21 +576,6 @@ Auths helpers
 """
 
 
-def gethashedentry(user, password):
-    import hashlib
-     # Create hashed, salted password entry
-    hpass = hashlib.new('sha1')
-    hpass.update(password)
-    hashedpassword = hpass.hexdigest()
-    hname = hashlib.new('sha1')
-    hname.update(user)
-    hashedname = hname.hexdigest()
-    hentry = hashlib.new('md5')
-    hentry.update(hashedname + salt + hashedpassword)
-    hashedentry = hentry.hexdigest()
-    return hashedentry
-
-
 def check_action_auths(action, level):
     action_auths_dict = {
         'gettabledata':1,
