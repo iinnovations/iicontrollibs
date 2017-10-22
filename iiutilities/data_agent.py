@@ -205,7 +205,8 @@ def run_data_agent(**kwargs):
         'debug':False,
         'agent_db_path':'/var/www/data/dataagent.db',
         'inputs_db_path':'/var/www/data/control.db',
-        'inputs_table':'inputs'
+        'inputs_table':'inputs',
+        'send_all':False
     }
     settings.update(kwargs)
 
@@ -222,13 +223,6 @@ def run_data_agent(**kwargs):
 
     current_time = gettimestring()
 
-
-    post_data = {
-        'post_time':current_time,
-        'data':{}
-    }
-    maybe_xmit = {}
-
     """ 
     Loop through to find things that definitely need to be transmitted. 
     Also, find if there are things that should be transmitted within a fixed window (bunch_period)
@@ -236,11 +230,35 @@ def run_data_agent(**kwargs):
     still send it and not waste data on two sets of headers.
     """
 
-    for entry in data_agent_entries:
-        if entry['enabled']:
+    """ 
+    Data has following format:
+    post_data = 
+    {
+      'post_time':current_time,
+      'data': [
+        {
+          id : data_id,
+          name : common name (optional)
+          data : [
+            data entry,
+            data entry,
+            ...
+        }
+      ],
+      ...
+    }
+    """
+    post_data = {
+        'post_time': current_time,
+        'data': []
+    }
+    maybe_xmit = []
+
+    for agent_entry in data_agent_entries:
+        if agent_entry['enabled']:
             if settings['debug']:
-                print('{} Enabled '.format(entry['id']))
-            options = json.loads(entry['options'])
+                print('{} Enabled '.format(agent_entry['id']))
+            options = json.loads(agent_entry['options'])
 
             da_vars.default_agent_item_options.update(options)
             options = da_vars.default_agent_item_options
@@ -248,43 +266,60 @@ def run_data_agent(**kwargs):
             # TODO: Build in other modes besides single.
             # Build in modularity for other ordinates.
 
+            # Create the entry
+            if agent_entry['id'] not in inputs_dict:
+                if settings['debug']:
+                    print('input id {} not found '.format(agent_entry['id']))
+                continue
+
+            inputs_entry = inputs_dict[agent_entry['id']]
+
+            send_entry = {
+                'id': agent_entry['id']
+            }
+            if 'name' in inputs_dict[agent_entry['id']]:
+                send_entry['name'] = inputs_entry['name']
+
+            if options['full_entry']:
+                send_entry['data'] = [inputs_entry]
+            else:
+                send_entry['data'] = [{'id': agent_entry['id'], 'polltime':inputs_entry['polltime'],
+                                   'value': inputs_entry['value']}]
+
             send = False
-            if not entry['last_transmit']:
+            maybe_send = False
+            if not agent_entry['last_transmit'] or settings['send_all']:
                 send = True
             else:
-                elapsed_since_xmit = timestringtoseconds(current_time) - timestringtoseconds(entry['last_transmit'])
+                elapsed_since_xmit = timestringtoseconds(current_time) - timestringtoseconds(agent_entry['last_transmit'])
                 if elapsed_since_xmit > options['transmit_period']:
                     send = True
                 elif (elapsed_since_xmit + options['bunch_period']) > options['transmit_period']:
-                    if entry['id'] in inputs_dict:
-                        # maybe send.
-                        if options['full_entry']:
-                            maybe_xmit[entry['id']] = [inputs_dict[entry['id']]]
-                        else:
-                            maybe_xmit[entry['id']] = [{'polltime':inputs_dict[entry['id']]['polltime'], 'value': inputs_dict[entry['id']]['value']}]
+                    maybe_send = True
+
         else:
             if settings['debug']:
-                print('{} Disabled '.format(entry['id']))
+                print('{} Disabled '.format(agent_entry['id']))
 
         if send:
             if settings['debug']:
-                print('Sending {}'.format(entry['id']))
+                print('Sending "{}"'.format(agent_entry['id']))
+            post_data['data'].append(send_entry)
 
-            if entry['id'] in inputs_dict:
-                if options['full_entry']:
-                    post_data['data'][entry['id']] = [inputs_dict[entry['id']]]
-                else:
-                    post_data['data'][entry['id']] = [{'polltime':inputs_dict[entry['id']]['polltime'], 'value': inputs_dict[entry['id']]['value']}]
+        elif maybe_send:
+            if settings['debug']:
+                print('Sending "{}"'.format(agent_entry['id']))
+            maybe_send.append(send_entry)
 
         else:
             if settings['debug']:
-                print('Not sending {}'.format(entry['id']))
+                print('Not sending {}'.format(agent_entry['id']))
     """
     Now determine whether we have data that definitely needs to be sent. If so, throw the bunch data in.
     """
 
     if post_data['data']:
-        post_data['data'].update(maybe_xmit)
+        post_data['data'].extend(maybe_xmit)
         if settings['debug']:
             print('TIME TO SEND THIS STUFF')
             print(post_data)
@@ -303,14 +338,14 @@ def run_data_agent(**kwargs):
             print('SUCCESS')
 
         # Now we need to mark entries as sent
-        for entry_name, entry in post_data['data'].items():
-            data_agent_db.set_single_value('send_items', 'last_transmit', current_time, condition="id='{}'".format(entry_name), queue=True)
+        for entry in post_data['data']:
+            data_agent_db.set_single_value('send_items', 'last_transmit', current_time, condition="id='{}'".format(entry['id']), queue=True)
 
         data_agent_db.execute_queue()
 
     return response
 
 if __name__ == '__main__':
-    response = run_data_agent(debug=True)
+    response = run_data_agent(debug=True, send_all=True)
     print('Full response: ')
     print(response)

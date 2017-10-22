@@ -107,7 +107,7 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
     while runhandler:
         # This reading has to happen faster than the messages come, or they will all be stuck together
         try:
-            ch = ser.read(1)
+            ch = ser.read(1).decode('utf-8')
             # if ch == '\x0D':
             #     print('carriage return')
             # elif ch == '\x00':

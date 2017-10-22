@@ -371,7 +371,7 @@ def rundaemon(**kwargs):
     system_database.set_single_value('systemstatus', 'systemmessage', systemstatusmsg)
 
     # Rotate all logs
-    for attr, value in pilib.dirs.logs.__dict__.iteritems():
+    for attr, value in pilib.dirs.logs.__dict__.items():
         utility.rotate_log_by_size(value, pilib.numlogs, pilib.maxlogsize)
 
 if __name__ == "__main__":
