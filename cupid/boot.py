@@ -188,9 +188,9 @@ def runboot():
     rundaemon()
 
     # Update hardware version in table
-    from systemstatus import readhardwarefileintoversions
-
-    readhardwarefileintoversions()
+    # from systemstatus import readhardwarefileintoversions
+    #
+    # readhardwarefileintoversions()
 
 if __name__=="__main__":
     runboot()
