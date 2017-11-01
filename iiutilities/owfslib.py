@@ -58,7 +58,7 @@ def owfsgetbusdevices(owdir, debug=False):
         Even better, just move over to pyownet completely.
         """
         for (dirpath, dirnames, filenames) in walk(devicepath):
-            print(filenames)
+            # print(filenames)
             propsavailable = filenames
             break
         if debug:
@@ -69,7 +69,7 @@ def owfsgetbusdevices(owdir, debug=False):
                 propdict[propavailable] = propvalue
             propdict['sensorid'] = '1wire' + '_' + propdict['address']
 
-        print(propdict)
+        # print(propdict)
         devices.append(owfsDevice(propdict))
     return devices
 
@@ -191,8 +191,8 @@ def updateowfstable(database, tablename, busdevices, execute=True):
             makesqliteinsert(tablename, [device.address, device.family, device.id, device.type, device.crc8]))
     # print(querylist)
     if execute:
-        print(database)
-        print(querylist)
+        # print(database)
+        # print(querylist)
         sqlitemultquery(database, querylist)
     return querylist
 
@@ -222,7 +222,7 @@ def updateowfsdevices(busdevices, myProxy=None, debug=False):
     # Then determine whether we should update value or not (Read temperature)
 
     for index, device in enumerate(busdevices):
-        print(device.__dict__)
+        # print(device.__dict__)
         if device.sensorid in previnputids:
             try:
                 newpollfreq = float(previnputs[previnputids.index(device.sensorid)]['pollfreq'])
