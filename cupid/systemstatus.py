@@ -115,12 +115,14 @@ def watchdoghamachi(pingip='self', threshold=3000, debug=False, restart=True):
                 dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'hamachistatus', 1)
                 utility.log(pilib.dirs.logs.network, 'Hamachi appears fine. ', 3, pilib.loglevels.network)
 
-    except Exception as e:
+    except:
+        import traceback
+        error_message = traceback.format_exc()
 
-        utility.log(pilib.dirs.logs.network, 'Error checking Hamachi (second stage, pings) with message:  ' + e.message, 1, pilib.loglevels.network)
+        utility.log(pilib.dirs.logs.network, 'Error checking Hamachi (second stage, pings) with message:  {}'.format(error_message), 1, pilib.loglevels.network)
 
         if restart:
-            utility.log(pilib.dirs.logs.network, 'Restarting hamachi:  ' + e.message, 1,
+            utility.log(pilib.dirs.logs.network, 'Restarting hamachi:  {}'.format(error_message), 1,
                         pilib.loglevels.network)
 
             killhamachi()
@@ -898,9 +900,15 @@ def runsystemstatus(**kwargs):
     from iiutilities import gitupdatelib
     from iiutilities import data_agent
 
-    if 'debug' in kwargs and kwargs['debug']:
+    settings = {
+        'debug':False,
+        'quiet':False
+    }
+    settings.update(kwargs)
+
+    if settings['debug']:
         print('DEBUG MODE')
-        quiet=False
+        settings['quiet']=False
         pilib.set_debug()
 
     # This doesn't update git libraries. It checks current versions and updates the database
@@ -933,7 +941,7 @@ def runsystemstatus(**kwargs):
         utility.log(pilib.dirs.logs.system, 'Completed network status. ', 3, pilib.loglevels.network)
 
     # Poll netstatus and return data
-    allnetstatus = updatenetstatus(lastnetstatus, quiet=quiet)
+    allnetstatus = updatenetstatus(lastnetstatus, quiet=settings['quiet'])
     # wpastatusdict = allnetstatus['wpastatusdict']
 
     # Keep reading system status?
@@ -1072,5 +1080,5 @@ def runsystemstatus(**kwargs):
 
 
 if __name__ == '__main__':
-    runsystemstatus(debug=True, runonce=True)
+    runsystemstatus()
     # runsystemstatus()

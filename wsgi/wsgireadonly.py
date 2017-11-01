@@ -36,8 +36,11 @@ def application(environ, start_response):
         request_body_size = 0
 
     request_body = environ['wsgi.input'].read(request_body_size)
-    post = json.loads(request_body.decode('utf-8'))
-
+    try:
+        post = json.loads(request_body.decode('utf-8'))
+    except:
+        print('Error decoding: ')
+        print(request_body.decode('utf-8'))
     output = {}
     output['message'] = ''
 

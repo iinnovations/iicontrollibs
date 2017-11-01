@@ -323,7 +323,7 @@ def process_notifications_queue():
         if loglevels.notifications >= 5:
             log(dirs.logs.notifications, 'Processing notification of type' + notification['type'] + '. Message: ' + notification['message'] + '. Options: ' + notification['options'])
         else:
-            log(dirs.logs.notifications, 'Processing notification of type' + notification['type'], dirs.logs.notifications)
+            log(dirs.logs.notifications, 'Processing notification of type' + notification['type'])
 
         result = processnotification(notification)
 

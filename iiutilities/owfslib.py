@@ -53,7 +53,12 @@ def owfsgetbusdevices(owdir, debug=False):
         propdict = {}
         devicepath = owdir + '/' + devicedir
         propdict['devicedir'] = devicepath
+        """
+        TODO: Figure out why we have ot use dirnames here. They are not directories.
+        Even better, just move over to pyownet completely.
+        """
         for (dirpath, dirnames, filenames) in walk(devicepath):
+            print(filenames)
             propsavailable = filenames
             break
         if debug:
@@ -63,6 +68,8 @@ def owfsgetbusdevices(owdir, debug=False):
                 propvalue = open(devicepath + '/' + propavailable).read().strip()
                 propdict[propavailable] = propvalue
             propdict['sensorid'] = '1wire' + '_' + propdict['address']
+
+        print(propdict)
         devices.append(owfsDevice(propdict))
     return devices
 
@@ -98,9 +105,9 @@ class owfsDevice():
 # Using ownet
 
 def owbuslist(host='localhost'):
-    from resource.pyownet.protocol import OwnetProxy
+    from pyownet.protocol import proxy
 
-    owProxy = OwnetProxy(host)
+    owProxy = proxy()
     buslist = []
     if host == 'localhost':
         dirs = owProxy.dir()
@@ -115,19 +122,19 @@ class owDevice():
             setattr(self, key, value)
 
     def readprop(self, propname, myProxy=None):
-        from resource.pyownet.protocol import OwnetProxy
+        from pyownet.protocol import OwnetProxy
 
         prop = self.devicedir + propname
         if myProxy:
             propvalue = myProxy.read(prop).strip()
             setattr(self, propname, propvalue)
         else:
-            propvalue = OwnetProxy(self.host).read(prop).strip()
+            propvalue = OwnetProxy(self.host).read(prop).decode('utf-8').strip()
             setattr(self, propname, propvalue)
         return propvalue
 
     def readprops(self, proplist, myProxy=None):
-        from resource.pyownet.protocol import OwnetProxy
+        from pyownet.protocol import OwnetProxy
 
         if myProxy:
             pass
@@ -135,8 +142,8 @@ class owDevice():
             myProxy = OwnetProxy(self.host)
         propvalues = []
         for propname in proplist:
-            prop = self.devicedir + propname
-            propvalue = myProxy.read(prop).strip()
+            propvalue = self.devicedir + propname
+
             setattr(self, propname, propvalue)
             propvalues.append(propvalues)
         return propvalues
@@ -160,11 +167,13 @@ def getowbusdevices(host='localhost'):
         for prop in props:
             propname = prop.split('/')[2]
             if propname in initprops:
-                propdict[propname] = myProxy.read(prop).strip()
+                propdict[propname] = myProxy.read(prop).decode('utf-8').strip()
             else:
                 pass
                 # Could put in default values here, but cleaner if not
 
+        if 'address' in propdict:
+            propdict['sensorid'] = '1wire_' + propdict['address']
         deviceobjects.append(owDevice(propdict))
 
     return myProxy, deviceobjects
@@ -182,6 +191,8 @@ def updateowfstable(database, tablename, busdevices, execute=True):
             makesqliteinsert(tablename, [device.address, device.family, device.id, device.type, device.crc8]))
     # print(querylist)
     if execute:
+        print(database)
+        print(querylist)
         sqlitemultquery(database, querylist)
     return querylist
 
@@ -211,6 +222,7 @@ def updateowfsdevices(busdevices, myProxy=None, debug=False):
     # Then determine whether we should update value or not (Read temperature)
 
     for index, device in enumerate(busdevices):
+        print(device.__dict__)
         if device.sensorid in previnputids:
             try:
                 newpollfreq = float(previnputs[previnputids.index(device.sensorid)]['pollfreq'])
@@ -272,7 +284,7 @@ def updateowfsdevices(busdevices, myProxy=None, debug=False):
                 utility.log(pilib.dirs.logs.io, 'reading temperature [' + device.name + '][' + device.id + ']' , 9, pilib.loglevels.io)
                 device.readprop('temperature', myProxy)
                 device.polltime = datalib.gettimestring()
-                device.value = device.temperature
+                device.value = device.temperature.decode('utf-8')
             else:
                 utility.log(pilib.dirs.logs.io, 'not time to poll', 9, pilib.loglevels.io, )
                 # print('not time to poll')
@@ -327,13 +339,15 @@ def runowfsupdate(execute=True, **kwargs):
         utility.log(settings['logpath'], 'getting buses', 9, settings['loglevel'])
 
     starttime = time.time()
-    busdevices = owfsgetbusdevices(settings['owfsdir'])
+    # busdevices = owfsgetbusdevices(settings['owfsdir'])
+    # Try using pyownet. No point in parsing directories manually, as far as I can tell.
+    proxy, busdevices = getowbusdevices()
 
     utility.log(settings['logpath'], 'done getting devices, took ' + str(time.time() - starttime), 9, settings['loglevel'])
     utility.log(settings['logpath'], 'updating device data', 9, settings['loglevel'])
 
     starttime = time.time()
-    updateddevices = updateowfsdevices(busdevices)
+    updateddevices = updateowfsdevices(busdevices, proxy)
 
     utility.log(settings['logpath'], 'done reading devices, took ' + str(time.time() - starttime), 9, settings['loglevel'])
     utility.log(settings['logpath'], 'your devices: ', 9, settings['loglevel'])
@@ -358,6 +372,6 @@ def runowfsupdate(execute=True, **kwargs):
 
 if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1].lower() == 'debug':
-        runowfsupdate(debug=True)
+        runowfsupdate(logpath='/var/www/data/control.db', debug=True)
     else:
-        runowfsupdate()
+        runowfsupdate(logpath='/var/www/data/control.db')

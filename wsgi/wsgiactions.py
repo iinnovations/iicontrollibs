@@ -349,7 +349,7 @@ def application(environ, start_response):
             rundaemon()
 
         # TODO: Eliminate this scary thing.
-        elif action == 'setvalue' and False:
+        elif action == 'setvalue':
             utility.log(pilib.dirs.logs.control, "Setting value in wsgi", 1, 1)
 
             # we use the auxiliary 'setsinglecontrolvalue' to add additional actions to update
