@@ -27,7 +27,7 @@ tablenames.control = ['actions', 'modbustcp', 'labjack', 'defaults', 'indicators
                    'interfaces',
                    'controlalgorithms', 'algorithmtypes', 'channels', 'remotes']
 tablenames.system = ['systemstatus', 'logconfig', 'metadata', 'netconfig', 'netstatus', 'wirelessnetworks', 'versions',
-                  'systemflags', 'uisettings', 'notifications', 'dataagent']
+                  'systemflags', 'uisettings', 'notifications']
 tablenames.motes = ['read', 'queued', 'sent']
 tablenames.safe = ['wirelessdata', 'apdata']
 tablenames.notifications = ['queued', 'sent']
@@ -134,7 +134,7 @@ def rebuild_control_db(**kwargs):
                 #  'enabled': 1},
                 {'actionindex': 5, 'name': 'Voltage monitor', 'actiontype': 'email',
                  'actiondetail': 'info@interfaceinnovations.org', 'conditiontype':'value', 'actionfrequency': 300,
-                 'actiondata': "dbvn:controldb:inputs:value:id='MOTE1_voltage',criterion:4.0,operator:<",'activereset':0,
+                 'actiondata': "dbvn:controldb:inputs:value:id='MOTE1_vbat',criterion:4.0,operator:<",'activereset':0,
                  'enabled': 1},
             ]
             control_database.insert(tablename, entries, queue=True)
@@ -559,6 +559,7 @@ def rebuild_system_db(**kwargs):
         schema = dblib.sqliteTableSchema([
             {'name':'WANaccess', 'type':'boolean', 'default':0},
             {'name':'WANaccessrestarts', 'type':'integer', 'default':0},
+            {'name':'SSID'},
             {'name':'latency', 'type':'real', 'default':0},
             {'name':'mode', 'default':'eth0wlan0bridge'},
             {'name':'onlinetime'},
@@ -736,7 +737,7 @@ def rebuild_system_db(**kwargs):
         system_database.create_table(tablename, schema, queue=True)
 
     if system_database.queued_queries:
-        # print('executing queries')
+        print('executing queries')
         system_database.execute_queue()
 
     # Check to see everything was created properly. Eventually we can check schema, once we check the schema
@@ -918,6 +919,7 @@ def rebuild_users_data(argument=None):
                     'email'] + "',''," + str(entry['authlevel']) + ")")
             index += 1
 
+
     else:
         while enteringusers:
             validentry = True
@@ -1036,6 +1038,10 @@ if __name__ == "__main__":
         rebuild_notifications_db(tablelist=tablenames.notifications)
         rebuild_recipes_db()
         rebuild_sessions_db(tablelist=tablenames.sessions)
+
+        # rebuild data_agent dictionary
+        from iiutilities.data_agent import rebuild_data_agent_db
+        rebuild_data_agent_db()
 
     elif len(sys.argv) > 1:
         if sys.argv[1] in tablenames.control:

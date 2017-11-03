@@ -187,7 +187,7 @@ def watchdognetstatus(allnetstatus=None):
 
     if not allnetstatus:
         allnetstatus = updatenetstatus()
-        print(allnetstatus)
+        # print(allnetstatus)
 
     netconfigdata = allnetstatus['netconfigdata']
     netstatus = allnetstatus['netstatusdict']
@@ -207,7 +207,7 @@ def watchdognetstatus(allnetstatus=None):
     runconfig = False
 
     utility.log(pilib.dirs.logs.network, 'MODE: ' + netconfigdata['mode'],  3, pilib.loglevels.network)
-    print(' MODE : ' + netconfigdata['mode'])
+    # print(' MODE : ' + netconfigdata['mode'])
     if netconfigdata['mode'] in ['ap', 'tempap']:
         utility.log(pilib.dirs.logs.network, 'AP Mode is set. ', 1, pilib.loglevels.network)
 
@@ -343,7 +343,7 @@ def watchdognetstatus(allnetstatus=None):
         else:
             wpadata = json.loads(stationifacedata['wpastate'])
             if wpadata['wpa_state'] == 'COMPLETED':
-                print('OK')
+                # print('OK')
                 utility.log(pilib.dirs.logs.network, 'station interface ' + stationinterface + ' wpastatus appears ok. ', 3, pilib.loglevels.network)
 
                 # Update netstatus
@@ -377,7 +377,7 @@ def watchdognetstatus(allnetstatus=None):
                 # If not running, the subprocess call will throw an error
                 utility.log(pilib.dirs.logs.network, 'Error in reading dhcp server status for interface ' + apinterface + ' Assumed down. ', 1, pilib.loglevels.network)
                 statusmsg += 'Error in reading dhcp server status. Assumed down. '
-                print('SETTING TRUE because error reading dhcp server status for interface ' + apinterface + ' , mode: ' + netconfigdata['mode'])
+                # print('SETTING TRUE because error reading dhcp server status for interface ' + apinterface + ' , mode: ' + netconfigdata['mode'])
                 runconfig = True
             else:
                 utility.log(pilib.dirs.logs.network, 'DHCP server appears to be up. ', 1, pilib.loglevels.network)
@@ -869,8 +869,8 @@ def updatehardwareinfo(databasename='systemdb'):
         except:
             pass
 
-    print('HW DICT')
-    print(hw_dict)
+    # print('HW DICT')
+    # print(hw_dict)
 
     dictstring = json.dumps(hw_dict)
     dbpath = None
