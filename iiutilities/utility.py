@@ -560,7 +560,7 @@ def unmangleAPIdata(d):
             islist = True
             # test to see if they are integers and non-duplicates
             integerkeys = []
-            for valuekey, valuevalue in itemvalue.iteritems():
+            for valuekey, valuevalue in itemvalue.items():
                 # must resolve into integer
                 try:
                     integerkeys.append(int(valuekey))
@@ -779,7 +779,7 @@ def findprocstatuses(procstofind):
         # print(proc)
         status = False
         try:
-            result = subprocess.check_output(['pgrep','-fc',proc])
+            result = subprocess.check_output(['pgrep','-fc',proc]).decode('utf-8')
             # print(result)
         except:
             # print('ERROR')
@@ -893,7 +893,7 @@ def writetabletopdf(tabledata, **kwargs):
     # rowspacing = 15
     # for rowindex, row in enumerate(tabledata):
     #
-    #     for colindex, key, value in enumerate(row.iteritems()):
+    #     for colindex, key, value in enumerate(row.items()):
     #         c.drawString(100,750,value)
 
     c.save()

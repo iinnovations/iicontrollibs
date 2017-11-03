@@ -91,7 +91,7 @@ def runboot():
     # Run uwsgi daemon if nginx is running
 
     try:
-        result = subprocess.check_output(['service', 'nginx', 'status'])
+        result = subprocess.check_output(['service', 'nginx', 'status']).decode('utf-8')
     except subprocess.CalledProcessError as e:
         result = ''
         # print('I AM FAILING')

@@ -31,7 +31,7 @@ def recordspidata(database, valuedict, execute=False):
     from iiutilities import dblib, datalib
     # This is incomplete and hardcoded partially
     querylist = []
-    for key, value in valuedict.iteritems():
+    for key, value in valuedict.items():
         querylist.append(dblib.makesqliteinsert('inputs',
                                                 valuelist=[key, 'SPI1', 'TC', '1', 'SPITC1', value, 'F', datalib.gettimestring(), 1,
                                                            '','']))

@@ -317,7 +317,7 @@ class action:
                 dblib.setsinglevalue(dbpath, dbvndict['tablename'], dbvndict['valuename'], '0', querycondition)
 
     def printvalues(self):
-        for attr,value in self.__dict__.iteritems():
+        for attr,value in self.__dict__.items():
             print(str(attr) + ' : ' + str(value))
     # @profile
     def publish(self):

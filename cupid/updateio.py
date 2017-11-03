@@ -486,7 +486,7 @@ def updateiodata(**kwargs):
                         #
                         # keys = []
                         # values = []
-                        # for key, value in newchannel.iteritems():
+                        # for key, value in newchannel.items():
                         #     keys.append(key)
                         #     values.append(value)
                         # control_db.settings['quiet'] = False

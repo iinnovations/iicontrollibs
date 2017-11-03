@@ -73,7 +73,7 @@ def pgrepstatus(regex, full=True):
     else:
         cmd = ['pgrep',regex]
     try:
-        result = subprocess.check_output(cmd)
+        result = subprocess.check_output(cmd).decode('utf-8')
     except:
         pcount = 0
         pids = []
@@ -263,6 +263,7 @@ def rundaemon(**kwargs):
 
     # These are hard-coded and must match up for now. This should be cleaned up to be more easily modified.
     itemstatuses = utility.findprocstatuses(pilib.daemonprocs)
+
     item_status_dict = {}
     for name, status in zip(pilib.daemonprocnames, itemstatuses):
         item_status_dict[name] = status

@@ -373,7 +373,7 @@ def getgpiostatus():
     from subprocess import check_output
 
     gpiolist=[]
-    alloutput = check_output(['gpio','readall'])
+    alloutput = check_output(['gpio','readall']).decode('utf-8')
     lines = alloutput.split('\n')[3:18]
     for line in lines:
         BCM1 = line[4:6].strip()

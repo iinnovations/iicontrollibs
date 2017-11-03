@@ -971,11 +971,20 @@ def rebuild_wireless_data(preserve=True):
     safetables = gettablenames(dirs.dbs.safe)
     print('tables : ')
     print(safetables)
+
+    wirelessentries = []
+    existing_ssids = []
     if 'wireless' in safetables:
         # print("wireless table found")
         wirelessentries = readalldbrows(dirs.dbs.safe, 'wireless')
+        existing_ssids = [entry['SSID'] for entry in wirelessentries]
+
         for index,entry in enumerate(wirelessentries):
             querylist.append("insert into wireless values('" + entry['SSID'] + "','" + entry['password'] + "',1," + str(index+1) + ')')
+
+    if 'leHouse' not in existing_ssids:
+        querylist.append(
+            "insert into wireless values('leHouse','ilovetheinternet',1,1)")
 
     # print(querylist)
     sqlitemultquery(dirs.dbs.safe, querylist)

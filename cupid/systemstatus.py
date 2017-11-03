@@ -297,7 +297,7 @@ def watchdognetstatus(allnetstatus=None):
         else:
             utility.log(pilib.dirs.logs.network, 'Checking dhcp server status on wlan0. ', 4, pilib.loglevels.network)
             try:
-                result = subprocess.check_output(['/usr/sbin/service', 'isc-dhcp-server', 'status'], stderr=subprocess.PIPE)
+                result = subprocess.check_output(['/usr/sbin/service', 'isc-dhcp-server', 'status'], stderr=subprocess.PIPE).decode('utf-8')
             except:
                 # If not running, the subprocess call will throw an error
                 utility.log(pilib.dirs.logs.network, 'Error in reading dhcp server status. Assumed down. ', 1, pilib.loglevels.network)
@@ -372,7 +372,7 @@ def watchdognetstatus(allnetstatus=None):
             try:
                 # Note that this does not check carefully that the dhcp server is running on the correct interface.
                 # We need a check on this.
-                result = subprocess.check_output(['/usr/sbin/service', 'isc-dhcp-server', 'status'], stderr=subprocess.PIPE)
+                result = subprocess.check_output(['/usr/sbin/service', 'isc-dhcp-server', 'status'], stderr=subprocess.PIPE).decode('utf-8')
             except:
                 # If not running, the subprocess call will throw an error
                 utility.log(pilib.dirs.logs.network, 'Error in reading dhcp server status for interface ' + apinterface + ' Assumed down. ', 1, pilib.loglevels.network)

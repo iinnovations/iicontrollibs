@@ -97,7 +97,7 @@ def pingstatus(pingAddress='8.8.8.8', numpings=1, threshold=2000, quiet=True):
 
 def getiwstatus(interface='wlan0'):
     from subprocess import check_output, PIPE
-    iwresult = check_output(['iwconfig', interface], stderr=PIPE)
+    iwresult = check_output(['iwconfig', interface], stderr=PIPE).decode('utf-8')
     resultdict = {}
     for iwresult in iwresult.split('  '):
         if iwresult:
@@ -182,7 +182,7 @@ def getifconfigstatus_DEPRECATED():
     import pilib
     from iiutilities import utility
 
-    ifconfigdata = subprocess.check_output(['/sbin/ifconfig']).split('\n')
+    ifconfigdata = subprocess.check_output(['/sbin/ifconfig']).decode('utf-8').split('\n')
     interfaces = []
     ifaceindex = -1
     blankinterface = {'name':'', 'hwaddress':'', 'address':'', 'ifaceindex':'', 'bcast':'', 'mask': '', 'flags':''}
@@ -234,7 +234,7 @@ def getifconfigstatus_DEPRECATED():
 
 def getwirelessnetworks(interface='wlan0'):
     from subprocess import check_output
-    networkresponse = check_output(['iwlist',interface,'scan']).split('\n')
+    networkresponse = check_output(['iwlist',interface,'scan']).decode('utf-8').split('\n')
     networks = []
     # print(networkresponse)
     networkindex = -1
