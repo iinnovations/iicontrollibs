@@ -403,7 +403,7 @@ def restart_uwsgi(directory='/usr/lib/iicontrollibs/uwsgi', quiet=True, killall=
 def restarthamachi():
     import subprocess
     from time import sleep
-    subprocess.call(['/etc/init.d/logmein-hamachi','restart'])
+    subprocess.call(['/etc/init.d/logmein-hamachi','force-reload'])
     sleep(15)
     subprocess.call(['hamachi','login'])
     return
