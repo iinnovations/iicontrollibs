@@ -248,13 +248,14 @@ def runperiodicio(**kwargs):
     systemdb.set_single_value('systemstatus', 'updateiostatus', '0')
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        if sys.argv[1].lower() == 'debug':
-            runperiodicio(force_run=True, debug=True)
-        elif sys.argv[1].lower() == 'force':
-            runperiodicio(force_run=True)
-        elif sys.argv[1].lower() == 'force_once':
-            runperiodicio(force_run=True, run_once=True)
-    else:
-        runperiodicio()
+    debug = False
+    force = False
+    run_once = False
+    if debug in sys.argv:
+        debug = True
+    if force in sys.argv:
+        force = True
+    if run_once in sys.argv:
+        run_once = True
+    runperiodicio(debug=debug, force=force, run_once=run_once)
 

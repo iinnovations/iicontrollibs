@@ -1080,5 +1080,13 @@ def runsystemstatus(**kwargs):
 
 
 if __name__ == '__main__':
-    runsystemstatus()
+    runonce = False
+    debug = False
+    if 'runonce' in sys.argv:
+        print('run once selected')
+        runonce = True
+    if 'debug' in sys.argv:
+        print('debug selected')
+        debug = True
+    runsystemstatus(runonce=runonce, debug=debug)
     # runsystemstatus()

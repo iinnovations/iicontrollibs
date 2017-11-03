@@ -938,8 +938,10 @@ def sqlitemultquery(database, querylist, **kwargs):
 
 def sqlitequery(database, query, **kwargs):
     import sqlite3 as lite
+    import traceback
+    import time
 
-    settings = {'timeout':10, 'quiet':False}
+    settings = {'timeout':3, 'quiet':False, 'timeout_retry':0.5}
     settings.update(kwargs)
 
     # if not settings['quiet']:
@@ -948,36 +950,59 @@ def sqlitequery(database, query, **kwargs):
     con = lite.connect(database, timeout=settings['timeout'])
     con.text_factory = str
 
-    try:
-        with con:
-            cur = con.cursor()
-            cur.execute(query)
-            data = cur.fetchall()
-            # cur.close()
-    except:
-        import traceback
-        data = ''
-        trace_message = traceback.format_exc()
+    # So TABLE locks will automatically retry. Database locks will not. This means we have to do our own wrapping.
 
-        error_searched = status_error_from_sqlite_msg(trace_message)
-        error_searched['query'] = query
+    number_retries = settings['timeout'] / settings['timeout_retry']
+    retry = 0
+    complete = False
+    message = ''
+    while complete == False:
+        try:
+            with con:
+                cur = con.cursor()
+                cur.execute(query)
+                data = cur.fetchall()
+                # cur.close()
+        except:
+            data = ''
+            trace_message = traceback.format_exc()
 
-        if not settings['quiet']:
-            # print('Error searched:')
-            print(error_searched)
+            error_searched = status_error_from_sqlite_msg(trace_message)
+            error_searched['query'] = query
 
-        if 'log_errors' in kwargs and kwargs['log_errors'] and 'log_path' in kwargs:
-            from iiutilities.utility import log
-            log(kwargs['log_path'],
-                error_searched['message'] + '\n\t Original message: ' + trace_message + ', query: ' + error_searched[
-                    'query'])
+            status = error_searched['status']
 
-        status = error_searched['status']
-        message = error_searched['message']
-    else:
-        status = 0
-        message = 'all seems ok'
-        error_searched = {'status':status, 'message':message, 'type':None}
+            if not settings['quiet']:
+                # print('Error searched:')
+                print(error_searched)
+
+            if error_searched['type'] == 'lock':
+                message += 'Attempt {}/{} : Lock error. '.format(retry, number_retries)
+
+                retry += 1
+                # if not settings['quiet']:
+                print('Retry {}/{} : Lock Error'.format(retry, number_retries))
+                if retry > number_retries:
+                    complete = True
+                    this_message = '{} retries exceeded. Aborting. '.format(number_retries)
+                    print(this_message)
+                    message += this_message
+                else:
+                    time.sleep(settings['timeout_retry'])
+            else:
+
+                if 'log_errors' in kwargs and kwargs['log_errors'] and 'log_path' in kwargs:
+                    from iiutilities.utility import log
+                    log(kwargs['log_path'],
+                        error_searched['message'] + '\n\t Original message: ' + trace_message + ', query: ' + error_searched[
+                            'query'])
+
+                message += error_searched['message']
+        else:
+            complete = True
+            status = 0
+            message += 'Query completed successfully. '
+            error_searched = {'status':status, 'message':message, 'type':None}
 
     return {'data':data, 'status':status, 'message':message, 'error':error_searched}
 
