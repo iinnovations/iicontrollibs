@@ -134,8 +134,8 @@ def runallprocs():
     for index, proc in enumerate(pilib.daemonprocs):
         full_process_name = pilib.dirs.baselib + pilib.daemonprocs[index]
 
-        subprocess.call([full_process_name, '&'], stdout=FNULL, stderr=FNULL)
-        # proc = Popen([pilib.dirs.baselib + pilib.daemonprocs[index], '&'])
+        # subprocess.call([full_process_name, '&'], stdout=FNULL, stderr=FNULL)
+        proc = subprocess.Popen([full_process_name, '&'], stdout=FNULL, stderr=FNULL)
 
         # thread = threading.Thread(target=self.run, args=())
         # thread.daemon = True  # Daemonize thread
@@ -155,7 +155,7 @@ def rundaemon(**kwargs):
     """
     settings = {'startall':False, 'debug':False}
     settings.update(kwargs)
-
+    FNULL = open(os.devnull, 'w')
 
     try:
         import socket
@@ -331,11 +331,13 @@ def rundaemon(**kwargs):
                 # print(pilib.dirs.baselib + pilib.daemonprocs[index])
                 if pilib.loglevels.daemon > 0:
                     utility.log(pilib.dirs.logs.daemon, 'Starting ' + pilib.dirs.baselib + process, 2, pilib.loglevels.daemon)
-                procresult = Popen([pilib.dirs.baselib + process], stdout=PIPE, stderr=PIPE)
+
+                # procresult = Popen([pilib.dirs.baselib + process], stdout=PIPE, stderr=PIPE)
+                procresult = Popen([pilib.dirs.baselib + process, '&'], stdout=FNULL, stderr=FNULL)
                 # if pilib.loglevels.daemon > 0:
                 #     pilib.writedatedlogmsg(pilib.dirs.logs.daemonproc, procresult.stdout.read())
 
-    # Why is this here?
+    # Time to let things start up
     sleep(3)
 
     # Refresh after set
