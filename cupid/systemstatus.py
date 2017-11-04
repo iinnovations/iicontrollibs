@@ -104,7 +104,7 @@ def watchdoghamachi(pingip='self', threshold=3000, debug=False, restart=True):
             dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'hamachistatus', 0)
             utility.log(pilib.dirs.logs.network, 'Restarting Hamachi. ', 1, pilib.loglevels.network)
 
-            killhamachi()
+            # killhamachi()
             restarthamachi()
             utility.log(pilib.dirs.logs.network, 'Completed restarting Hamachi. ', 1, pilib.loglevels.network)
 
@@ -125,7 +125,7 @@ def watchdoghamachi(pingip='self', threshold=3000, debug=False, restart=True):
             utility.log(pilib.dirs.logs.network, 'Restarting hamachi:  {}'.format(error_message), 1,
                         pilib.loglevels.network)
 
-            killhamachi()
+            # killhamachi()
             restarthamachi()
         # print('blurg')
 
