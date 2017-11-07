@@ -772,46 +772,73 @@ def reducedicttolist(mydict):
 proc handling
 """
 
-def findprocstatuses(procstofind):
+def pgrepstatus(regex, full=True):
     import subprocess
-    statuses = []
-    for proc in procstofind:
-        # print(proc)
-        status = False
-        try:
-            result = subprocess.check_output(['pgrep','-fc',proc]).decode('utf-8')
-            # print(result)
-        except:
-            # print('ERROR')
-            pass
-        else:
-            if int(result) > 0:
-                # print("FOUND")
-                status = True
-            else:
-                pass
-                # print("NOT FOUND")
-        statuses.append(status)
-    # print(statuses)
-    return statuses
-
-
-def killprocbyname(name):
-    import subprocess
+    if full:
+        cmd = ['pgrep','-f',regex]
+    else:
+        cmd = ['pgrep',regex]
     try:
-        result = subprocess.check_output(['pgrep','hamachi']).decode('utf-8')
+        result = subprocess.check_output(cmd).decode('utf-8')
     except:
-        # Error thrown means hamachi is not running
-        print('catching error')
+        pcount = 0
+        pids = []
     else:
         split = result.split('\n')
         # print(split)
+        pcount = 0
+        pids = []
         for pid in split:
             if pid:
-                # print(pid)
-                subprocess.call(['kill', '-9', str(pid.strip())])
-    return
+                pcount += 1
+                pids.append(pid)
+    return {'count': pcount, 'pids': pids}
 
+
+def find_proc_statuses(procstofind):
+    statuses = []
+    for proc in procstofind:
+        statuses.append(pgrepstatus(proc))
+    return statuses
+
+
+def kill_proc_by_name(name):
+    status_dict = {'status':0, 'message':''}
+    try:
+        proc_status = pgrepstatus(name)
+    except:
+        inc_message = 'Error retrieving status for {}'.format(name)
+        print(inc_message)
+        status_dict['message'] += inc_message
+        return status_dict
+
+    else:
+        if proc_status['pids']:
+            for pid in proc_status['pids']:
+                try:
+                    kresult = kill_proc_by_pid(pid)
+                except:
+                    inc_message = 'Error killing pid {}:{}'.format(pid, kresult['message'])
+                    status_dict['message'] += inc_message
+                    status_dict['status'] = 2
+                else:
+                    status_dict['message'] += kresult['message']
+
+        else:
+            status_dict['message'] += 'No processes found '
+
+    return status_dict
+
+
+def kill_proc_by_pid(pid):
+    import subprocess
+    try:
+        subprocess.call(['kill', '-9', str(pid.strip())])
+    except:
+        import traceback
+        return {'status':0, 'message':traceback.format_exc()}
+    else:
+        return {'status':0, 'message':'killed {}. '.format(pid)}
 
 def log(logfile, message, reqloglevel=1, currloglevel=1):
     # Allow passing None for logfile

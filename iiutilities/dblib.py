@@ -952,11 +952,11 @@ def sqlitequery(database, query, **kwargs):
 
     # So TABLE locks will automatically retry. Database locks will not. This means we have to do our own wrapping.
 
-    number_retries = settings['timeout'] / settings['timeout_retry']
+    number_retries = int(settings['timeout'] / settings['timeout_retry'])
     retry = 0
     complete = False
     message = ''
-    while complete == False:
+    while not complete:
         try:
             with con:
                 cur = con.cursor()
@@ -990,7 +990,7 @@ def sqlitequery(database, query, **kwargs):
                 else:
                     time.sleep(settings['timeout_retry'])
             else:
-
+                complete = True
                 if 'log_errors' in kwargs and kwargs['log_errors'] and 'log_path' in kwargs:
                     from iiutilities.utility import log
                     log(kwargs['log_path'],

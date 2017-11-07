@@ -681,6 +681,23 @@ def copy_log_to_archive(log_name, **kwargs):
     archive_db.execute_queue()
 
 
+def rotate_all_logs(**kwargs):
+
+    # These defaults come from globals above
+    settings = {
+        'logs_to_keep':numlogs,
+        'max_log_size':maxlogsize,
+        'debug':False
+    }
+    settings.update(**kwargs)
+
+    from iiutilities.utility import rotate_log_by_size
+    for attr, value in dirs.logs.__dict__.items():
+        if settings['debug']:
+            print('Rotating {}'.format(attr))
+        rotate_log_by_size(value, settings['logs_to_keep'], settings['max_log_size'])
+
+
 def app_copy_log_to_archive(d,output):
     required_keywords = ['log_name', 'archived_log_name']
     if not app_check_keywords(d,required_keywords,output):

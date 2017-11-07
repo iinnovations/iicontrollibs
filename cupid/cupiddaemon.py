@@ -66,29 +66,6 @@ def get_proc_list():
     return proc_list
 
 
-def pgrepstatus(regex, full=True):
-    import subprocess
-    if full:
-        cmd = ['pgrep','-f',regex]
-    else:
-        cmd = ['pgrep',regex]
-    try:
-        result = subprocess.check_output(cmd).decode('utf-8')
-    except:
-        pcount = 0
-        pids = []
-    else:
-        split = result.split('\n')
-        # print(split)
-        pcount = 0
-        pids = []
-        for pid in split:
-            if pid:
-                pcount += 1
-                pids.append(pid)
-    return {'count': pcount, 'pids': pids}
-
-
 # This is in utilities, but we include it here in case we cannot import other things
 class gmail:
     def __init__(self, server='smtp.gmail.com', port=587, subject='default subject', message='default message',
@@ -262,21 +239,21 @@ def rundaemon(**kwargs):
     # enableditemlist = [(int(updateio_enabled)), (int(picontrolenabled)), int(systemstatusenabled), int(sessioncontrolenabled), int(serialhandlerenabled)]
 
     # These are hard-coded and must match up for now. This should be cleaned up to be more easily modified.
-    itemstatuses = utility.findprocstatuses(pilib.daemonprocs)
+    itemstatuses = utility.find_proc_statuses(pilib.daemonprocs)
 
     item_status_dict = {}
-    for name, status in zip(pilib.daemonprocnames, itemstatuses):
-        item_status_dict[name] = status
+    for proc_name, status in zip(pilib.daemonprocnames, itemstatuses):
+        item_status_dict[proc_name] = status
 
     """
     Here we check to see if things are running properly and not hung. First here is systemstatus
     """
 
-    if item_enabled_dict['systemstatus'] and item_status_dict['systemstatus']:
+    if item_enabled_dict['systemstatus'] and item_status_dict['systemstatus']['count'] == 1:
         lastsystemstatus = dblib.getsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'lastsystemstatuspoll')
         currenttime = datalib.gettimestring()
-        timesincelastsystemstatus = datalib.timestringtoseconds(currenttime)- datalib.timestringtoseconds(lastsystemstatus)
 
+        timesincelastsystemstatus = datalib.timestringtoseconds(currenttime) - datalib.timestringtoseconds(lastsystemstatus)
         timecriterion = 90
         if timesincelastsystemstatus > timecriterion:
             utility.log(pilib.dirs.logs.system, 'Killing systemstatus because it has not run in ' + str(timesincelastsystemstatus) + 's')
@@ -296,13 +273,13 @@ def rundaemon(**kwargs):
                                                       'options': 'email:' + options['email'] + ',subject:' + subject,
                                                       'queuedtime': currenttime})
 
-            utility.killprocbyname('systemstatus')
+            utility.kill_proc_by_name('systemstatus')
 
 
     # Set system message
     systemstatusmsg = ''
     for name in pilib.daemonprocnames:
-        systemincmessage = name + ' - Enabled: ' + str(item_enabled_dict[name]) + ' Status: ' + str(item_status_dict[name]) + '. '
+        systemincmessage = name + ' - Enabled: ' + str(item_enabled_dict[name]) + ' Status: ' + str(item_status_dict[name]['count']) + '. '
         systemstatusmsg += systemincmessage
         if pilib.loglevels.daemon > 0:
             utility.log(pilib.dirs.logs.daemon, 'Item status message: ' + systemincmessage)
@@ -316,12 +293,23 @@ def rundaemon(**kwargs):
     for name, process in zip(pilib.daemonprocnames, pilib.daemonprocs):
 
         # set status
-        if item_status_dict[name]:
+        if item_status_dict[name]['count'] == 1:
             # Set status variable by name. This is static based on schema
             system_database.set_single_value('systemstatus', name + 'status', 1)
             if pilib.loglevels.daemon > 0:
                 utility.log(pilib.dirs.logs.daemon, 'Process is running: ' + pilib.dirs.baselib + process, 4, pilib.loglevels.daemon)
-        else:
+
+        elif item_status_dict[name]['count'] > 1:
+            # multiple instances are running. This is bad.
+            system_database.set_single_value('systemstatus', name + 'status', 0)
+            if pilib.loglevels.daemon > 0:
+                utility.log(pilib.dirs.logs.daemon, 'Multple instances of process {} are running ({}): '.format(pilib.dirs.baselib + process, item_status_dict[name]['count']), 2,
+                            pilib.loglevels.daemon)
+
+            utility.kill_proc_by_name(process)
+
+        # Now fire up if we need to.
+        if item_status_dict[name]['count'] != 1:
             system_database.set_single_value('systemstatus', name + 'status', 0)
             if pilib.loglevels.daemon > 0:
                 utility.log(pilib.dirs.logs.daemon, 'Process is not running: ' + pilib.dirs.baselib + process, 2, pilib.loglevels.daemon)
@@ -341,7 +329,7 @@ def rundaemon(**kwargs):
     sleep(3)
 
     # Refresh after set
-    itemstatuses = utility.findprocstatuses(pilib.daemonprocs)
+    itemstatuses = utility.find_proc_statuses(pilib.daemonprocs)
     item_status_dict = {}
     for name, status in zip(pilib.daemonprocnames, itemstatuses):
         item_status_dict[name] = status
@@ -361,7 +349,9 @@ def rundaemon(**kwargs):
     """
 
     from cupid.actions import processactions
+    utility.log(pilib.dirs.logs.daemon, 'Processing actions', 2, pilib.loglevels.daemon)
     processactions()
+    utility.log(pilib.dirs.logs.daemon, 'Done processing actions', 2, pilib.loglevels.daemon)
 
     systemstatusmsg = ''
     for name in pilib.daemonprocnames:
@@ -369,13 +359,14 @@ def rundaemon(**kwargs):
             item_status_dict[name]) + '. '
         systemstatusmsg += systemincmessage
         if pilib.loglevels.daemon > 0:
-            utility.log(pilib.dirs.logs.daemon, 'Item status message: ' + systemincmessage)
+            utility.log(pilib.dirs.logs.daemon, 'Item status message: ' + systemincmessage, 2, pilib.loglevels.daemon)
 
-    system_database.set_single_value('systemstatus', 'systemmessage', systemstatusmsg)
+    system_database.set_single_value('systemstatus', 'systemmessage', systemstatusmsg, 2, pilib.loglevels.daemon)
 
     # Rotate all logs
-    for attr, value in pilib.dirs.logs.__dict__.items():
-        utility.rotate_log_by_size(value, pilib.numlogs, pilib.maxlogsize)
+    utility.log(pilib.dirs.logs.daemon, 'Rotating logs. ')
+    pilib.rotate_all_logs()
+
 
 if __name__ == "__main__":
 
@@ -385,7 +376,7 @@ if __name__ == "__main__":
         print('error importing pilib components')
 
     try:
-        from iiutilities.utility import log, findprocstatuses
+        from iiutilities.utility import log, find_proc_statuses
     except:
         print('error importing utility components')
     else:
@@ -393,7 +384,12 @@ if __name__ == "__main__":
 
     # This will pick up errors above. We handle above so we can warn in unittests
     # rundaemon(debug=True)
-    rundaemon()
+
+    debug = False
+    if 'debug' in sys.argv:
+        print('running in debg')
+        debug = True
+    rundaemon(debug=debug)
 
     log(dirs.logs.daemon, 'Daemon complete.',1,loglevels.daemon)
 

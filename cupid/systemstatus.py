@@ -71,7 +71,7 @@ def watchdoghamachi(pingip='self', threshold=3000, debug=False, restart=True):
         pilib.set_debug()
 
     try:
-        # Turns out this is not going to work, as when it hangs, it hangs hard
+        # if this throws an error, it means that there is not a valid status
         hamachistatusdata = gethamachistatusdata()
     except:
         import traceback
@@ -150,7 +150,6 @@ def updatehamachistatus():
 def watchdognetstatus(allnetstatus=None):
 
     import subprocess
-    from cupiddaemon import pgrepstatus
     from iiutilities import utility
     from cupid import pilib
     from iiutilities import datalib
@@ -316,7 +315,7 @@ def watchdognetstatus(allnetstatus=None):
                 statusmsg += 'wlan0 address does not appear ok. '
                 runconfig = True
 
-            if pgrepstatus('hostapd.*wlan0')['count'] == 1:
+            if utility.pgrepstatus('hostapd.*wlan0')['count'] == 1:
                 utility.log(pilib.dirs.logs.network, 'hostapd on wlan0 appears to be ok. ', 3, pilib.loglevels.network)
             else:
                 utility.log(pilib.dirs.logs.network, 'hostapd on wlan0 does NOT appear to be ok. ', 1, pilib.loglevels.network)
@@ -391,7 +390,7 @@ def watchdognetstatus(allnetstatus=None):
                 utility.log(pilib.dirs.logs.network, 'ap interface ' + apinterface + ' address is not set properly:  ' + str(apifacedata['address']), 1, pilib.loglevels.network)
                 runconfig = True
 
-            if pgrepstatus('hostapd.*' + apinterface)['count'] == 1:
+            if utility.pgrepstatus('hostapd.*' + apinterface)['count'] == 1:
                 utility.log(pilib.dirs.logs.network, 'hostapd on ' + apinterface + ' appears to be ok. ', 3, pilib.loglevels.network)
             else:
                 utility.log(pilib.dirs.logs.network, 'hostapd on ' + apinterface + ' does NOT appear to be ok. ', 1, pilib.loglevels.network)

@@ -252,10 +252,13 @@ if __name__ == "__main__":
     force = False
     run_once = False
     if debug in sys.argv:
+        print('running in debg')
         debug = True
     if force in sys.argv:
+        print('running force')
         force = True
     if run_once in sys.argv:
+        print('running run_once')
         run_once = True
     runperiodicio(debug=debug, force=force, run_once=run_once)
 

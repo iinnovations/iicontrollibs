@@ -411,8 +411,8 @@ def restarthamachi():
 
 # left here for compatibility
 def killhamachi():
-    from iiutilities.utility import killprocbyname
-    killprocbyname('hamachi')
+    from iiutilities.utility import kill_proc_by_name
+    kill_proc_by_name('hamachi')
 
 
 def checksharemount(sharepath):
