@@ -1,5 +1,4 @@
 def application(environ, start_response):
-    import cgi
     import json
     import hashlib
 
@@ -14,42 +13,23 @@ def application(environ, start_response):
 
     import inventorylib
     from iiutilities import dblib, datalib
-    from iiutilities.utility import newunmangle
     from time import time
 
-    post_env = environ.copy()
-    post_env['QUERY_STRING'] = ''
-    post = cgi.FieldStorage(
-        fp=environ['wsgi.input'],
-        environ=post_env,
-        keep_blank_values=True
-    )
-    formname = post.getvalue('name')
+    try:
+        request_body_size = int(environ.get('CONTENT_LENGTH', 0))
+    except ValueError:
+        request_body_size = 0
 
+    request_body = environ['wsgi.input'].read(request_body_size)
+    try:
+        post = json.loads(request_body.decode('utf-8'))
+    except:
+        print('Error decoding: ')
+        print(request_body.decode('utf-8'))
+        post = {}
 
-    output = {}
-    output['keys'] = ''
-
-    if 'REMOTE_ADDR' in environ:
-        output['remote_ip'] = environ['REMOTE_ADDR']
-
-    d = {}
-    for k in post.keys():
-        # print(k)
-        d[k] = post.getvalue(k)
-
+    output = {'message': ''}
     status = '200 OK'
-    # Run stuff as requested
-    # We use the dynamic function to allow various  
-    # types of queries
-    output['data'] = []
-    output['message'] = ''
-
-    # print('** original')
-    # print(d)
-    d = newunmangle(d)
-    # print('** unmangled')
-    # print(d)
 
     """
     Here we verify credentials of session data against those in the database.
@@ -68,10 +48,10 @@ def application(environ, start_response):
 
     # First, let's get our pathalias and translate to a path, using our path reloader
 
-    # if 'pathalias' in d:
-    #     output['message'] += inventorylib.reloaddatapaths(pathalias=d['pathalias'])
+    # if 'pathalias' in post:
+    #     output['message'] += inventorylib.reloaddatapaths(pathalias=post['pathalias'])
     # else:
-    #     output['message'] += 'No pathalias found in dictionary. '
+    #     output['message'] += 'No pathalias found in postictionary. '
 
     wsgiauth = True
     authverified = False
@@ -79,31 +59,31 @@ def application(environ, start_response):
     if wsgiauth:
 
         # Verfiy that session login information is legit: hashed password, with salt and username, match
-        # hash stored in database.
+        # hash stored in postatabase.
         import hashlib
 
         safe_database = dblib.sqliteDatabase(inventorylib.sysvars.dirs.dbs.safe)
-        if 'username' in d and d['username']:
-            output['message'] += 'Session user is ' + d['username'] + '. '
+        if 'username' in post and post['username']:
+            output['message'] += 'Session user is ' + post['username'] + '. '
         else:
             output['message'] += 'No session user found. '
-            d['username'] = ''
+            post['username'] = ''
 
-        if d['username']:
+        if post['username']:
             try:
-                condition = "name='" + d['username'] + "'"
+                condition = "name='" + post['username'] + "'"
                 user_data = safe_database.read_table_row('users', condition=condition)[0]
             except:
-                output['message'] += 'error in user sqlite query for session user "' + d['username'] + '". '
+                output['message'] += 'error in user sqlite query for session user "' + post['username'] + '". '
                 user_data = {'accesskeywords':'demo','admin':False}
             else:
                 # Get session hpass to verify credentials
-                hashedpassword = d['hpass']
+                hashedpassword = post['hpass']
                 hname = hashlib.new('sha1')
-                hname.update(d['username'])
+                hname.update(post['username'].encode('utf-8'))
                 hashedname = hname.hexdigest()
                 hentry = hashlib.new('md5')
-                hentry.update(hashedname + inventorylib.sysvars.salt + hashedpassword)
+                hentry.update((hashedname + inventorylib.sysvars.salt + hashedpassword).encode('utf-8'))
                 hashedentry = hentry.hexdigest()
                 if hashedentry == user_data['password']:
                     # successful auth
@@ -122,10 +102,10 @@ def application(environ, start_response):
                     # Find usermeta entry and grab which database is selected. If one is not selected, update selection
                     # to first that user is allowed to access
                     try:
-                        user_meta_row = safe_database.read_table_row('usermeta', condition="user='" + d['username'] + "'")[0]
+                        user_meta_row = safe_database.read_table_row('usermeta', condition="user='" + post['username'] + "'")[0]
                     except:
-                        print('error getting usermeta for username ' + d['username'])
-                        output['message'] += 'error getting usermeta for username ' + d['username']
+                        print('error getting usermeta for username ' + post['username'])
+                        output['message'] += 'error getting usermeta for username ' + post['username']
                         user_meta_row = []
                         return
 
@@ -143,7 +123,7 @@ def application(environ, start_response):
                             output['message'] += 'ERROR: first entry in keywords (' +default_database + ') not found in aliases. '
 
                         # Insert usermeta entry. This should never happen.
-                        safe_database.insert('usermeta', {'user':d['username'], 'data':'pathalias:' + default_database})
+                        safe_database.insert('usermeta', {'user':post['username'], 'data':'pathalias:' + default_database})
                         path_alias = default_database
                     else:
                         output['message'] += 'User meta entry found with text ' + str(user_meta_row) + '. '
@@ -177,7 +157,7 @@ def application(environ, start_response):
         output['authorized'] = False
 
     try:
-        action = d['action']
+        action = post['action']
     except KeyError:
         output['message'] = 'no action in request'
         action = ''
@@ -259,8 +239,8 @@ def application(environ, start_response):
             inventorylib.calcstockfromall()
         elif action == 'addeditorderparts':
             output['message'] += 'addeditorderparts keyword found. '
-            if 'partsdata' in d:
-                d['partsdata'] = json.loads(d['partsdata'])
+            if 'partsdata' in post:
+                post['partsdata'] = json.loads(post['partsdata'])
                 inventorylib.addeditpartlist(d, output)
             inventorylib.makeordermetadata()
             inventorylib.calcstockfromall()
@@ -282,7 +262,7 @@ def application(environ, start_response):
         elif action == 'addeditbomparts':
             output['message'] += 'addeditbomparts keyword found. '
             # Operate on partsdata
-            d['partsdata'] = json.loads(d['partsdata'])
+            post['partsdata'] = json.loads(post['partsdata'])
             inventorylib.addeditpartlist(d, output)
             inventorylib.makebommetadata()
         elif action == 'getbomcalcs':
@@ -319,7 +299,7 @@ def application(environ, start_response):
             inventorylib.calcstockfromall()
         elif action == 'addeditassemblyparts':
             output['message'] += 'addeditassemblypart keyword found. '
-            d['partsdata'] = json.loads(d['partsdata'])
+            post['partsdata'] = json.loads(post['partsdata'])
             inventorylib.addeditpartlist(d, output)
             inventorylib.makeassemblymetadata()
             inventorylib.calcstockfromall()
@@ -358,16 +338,16 @@ def application(environ, start_response):
             cleantime = thetime.replace(' ', '_').replace(':', '_')
 
             # Get bom from boms database
-            bom = dblib.readalldbrows(inventorylib.sysvars.dirs.dbs.boms, d['name'])
+            bom = dblib.readalldbrows(inventorylib.sysvars.dirs.dbs.boms, post['name'])
 
-            cleanbomname = d['name'].replace(' ','_').replace(':','_')
+            cleanbomname = post['name'].replace(' ','_').replace(':','_')
             filename = cleanbomname + '_' + cleantime
             outputroot = '/var/www/html/panelbuilder/data/downloads/'
 
             weblink = 'https://panelbuilder.interfaceinnovations.org/data/downloads/' + filename
 
             inventorylib.writepanelbomtopdf(**{'bomdata': bom,
-                                      'title': 'Bom generated from ' + d['name'] + ' ' + cleantime,
+                                      'title': 'Bom generated from ' + post['name'] + ' ' + cleantime,
                                           'outputfile': outputroot + filename})
 
             output['data']['weblink'] = weblink
@@ -379,16 +359,16 @@ def application(environ, start_response):
             cleantime = thetime.replace(' ', '_').replace(':', '_')
 
             # Get bom from boms database
-            assemblydata = dblib.readalldbrows(inventorylib.sysvars.dirs.dbs.assemblies, d['name'])
+            assemblydata = dblib.readalldbrows(inventorylib.sysvars.dirs.dbs.assemblies, post['name'])
 
-            cleanname = d['name'].replace(' ','_').replace(':','_')
+            cleanname = post['name'].replace(' ','_').replace(':','_')
             filename = cleanname + '_' + cleantime + '.pdf'
             outputroot = '/var/www/html/panelbuilder/data/downloads/'
 
             weblink = 'https://panelbuilder.interfaceinnovations.org/data/downloads/' + filename
 
             inventorylib.writepanelbomtopdf(**{'bomdata': assemblydata,
-                                      'title': 'Bom generated from ' + d['name'] + ' ' + thetime,
+                                      'title': 'Bom generated from ' + post['name'] + ' ' + thetime,
                                           'format':'picklist','outputfile': outputroot + filename})
 
             output['data'] = {'assemblydata':assemblydata}
@@ -398,13 +378,13 @@ def application(environ, start_response):
         elif action in ['panelcalcs', 'panelcalcsgenquote']:
             output['message'] += 'panelcalc keyword found. '
             import panelbuilder
-            for key,value in d.iteritems():
+            for key,value in post.items():
                 # print(key, value)
                 pass
 
-            if 'paneldesc' in d:
+            if 'paneldesc' in post:
                 import json
-                d['paneldesc'] = json.loads(d['paneldesc'])
+                post['paneldesc'] = json.loads(post['paneldesc'])
 
             bomresults = panelbuilder.paneltobom(**d)
 
@@ -417,8 +397,8 @@ def application(environ, start_response):
 
             # We don't actually want to return the full boms by default. We don't want this in the client, and it's
             # lot of data anyway
-            if 'returnfullboms' not in d:
-                for option, value in output['data']['options'].iteritems():
+            if 'returnfullboms' not in post:
+                for option, value in output['data']['options'].items():
                     if 'bom' in value:
                         print('Deleting bom from option ' + str(option))
 
@@ -432,12 +412,12 @@ def application(environ, start_response):
                 cleantime = thetime.replace(' ','_').replace(':','_')
                 outputroot = '/var/www/html/panelbuilder/data/downloads/'
 
-                if 'paneltype' in d['paneldesc'] and d['paneldesc']['paneltype'] == 'brewpanel':
+                if 'paneltype' in post['paneldesc'] and post['paneldesc']['paneltype'] == 'brewpanel':
                     datedquotefilename = 'panelbuilder_brew_quote_' + cleantime + '.pdf'
                     datedbomfilename = 'panelbuilder_brew_bom_' + cleantime + '.pdf'
                     genericquotefilename = 'panelbuilder_brew_quote.pdf'
                     genericbomfilename = 'panelbuilder_brew_bom.pdf'
-                elif 'paneltype' in d['paneldesc'] and d['paneldesc']['paneltype'] == 'temppanel':
+                elif 'paneltype' in post['paneldesc'] and post['paneldesc']['paneltype'] == 'temppanel':
                     datedquotefilename = 'panelbuilder_temp_quote_' + cleantime + '.pdf'
                     datedbomfilename = 'panelbuilder_temp_bom_' + cleantime + '.pdf'
                     genericquotefilename = 'panelbuilder_temp_quote.pdf'
@@ -513,55 +493,55 @@ def application(environ, start_response):
         # Multi-use
         elif action == 'reloaditemdatafromstock':
             output['message'] += 'reloaditemdatafromstock keyword found. '
-            inventorylib.refreshpartsfromstock(d, output)
-            if 'bomname' in d:
-                inventorylib.recalcpartdata(bomname=d['bomname'])
+            inventorylib.refreshpartsfromstock(post, output)
+            if 'bomname' in post:
+                inventorylib.recalcpartdata(bomname=post['bomname'])
                 inventorylib.makebommetadata()
-            elif 'assemblyame' in d:
-                inventorylib.recalcpartdata(assemblyname=d['assemblyname'])
+            elif 'assemblyame' in post:
+                inventorylib.recalcpartdata(assemblyname=post['assemblyname'])
                 inventorylib.makeassemblymetadata()
 
         # Generic functions
         elif action == 'gettablenames':
-            dbpath = inventorylib.dbnametopath(d['database'])
+            dbpath = inventorylib.dbnametopath(post['database'])
             try:
                 output['data'] = dblib.gettablenames(dbpath)
             except:
                 output['message'] += 'Error getting table names'
         elif action == 'switchtablerows':
-            dbpath = inventorylib.dbnametopath(d['database'])
-            dblib.switchtablerows(dbpath, d['tablename'], d['row1'], d['row2'], d['uniqueindex'])
+            dbpath = inventorylib.dbnametopath(post['database'])
+            dblib.switchtablerows(dbpath, post['tablename'], post['row1'], post['row2'], post['uniqueindex'])
         elif action == 'modwsgistatus':
             output['processgroup'] = repr(environ['mod_wsgi.process_group'])
             output['multithread'] = repr(environ['wsgi.multithread'])
         elif action == 'gettabledata':
             output['message']+='Gettabledata. '
-            if 'database' in d:
-                dbpath = inventorylib.dbnametopath(d['database'])
+            if 'database' in post:
+                dbpath = inventorylib.dbnametopath(post['database'])
                 if dbpath:
-                    output['message'] += 'Friendly name ' + d['database'] + ' translated to path ' + dbpath + ' successfully. '
+                    output['message'] += 'Friendly name ' + post['database'] + ' translated to path ' + dbpath + ' successfully. '
 
-                    if 'tablenames[]' in d:  # Get multiple tables
+                    if 'tablenames' in post:  # Get multiple tables
                         output['message'] += 'Multiple tables. '
                         data = []
-                        if 'start' in d:
-                            fixedstart = int(d['start'])
+                        if 'start' in post:
+                            fixedstart = int(post['start'])
                         else:
                             fixedstart = 0
-                        if 'length' in d:
-                            fixedlength = int(d['length'])
+                        if 'length' in post:
+                            fixedlength = int(post['length'])
                         else:
                             fixedlength = 1
-                        if 'lengths[]' in d:
-                            lengths = map(int, d['lengths[]'])
+                        if 'lengths' in post:
+                            lengths = map(int, post['lengths[]'])
                         else:
                             lengths = []
-                        if 'starts[]' in d:
-                            starts = map(int, d['starts'])
+                        if 'starts' in post:
+                            starts = map(int, post['starts'])
                         else:
                             starts = []
 
-                        for index, table in enumerate(d['tablenames[]']):
+                        for index, table in enumerate(post['tablenames[]']):
                             try:
                                 length = lengths[index]
                             except IndexError:
@@ -573,36 +553,36 @@ def application(environ, start_response):
 
                             data.append(dblib.dynamicsqliteread(dbpath, table, start, length))
                             output['data']=data
-                    elif 'length' in d:  # Handle table row subset
+                    elif 'length' in post:  # Handle table row subset
                         output['message']+='Length keyword. '
-                        if not 'start' in d:
-                            d['start'] = 0
+                        if not 'start' in post:
+                            post['start'] = 0
                         thetime = time()
-                        output['data'] = dblib.dynamicsqliteread(dbpath, d['tablename'], d['start'], d['length'])
+                        output['data'] = dblib.dynamicsqliteread(dbpath, post['tablename'], post['start'], post['length'])
                         output['querytime'] = time() - thetime
-                    elif 'row' in d:  # Handle table row
-                        output['message'] += 'Row keyword. ' + str(d['row'])
+                    elif 'row' in post:  # Handle table row
+                        output['message'] += 'Row keyword. ' + str(post['row'])
                         thetime = time()
-                        output['data'] = dblib.dynamicsqliteread(dbpath, d['tablename'], d['row'])
+                        output['data'] = dblib.dynamicsqliteread(dbpath, post['tablename'], post['row'])
                         output['querytime'] = time() - thetime
-                    elif 'tablename' in d:  # Handle entire table
-                        output['message'] += 'Tablename keyword: ' + d['tablename'] + '. '
+                    elif 'tablename' in post:  # Handle entire table
+                        output['message'] += 'Tablename keyword: ' + post['tablename'] + '. '
                         thetime = time()
-                        if 'condition' in d:
-                            if not d['condition'] == '':
-                                output['data'] = dblib.dynamicsqliteread(dbpath, d['tablename'], condition=d['condition'])
+                        if 'condition' in post:
+                            if not post['condition'] == '':
+                                output['data'] = dblib.dynamicsqliteread(dbpath, post['tablename'], condition=post['condition'])
                             else:
-                                output['data'] = dblib.dynamicsqliteread(dbpath, d['tablename'])
+                                output['data'] = dblib.dynamicsqliteread(dbpath, post['tablename'])
                         else:
                             try:
-                                output['data'] = dblib.dynamicsqliteread(dbpath, d['tablename'])
+                                output['data'] = dblib.dynamicsqliteread(dbpath, post['tablename'])
                             except:
                                 output['message'] += 'Error retrieving data. '
                             else:
                                 output['message'] += 'Data query appears successful. '
                         output['querytime'] = time() - thetime
                 else:
-                    output['message'] += 'Friendly name ' + d['database'] + ' unsuccessfully translated. '
+                    output['message'] += 'Friendly name ' + post['database'] + ' unsuccessfully translated. '
             else:
                 output['message'] += 'No database present in action request'
         else:
@@ -611,11 +591,12 @@ def application(environ, start_response):
         # status = '403 Forbidden'
         output['message'] += 'Not authorized for this action (or perhaps at all?) '
 
+    print(' I AM HERE ')
     if 'data' in output:
         if output['data']:
-            newetag = hashlib.md5(str(output['data'])).hexdigest()
-            if 'etag' in d:
-                if newetag == d['etag']:
+            newetag = hashlib.md5(str(output['data']).encode('utf-8')).hexdigest()
+            if 'etag' in post:
+                if newetag == post['etag']:
                     status = '304 Not Modified'
                     output['data'] = ''
         else:
@@ -623,21 +604,22 @@ def application(environ, start_response):
     else:
         newetag=''
 
-    if 'datasize' in d:
+    if 'datasize' in post:
         output['datasize'] = sys.getsizeof(output['data'])
 
     output['etag'] = newetag
-    try:
-        foutput = json.dumps(output, indent=1)
-    except:
-        import csv
-        w = csv.writer(open("/usr/lib/iicontrollibs/inventory/dumperr.log", "w"))
-        for key, val in output.items():
-            w.writerow([key, val])
-
+    # try:
+    foutput = json.dumps(output, indent=1)
+    print('FOUTPUT')
+    print(type(foutput))
+    # except:
+    #     import csv
+    #     w = csv.writer(open("/usr/lib/iicontrollibs/inventory/dumperr.log", "w"))
+    #     for key, val in output.items():
+    #         w.writerow([key, val])
     response_headers = [('Content-type', 'application/json')]
     response_headers.append(('Etag',newetag))
     start_response(status, response_headers)
 
-    return [foutput]
+    return foutput.encode('utf-8')
 
