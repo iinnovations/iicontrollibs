@@ -208,7 +208,7 @@ def rundaemon(**kwargs):
                                                      {'type':'email','message':message,
                                                       'options':'email:' + options['email'] + ',subject:' + subject,
                                                       'queuedtime':currenttime})
-                        system_database.set_single_value('notifications','lastnotification',currenttime, "item='unittests'")
+                        system_database.set_single_value('notifications','lastnotification',currenttime, condition="item='unittests'")
 
     from subprocess import Popen, PIPE
     from time import sleep
@@ -361,7 +361,8 @@ def rundaemon(**kwargs):
         if pilib.loglevels.daemon > 0:
             utility.log(pilib.dirs.logs.daemon, 'Item status message: ' + systemincmessage, 2, pilib.loglevels.daemon)
 
-    system_database.set_single_value('systemstatus', 'systemmessage', systemstatusmsg, 2, pilib.loglevels.daemon)
+    # print(systemstatusmsg)
+    system_database.set_single_value('systemstatus', 'systemmessage', systemstatusmsg)
 
     # Rotate all logs
     utility.log(pilib.dirs.logs.daemon, 'Rotating logs. ')
