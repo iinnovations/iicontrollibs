@@ -668,7 +668,7 @@ def rebuild_system_db(**kwargs):
             {'name': 'lastsessioncontrolpoll'},
 
             {'name': 'enableoutputs', 'type': 'boolean', 'default': 0},
-            {'name': 'netstatusenabled', 'type': 'boolean', 'default': 0},
+            {'name': 'netstatusenabled', 'type': 'boolean', 'default': 1},
             {'name': 'netconfigenabled', 'type': 'boolean', 'default': 0},
             {'name': 'checkhamachistatus', 'type': 'boolean', 'default': 1},
             {'name': 'hamachistatus', 'type': 'boolean', 'default': 0},
