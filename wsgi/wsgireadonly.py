@@ -16,20 +16,6 @@ def application(environ, start_response):
     from iiutilities import dblib
     from time import time
 
-    # post_env = environ.copy()
-    # post_env['QUERY_STRING'] = ''
-    # post = cgi.FieldStorage(
-    #     fp=environ['wsgi.input'],
-    #     environ=post_env,
-    #     keep_blank_values=True
-    # )
-    #
-    # formname = post.getvalue('name')
-    # output = {}
-    # post = {}
-    # for k in post.keys():
-    #     post[k] = post.getvalue(k)
-
     try:
         request_body_size = int(environ.get('CONTENT_LENGTH', 0))
     except ValueError:
@@ -41,8 +27,9 @@ def application(environ, start_response):
     except:
         print('Error decoding: ')
         print(request_body.decode('utf-8'))
-    output = {}
-    output['message'] = ''
+        post = {}
+
+    output = {'message': ''}
 
     status = '200 OK'
     # Run stuff as requested

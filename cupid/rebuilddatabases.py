@@ -668,7 +668,7 @@ def rebuild_system_db(**kwargs):
             {'name': 'lastsessioncontrolpoll'},
 
             {'name': 'enableoutputs', 'type': 'boolean', 'default': 0},
-            {'name': 'netstatusenabled', 'type': 'boolean', 'default': 0},
+            {'name': 'netstatusenabled', 'type': 'boolean', 'default': 1},
             {'name': 'netconfigenabled', 'type': 'boolean', 'default': 0},
             {'name': 'checkhamachistatus', 'type': 'boolean', 'default': 1},
             {'name': 'hamachistatus', 'type': 'boolean', 'default': 0},
@@ -913,7 +913,7 @@ def rebuild_users_data(argument=None):
                     'authlevel': 3}]
         index = 1
         for entry in entries:
-            hashedentry = gethashedentry(entry['user'], entry['password'])
+            hashedentry = gethashedentry(entry['user'], entry['password'], pilib.salt)
             querylist.append(
                 "insert into users values(" + str(index) + ",'" + entry['user'] + "','" + hashedentry + "','" + entry[
                     'email'] + "',''," + str(entry['authlevel']) + ")")

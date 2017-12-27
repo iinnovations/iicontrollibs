@@ -114,7 +114,7 @@ def updatewirelessnetworks(interface='wlan0'):
 
         if not networks:
             log('No networks returned or error in retrieving, restarting interface ' + interface, dirs.logs.network)
-            resetwlan(interface=interface)
+            reset_net_iface(interface=interface)
         else:
             break
 
@@ -476,7 +476,7 @@ def setstationmode(netconfigdata=None):
         utility.log(pilib.dirs.logs.network, 'Configuring static eth0 and dhcp wlan0. ', 3, pilib.loglevels.network)
 
         subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.eth0staticwlan0dhcp', '/etc/network/interfaces'])
-        resetwlan(interface='eth0')
+        reset_net_iface(interface='eth0')
 
 
         # update IP from netconfig
@@ -501,9 +501,9 @@ def setstationmode(netconfigdata=None):
             subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.sta.dhcp', '/etc/network/interfaces'])
 
     utility.log(pilib.dirs.logs.network, 'Resetting wlan. ', 3, pilib.loglevels.network)
-    resetwlan()
+    reset_net_iface()
     sleep(1)
-    resetwlan()
+    reset_net_iface()
 
 
 def killapservices():
@@ -585,19 +585,19 @@ def setapmode(interface='wlan0', netconfig=None):
         utility.log(pilib.dirs.logs.network, 'Copied network configuration file successfully. ', 3, pilib.loglevels.network)
 
     killapservices()
-    resetwlan()
+    reset_net_iface()
     startapservices(interface)
 
 
-def resetwlan(interface='wlan0'):
+def reset_net_iface(interface='wlan0'):
     from iiutilities import utility
     import subprocess
     from cupid import pilib
 
     utility.log(pilib.dirs.logs.network, 'Resetting ' + interface + ' . ', 3, pilib.loglevels.network)
     try:
-        subprocess.check_output(['/sbin/ifconfig', interface, 'down'], stderr=subprocess.PIPE)
-        subprocess.call(['/sbin/ifconfig', interface, 'up'], stderr=subprocess.PIPE)
+        subprocess.call(['/sbin/ifdown', interface], stderr=subprocess.PIPE)
+        subprocess.call(['/sbin/ifup', interface], stderr=subprocess.PIPE)
     except:
         import traceback
         utility.log(pilib.dirs.logs.network, 'Error resetting ' + interface + ' : ' +  traceback.format_exc(), 0, pilib.loglevels.network)
@@ -652,14 +652,28 @@ def runconfig(**kwargs):
             utility.log(pilib.dirs.logs.network, 'Setting staticeth0_apwlan0_stadhcpwlan1 mode ', 0, pilib.loglevels.network)
             subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.eth0static.wlan0cupidwifi.wlan1dhcp', '/etc/network/interfaces'])
             killapservices()
-            resetwlan(interface='wlan1')
+            reset_net_iface(interface='eth0')
+            reset_net_iface(interface='wlan1')
             startapservices('wlan0')
+
+        elif netconfigdata['mode'] == 'dhcpeth0_apwlan0_stadhcpwlan1':
+            utility.log(pilib.dirs.logs.network, 'Setting dhcpeth0_apwlan0_stadhcpwlan1 mode ', 0,
+                        pilib.loglevels.network)
+            subprocess.call(
+                ['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.eth0dhcp.wlan0cupidwifi.wlan1dhcp',
+                 '/etc/network/interfaces'])
+            killapservices()
+            reset_net_iface(interface='eth0')
+            reset_net_iface(interface='wlan1')
+            startapservices('wlan0')
+
 
         elif netconfigdata['mode'] in ['ap', 'tempap', 'eth0wlan0bridge']:
             utility.log(pilib.dirs.logs.network, 'Setting eth0wlan0 bridge (or bare ap mode). ', 0, pilib.loglevels.network)
             subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.ap', '/etc/network/interfaces'])
             killapservices()
-            resetwlan()
+            reset_net_iface(interface='eth0')
+            reset_net_iface()
             startapservices('wlan0')
 
         # All of these require ipv4 being enabled in /etc/sysctl.conf
@@ -668,16 +682,18 @@ def runconfig(**kwargs):
             utility.log(pilib.dirs.logs.network, 'Setting wlan0wlan1 bridge', 0, pilib.loglevels.network)
             subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.wlan0dhcp.wlan1cupidwifi', '/etc/network/interfaces'])
             killapservices()
-            resetwlan('wlan0')
-            resetwlan('wlan1')
+            reset_net_iface(interface='eth0')
+            reset_net_iface('wlan0')
+            reset_net_iface('wlan1')
             startapservices('wlan1')
 
         elif netconfigdata['mode'] == 'wlan1wlan0bridge':
             utility.log(pilib.dirs.logs.network, 'Setting wlan1wlan0 bridge', 0, pilib.loglevels.network)
             subprocess.call(['/bin/cp', '/usr/lib/iicontrollibs/misc/interfaces/interfaces.wlan1dhcp.wlan0cupidwifi', '/etc/network/interfaces'])
             killapservices()
-            resetwlan('wlan0')
-            resetwlan('wlan1')
+            reset_net_iface(interface='eth0')
+            reset_net_iface('wlan0')
+            reset_net_iface('wlan1')
             startapservices('wlan0')
 
         runIPTables(netconfigdata['mode'])
