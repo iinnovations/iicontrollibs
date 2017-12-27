@@ -43,8 +43,6 @@ elif [ "$1" = "install" ]
 
     # THIS HAS BEEN FIXED ^^ as of STRETCH
 
-
-
     # wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.139-1_armhf.deb
     wget https://www.vpn.net/installers/logmein-hamachi_2.1.0.174-1_armhf.deb
     dpkg -i logmein-hamachi_2.1.0.174-1_armhf.deb
@@ -55,20 +53,25 @@ elif [ "$1" = "install" ]
     #
     echo "hamachi complete"
 
-    apt-get -y install php5 sqlite3 php5-sqlite
-    apt-get -y install python-dev python3 python-setuptools
-    apt-get -y install swig libfuse-dev libusb-dev php5-dev
+    apt-get -y install php sqlite3 php7.0-sqlite
+    apt-get -y install python-dev python3-dev python3 python-setuptools
+    apt-get -y install swig libfuse-dev libusb-dev php-dev
+    apt-get -y ifupdown
 
     apt-get -y install python-pip
     pip3 install rpi.gpio
     pip3 install gitpython
+    pip3 install requests
+    pip3 install pyownet
+    pip3 install pymodbus
+
     apt-get -y install python-serial
     apt-get -y install python-gtk2
     apt-get -y install automake
     apt-get -y install fping
     # pip install lal
 
-    apt-get -y install apache2 php5 sqlite3 php5-sqlite libapache2-mod-wsgi libapache2-mod-php5
+    apt-get -y install apache2 libapache2-mod-wsgi libapache2-mod-php
     a2enmod rewrite
     a2enmod ssl
     update-rc.d -f apache2 remove
@@ -81,10 +84,14 @@ elif [ "$1" = "install" ]
     apt-get -y install uwsgi-plugin-python
     apt-get -y install uwsgi-plugin-python3
 
-    apt-get -y install php5-fpm
+    apt-get -y install php-fpm
     apt-get -y install i2c-tools python-smbus
     apt-get -y install hostapd isc-dhcp-server
     update-rc.d -f isc-dhcp-server remove
+
+    # This appears to cause problems with hamachi and is by default installed on Stretch
+    # We may be able to avoid this by moving from network/interfaces. Unknown.
+    update-rc.d -f dhcpcd remove
 
     echo "installing pigpio"
     wget abyz.co.uk/rpi/pigpio/pigpio.zip
@@ -95,33 +102,8 @@ elif [ "$1" = "install" ]
     cd ..
     rm -Rf PIGPIO
 
-    echo "testing for owfs"
-    testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
-    if [ ${testresult} -ne 0 ]
-      then
-        echo "owfs 2.9p5 already installed"
-    else
-        echo "installing owfs 2.9p5"
-        cd /usr/lib/iicontrollibs/resource
-        tar -xvf owfs-2.9p5.tar.gz
-        cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
-        ./configure
-        make install
-        cd ..
-        rm -R owfs-2.9p5
-    fi
-    echo "owfs complete"
-
     echo "installing asteval"
     pip3 install asteval
-
-    cd /usr/lib/iicontrollibs/resource
-    tar xvf netifaces-0.10.6.tar.gz
-    cd netifaces-0.10.6
-    python setup.py install
-    python3 setup.py install
-    cd ..
-    rm -rf netifaces-0.10.6
 
     echo -e "${WHT}************************************${NC}"
     echo -e "${WHT}*****   STD  INSTALL  COMPLETE *****${NC}"
@@ -141,6 +123,8 @@ elif [ "$1" = "update" ]
     pip3 install gitpython
     apt-get -y install uwsgi-plugin-python3
     pip3 install asteval
+    pip3 install pyownet
+    pip3 install pymodbus
     cd /usr/lib/iicontrollibs/resource
     tar xvf netifaces-0.10.6.tar.gz
     cd netifaces-0.10.6
@@ -148,6 +132,8 @@ elif [ "$1" = "update" ]
     python3 setup.py install
     cd ..
     rm -rf netifaces-0.10.6
+    cd /usr/lib/iicontrollibs/iiutilities
+    python3 -c 'import data_agent; data_agent.rebuild_data_agent_db()'
 
 elif [ "$1" = "spi" ]
   then
@@ -243,8 +229,6 @@ if [ "$2" = "full" -o "$1" = "full" ]
     fi
     echo "sshd configuration complete"
 
-
-
     echo "Initializing web library repo"
     cd /var/www
     rm -R *
@@ -281,7 +265,7 @@ if [ "$2" = "full" -o "$1" = "full" ]
     echo "Creating default databases"
     /usr/lib/iicontrollibs/cupid/rebuilddatabases.py DEFAULTS
     cd /usr/lib/iicontrollibs/iiutilities
-    python3 -c 'import data_agent; rebuild_data_agent_db()'
+    python3 -c 'import data_agent; data_agent.rebuild_data_agent_db()'
     chmod g+s /var/www/data
     chmod -R 775 /var/www/data
     chown -R root:www-data /var/www/data
@@ -297,6 +281,31 @@ if [ "$2" = "full" -o "$1" = "full" ]
     echo "complete"
 
 
+    cd /usr/lib/iicontrollibs/resource
+    tar -xvf netifaces-0.10.6.tar.gz
+    cd netifaces-0.10.6
+    python setup.py install
+    python3 setup.py install
+    cd ..
+    rm -rf netifaces-0.10.6
+
+#    echo "testing for owfs"
+#    testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
+#    if [ ${testresult} -ne 0 ]
+#      then
+#        echo "owfs 2.9p5 already installed"
+#    else
+#        echo "installing owfs 2.9p5"
+#        cd /usr/lib/iicontrollibs/resource
+#        tar -xvf owfs-2.9p5.tar.gz
+#        cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
+#        ./configure
+#        make
+#        make install
+#        cd ..
+#        rm -R owfs-2.9p5
+#    fi
+#    echo "owfs complete"
 
     # get custom sources
     #    cp /usr/lib/iicontrollibs
@@ -323,7 +332,7 @@ if [ "$2" = "full" -o "$1" = "full" ]
     cp /usr/lib/iicontrollibs/misc/nginx/nginx.ssl.conf /etc/nginx/nginx.conf
 
     # fix security limit extensions
-    cp /usr/lib/iicontrollibs/misc/nginx/www.conf /etc/php5/fpm/pool.d/www.conf
+    cp /usr/lib/iicontrollibs/misc/nginx/www.conf /etc/php/7.0/fpm/pool.d/www.conf
     echo "Complete"
 
     echo "Creating self-signed ssl cert"

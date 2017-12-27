@@ -199,7 +199,7 @@ def addincpartslist(partslist, partid, inc=1.0, **kwargs):
 
 def flattenbomdicttobom(bomdict):
     bom = []
-    for partid, items in bomdict.iteritems():
+    for partid, items in bomdict.items():
         # print(partid, items)
         items['partid'] = partid
         # print(items)
@@ -227,7 +227,7 @@ def componentsdicttobomdict(componentsdict, bomdict):
     message = ''
     # we are going to grab all the fields, including classes. This also means we can add directly to the bomdict,
     # as long as we include classes.
-    for component, data in componentsdict.iteritems():
+    for component, data in componentsdict.items():
         if component in partsaliases:
             # print(component,data)
             # We want to rettain component data from the componentsdict (this is where we add options data)
@@ -250,7 +250,7 @@ def componentsdicttobomdict(componentsdict, bomdict):
 def priceoptions(optionsdict):
 
     # print(optionsdict)
-    for key, value in optionsdict.iteritems():
+    for key, value in optionsdict.items():
         # print(key)
         pass
     # {'myoptionname',
@@ -266,7 +266,7 @@ def priceoptions(optionsdict):
     #       'cost':123.55
     optionscalcs = {}
 
-    for optionname, optiondata in optionsdict.iteritems():
+    for optionname, optiondata in optionsdict.items():
 
         flatoptionsbom = flattenbomdicttobom(optiondata['bom'])
 
@@ -288,7 +288,7 @@ def priceoptions(optionsdict):
 def calcrailandduct(componentsdict, optiondict=None):
 
     raillength = 0
-    for compname, compitem in componentsdict.iteritems():
+    for compname, compitem in componentsdict.items():
         if compname in partsaliases:
             if 'railwidth' in partsaliases[compname]:
                 # print(compname, componentsdict[compname]['qty'], partsaliases[compname]['railwidth'], componentsdict[compname]['qty']*partsaliases[compname]['railwidth'])
@@ -331,7 +331,7 @@ def handlecard(componentsdict, custoptions, pointname, cardname, cardpointcount,
         # print(pointname,'points:',requiredinputs,'cards:',numcards)
 
         # Assign fractional value for options price calcs
-        for optionname, optionvalue in custoptions.iteritems():
+        for optionname, optionvalue in custoptions.items():
             if pointname in optionvalue['bom']:
                 # What fraction of the cards are attributed to this option
                 fractionofcards = setprecision(optionvalue['bom'][pointname]['qty'] / requiredinputs, 2)
@@ -1268,7 +1268,7 @@ def paneltobom(**kwargs):
     """
 
     custoptionsbomdict={}
-    for key, value in custoptions.iteritems():
+    for key, value in custoptions.items():
         custoptionsbomdict[key] = {'bom':{}}
         componentsdicttobomdict(value['bom'], custoptionsbomdict[key]['bom'])
 
@@ -1277,11 +1277,11 @@ def paneltobom(**kwargs):
 
     output['options'] = custoptionsbomdict
 
-    for key, value in custoptionsbomdict.iteritems():
+    for key, value in custoptionsbomdict.items():
         # print(key, value['price'])
         pass
 
-    # for key, value in options.iteritems():
+    # for key, value in options.items():
     #
     #     # print('*** COMPONENTS VALUE')
     #     optionsbom = {}
@@ -1307,7 +1307,7 @@ def paneltobom(**kwargs):
     allowed. Abandoning for now.
     """
     optionsdict= {'Base':{'name':'Base','bom':{}}}
-    for item, value in bomdict.iteritems():
+    for item, value in bomdict.items():
         # bomdict is {'U001':{'qty':2, 'option':'stuff'}, 'U002' ...}
         # item is part number. value is the data, including qty and options
 
@@ -1344,7 +1344,7 @@ if __name__ == "__main__":
 
     if False:
         print('*** OPTIONS')
-        for option, value in output['options'].iteritems():
+        for option, value in output['options'].items():
             print('OPTION: "' + option + '" $' + str(value['price']) + ' (' + str(value['cost']) + ')')
             print('\t items:')
             for item in value['flatbom']:
@@ -1363,8 +1363,8 @@ if __name__ == "__main__":
         writetextdoctopdf(output['bomdescription'], outputfile='/var/www/html/inventory/data/iiinventory/download/pbbomdescription.pdf')
 
     if False:
-        for item, value in output['options'].iteritems():
+        for item, value in output['options'].items():
             print(item, value['price'], value['cost'])
-            for optitem, optvalue in value['bom'].iteritems():
+            for optitem, optvalue in value['bom'].items():
                 print(optitem, optvalue)
                 # print(optitem, optvalue['qty'])

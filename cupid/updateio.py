@@ -1009,7 +1009,6 @@ def processMBinterface(control_db, interface, last_data, io_info, defaults):
 
         mbid = mbid_from_entry(entry)
 
-
         utility.log(pilib.dirs.logs.io, 'Modbus ID: ' + mbid, 4, pilib.loglevels.io)
 
         mb_meta = get_or_insert_iface_metadata(mbid, io_info, control_db)
@@ -1061,7 +1060,8 @@ def processMBinterface(control_db, interface, last_data, io_info, defaults):
                     readresult = readMBcodedaddresses(interface['address'], entry['register'], readlength, boolean_to_int=True)
 
                 except:
-                    utility.log(pilib.dirs.logs.io, 'Uncaught error reading modbus value', 0, pilib.loglevels.io)
+                    import traceback
+                    utility.log(pilib.dirs.logs.io, 'Uncaught error reading modbus value: {}'.format(traceback.format_exc()), 0, pilib.loglevels.io)
                 else:
                     if readresult['statuscode'] == 0:
                         values = readresult['values']

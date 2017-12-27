@@ -488,7 +488,7 @@ def messagefrommbstatuscode(code):
 
 def readMBinputs(clientIP, coil, number=1):
 
-    from resource.pymodbus.client.sync import ModbusTcpClient, ConnectionException
+    from pymodbus.client.sync import ModbusTcpClient, ConnectionException
 
     client = ModbusTcpClient(clientIP)
     values = []
@@ -513,7 +513,7 @@ def readMBinputs(clientIP, coil, number=1):
 
 
 def readMBcoils(clientIP, coil, number=1):
-    from resource.pymodbus.client.sync import ModbusTcpClient, ConnectionException
+    from pymodbus.client.sync import ModbusTcpClient, ConnectionException
 
     client = ModbusTcpClient(clientIP)
     values = []
@@ -538,7 +538,7 @@ def readMBcoils(clientIP, coil, number=1):
 
 
 def writeMBcoils(clientIP, coil, valuelist):
-    from resource.pymodbus.client.sync import ModbusTcpClient, ConnectionException
+    from pymodbus.client.sync import ModbusTcpClient, ConnectionException
 
     client = ModbusTcpClient(clientIP)
     try:
@@ -560,7 +560,7 @@ def writeMBcoils(clientIP, coil, valuelist):
 
 
 def readMBholdingregisters(clientIP, register, number=1):
-    from resource.pymodbus.client.sync import ModbusTcpClient, ConnectionException
+    from pymodbus.client.sync import ModbusTcpClient, ConnectionException
 
     client = ModbusTcpClient(clientIP)
     values = []
@@ -584,7 +584,7 @@ def readMBholdingregisters(clientIP, register, number=1):
 
 
 def readMBinputregisters(clientIP, register, number=1):
-    from resource.pymodbus.client.sync import ModbusTcpClient, ConnectionException
+    from pymodbus.client.sync import ModbusTcpClient, ConnectionException
     values = []
     client = ModbusTcpClient(clientIP)
     try:
@@ -607,7 +607,7 @@ def readMBinputregisters(clientIP, register, number=1):
 
 
 def writeMBholdingregisters(clientIP, register, valuelist):
-    from resource.pymodbus.client.sync import ModbusTcpClient, ConnectionException
+    from pymodbus.client.sync import ModbusTcpClient, ConnectionException
 
     client = ModbusTcpClient(clientIP)
     try:

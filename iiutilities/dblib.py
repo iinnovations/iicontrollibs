@@ -128,7 +128,11 @@ class sqliteDatabase(object):
                 print('NOT ALL KEYS EXIST IN SCHEMA AS IN TABLE YOU ARE MIGRATING FROM. OVERRIDE WITH data_loss_ok=True '
                       'kwarg or figure out why this is happening')
                 print('Existing keys: ' + str([key for key in current_table[0]]))
-                print('Schema keys: ' + str(self.get_table_names()))
+                print('Schema keys: ' + str(schema_columns))
+
+                for this_key in [key for key in current_table[0]]:
+                    if this_key not in schema_columns:
+                        print('Not in schema: {}'.format(this_key))
                 return
             elif all_exist and data_loss_ok:
                 print('NOT ALL KEYS EXIST, BUT YOU SAID SO. SO I DO IT.')
@@ -206,7 +210,7 @@ class sqliteDatabase(object):
         return rows
 
     def get_first_time_row(self, tablename, timecolumn='time'):
-        row = getfirsttimerows(self.path, tablename, timecolumn, **self.settings)[0]
+        row = getfirsttimerows(self.path, tablename, timecolname=timecolumn, **self.settings)[0]
         return row
 
     def get_tuples(self, tablename, valuenames, condition=None):
@@ -947,8 +951,7 @@ def sqlitequery(database, query, **kwargs):
     # if not settings['quiet']:
     #     print('Quiet: {} on db {}, query {}'.format(settings['quiet'], database, query))
 
-    con = lite.connect(database, timeout=settings['timeout'])
-    con.text_factory = str
+
 
     # So TABLE locks will automatically retry. Database locks will not. This means we have to do our own wrapping.
 
@@ -958,6 +961,9 @@ def sqlitequery(database, query, **kwargs):
     message = ''
     while not complete:
         try:
+            con = lite.connect(database, timeout=settings['timeout'])
+            con.text_factory = str
+
             with con:
                 cur = con.cursor()
                 cur.execute(query)
@@ -1003,6 +1009,8 @@ def sqlitequery(database, query, **kwargs):
             status = 0
             message += 'Query completed successfully. '
             error_searched = {'status':status, 'message':message, 'type':None}
+
+        con.close()
 
     return {'data':data, 'status':status, 'message':message, 'error':error_searched}
 

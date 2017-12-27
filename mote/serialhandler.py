@@ -19,7 +19,7 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 import cupid.pilib as pilib
-
+import iiutilities.datalib as datalib
 
 # Need to backward compatible this for Pi2 based on hardware version
 def write(message, port=None, baudrate=115200, timeout=1):
@@ -36,15 +36,12 @@ def write(message, port=None, baudrate=115200, timeout=1):
 def getsystemserialport():
     from iiutilities.dblib import getsinglevalue
     from iiutilities.utility import log as mylog
-    from cupid.pilib import dirs
-    from iiutilities import dblib
-    system_db = dblib.sqliteDatabase(dirs.dbs.system)
 
     port = '/dev/ttyAMA0'
-    versions = system_db.read_table('versions')
+    versions = pilib.dbs.system.read_table('versions')
 
     try:
-        versions = system_db.read_table('versions')
+        versions = pilib.dbs.system.read_table('versions')
         hw_version = ''
         for version in versions:
             print(version['item'])
@@ -52,7 +49,7 @@ def getsystemserialport():
                 print(version)
                 hw_version = version['version']
     except:
-        mylog(dirs.dbs.system, 'Error retrieving hardware version in serial monitor. Reverting to /dev/tty/AMA0')
+        mylog(pilib.dirs.dbs.system, 'Error retrieving hardware version in serial monitor. Reverting to /dev/tty/AMA0')
         print('Error retrieving hardware version in serial monitor. Reverting to /dev/tty/AMA0')
     else:
         print(hw_version, port)
@@ -68,15 +65,14 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
     if not port:
         port = getsystemserialport()
     import serial
-    import cupid.pilib as pilib
+    from cupid import pilib
     from iiutilities import datalib, dblib
     from iiutilities import utility
     from time import mktime, localtime
     from time import sleep
 
-    motes_db = dblib.sqliteDatabase(pilib.dirs.dbs.motes)
-    control_db = dblib.sqliteDatabase(pilib.dirs.dbs.control)
-    system_db = dblib.sqliteDatabase(pilib.dirs.dbs.system)
+    motes_db = pilib.dbs.motes
+    system_db = pilib.dbs.system
 
     data = []
 
@@ -208,12 +204,12 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
                 # See if there are messages to send.
                 # print('LET US TRY SEND HANDLER')
                 try:
+                    queue_commands()
                     runsendhandler(ser)
-                except Exception as e:
-                    template = "An exception of type {0} occured in runsendhandler (line 142). Arguments:\n{1!r}"
-                    message = template.format(type(ex).__name__, ex.args)
-                    print(message)
-                    utility.log(pilib.dirs.logs.serial, "Error in send routine: " + message, 1, 1)
+                except:
+                    import traceback
+                    template = "An exception of in runsendhandler (line 142): {} .".format(traceback.format_exc())
+                    utility.log(pilib.dirs.logs.serial, "Error in send routine: {}".format(template), 1, 1)
                 # print('SEND HANDLER DONE')
 
                 #
@@ -256,21 +252,47 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
     return
 
 
+def queue_commands(**kwargs):
+
+    """
+    This will check the commands table. If it has not been sent or cleared as acknowledged, we will queue the command
+    in the queued items for serial send
+    """
+    settings = {
+        'destination':None,
+        'message':None,
+        'retry_time':60.0
+    }
+    settings.update(kwargs)
+    commands = pilib.dbs.motes.read_table('commands')
+
+    for command in commands:
+        if command['status'] == 'new':
+            message = '~sendmsg;{};;{}'.format(command['destination'], command['message'])
+            pilib.dbs.motes.insert('queued', {'queuedtime':datalib.getmstimestring(), 'message':message}, queue=True)
+            command['status'] = 'sent'
+            pilib.dbs.motes.insert('commands', command)
+        pilib.dbs.motes.execute_queue()
+
+
 def runsendhandler(ser):
     from iiutilities import dblib, datalib
     from iiutilities import utility
 
-    # print('looking for message to send')
+    print('AAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+    print('looking for message to send')
 
-    motes_db = dblib.sqliteDatabase(pilib.dirs.dbs.motes)
+    motes_db = pilib.dbs.motes
 
     try:
         last_queued_message = motes_db.get_first_time_row('queued', 'queuedtime')
-    except IndexError:
+    except:
         # no rows
         # print('we have an error getting a queued message. Could be just no message.')
         pass
     else:
+        # print('here is the message')
+        # print(last_queued_message['message'])
         utility.log(pilib.dirs.logs.serial, 'Sending serial message: ' + last_queued_message['message'], 1, 1)
         try:
             # print('going to send message:')
@@ -572,7 +594,7 @@ def processremotedata(datadict, stringmessage):
             newdata = {}
             import string
             printable = set(string.printable)
-            for key, value in datadict.iteritems():
+            for key, value in datadict.items():
                 if key not in ['chan','nodeid']:
                     if key in allowedfieldnames:
                         filteredvalue = filter(lambda x: x in printable, value)

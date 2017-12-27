@@ -17,6 +17,7 @@ top_folder = os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspec
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
+time_format_string = '%Y-%m-%d %H:%M:%S'
 
 # File operations
 
@@ -170,6 +171,8 @@ def getmstimestring():
     timestring = datetime.datetime.now().strftime("%H:%M:%S.%f")
     return timestring
 
+#  datetime.date.strftime(now,'%Y-%m-%d %H:%M:%S')
+# datetime.datetime.strptime('2017-12-26 22:30:34', '%Y-%m-%d %H:%M:%S')
 
 def gettimestring(timeinseconds=None):
     import time
@@ -284,6 +287,10 @@ def typetoreadlength(type):
 
 def float32bytestovalue(values, wordorder='standard', byteorder='standard'):
     import struct
+    # print('VALUES')
+    # print(values)
+    for value in values:
+        print(type(value))
 
     if wordorder == 'reverse':
         word0 = values[1]
@@ -293,22 +300,37 @@ def float32bytestovalue(values, wordorder='standard', byteorder='standard'):
         word1 = values[1]
 
     if byteorder == 'reverse':
-        byte1 = word0 % 256
-        byte2 = (word0 - byte1) / 256
-        byte3 = word1 % 256
-        byte4 = (word1 - byte3) / 256
+        byte1 = int(word0 % 256)
+        byte2 = int((word0 - byte1) / 256)
+        byte3 = int(word1 % 256)
+        byte4 = int((word1 - byte3) / 256)
     else:
-        byte2 = word0 % 256
-        byte1 = (word0 - byte2) / 256
-        byte4 = word1 % 256
-        byte3 = (word1 - byte4) / 256
+        byte2 = int(word0 % 256)
+        byte1 = int((word0 - byte2) / 256)
+        byte4 = int(word1 % 256)
+        byte3 = int((word1 - byte4) / 256)
+
+    # print(byte1)
+    # print(byte2)
+    # print(byte3)
+    # print(byte4)
 
     byte1hex = chr(byte1)
     byte2hex = chr(byte2)
     byte3hex = chr(byte3)
     byte4hex = chr(byte4)
-    hexstring = byte1hex + byte2hex + byte3hex + byte4hex
-    returnvalue = struct.unpack('>f', hexstring)[0]
+
+    abytearray = bytearray()
+    abytearray.append(byte1)
+    abytearray.append(byte2)
+    abytearray.append(byte3)
+    abytearray.append(byte4)
+
+    # print('byteshex')
+    # print(byte1hex, byte2hex, byte3hex, byte4hex)
+
+    hexbytes = byte1hex.encode() + byte2hex.encode() + byte3hex.encode() + byte4hex.encode()
+    returnvalue = struct.unpack('>f', abytearray)[0]
 
     return returnvalue
 
@@ -331,9 +353,9 @@ def bytestovalue(bytes, format='word32'):
         value = float32bytestovalue(bytes, byteorder='reverse', wordorder='reverse')
 
     elif format == 'word32':
-        value = bytes[1] * 65536 + bytes[0]
-    elif format == 'word32rw':
         value = bytes[0] * 65536 + bytes[1]
+    elif format == 'word32rw':
+        value = bytes[1] * 65536 + bytes[0]
     elif format == 'boolean':
         value = int(bytes[0])
 

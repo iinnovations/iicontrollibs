@@ -174,9 +174,11 @@ def auto_populate_data_agent_send_items(**kwargs):
         'interface_includes': {
             'gpio':False,
             'mote':True,
-            '1wire':True
+            '1wire':True,
+            'lan':True
         },
-        'tablename':'send_items'
+        'tablename':'send_items',
+        'debug':True
     }
 
     settings.update(kwargs)
@@ -194,6 +196,8 @@ def auto_populate_data_agent_send_items(**kwargs):
             agent_db.insert(settings['tablename'], {'id': input_entry['id'], 'last_transmit': '',
                                                'options': json.dumps(da_vars.default_agent_item_options)}, queue=True)
 
+    if settings['debug']:
+        print(agent_db.queued_queries)
     agent_db.execute_queue()
 
 
