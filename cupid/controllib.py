@@ -691,10 +691,9 @@ def setchanneloutputsenabled(controldbpath, channelname, newstatus):
 
 
 def disablealloutputs():
-    from pilib import dirs
-    from iiutilities.dblib import readalldbrows
+    import pilib
 
-    outputs = readalldbrows(dirs.dbs.control,'outputs')
+    outputs = pilib.dbs.control.read_table('outputs')
 
     querylist=[]
     for output in outputs:

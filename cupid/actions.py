@@ -12,6 +12,10 @@ __status__ = "Development"
 import os
 import sys
 import inspect
+try:
+    import simplejson as json
+except:
+    import json
 
 top_folder = \
     os.path.split(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))[0]
@@ -47,20 +51,29 @@ if top_folder not in sys.path:
   Some value have fields. These are universal values:
 
   All other data is contained in the actiondata field. These are values that are typically actiontype or conditiontype specific
-  The actiondata is json, and parsed out by helper functions. If we need to modify it and reinsert it, we can modify the
-"""
-"""
-    actiondata dictionary and parse it back into json before publishing it back to the database
+  These are dumped and loaded in and out to/from dictionaries
+  
 """
 
 
 class action:
 
     def __init__(self, actiondict):
-        from iiutilities.datalib import parseoptions
+
+        """
+        Currently we are overloading this with settings that are not standard row items.
+
+        These should either all get columns, or all go into a settings field. The considerations at the moment
+        have to do with what the UI is pulling. If we move all of this into a dict, we will need to change the UI
+        to pull it out of a dict.
+        """
+
         settings = {
             'ondelay':0,
-            'offdelay':0
+            'offdelay':0,
+            'activereset':True,
+            'actionfrequency': 0.0,  # 0 means all the time.
+            'action_window': 60.0
         }
         settings.update(actiondict)
         for key, value in settings.items():
@@ -75,14 +88,14 @@ class action:
             would not be able to easily keep track of where to write back modified entries.
             """
 
-            self.actiondatadict = parseoptions(actiondict['actiondata'])
+            self.actiondatadict = json.loads(actiondict['actiondata'])
 
 
             """ TODO: Set default values as a condition of alarm type to make alarm work when values are not specified.
             Publish will then insert these values into the database
 
             Also, when values are pulled in, use the schema to change value type, e.g. self.ondelay should come in as a
-            float, not string.
+            float (or decimal), not string.
 
             """
         self.statusmsg = ''
@@ -104,8 +117,8 @@ class action:
 
         elif self.conditiontype == 'value':
             self.value = dblib.dbvntovalue(self.actiondatadict['dbvn'])
-            print(self.actiondatadict['dbvn'])
-            print(self.value)
+            # print(self.actiondatadict['dbvn'])
+            # print(self.value)
             # self.value = datalib.evaldbvnformula(self.actiondatadict['dbvn'])
             # self.operator = self.actiondatadict['operator']
             # self.criterion = self.actiondatadict['criterion']
@@ -132,31 +145,77 @@ class action:
 
 
         elif self.conditiontype == 'temporal':
-            """ THIS HAS NOT YET WORKED. WE GET THERE.
-
-            For now, idea is to set frequency to 0 for one-time events. > 0 for repeats. Details.
+            """ 
+            
+            This will be done in a cron-style with a default dictionary
+            
             """
+            settings = {
+                'window':60.0
+            }
+
+            settings.update(self.actiondatadict)
+
+            import datetime
+            current_time = datetime.datetime.now()
+
+            event_time_dict = {
+                'year':None,
+                'month':None,
+                'dow':None,
+                'day':None,
+                'hour':0,
+                'minute':0,
+                'second':0
+            }
+
+            # TODO: integrate day of week
+            # TODO: handle lists of items
+
+            event_time_dict.update(self.actiondatadict['event_time'])
+            for item in ['year', 'month', 'day']:
+                if not event_time_dict[item] or event_time_dict[item] == '*':
+                    event_time_dict[item] = getattr(current_time, item)
+
+            for item in ['hour','minute','second']:
+                if event_time_dict[item] == '*':
+                    event_time_dict[item] = getattr(current_time, item)
+
+            # print(event_time_dict)
+            event_time = datetime.datetime(year=int(event_time_dict['year']), month=int(event_time_dict['month']),
+                           day=event_time_dict['day'], hour=int(event_time_dict['hour']),
+                           minute=int(event_time_dict['minute']), second=int(event_time_dict['second']))
+
+            current_event_delta = (current_time - event_time).total_seconds()
+
+            time_to_act = False
+            if current_event_delta > 0 and current_event_delta < self.action_window:
+                time_to_act = True
+
+            # try:
+            #     last_action = datetime.datetime.strptime(self.actiontime, datalib.time_format_string)
+            # except:
+            #     print('Cannot convert last_action ({})'.format(self.actiontime))
+            #     time_to_act = True
+            # else:
+            #     time_since_last_
+
 
             # Test event time against current time
             # Has time passed, and then is time within action window (don't want to act on all past actions if we miss them)
-            timediff = float(
-                datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(self.actiontime))
-            self.value = timediff
-            if timediff >= 0:
-                if timediff < int(self.actiontimewindow):
-                    # We act
-                    self.statusmsg += 'Time to act. '
+            # timediff = float(
+            #     datalib.timestringtoseconds(datalib.gettimestring()) - datalib.timestringtoseconds(self.actiontime))
+            # self.value = timediff
 
-                    # Then create the repeat event if we are supposed to.
-                    if hasattr(self, 'repeat'):
-                        newtimestring = str(
-                            datalib.getnexttime(self.actiontime, self.repeat, int(self.repeatvalue)))
-                        self.actiontime = newtimestring
-
-                else:
-                    self.statusmsg += 'Past time but outside of window ' + str(self.actiontimewindow) + '. '
+            if time_to_act:
+                # We act
+                self.statusmsg += 'Time to act. '
+                self.lastactiontime = datetime.date.strftime(current_time, datalib.time_format_string)
+                self.status = 1
             else:
-                self.statusmsg += 'Not time yet for action scheduled for ' + str(self.actiontime) + '. '
+                self.statusmsg += 'Not time yet for action scheduled for ' + str(event_time) + '. Current time is ' + str(current_time) + '. '
+
+            print(self.statusmsg)
         # print(self.conditiontype)
         # print(self.status)
 
@@ -172,7 +231,6 @@ class action:
             subject = 'CuPID Test Alert : ' + self.name
             actionmail = utility.gmail(message=message, subject=subject, recipient=email)
             actionmail.send()
-
 
     def onact(self):
         from iiutilities import dblib, datalib, utility
@@ -226,6 +284,38 @@ class action:
             self.statusmsg += 'Processing output on action. '
             dblib.setsinglevalue(pilib.dirs.dbs.control, 'outputs', 'value', '1', condition='"id"=\'' + self.actiondetail + "'")
 
+        elif self.actiontype == 'mote_command':
+            settings = {
+                'no_duplicates':True,
+                'retries':5
+            }
+            settings.update(self.actiondatadict)
+            self.statusmsg += 'Processing command on action. '
+
+            destination = self.actiondatadict['destination']
+            message = self.actiondatadict['message']
+
+            command_id = '{}_{}'.format(destination, message)
+            command = {'queuedtime': datalib.gettimestring(), 'destination': destination,
+                       'status': 'new', 'message': message, 'commandid':command_id,
+                       }
+
+            command['options'] = json.dumps({'retries':settings['retries']})
+
+            insert = True
+            if settings['no_duplicates']:
+                # Check to see if commands exist with our command id.
+                condition = "commandid='{}'".format(command_id)
+                matching_commands = pilib.dbs.motes.read_table('commands',condition=condition)
+                if matching_commands:
+                    self.statusmsg += '{} matching commands are already queued. Not inserting. '.format(len(matching_commands))
+                    insert = False
+
+            if insert:
+                self.statusmsg += 'Inserting command. '
+                pilib.dbs.motes.settings['quiet'] = False
+                pilib.dbs.motes.insert('commands',command)
+
         # This should be the generic handler that we migrate to
         elif self.actiontype == 'setvalue':
             # to set a value, we need at minimum:
@@ -250,7 +340,6 @@ class action:
                 else:
                     querycondition = None
                 dblib.setsinglevalue(dbpath, dbvndict['tablename'], dbvndict['valuename'], '1', querycondition)
-
 
     def offact(self):
         from iiutilities import dblib, datalib, utility
@@ -319,6 +408,7 @@ class action:
     def printvalues(self):
         for attr,value in self.__dict__.items():
             print(str(attr) + ' : ' + str(value))
+
     # @profile
     def publish(self):
         from cupid import pilib
@@ -331,7 +421,7 @@ class action:
         control_db = pilib.cupidDatabase(pilib.dirs.dbs.control)
 
         # We convert our actiondatadict back into a string
-        self.actiondata = dicttojson(self.actiondatadict)
+        self.actiondata = json.dumps(self.actiondatadict)
 
         for attr in self.__dict__:
             if attr not in ['actiondatadict', 'actionindex', 'actiondata']:
@@ -451,14 +541,19 @@ class action:
             self.statusmsg += 'Action disabled.'
             self.status = 0
 
-# @profile
+
 def processactions(**kwargs):
 
     # Read database to get our actions
-    from iiutilities.dblib import readalldbrows
-    from cupid.pilib import dirs
+    from cupid import pilib
+    settings = {
+        'debug':False
+    }
+    settings.update(kwargs)
+    if settings['debug']:
+        pilib.set_debug()
 
-    actiondicts = readalldbrows(dirs.dbs.control, 'actions')
+    actiondicts = pilib.dbs.control.read_table('actions')
 
     for actiondict in actiondicts:
 
@@ -467,17 +562,13 @@ def processactions(**kwargs):
             if actiondict['name'] != kwargs['name']:
                 continue
 
-        alert = False
-
-        # print("ACTIONDICT")
-        # print(actiondatadict)
-
         thisaction = action(actiondict)
-
         thisaction.process()
-        # print(thisaction.name)
-        # print(thisaction.statusmsg)
         thisaction.publish()
 
+
 if __name__ == '__main__':
-    processactions()
+    debug = False
+    if 'debug' in sys.argv:
+        debug = True
+    processactions(debug=debug)

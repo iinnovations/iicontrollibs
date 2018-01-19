@@ -46,7 +46,7 @@ while enabled:
     polltime = dblib.sqlitedatumquery(pilib.dirs.dbs.session, 'select updatefrequency from \'settings\'')
 
     # Go through sessions and delete expired ones
-    sessions = dblib.readalldbrows(pilib.dirs.dbs.session, 'sessions')
+    sessions = pilib.dirs.dbs.session.read_table('sessions')
     arrayquery = []
     for session in sessions:
         sessionstart = datalib.timestringtoseconds(session['timecreated'])
@@ -58,7 +58,7 @@ while enabled:
     dblib.sqlitemultquery(pilib.dirs.dbs.session, arrayquery)
 
     # Reload surviving sessions and summarize
-    sessions = dblib.readalldbrows(pilib.dirs.dbs.session, 'sessions')
+    sessions = pilib.dirs.dbs.session.read_table('sessions')
     sessiondictarray = []
     for session in sessions:
         found = 0

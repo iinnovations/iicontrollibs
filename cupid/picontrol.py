@@ -451,12 +451,9 @@ def process_channel(**kwargs):
 
 def runpicontrol(runonce=False):
     from time import sleep
-    from iiutilities import dblib
     from iiutilities import utility
     from cupid import pilib
     from iiutilities import datalib
-    import actions
-    from cupid import controllib
 
     control_db = pilib.cupidDatabase(pilib.dirs.dbs.control)
     log_db = pilib.cupidDatabase(pilib.dirs.dbs.log)
@@ -477,7 +474,6 @@ def runpicontrol(runonce=False):
         system_db.set_single_value('systemstatus', 'lastpicontrolpoll', datalib.gettimestring())
 
         channels = control_db.read_table('channels')
-
 
         # Cycle through channels and set action based on setpoint
         # and algorithm if set to auto mode

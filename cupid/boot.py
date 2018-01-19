@@ -32,7 +32,7 @@ def runboot():
     except:
         print('error setting wal mode')
 
-    interfaces = dblib.readalldbrows(pilib.dirs.dbs.control, 'interfaces')
+    interfaces = pilib.dbs.control.read_table('interfaces')
 
     # Clear out status bits, if for no other reason to see the LEDs come on
     for statusvalue in ['systemstatusstatus', 'hamachistatus', 'picontrolstatus', 'updateiostatus', 'serialhandlerstatus' ]:
@@ -111,10 +111,6 @@ def runboot():
 
     runi2cowfs = True
     runusbowfs = False
-
-    mightyboost = True
-    if mightyboost:
-        subprocess.Popen(['/usr/lib/iicontrollibs/misc/mightyboost.sh','&'])
 
     temp_unit = 'C'
     for interface in interfaces:

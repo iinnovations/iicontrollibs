@@ -18,6 +18,7 @@ if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
 time_format_string = '%Y-%m-%d %H:%M:%S'
+ms_time_format_string = "%Y-%m-%d %H:%M:%S.%f"
 
 # File operations
 
@@ -168,11 +169,12 @@ def test_questionable_text(text, **kwargs):
 
 def getmstimestring():
     import datetime
-    timestring = datetime.datetime.now().strftime("%H:%M:%S.%f")
+    timestring = datetime.datetime.now().strftime(ms_time_format_string)
     return timestring
 
 #  datetime.date.strftime(now,'%Y-%m-%d %H:%M:%S')
 # datetime.datetime.strptime('2017-12-26 22:30:34', '%Y-%m-%d %H:%M:%S')
+
 
 def gettimestring(timeinseconds=None):
     import time
@@ -198,12 +200,32 @@ def timestringtoseconds(timestring=None, defaulttozero=False):
     return timeinseconds
 
 
+def mstimestringtoseconds(timestring=None, defaulttozero=False):
+    import time
+    if not timestring and defaulttozero:
+        return 0
+    try:
+        timeinseconds = time.mktime(mstimestring_to_struct(timestring))
+    except:
+        timeinseconds = 0
+    return timeinseconds
+
+
 def timestring_to_struct(timestring=None):
     import time
     try:
-        time_struct = time.strptime(timestring, '%Y-%m-%d %H:%M:%S')
+        time_struct = time.strptime(timestring, time_format_string)
     except:
-        time_struct = time.strptime(gettimestring(), '%Y-%m-%d %H:%M:%S')
+        time_struct = time.strptime(gettimestring(), time_format_string)
+    return time_struct
+
+
+def mstimestring_to_struct(timestring=None):
+    import time
+    try:
+        time_struct = time.strptime(timestring, ms_time_format_string)
+    except:
+        time_struct = time.strptime(getmstimestring(), ms_time_format_string)
     return time_struct
 
 
@@ -289,8 +311,8 @@ def float32bytestovalue(values, wordorder='standard', byteorder='standard'):
     import struct
     # print('VALUES')
     # print(values)
-    for value in values:
-        print(type(value))
+    # for value in values:
+    #     print(type(value))
 
     if wordorder == 'reverse':
         word0 = values[1]

@@ -56,14 +56,11 @@ def runperiodicio(**kwargs):
         import pigpio
         pi = pigpio.pi()
         io_objects = {}
-        first_run=True
+        first_run = True
 
     # print("quiet : {}, {}, {} ".format(systemdb.settings['quiet'], logdb.settings['quiet'], controldb.settings['quiet']))
 
     while updateioenabled:
-
-        # print(
-        # "quiet2 : {}, {}, {} ".format(systemdb.settings['quiet'], logdb.settings['quiet'], controldb.settings['quiet']))
 
         utility.log(pilib.dirs.logs.io, 'Running periodicupdateio', 3, pilib.loglevels.io)
         utility.log(pilib.dirs.logs.system, 'Running periodicupdateio', 3, pilib.loglevels.system)
@@ -251,13 +248,13 @@ if __name__ == "__main__":
     debug = False
     force = False
     run_once = False
-    if debug in sys.argv:
-        print('running in debg')
+    if 'debug' in sys.argv:
+        print('running in debug')
         debug = True
-    if force in sys.argv:
+    if 'force' in sys.argv:
         print('running force')
         force = True
-    if run_once in sys.argv:
+    if 'run_once' in sys.argv:
         print('running run_once')
         run_once = True
     runperiodicio(debug=debug, force=force, run_once=run_once)

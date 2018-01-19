@@ -101,8 +101,11 @@ partsaliases = {
         'rtdwithhead':{'partid':'S004', 'pclass':'parts','psubclass':'sensors'},
         'opticallevelsensor':{'partid':'S012', 'pclass':'parts','psubclass':'sensors'},
         'tuningforklevelsensor':{'partid':'S011', 'pclass':'parts','psubclass':'sensors'},
-        'mechanicallevelsensor':{'partid':'S013', 'pclass':'parts','psubclass':'sensors'},
+        'mechanicallevelsensor':{'partid':'S017', 'pclass':'parts','psubclass':'sensors'},
         'thermallevelsensor':{'partid':'S015', 'pclass':'parts','psubclass':'sensors'},
+
+        'connectionhead':{'partid':'U110', 'pclass':'parts','psubclass':'sensors'},
+        'connectionheadtb':{'partid':'U113', 'pclass':'parts','psubclass':'sensors'},
 
         # VFDs
         'VFD-1HP-2083P' :{'partid':'VFD-1HP-2083P', 'pclass':'pumps', 'psubclass':'vfds'},
@@ -154,6 +157,11 @@ partsaliases = {
         '8Atbcb':{'partid':'B015', 'pclass':'parts','psubclass':'protection'},
         '10Atbcb':{'partid':'B016', 'pclass':'parts','psubclass':'protection'},
 
+        '10ACB':{'partid':'B105', 'pclass':'parts','psubclass':'protection'},
+        '15ACB':{'partid':'B106', 'pclass':'parts','psubclass':'protection'},
+        '20ACB':{'partid':'B107', 'pclass':'parts','psubclass':'protection'},
+        '25ACB':{'partid':'B100', 'pclass':'parts','psubclass':'protection'},
+
         # Labor
         'laborpanelfab':{'partid':'L001', 'pclass':'labor'},
         'laborprog':{'partid':'L002', 'pclass':'labor'},
@@ -163,6 +171,10 @@ partsaliases = {
 
 
 def addincpartsdicts(componentdicts, modpartid, inc=1, **kwargs):
+
+    # Sometimes we forget to make these lists.
+    if not isinstance(componentdicts, list):
+        componentdicts = [componentdicts]
 
     for componentdict in componentdicts:
         if modpartid in componentdict:
@@ -354,28 +366,28 @@ def handlelevel(componentsdict, custoptions, leveltype, interfacetype, optionnam
     # Std option
         for adddict in componentsdict, custoptions[optionname]['bom']:
             # for cupid interface
-            addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'sltb', 2)
-            addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'dpdtrelay')
-            addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'greendome24VDCLED')
-            addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'laborpanelfab', 1.25)
-            addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'laborengineering', 0.25)
-            addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'laborcommissioning', 0.25)
+            addincpartsdicts(adddict, 'sltb', 2)
+            addincpartsdicts(adddict, 'dpdtrelay')
+            addincpartsdicts(adddict, 'greendome24VDCLED')
+            addincpartsdicts(adddict, 'laborpanelfab', 1.25)
+            addincpartsdicts(adddict, 'laborengineering', 0.25)
+            addincpartsdicts(adddict, 'laborcommissioning', 0.25)
 
     elif interfacetype in ['10inchTS', '17inchTS']:
     # TS option
         for adddict in componentsdict, custoptions[optionname]['bom']:
             # 24VDC output to output relay is on card
-            addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'digitalsourceoutput')
-            addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'digitalsinkinput')
+            addincpartsdicts(adddict, 'digitalsourceoutput')
+            addincpartsdicts(adddict, 'digitalsinkinput')
 
             # input/output install
-            addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'laborpanelfab', 0.25)
+            addincpartsdicts(adddict, 'laborpanelfab', 0.25)
 
             # Drawing work
-            addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'laborengineering', 0.25)
+            addincpartsdicts(adddict, 'laborengineering', 0.25)
 
             # Setup
-            addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'laborcommissioning', 0.25)
+            addincpartsdicts(adddict, 'laborcommissioning', 0.25)
 
             # Timer is handled internally
             # Cupid reads status from PLC
@@ -383,7 +395,9 @@ def handlelevel(componentsdict, custoptions, leveltype, interfacetype, optionnam
     if leveltype in ['optical','opticalwithtimer']:
         addincpartsdicts([componentsdict,custoptions[optionname]['bom']], 'opticallevelsensor')
     elif leveltype in ['mechanical', 'mechanicalwithtimer']:
-        addincpartsdicts([componentsdict,custoptions[optionname]['bom']])
+        addincpartsdicts([componentsdict,custoptions[optionname]['bom']], 'mechanicallevelsensor')
+        addincpartsdicts([componentsdict,custoptions[optionname]['bom']], 'connectionhead')
+        addincpartsdicts([componentsdict,custoptions[optionname]['bom']], 'connectionheadtb')
     elif leveltype in ['tuningfork', 'tuningforkwithtimer']:
         addincpartsdicts([componentsdict,custoptions[optionname]['bom']], 'tuningforklevelsensor')
 
@@ -396,17 +410,17 @@ def handlelevel(componentsdict, custoptions, leveltype, interfacetype, optionnam
             for adddict in componentsdict, custoptions[optionname]['bom']:
 
                 # for cupid interface
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'dltb', 2)
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'sltb', 1)
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'laborpanelfab', 0.25)
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'laborengineering', 0.25)
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'laborcommissioning', 0.25)
+                addincpartsdicts(adddict, 'dltb', 2)
+                addincpartsdicts(adddict, 'sltb', 1)
+                addincpartsdicts(adddict, 'laborpanelfab', 0.25)
+                addincpartsdicts(adddict, 'laborengineering', 0.25)
+                addincpartsdicts(adddict, 'laborcommissioning', 0.25)
         else:
             for adddict in componentsdict, custoptions[optionname]['bom']:
 
                 # Timer is all in PLC
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'laborengineering', 0.25)
-                addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'laborcommissioning', 0.25)
+                addincpartsdicts(adddict, 'laborengineering', 0.25)
+                addincpartsdicts(adddict, 'laborcommissioning', 0.25)
 
 
 def processaccessories(paneldesc, accessories, componentsdict, custoptions):
@@ -599,7 +613,6 @@ def paneltobom(**kwargs):
         addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'ps24VDC1p4A', pclass='electronics',psubclass='powersupplies')
     else:
         addincpartsdicts([componentsdict, custoptions[optionname]['bom']], 'ps24VDC2p5A', pclass='electronics',psubclass='powersupplies')
-
 
     if paneldesc['paneltype'] == 'brewpanel':
 
@@ -1216,6 +1229,25 @@ def paneltobom(**kwargs):
     addincpartsdicts([componentsdict, custoptions['Base Panel']['bom']], 'laborengineering', setprecision(2 + railtoengmultiplier*raillength, 1))
     addincpartsdicts([componentsdict, custoptions['Base Panel']['bom']], 'laborpanelfab', 2 + setprecision(railtolabormultiplier*raillength, 2))
 
+
+    """
+    Calculate Panel loading
+    """
+
+    componentsdict['loads']['totalload'] = componentsdict['loads']['controllerload'] + \
+                                           componentsdict['loads']['controlsload'] + \
+                                           componentsdict['loads']['outputsload']
+
+    # Add a UL489 Circuit breaker
+    if componentsdict['loads']['totalload'] < 10 / 1.25:
+        addincpartsdicts([componentsdict, custoptions['Base Panel']['bom']], '10ACB')
+    elif componentsdict['loads']['totalload'] < 15 / 1.25:
+        addincpartsdicts([componentsdict, custoptions['Base Panel']['bom']], '15ACB')
+    elif componentsdict['loads']['totalload'] < 20 / 1.25:
+        addincpartsdicts([componentsdict, custoptions['Base Panel']['bom']], '20ACB')
+    else:
+        addincpartsdicts([componentsdict, custoptions['Base Panel']['bom']], '25ACB')
+
     """
     Now convert components to bomdict
     componentsdict ...
@@ -1231,10 +1263,6 @@ def paneltobom(**kwargs):
     # print(bomdict)
     bom = flattenbomdicttobom(bomdict)
     output['bom'] = inventorylib.backfillbomfromstock(bom, recalc=True)
-
-    componentsdict['loads']['totalload'] = componentsdict['loads']['controllerload'] + \
-                                           componentsdict['loads']['controlsload'] + \
-                                           componentsdict['loads']['outputsload']
 
     output['componentsdict'] = componentsdict
 

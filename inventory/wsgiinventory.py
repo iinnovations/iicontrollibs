@@ -31,6 +31,15 @@ def application(environ, start_response):
     output = {'message': ''}
     status = '200 OK'
 
+    try:
+        try:
+            output['remote_ip'] = environ['HTTP_X_FORWARDED_FOR'].split(',')[-1].strip()
+        except KeyError:
+            output['remote_ip'] = environ['REMOTE_ADDR']
+    except:
+        output['remote_ip'] = 'Error getting IP address'
+
+
     """
     Here we verify credentials of session data against those in the database.
     While we authenticate in the browser, this does not stop POST queries to the API without the page provided
@@ -78,6 +87,7 @@ def application(environ, start_response):
                 user_data = {'accesskeywords':'demo','admin':False}
             else:
                 # Get session hpass to verify credentials
+
                 hashedpassword = post['hpass']
                 hname = hashlib.new('sha1')
                 hname.update(post['username'].encode('utf-8'))
@@ -143,6 +153,10 @@ def application(environ, start_response):
 
                         # DEFINITELY COMMENT THIS OUT FOR SECURITY SAKE (absolute paths are secret!!)
                         output['message'] += reload_message
+
+                else:
+                    # successful auth
+                    output['message'] += 'Failed password check. '
         else:
             # Demo status
             authverified = True
@@ -322,7 +336,7 @@ def application(environ, start_response):
         elif action == 'deletequotes':
             output['message'] += 'deletequotes keyword found. '
             inventorylib.deletequotes(post, output)
-            inventorylib.makebommetadata(database=inventorylib.sysvars.dirs.dbs.quotes)
+            inventorylib.makebommetadata(database=inventorylib.sysvars.dbs.quotes)
         elif action == 'copyquotetoboms':
             output['message'] += 'copyquotetoboms keyword found. '
             inventorylib.copyquotetoboms(post, output)
@@ -338,7 +352,7 @@ def application(environ, start_response):
             cleantime = thetime.replace(' ', '_').replace(':', '_')
 
             # Get bom from boms database
-            bom = dblib.readalldbrows(inventorylib.sysvars.dirs.dbs.boms, post['name'])
+            bom = inventorylib.sysvars.dbs.boms.read_table(post['name'])
 
             cleanbomname = post['name'].replace(' ','_').replace(':','_')
             filename = cleanbomname + '_' + cleantime
@@ -359,7 +373,7 @@ def application(environ, start_response):
             cleantime = thetime.replace(' ', '_').replace(':', '_')
 
             # Get bom from boms database
-            assemblydata = dblib.readalldbrows(inventorylib.sysvars.dirs.dbs.assemblies, post['name'])
+            assemblydata = inventorylib.sysvars.dbs.assemblies.read_table(post['name'])
 
             cleanname = post['name'].replace(' ','_').replace(':','_')
             filename = cleanname + '_' + cleantime + '.pdf'
@@ -461,7 +475,7 @@ def application(environ, start_response):
                 for part in bomresults['bom']:
                     inserts.append(dblib.makesqliteinsert(bomname, [part['partid'],part['qty']], ['partid','qty']))
                 dblib.sqlitemultquery(inventorylib.sysvars.dirs.dbs.quotes, inserts)
-                inventorylib.makebommetadata(database=inventorylib.sysvars.dirs.dbs.quotes)
+                inventorylib.makebommetadata(database=inventorylib.sysvars.dbs.quotes)
 
                 # inventorylib.addeditpartlist(post, output)
 
