@@ -85,7 +85,14 @@ def watchdoghamachi(pingip='self', threshold=3000, debug=False, restart=True):
     # We will carry on below and try to ping. if we can ping, we are good. if we need to self ping, this will still
     # Throw errors. BUT, main point is that if we can ping our chosen hamachi address, we are good.
 
+    numpings = 10
+
     try:
+
+        print('I am here, doing the pings')
+        utility.log(pilib.dirs.logs.network,
+                    'Trying to ping hamachi gateway ({} pings) ... '.format(numpings), 1,
+                    pilib.loglevels.network)
 
         # So instead, we are going to test with a ping to another member on the network that
         # should always be online. This of course means that we have to make sure that it is, in fact, always
@@ -93,7 +100,7 @@ def watchdoghamachi(pingip='self', threshold=3000, debug=False, restart=True):
         if pingip in ['self', 'Self']:
             pingip = hamachistatusdata['address']
 
-        pingtimes = runping(pingip, numpings=15, quiet=True)
+        pingtimes = runping(pingip, numpings=numpings, quiet=False)
         pingmax = max(pingtimes)
         pingmin = min(pingtimes)
         pingave = sum(pingtimes)/len(pingtimes)
@@ -104,7 +111,7 @@ def watchdoghamachi(pingip='self', threshold=3000, debug=False, restart=True):
             dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'hamachistatus', 0)
             utility.log(pilib.dirs.logs.network, 'Restarting Hamachi. ', 1, pilib.loglevels.network)
 
-            # killhamachi()
+            killhamachi()
             restarthamachi()
             utility.log(pilib.dirs.logs.network, 'Completed restarting Hamachi. ', 1, pilib.loglevels.network)
 
