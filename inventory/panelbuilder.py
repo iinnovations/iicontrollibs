@@ -173,7 +173,11 @@ partsaliases = {
 def addincpartsdicts(componentdicts, modpartid, inc=1, **kwargs):
 
     # Sometimes we forget to make these lists.
+<<<<<<< HEAD
     if type(componentdicts) != type([]):
+=======
+    if not isinstance(componentdicts, list):
+>>>>>>> afa40546713b70873cf3ab9f2c0c2108bff4e5ef
         componentdicts = [componentdicts]
 
     for componentdict in componentdicts:

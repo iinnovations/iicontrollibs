@@ -85,7 +85,14 @@ def watchdoghamachi(pingip='self', threshold=3000, debug=False, restart=True):
     # We will carry on below and try to ping. if we can ping, we are good. if we need to self ping, this will still
     # Throw errors. BUT, main point is that if we can ping our chosen hamachi address, we are good.
 
+    numpings = 10
+
     try:
+
+        print('I am here, doing the pings')
+        utility.log(pilib.dirs.logs.network,
+                    'Trying to ping hamachi gateway ({} pings) ... '.format(numpings), 1,
+                    pilib.loglevels.network)
 
         # So instead, we are going to test with a ping to another member on the network that
         # should always be online. This of course means that we have to make sure that it is, in fact, always
@@ -93,7 +100,7 @@ def watchdoghamachi(pingip='self', threshold=3000, debug=False, restart=True):
         if pingip in ['self', 'Self']:
             pingip = hamachistatusdata['address']
 
-        pingtimes = runping(pingip, numpings=15, quiet=True)
+        pingtimes = runping(pingip, numpings=numpings, quiet=False)
         pingmax = max(pingtimes)
         pingmin = min(pingtimes)
         pingave = sum(pingtimes)/len(pingtimes)
@@ -104,7 +111,7 @@ def watchdoghamachi(pingip='self', threshold=3000, debug=False, restart=True):
             dblib.setsinglevalue(pilib.dirs.dbs.system, 'systemstatus', 'hamachistatus', 0)
             utility.log(pilib.dirs.logs.network, 'Restarting Hamachi. ', 1, pilib.loglevels.network)
 
-            # killhamachi()
+            killhamachi()
             restarthamachi()
             utility.log(pilib.dirs.logs.network, 'Completed restarting Hamachi. ', 1, pilib.loglevels.network)
 
@@ -171,9 +178,15 @@ def check_interface_status(iface_config, iface_status):
     # Check for address match
     if iface_config['mode'] in ['ap', 'static']:
         if iface_status['config']['address'] != iface_config['config']['address']:
+<<<<<<< HEAD
             print(iface_config)
             print(iface_status)
             new_message = 'Address mismatch. Expected {}. Found {}. '.format(iface_config['address'], iface_status['address'])
+=======
+            # print(iface_config)
+            # print(iface_status)
+            new_message = 'Address mismatch. Expected {}. Found {}. '.format(iface_config['config']['address'], iface_status['config']['address'])
+>>>>>>> afa40546713b70873cf3ab9f2c0c2108bff4e5ef
             utility.log(pilib.dirs.logs.network, new_message, 1, pilib.loglevels.network)
             return_dict['status_message'] += new_message
 
@@ -397,9 +410,15 @@ def update_net_status(lastnetstatus=None, quiet=True, ifaces_config=None, netcon
 
     if not netconfig_data:
         netconfig_data = dblib.readonedbrow(pilib.dirs.dbs.system, 'netconfig')[0]
+<<<<<<< HEAD
 
     if not ifaces_config:
 
+=======
+
+    if not ifaces_config:
+
+>>>>>>> afa40546713b70873cf3ab9f2c0c2108bff4e5ef
         # Get config data
         ifaces_config = pilib.dbs.system.read_table('netifaceconfig', keyed_dict=True)
 
@@ -445,6 +464,7 @@ def update_net_status(lastnetstatus=None, quiet=True, ifaces_config=None, netcon
             this_interface_status['config']['wpastate'] = ''
 
         this_interface_status_result = check_interface_status(this_interface_config, this_interface_status)
+<<<<<<< HEAD
 
         this_interface_status['status'] = this_interface_status_result['status']
         this_interface_status['status_message'] = this_interface_status_result['status_message']
@@ -455,6 +475,18 @@ def update_net_status(lastnetstatus=None, quiet=True, ifaces_config=None, netcon
     TODO : Double-check no problems here with not recreating status from scratch (stale data, et.)
     """
 
+=======
+
+        this_interface_status['status'] = this_interface_status_result['status']
+        this_interface_status['status_message'] = this_interface_status_result['status_message']
+
+
+    """ 
+    Then write it to the table 
+    TODO : Double-check no problems here with not recreating status from scratch (stale data, et.)
+    """
+
+>>>>>>> afa40546713b70873cf3ab9f2c0c2108bff4e5ef
     utility.log(pilib.dirs.logs.network, 'Sending ifaces query \n {}. '.format(ifaces_status), 5, pilib.loglevels.network)
         # print(ifacesdictarray)
     this_schema = dblib.sqliteTableSchema([

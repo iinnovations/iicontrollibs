@@ -94,9 +94,9 @@ def runalltests(**kwargs):
 
 class TestFunction(unittest.TestCase):
     def systemstatus(self):
-        from systemstatus import runsystemstatus
+        from systemstatus import run_system_status
         print('testing system status ...')
-        runsystemstatus(True)
+        run_system_status(True)
         self.assertTrue(True)
 
     def updateio(self):

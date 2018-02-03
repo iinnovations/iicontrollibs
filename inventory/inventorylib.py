@@ -1621,7 +1621,7 @@ def generateandaddorders(stockdatabase=sysvars.dbs.stock, ordersdatabase=sysvars
         ordersdatabase.drop_table(autogenorder['name'], queue=True)
     ordersdatabase.execute_queue()
 
-    makeordermetadata(ordersdatabase)
+    makeordermetadata(ordersdatabase.path)
 
     neworderdata = []
     for supplier, orderitems in stockgeneratedorders.items():
@@ -1636,7 +1636,7 @@ def generateandaddorders(stockdatabase=sysvars.dbs.stock, ordersdatabase=sysvars
         recalcpartdata(**{'ordername': newordername})
 
 
-    makeordermetadata(ordersdatabase)
+    makeordermetadata(ordersdatabase.path)
 
     # Now take new order data and tag new orders with supplier
     for neworderdatum in neworderdata:

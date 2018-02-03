@@ -20,15 +20,19 @@ if top_folder not in sys.path:
 
 from iiutilities.utility import Bunch
 from cupid import pilib
+try:
+    import simplejson as json
+except:
+    import json
 
 tablenames = Bunch()
 
 tablenames.control = ['actions', 'modbustcp', 'labjack', 'defaults', 'indicators', 'inputs', 'outputs', 'owfs', 'ioinfo',
                    'interfaces',
                    'controlalgorithms', 'algorithmtypes', 'channels', 'remotes']
-tablenames.system = ['systemstatus', 'logconfig', 'metadata', 'netconfig', 'netstatus', 'wirelessnetworks', 'versions',
-                  'systemflags', 'uisettings', 'notifications']
-tablenames.motes = ['read', 'queued', 'sent']
+tablenames.system = ['systemstatus', 'logconfig', 'metadata', 'netconfig', 'netifaceconfig', 'netstatus', 'wirelessnetworks', 'versions',
+                  'systemflags', 'uisettings' ]
+tablenames.motes = ['read', 'queued', 'sent', 'commands']
 tablenames.safe = ['wirelessdata', 'apdata']
 tablenames.notifications = ['queued', 'sent']
 tablenames.recipes = ['recipes']
@@ -103,7 +107,8 @@ def rebuild_control_db(**kwargs):
             {'name': 'offtime'},
             {'name': 'actionfrequency','type':'real','default':0},
             {'name': 'lastactiontime'},
-            {'name': 'statusmsg','default':'default msg'}
+            {'name': 'statusmsg','default':'default msg'},
+            {'name': 'options'}
         ])
         if settings['migrate']:
             control_database.migrate_table(tablename, schema=schema, queue=True, data_loss_ok=settings['data_loss_ok'])
@@ -114,19 +119,19 @@ def rebuild_control_db(**kwargs):
             entries = [
                 {'actionindex':1,'name':'System status red','actiontype':'output',
                 'actiondetail':'GPIO5','conditiontype':'logical',
-                 'actiondata':'condition:[systemdb:systemstatus:systemstatusstatus]==1',
+                 'actiondata':json.dumps({'condition':'[systemdb:systemstatus:systemstatusstatus]==1'}),
                 'enabled':1},
                 {'actionindex':2, 'name': 'WAN Access yellow', 'actiontype': 'output',
                  'actiondetail': 'GPIO19', 'conditiontype': 'logical',
-                 'actiondata': 'condition:[systemdb:netstatus:WANaccess]==1',
+                 'actiondata': json.dumps({'condition':'[systemdb:netstatus:WANaccess]==1'}),
                  'enabled': 1},
                 {'actionindex':3, 'name': 'Update IO Status green', 'actiontype': 'output',
                  'actiondetail': 'GPIO6', 'conditiontype': 'logical',
-                 'actiondata': 'condition:[systemdb:systemstatus:updateiostatus]==1',
+                 'actiondata': json.dumps({'condition':'[systemdb:systemstatus:updateiostatus]==1'}),
                  'enabled': 1},
                 {'actionindex':4, 'name': 'Hamachi Status blue', 'actiontype': 'output',
                  'actiondetail': 'GPIO13', 'conditiontype': 'logical',
-                 'actiondata': 'condition:[systemdb:systemstatus:hamachistatus]==1',
+                 'actiondata': json.dumps({'condition':'[systemdb:systemstatus:hamachistatus]==1'}),
                  'enabled': 1},
                 # {'actionindex': 5, 'name': 'Voltage monitor', 'actiontype': 'email',
                 #  'actiondetail': 'info@interfaceinnovations.org','actionfrequency':300,
@@ -134,8 +139,13 @@ def rebuild_control_db(**kwargs):
                 #  'enabled': 1},
                 {'actionindex': 5, 'name': 'Voltage monitor', 'actiontype': 'email',
                  'actiondetail': 'info@interfaceinnovations.org', 'conditiontype':'value', 'actionfrequency': 300,
-                 'actiondata': "dbvn:controldb:inputs:value:id='MOTE1_vbat',criterion:4.0,operator:<",'activereset':0,
+                 'actiondata': json.dumps({"dbvn": "controldb:inputs:value:id='MOTE1_vbat'", 'criterion': '4.0', 'operator': "<"}), 'activereset': 0,
                  'enabled': 1},
+                {'actionindex': 6, 'name': 'Test time action', 'actiontype': 'mote_command',
+                 'actiondetail': 'info@interfaceinnovations.org', 'conditiontype': 'temporal', 'actionfrequency': 0,
+                 'actiondata': json.dumps({'event_time':{'hour':'*', 'minute':'*'}, 'message':'~offint;2;30', 'destination':10}),
+                 'activereset': 0,
+                 'enabled': 0}
             ]
             control_database.insert(tablename, entries, queue=True)
 
@@ -559,9 +569,8 @@ def rebuild_system_db(**kwargs):
         schema = dblib.sqliteTableSchema([
             {'name':'WANaccess', 'type':'boolean', 'default':0},
             {'name':'WANaccessrestarts', 'type':'integer', 'default':0},
-            {'name':'SSID'},
             {'name':'latency', 'type':'real', 'default':0},
-            {'name':'mode', 'default':'eth0wlan0bridge'},
+            {'name':'mode'},
             {'name':'onlinetime'},
             {'name':'offlinetime'},
             {'name':'lastnetreconfig'},
@@ -589,10 +598,10 @@ def rebuild_system_db(**kwargs):
         schema = dblib.sqliteTableSchema([
             {'name': 'requireWANaccess', 'type':'integer', 'default':1},
             {'name': 'WANretrytime', 'type':'integer', 'default':30},
-            {'name': 'mode', 'default':'eth0wlan0bridge'},
+            {'name': 'mode', 'default':'manual'},
             {'name': 'hamachiwatchdogip', 'default':'25.11.87.7'},
             {'name': 'SSID'},
-            {'name': 'aprevert'},
+            {'name': 'aprevert', 'type':'integer', 'default':0},
             {'name': 'addtype', 'default':'dhcp'},
             {'name': 'address', 'default':'192.168.1.30'},
             {'name': 'gateway', 'default':'192.168.8.1'},
@@ -611,6 +620,22 @@ def rebuild_system_db(**kwargs):
         ])
         system_database.create_table(tablename, schema, queue=True)
         system_database.insert_defaults(tablename, queue=True)
+
+    tablename = 'netifaceconfig'
+    if tablename in settings['tablelist']:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'name', 'primary':True},
+            {'name': 'mode', 'default': 'dhcp'},
+            {'name': 'enabled', 'type': 'integer','default':1},
+            {'name': 'config'}          # all elements like address are included here.
+        ])
+        system_database.create_table(tablename, schema, queue=True)
+        inserts = [
+            {'name':'eth0','mode':'dhcp','config':json.dumps({'address':'192.168.8.25'})},
+            {'name':'wlan0','mode':'ap','config':json.dumps({'address':'192.168.8.25',
+                         'dhcpstart':'192.168.8.70','dhcpend':'192.168.8.90'})}
+        ]
+        system_database.insert(tablename, inserts, queue=True)
 
     tablename = 'systemflags'
     if tablename in settings['tablelist']:
@@ -694,20 +719,20 @@ def rebuild_system_db(**kwargs):
         system_database.create_table(tablename, schema, queue=True)
         system_database.insert_defaults(tablename, queue=True)
 
-    tablename = 'notifications'
-    if tablename in settings['tablelist']:
-        schema = dblib.sqliteTableSchema([
-            {'name': 'item', 'primary':True},
-            {'name': 'enabled', 'type':'boolean', 'default':0},
-            {'name': 'options'},
-            {'name': 'lastnotification'}
-            ])
-        system_database.create_table(tablename, schema, queue=True)
-        system_database.insert(tablename, [
-            {'item':'unittests', 'enabled':1, 'options':'type:email,email:cupid_status@interfaceinnovations.org,frequency:600'},
-            {'item':'daemonkillproc', 'enabled':1, 'options':'type:email,email:cupid_status@interfaceinnovations.org,frequency:600'},
-            {'item':'boot', 'enabled':1, 'options':'type:email,email:cupid_status@interfaceinnovations.org,frequency:600'}
-        ], queue=True)
+    # tablename = 'notifications'
+    # if tablename in settings['tablelist']:
+    #     schema = dblib.sqliteTableSchema([
+    #         {'name': 'item', 'primary':True},
+    #         {'name': 'enabled', 'type':'boolean', 'default':0},
+    #         {'name': 'options'},
+    #         {'name': 'lastnotification'}
+    #         ])
+    #     system_database.create_table(tablename, schema, queue=True)
+    #     system_database.insert(tablename, [
+    #         {'item':'unittests', 'enabled':1, 'options':'type:email,email:cupid_status@interfaceinnovations.org,frequency:600'},
+    #         {'item':'daemonkillproc', 'enabled':1, 'options':'type:email,email:cupid_status@interfaceinnovations.org,frequency:600'},
+    #         {'item':'boot', 'enabled':1, 'options':'type:email,email:cupid_status@interfaceinnovations.org,frequency:600'}
+    #     ], queue=True)
 
 
 
@@ -792,14 +817,12 @@ def rebuild_notifications_db(**kwargs):
     from cupid.pilib import dirs
 
     settings = {
-        'tablelist': tablenames.sessions,
+        'tablelist': tablenames.notifications,
         'migrate': True,
         'data_loss_ok': False
     }
     settings.update(kwargs)
-
-    if not settings['tablelist']:
-        settings['tablelist'] = tablenames.notifications
+    print(settings['tablelist'])
 
     notifications_database = pilib.cupidDatabase(dirs.dbs.notifications)
 
@@ -830,6 +853,8 @@ def rebuild_notifications_db(**kwargs):
         else:
             notifications_database.create_table(tablename, schema, queue=True)
 
+
+
     if notifications_database.queued_queries:
         print(notifications_database.queued_queries)
         notifications_database.execute_queue()
@@ -849,12 +874,11 @@ def rebuild_motes_db(**kwargs):
     from iiutilities import dblib
 
     settings = {
-        'tablelist': tablenames.sessions,
+        'tablelist': tablenames.motes,
         'migrate': True,
         'data_loss_ok': False
     }
     settings.update(kwargs)
-
     motes_database = pilib.cupidDatabase(dirs.dbs.motes)
 
     tablename = 'read'
@@ -882,6 +906,24 @@ def rebuild_motes_db(**kwargs):
         ])
         motes_database.create_table(tablename, schema, queue=True)
 
+    tablename = 'commands'
+    if tablename in settings['tablelist']:
+        schema = dblib.sqliteTableSchema([
+            {'name': 'queuedtime', 'primary': True},
+            {'name': 'commandid'},
+            {'name': 'senttimes'},
+            {'name': 'status'},
+            {'name': 'statusmessage'},
+            {'name': 'message'},
+            {'name': 'options'},
+            {'name': 'replies'},
+            {'name': 'destination'}
+        ])
+        if settings['migrate']:
+            motes_database.create_table(tablename, schema, queue=True)
+        else:
+            motes_database.create_table(tablename, schema, queue=True)
+
     if motes_database.queue_queries:
         motes_database.execute_queue()
 
@@ -892,33 +934,27 @@ userstabledata
 
 
 def rebuild_users_data(argument=None):
-    from cupid.pilib import dirs
+    from cupid import pilib
     from iiutilities.datalib import gethashedentry
-    from iiutilities.dblib import sqlitemultquery
+    from iiutilities import dblib
 
-    querylist = []
-    runquery = True
+    pilib.dbs.users.drop_table('users')
 
-    querylist.append('drop table if exists users')
     enteringusers = True
-    runquery = False
+    pilib.dbs.users.create_table('users',schema=pilib.schema.users, queue=True)
     index = 1
-    querylist.append(
-        'create table users (id integer primary key not null, name text unique, password text not null, email text not null, temp text not null, authlevel integer default 0)')
     if argument == 'defaults':
-        runquery = True
         entries = [{'user': 'viewer', 'password': 'viewer', 'email': 'viewer@interfaceinnovations.org', 'authlevel': 1},
                    {'user': 'admin', 'password': 'adminn', 'email': 'admin@interfaceinnovations.org', 'authlevel': 4},
                    {'user': 'controller', 'password': 'controller', 'email': 'viewer@interfaceinnovations.org',
                     'authlevel': 3}]
-        index = 1
-        for entry in entries:
-            hashedentry = gethashedentry(entry['user'], entry['password'], pilib.salt)
-            querylist.append(
-                "insert into users values(" + str(index) + ",'" + entry['user'] + "','" + hashedentry + "','" + entry[
-                    'email'] + "',''," + str(entry['authlevel']) + ")")
-            index += 1
 
+        for index, entry in enumerate(entries):
+            hashedentry = gethashedentry(entry['user'], entry['password'], pilib.salt)
+            insert = entry.copy()
+            insert['id'] = index + 1
+            insert['password'] = hashedentry
+            pilib.dbs.users.insert('users', insert, queue=True)
 
     else:
         while enteringusers:
@@ -944,15 +980,14 @@ def rebuild_users_data(argument=None):
 
             if validentry:
                 hashedentry = gethashedentry(userinput, passone)
+                insert = {'id':index + 1, 'name':userinput, 'password':hashedentry, 'email':emailentry, 'authlevel':authlevelentry}
+                insert['password'] = hashedentry
+                pilib.dbs.users.insert(insert, queue=True)
 
-                querylist.append("insert into users values(" + str(
-                    index) + ",'" + userinput + "','" + hashedentry + "','" + emailentry + "',''," + authlevelentry + ")")
                 index += 1
-                runquery = True
 
-    if runquery:
-        print(querylist)
-        sqlitemultquery(dirs.dbs.users, querylist)
+    if len(pilib.dbs.users.queued_queries) > 1:
+        pilib.dbs.users.execute_queue()
 
 
 """
@@ -961,8 +996,8 @@ def rebuild_users_data(argument=None):
 
 
 def rebuild_wireless_data(preserve=True):
-    from iiutilities.dblib import sqlitemultquery, gettablenames, readalldbrows
-    from cupid.pilib import dirs
+    from iiutilities.dblib import sqlitemultquery, gettablenames
+    from cupid.pilib import dirs, dbs
 
     querylist = []
     querylist.append('drop table if exists wireless')
@@ -976,7 +1011,7 @@ def rebuild_wireless_data(preserve=True):
     existing_ssids = []
     if 'wireless' in safetables:
         # print("wireless table found")
-        wirelessentries = readalldbrows(dirs.dbs.safe, 'wireless')
+        wirelessentries = dbs.safe.read_table('wireless')
         existing_ssids = [entry['SSID'] for entry in wirelessentries]
 
         for index,entry in enumerate(wirelessentries):
@@ -1059,9 +1094,14 @@ if __name__ == "__main__":
         elif sys.argv[1] in tablenames.system:
             print('running rebuild system tables for ' + sys.argv[1])
             rebuild_system_db(tablelist=[sys.argv[1]])
+
         elif sys.argv[1] in tablenames.motes:
             print('running rebuild motes tables for ' + sys.argv[1])
             rebuild_motes_db(tablelist=[sys.argv[1]])
+        elif sys.argv[1] == 'motes':
+            print('rebuilding entire motes table')
+            rebuild_motes_db()
+
         elif sys.argv[1] in ['notifications', 'Notifications']:
             print('running rebuilding notifications table')
             rebuild_notifications_db()

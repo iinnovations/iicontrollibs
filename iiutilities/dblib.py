@@ -199,15 +199,19 @@ class sqliteDatabase(object):
         # Need to delete condition if not passed every time. We want to keep it in settings, but it has a habit
         # of hanging around when it's not wanted.
         # TODO : Think about this.
+<<<<<<< HEAD
         settings = {
             'timing':False
         }
         settings.update(kwargs)
 
+=======
+>>>>>>> afa40546713b70873cf3ab9f2c0c2108bff4e5ef
         if 'condition' not in kwargs and 'condition' in self.settings:
             del self.settings['condition']
 
         self.settings.update(kwargs)
+<<<<<<< HEAD
 
         if settings['timing']:
             from datetime import datetime
@@ -219,6 +223,9 @@ class sqliteDatabase(object):
             elapsed_time = (datetime.now() - start_time).total_seconds()
             print('Elapsed Time: {}'.format(elapsed_time))
 
+=======
+        db_result = readalldbrows(self.path, tablename, **self.settings)
+>>>>>>> afa40546713b70873cf3ab9f2c0c2108bff4e5ef
         if 'all_results' in kwargs and kwargs['all_results']:
             return db_result
         elif 'keyed_dict' in kwargs and kwargs['keyed_dict']:
@@ -1235,9 +1242,14 @@ def readalldbrows(database, table, **kwargs):
             dict[pragma_name] = datum
         dictarray.append(dict)
         keyed_dict[dict[primary_key]] = dict
+<<<<<<< HEAD
 
     return {'dict_array':dictarray, 'keyed_dict':keyed_dict, 'indexed_key':primary_key, 'is_primary':is_primary}
 
+=======
+
+    return {'dict_array':dictarray, 'keyed_dict':keyed_dict, 'indexed_key':primary_key, 'is_primary':is_primary}
+>>>>>>> afa40546713b70873cf3ab9f2c0c2108bff4e5ef
 
 def makegetallrowsquery(tablename, **kwargs):
     settings = {

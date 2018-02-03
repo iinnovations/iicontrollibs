@@ -141,13 +141,18 @@ def getifconfigstatus():
     compatible with everything that calls it.
     """
     import netifaces
+    import json
+
     interfaces = netifaces.interfaces()
     interface_list = []
 
+    interface_dict = {}
     for interface_name in interfaces:
 
-        this_interface_dict = {'name':'', 'hwaddress':'', 'address':'', 'ifaceindex':'', 'bcast':'', 'mask': '', 'flags':''}
+        this_interface_dict = {'name':'', 'config':'', 'status':''}
         this_interface_dict['name'] = interface_name
+
+        this_interface_config = {}
         these_addresses = netifaces.ifaddresses(interface_name)
 
         net_address_type = netifaces.AF_INET
@@ -155,14 +160,14 @@ def getifconfigstatus():
 
         if net_address_type in these_addresses:
             this_address = these_addresses[net_address_type][0]
-            # print(type(this_address))
+
             for key,value in this_address.items():
                 pass
                 # print(key,value)
             # print(this_address)
             for item in [('addr','address'), ('netmask','netmask'), ('broadcast', 'bcast')]:
                 if item[0] in this_address:
-                    this_interface_dict[item[1]] = this_address[item[0]]
+                    this_interface_config[item[1]] = this_address[item[0]]
                 else:
                     pass
                     # print('{} not found '.format(item[0]))
@@ -170,10 +175,13 @@ def getifconfigstatus():
         if hw_address_type in these_addresses:
             this_address = these_addresses[hw_address_type][0]
             # print(this_address)
-            this_interface_dict['hwaddress'] = this_address['addr']
+            this_interface_config['hwaddress'] = this_address['addr']
 
+        this_interface_dict['config'] = this_interface_config
         interface_list.append(this_interface_dict)
-    return interface_list
+        interface_dict[interface_name] = this_interface_dict
+
+    return interface_dict
 
 
 # This no longer works on newest distro
@@ -403,7 +411,7 @@ def restart_uwsgi(directory='/usr/lib/iicontrollibs/uwsgi', quiet=True, killall=
 def restarthamachi():
     import subprocess
     from time import sleep
-    subprocess.call(['/etc/init.d/logmein-hamachi','force-reload'])
+    subprocess.call(['/etc/init.d/logmein-hamachi','restart'])
     sleep(15)
     subprocess.call(['hamachi','login'])
     return
