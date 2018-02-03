@@ -20,6 +20,12 @@ if top_folder not in sys.path:
 
 import cupid.pilib as pilib
 import iiutilities.datalib as datalib
+from iiutilities import utility
+
+try:
+    import simplejson as json
+except:
+    import json
 
 # Need to backward compatible this for Pi2 based on hardware version
 def write(message, port=None, baudrate=115200, timeout=1):
@@ -34,8 +40,6 @@ def write(message, port=None, baudrate=115200, timeout=1):
 
 
 def getsystemserialport():
-    from iiutilities.dblib import getsinglevalue
-    from iiutilities.utility import log as mylog
 
     port = '/dev/ttyAMA0'
     versions = pilib.dbs.system.read_table('versions')
@@ -49,7 +53,7 @@ def getsystemserialport():
                 print(version)
                 hw_version = version['version']
     except:
-        mylog(pilib.dirs.dbs.system, 'Error retrieving hardware version in serial monitor. Reverting to /dev/tty/AMA0')
+        utility.log(pilib.dirs.dbs.system, 'Error retrieving hardware version in serial monitor. Reverting to /dev/tty/AMA0')
         print('Error retrieving hardware version in serial monitor. Reverting to /dev/tty/AMA0')
     else:
         print(hw_version, port)
@@ -60,19 +64,33 @@ def getsystemserialport():
     return port
 
 
-def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessages=False):
+def monitor(**kwargs):
 
-    if not port:
-        port = getsystemserialport()
+    settings = {
+        'port':None,
+        'baudrate':115200,
+        'timeout':1,
+        'checkstatus':True,
+        'printmessages':False,
+        'debug':True
+    }
+    settings.update(kwargs)
+
+    if not settings['port']:
+        settings['port'] = getsystemserialport()
+
     import serial
-    from cupid import pilib
     from iiutilities import datalib, dblib
-    from iiutilities import utility
     from time import mktime, localtime
     from time import sleep
 
     motes_db = pilib.dbs.motes
     system_db = pilib.dbs.system
+
+    if settings['debug']:
+        pilib.set_debug()
+    if settings['printmessages']:
+        print('Message printing is enabled.')
 
     data = []
 
@@ -83,23 +101,23 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
         logfile = open(pilib.dirs.logs.serial, 'a', 1)
         logfile.write('\n' + datalib.gettimestring() + ": Initializing serial log\n")
 
-    if checkstatus:
+    if settings['checkstatus']:
         systemstatus =system_db.read_table_row('systemstatus')[0]
         runhandler = systemstatus['serialhandlerenabled']
         checktime = mktime(localtime())
         checkfrequency = 15  # seconds
         if runhandler:
-             utility.log(pilib.dirs.logs.io, "Starting monitoring of serial port", 1, pilib.loglevels.io)
+             utility.log(pilib.dirs.logs.io, "Starting monitoring of serial port based on check status", 1, pilib.loglevels.io)
         else:
-             utility.log(pilib.dirs.logs.io, "Not starting monitoring of serial port. How did I get here?", 1, pilib.loglevels.io)
+             utility.log(pilib.dirs.logs.io, "Not starting monitoring of serial port. How did I get here?", 1, pilib.loglevels.serial)
     else:
         runhandler = True
 
     if runhandler:
-        ser = serial.Serial(port=port, baudrate=baudrate, timeout=timeout)
-        print("Monitoring serial port " + ser.name)
+        ser = serial.Serial(port=settings['port'], baudrate=settings['baudrate'], timeout=settings['timeout'])
+        utility.log(pilib.dirs.logs.io, "Monitoring serial port {}, settings {}/{}".format(ser.name, settings['baudrate'], settings['timeout']), 1, pilib.loglevels.serial)
     else:
-        print('not monitoring serial port ')
+        utility.log(pilib.dirs.logs.io, 'not monitoring serial port ', 1, pilib.loglevels.serial)
     while runhandler:
         # This reading has to happen faster than the messages come, or they will all be stuck together
         try:
@@ -110,7 +128,7 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
             #     print('null character')
 
             if len(ch) == 0 or ch == '\x0D':
-                # print('LEN ZERO OR END CHAR: PROCESS TIME')
+                utility.log(pilib.dirs.logs.io, 'Time to process message ', 5, pilib.loglevels.serial)
 
                 # rec'd nothing print all
                 if len(data) > 1:   # This will avoid processing endline characters and other trash.
@@ -128,38 +146,31 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
                     # print(s)
                     # print(s.split('\n'))
                     try:
-                        if (printmessages):
-                            print('*************** processing datadict')
-                        # print('processing data of length ' + str(len(data)))
+                        utility.log(pilib.dirs.logs.serial, 'processing datadict from serial message of length {}'.format(len(data)), 3, pilib.loglevels.serial)
                         datadicts, messages = processserialdata(s)
-                        # print('ALL MY DATADICTS (length of ' + str(len(datadicts)) + ')')
-                        # print(datadicts)
-                        # print('END OF DICTS')
-                    except IOError:
-                        print('error processing message')
-                    except Exception as ex:
-                        template = "An exception of type {0} occured (line 99). Arguments:\n{1!r}"
-                        message = template.format(type(ex).__name__, ex.args)
-                        print('exception: ')
-                        print(message)
+                    except:
+                        import traceback
+                        message = "An exception of occurred (line 99): {}".format(traceback.format_exc())
+                        utility.log(pilib.dirs.logs.serial, message, 1, pilib.loglevels.serial)
+
                     else:
                         for datadict, message in zip(datadicts, messages):
                             if datadict:
-                                if (printmessages):
+                                if (settings['printmessages']):
                                     print("datadict: ")
                                     print(datadict)
                                 # print("message: ")
                                 # print(message)
 
-                                publish = False
-                                for k in datadict:
-                                    # print(k + datadict[k])
-                                    if k not in ['nodeid','RX_RSSI']:
-                                        pass
+                                # publish = False
+                                # for k in datadict:
+                                #     # print(k + datadict[k])
+                                #     if k not in ['nodeid','RX_RSSI']:
+                                #         pass
                                 # if 'cmd' in datadict:
                                 publish = True
                                 if publish:
-                                    if (printmessages):
+                                    if (settings['printmessages']):
                                         print('publishing message: ')
                                         print(message)
                                     lograwmessages(message)
@@ -167,29 +178,28 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
                                 motes_db.size_table('read', **{'size':1000})
                                 try:
                                     processremotedata(datadict, message)
-                                except Exception as ex:
-                                    template = "An exception of type {0} occured  in process remote data. Arguments:\n{1!r}"
-                                    message = template.format(type(ex).__name__, ex.args)
-                                    print(message)
+                                except:
+                                    import traceback
+                                    message = "An exception of occurred (line 184): {}".format(traceback.format_exc())
+                                    utility.log(pilib.dirs.logs.serial, message, 1, pilib.loglevels.serial)
 
                             else:
-                                if message:
-                                    print('message: ')
+                                if message and settings['printmessage']:
+                                    print('message: \n{}'.format(message))
                                     print(message)
 
                             # Log message
                             if seriallog:
                                 try:
                                     logfile.write(datalib.gettimestring() + ' : ' + message + '\n')
-                                except Exception as e:
-                                    template = "An exception of type {0} occured (line 142). Arguments:\n{1!r}"
-                                    message = template.format(type(ex).__name__, ex.args)
-                                    print(message)
+                                except:
+                                    import traceback
+                                    message = "An exception of occurred (line 198): {}".format(traceback.format_exc())
+                                    utility.log(pilib.dirs.logs.serial, message, 1, pilib.loglevels.serial)
 
                 else:
                     # no data, let's see if we should send message
-                    # print('no data, try sending')
-                    pass
+                    utility.log(pilib.dirs.logs.serial, 'No data, try sending', 1, pilib.loglevels.serial)
 
                 # print('CLEARING DATA !!!')
                 data = []
@@ -205,6 +215,11 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
                 # print('LET US TRY SEND HANDLER')
                 try:
                     queue_commands()
+                except:
+                    import traceback
+                    print('ERROR IN QUEUE COMMANDS \n {}'.format(traceback.format_exc()))
+
+                try:
                     runsendhandler(ser)
                 except:
                     import traceback
@@ -224,7 +239,7 @@ def monitor(port=None, baudrate=115200, timeout=1, checkstatus=True, printmessag
                 data.append(ch)
                 stringmessage += str(ch)
 
-            if checkstatus:
+            if settings['checkstatus']:
                 print('checking status')
                 thetime = mktime(localtime())
                 if thetime-checktime > checkfrequency:
@@ -256,47 +271,110 @@ def queue_commands(**kwargs):
 
     """
     This will check the commands table. If it has not been sent or cleared as acknowledged, we will queue the command
-    in the queued items for serial send
+    in the queued items for serial send.
+
+    We pass in the actiondatadict for the optional parameters below. These come from the action when it is queued, or
+    from default settings in action.onact() or the defaults below.
+
+    We optionally:
+       check to ensure we don't already have queued messages of the same type. This is not typically going to be an
+       issue, as messages are dispatched very quickly.
+
+    We increment number of retries and terminate request as aborted if we exceed this.
     """
+
     settings = {
         'destination':None,
         'message':None,
-        'retry_time':60.0
+        'retry_time':120.0,
+        'retries':10,
+        'no_duplicates':True,
     }
     settings.update(kwargs)
     commands = pilib.dbs.motes.read_table('commands')
 
     for command in commands:
-        if command['status'] == 'new':
+        print('COMMAND {}'.format(command))
+        if command['status'] in ['new', 'retrying', 'sending']:     # Redundant status types here?
             message = '~sendmsg;{};;{}'.format(command['destination'], command['message'])
-            pilib.dbs.motes.insert('queued', {'queuedtime':datalib.getmstimestring(), 'message':message}, queue=True)
-            command['status'] = 'sent'
+
+            queue_command = True
+            if not command['senttimes']:
+                command['senttimes'] = []
+
+            sent_times = json.loads(command['senttimes'])
+            attempts = len(sent_times)
+            if attempts >= settings['retries']:
+                print('FAIL')
+                inc_message = 'Command retries exceeded ({}). '.format(settings['retries'])
+                command['status_message'] += inc_message
+                utility.log(pilib.dirs.logs.serial, inc_message, 2, pilib.loglevels.serial)
+                command['status'] = 'failed'
+                queue_command = False
+            else:
+                print('NOT FAIL')
+
+            if queue_command:
+
+                # Only check to see if existing command contain a duplicate entry if we were going to send it.
+                queued_match_commands = pilib.dbs.motes.read_table('queued', condition="message='{}'".format(message))
+                if queued_match_commands:
+                    inc_message = 'Message is already queued. '
+                    utility.log(pilib.dirs.logs.serial, inc_message, 2, pilib.loglevels.serial)
+                    command['status_message'] += inc_message
+                    queue_command = False
+
+            if queue_command and sent_times:
+
+                # If no sent times, then we don't need to see how long it's been
+                # Now check to see that it is time to retry
+                most_recent_sent_time = sent_times[-1]
+
+                print('most recent time: '.format(most_recent_sent_time))
+                elapsed_time = datalib.mstimestringtoseconds(datalib.getmstimestring()) - datalib.mstimestringtoseconds(most_recent_sent_time)
+                print('it has been : {}'.format(elapsed_time))
+
+                if elapsed_time > settings['retry_time']:
+                    inc_message = 'It has been {}, longer than retry time of {}. Retrying. '.format(elapsed_time, settings['retry_time'])
+
+                else:
+                    inc_message = 'It has been {}, not greater than retry time of {}. '.format(elapsed_time, settings['retry_time'])
+                    queue_command = False
+
+                utility.log(pilib.dirs.logs.serial, inc_message, 2, pilib.loglevels.serial)
+
+            if queue_command:
+                sent_times.append(datalib.getmstimestring())
+                command['senttimes'] = json.dumps(sent_times)
+
+                pilib.dbs.motes.insert('queued', {'queuedtime':datalib.getmstimestring(), 'message':message}, queue=True)
+                command['status'] = 'retrying'
+
+            # Update message regardless
+            print('\n **INSERTING COMMAND (queued:{}) \n {}\n\n'.format(queue_command, command))
+
             pilib.dbs.motes.insert('commands', command)
-        pilib.dbs.motes.execute_queue()
+
+        if pilib.dbs.motes.queued_queries:
+            pilib.dbs.motes.execute_queue()
 
 
 def runsendhandler(ser):
     from iiutilities import dblib, datalib
     from iiutilities import utility
 
-    print('AAAAAAAAAAAAAAAAAAAAAAAAAAAA')
-    print('looking for message to send')
+    # print('looking for message to send')
 
     motes_db = pilib.dbs.motes
 
     try:
         last_queued_message = motes_db.get_first_time_row('queued', 'queuedtime')
     except:
-        # no rows
-        # print('we have an error getting a queued message. Could be just no message.')
-        pass
+        import traceback
+        utility.log(pilib.dirs.logs.serial, 'Error getting queued message : {}'.format(traceback.format_exc()), 1, pilib.loglevels.serial)
     else:
-        # print('here is the message')
-        # print(last_queued_message['message'])
-        utility.log(pilib.dirs.logs.serial, 'Sending serial message: ' + last_queued_message['message'], 1, 1)
         try:
-            # print('going to send message:')
-            # print(lastqueuedmessage['message'])
+            utility.log(pilib.dirs.logs.serial, 'Sending message : {}'.format(last_queued_message['message']), 3, pilib.loglevels.serial)
             ser.write(last_queued_message['message'].encode())
             # sendserialmessage(ser, lastqueuedmessage['message'])
         except:
@@ -327,6 +405,7 @@ def processserialdata(data):
     print('processing data: ')
     print(data)
     print('end data')
+
     # RF Message (deprecated, all are of serial form below)
     if data.strip().find('BEGIN RECEIVED') > 0:
         split1 = data.strip().split('BEGIN RECEIVED')
@@ -395,9 +474,9 @@ def processremotedata(datadict, stringmessage):
     import cupid.pilib as pilib
     from iiutilities import dblib, datalib, utility
 
-    control_db = dblib.sqliteDatabase(pilib.dirs.dbs.control)
-    motes_db = dblib.sqliteDatabase(pilib.dirs.dbs.motes)
-    log_db = dblib.sqliteDatabase(pilib.dirs.dbs.log)
+    control_db = pilib.dbs.control
+    motes_db = pilib.dbs.motes
+    log_db = pilib.dbs.log
 
     print('PROCESSING REMOTE DATA')
     print(datadict)
@@ -650,7 +729,16 @@ def processremotedata(datadict, stringmessage):
             pass
     return
 
+
 if __name__ == '__main__':
     # Need to include an option for only debug. See other scripts for examples.
-    monitor(checkstatus=False, printmessages=True)
+    debug=False
+    if 'debug' in sys.argv:
+        debug = True
+    printmessages = False
+    if 'printmessages' in sys.argv or 'print' in sys.argv:
+        printmessages = True
+
+    checkstatus=False
+    monitor(checkstatus=False, printmessages=True, debug=debug)
     # monitor()
