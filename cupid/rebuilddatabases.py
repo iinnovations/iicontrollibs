@@ -944,13 +944,13 @@ def rebuild_users_data(argument=None):
     pilib.dbs.users.create_table('users',schema=pilib.schema.users, queue=True)
     index = 1
     if argument == 'defaults':
-        entries = [{'user': 'viewer', 'password': 'viewer', 'email': 'viewer@interfaceinnovations.org', 'authlevel': 1},
-                   {'user': 'admin', 'password': 'adminn', 'email': 'admin@interfaceinnovations.org', 'authlevel': 4},
-                   {'user': 'controller', 'password': 'controller', 'email': 'viewer@interfaceinnovations.org',
+        entries = [{'name': 'viewer', 'password': 'viewer', 'email': 'viewer@interfaceinnovations.org', 'authlevel': 1},
+                   {'name': 'admin', 'password': 'adminn', 'email': 'admin@interfaceinnovations.org', 'authlevel': 4},
+                   {'name': 'controller', 'password': 'controller', 'email': 'viewer@interfaceinnovations.org',
                     'authlevel': 3}]
 
         for index, entry in enumerate(entries):
-            hashedentry = gethashedentry(entry['user'], entry['password'], pilib.salt)
+            hashedentry = gethashedentry(entry['name'], entry['password'], pilib.salt)
             insert = entry.copy()
             insert['id'] = index + 1
             insert['password'] = hashedentry
@@ -987,7 +987,13 @@ def rebuild_users_data(argument=None):
                 index += 1
 
     if len(pilib.dbs.users.queued_queries) > 1:
+        print('** SETTINGS **')
+        pilib.dbs.users.settings['quiet'] = False
+        print(pilib.dbs.users.settings)
+        print(pilib.dbs.users.queued_queries)
         pilib.dbs.users.execute_queue()
+    else:
+        print('no entries')
 
 
 """
@@ -1068,12 +1074,15 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 1 and sys.argv[1] == 'DEFAULTS':
         print('making default databases')
+        print('wireless ... ')
         rebuild_wireless_data()
 
         # This checks the hostname, sets it as the hostname with 'cupid' prefix, and sets default password
         # Then it calls the file rebuild
         from netconfig import setdefaultapsettings
         setdefaultapsettings()
+
+        print('uers ... ')
         rebuild_users_data('defaults')
 
         rebuild_control_db(tablelist=tablenames.control)
