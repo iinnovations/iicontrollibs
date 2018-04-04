@@ -45,6 +45,8 @@ class sqliteDatabase(object):
         for item in settings:
             # This will catch all logging options, so when we execute a query,
             # they will be attributes already set.
+            # TODO: Redo this. Currently settings are in two places. Which is used? How are they synchronized?
+            # Make this clear.
 
             setattr(self, item, settings[item])
 
@@ -128,7 +130,11 @@ class sqliteDatabase(object):
                 print('NOT ALL KEYS EXIST IN SCHEMA AS IN TABLE YOU ARE MIGRATING FROM. OVERRIDE WITH data_loss_ok=True '
                       'kwarg or figure out why this is happening')
                 print('Existing keys: ' + str([key for key in current_table[0]]))
-                print('Schema keys: ' + str(self.get_table_names()))
+                print('Schema keys: ' + str(schema_columns))
+
+                for this_key in [key for key in current_table[0]]:
+                    if this_key not in schema_columns:
+                        print('Not in schema: {}'.format(this_key))
                 return
             elif all_exist and data_loss_ok:
                 print('NOT ALL KEYS EXIST, BUT YOU SAID SO. SO I DO IT.')
@@ -155,17 +161,133 @@ class sqliteDatabase(object):
         self.settings.update(kwargs)
         return gettablesize(self.path, tablename, **self.settings)
 
+    def read_tables(self, tablenames, **kwargs):
+        settings = {
+            'method':'combined_pragma',
+            'timing':False,
+            'only_timing':False
+        }
+        settings.update(kwargs)
+        self.settings.update(settings)
+
+        if settings['timing']:
+            from datetime import datetime
+            start_time = datetime.now()
+
+        if settings['method'] == 'combined_pragma':
+            all_queries = []
+            for tablename in tablenames:
+                all_queries.extend(makegetallrowswithpragmaquery(tablename))
+
+            results = self.queries(all_queries)
+            result_data = results['data']
+
+
+            return_data = {}
+            for index, tablename in enumerate(tablenames):
+                the_data = result_data[index*2]
+                pragma = process_pragma(result_data[index*2 + 1])
+
+                is_primary = False
+                primary_key = pragma[0]['name']
+                pragma_names = []
+                for pragma_item in pragma:
+                    # print(pragma_item)
+                    if pragma_item['primary']:
+                        primary_key = pragma_item['name']
+                        is_primary = True
+                    pragma_names.append(pragma_item['name'])
+
+                dictarray = []
+                keyed_dict = {}
+                for row in the_data:
+                    dict = {}
+                    for datum, pragma_name in zip(row, pragma_names):
+                        dict[pragma_name] = datum
+                    dictarray.append(dict)
+                    keyed_dict[dict[primary_key]] = dict
+
+                return_data[tablename] = dictarray
+
+        elif settings['method'] == 'row_factory':
+            return_data = {}
+            all_queries = []
+            for tablename in tablenames:
+                all_queries.append("select * from '{}'".format(tablename))
+            data = sqlitemultquery(all_queries, self.settings)
+            for tablename, datum in zip(tablenames, data):
+                return_data[tablename] = datum
+
+        if settings['timing']:
+            elapsed_time = (datetime.now() - start_time).total_seconds()
+            if settings['only_timing']:
+                return elapsed_time
+            else:
+                print('Elapsed Time: {}'.format(elapsed_time))
+
+        return return_data
+
     def read_table(self, tablename, **kwargs):
-        self.settings['condition'] = None
-        self.settings.update(kwargs)
-        dbrows = readalldbrows(self.path, tablename, **self.settings)
-        return dbrows
+        # Need to delete condition if not passed every time. We want to keep it in settings, but it has a habit
+        # of hanging around when it's not wanted.
+        # TODO : Think about this.
+        settings = {
+            'timing':False,
+            'row_factory':False
+        }
+        settings.update(kwargs)
+
+        if 'condition' not in kwargs and 'condition' in self.settings:
+            del self.settings['condition']
+
+        self.settings.update(settings)
+
+        if settings['timing']:
+            from datetime import datetime
+            start_time = datetime.now()
+
+        db_result = readalldbrows(self.path, tablename, **self.settings)
+
+        if settings['timing']:
+            elapsed_time = (datetime.now() - start_time).total_seconds()
+            if settings['only_timing']:
+                return elapsed_time
+            else:
+                print('Elapsed Time: {}'.format(elapsed_time))
+
+        if 'all_results' in kwargs and kwargs['all_results']:
+            return db_result
+        elif 'keyed_dict' in kwargs and kwargs['keyed_dict']:
+            return db_result['keyed_dict']
+        else:
+            return db_result['dict_array']
 
     def read_database(self, **kwargs):
+        settings = {
+            'method': 'bundle',
+            'timing': True
+        }
         self.settings.update(kwargs)
-        all_data = {}
-        for tablename in self.get_table_names():
-            all_data[tablename] = self.read_table(tablename, **self.settings)
+        settings.update(kwargs)
+
+        if settings['timing']:
+            from datetime import datetime
+            start_time = datetime.now()
+
+        if settings['method'] == 'std':
+            print('standard')
+            all_data = {}
+            for tablename in self.get_table_names():
+                all_data[tablename] = self.read_table(tablename, **self.settings)
+
+        elif settings['method'] == 'bundle':
+            print('bundle')
+            all_data = self.read_tables(self.get_table_names())
+
+        if settings['timing']:
+            elapsed_time = (datetime.now() - start_time).total_seconds()
+            print('Elapsed DB read time: {}'.format(elapsed_time))
+
         return all_data
 
     def read_table_smart(self, tablename, condition=None):
@@ -188,11 +310,8 @@ class sqliteDatabase(object):
         dbrow = readonedbrow(self.path, tablename, **self.settings)
         return dbrow
 
-    def read_table_rows(self, tablename, row=0, length=1, **kwargs):
-        settings = {
-            'start':row,
-            'length':length
-        }
+    def read_table_rows(self, tablename,**kwargs):
+        self.settings['start'] = 0
         self.settings.update(kwargs)
         dbrows = readsomedbrows(self.path, tablename, **self.settings)
         return dbrows
@@ -206,8 +325,11 @@ class sqliteDatabase(object):
         return rows
 
     def get_first_time_row(self, tablename, timecolumn='time'):
-        row = getfirsttimerows(self.path, tablename, timecolumn, **self.settings)[0]
-        return row
+        row_reply = getfirsttimerows(self.path, tablename, timecolname=timecolumn, **self.settings)
+        if not row_reply:
+            return []
+        else:
+            return row_reply[0]
 
     def get_tuples(self, tablename, valuenames, condition=None):
         query = 'select '
@@ -235,11 +357,12 @@ class sqliteDatabase(object):
             'queue': False
         }
         settings.update(kwargs)
-        query = makesinglevaluequery(tablename, valuename, value, settings['condition'])
+        query = makesqlitesinglevaluequery(tablename, valuename, value, settings['condition'])
         if settings['queue']:
             self.queue_queries([query])
         else:
-            self.query(query)
+            result = self.query(query)
+            return result
 
     def get_single_value(self, tablename, valuename, **kwargs):
         settings = {
@@ -324,7 +447,7 @@ class sqliteDatabase(object):
             self.query(query)
 
     def delete(self, tablename, condition, queue=False):
-        query = makedeletesinglevaluequery(tablename,condition)
+        query = makedeletesinglevaluequery(tablename, condition)
         if queue:
             self.queue_queries([query])
         else:
@@ -469,20 +592,27 @@ class sqliteTableSchema(object):
         return [item['options'] for item in self.items]
 
 
-def make_insert_from_dict(tablename, insert_dict, replace=True, db_type='sqlite'):
+def make_insert_from_dict(tablename, insert_dict, **kwargs):
+    settings = {
+        'replace':True,
+        'update': False,
+        'db_type':'sqlite'
+    }
+    settings.update(kwargs)
+
     values = []
     valuenames = []
-    for key in insert_dict:
-        values.append(insert_dict[key])
+    for key,value in insert_dict.items():
+        values.append(value)
         valuenames.append(key)
-    if db_type == 'sqlite':
-        column_quotes = True
-        tablename_quotes = True
-    elif db_type == 'mysql':
-        column_quotes = False
-        tablename_quotes = False
+    if settings['db_type'] == 'sqlite':
+        settings['column_quotes'] = True
+        settings['tablename_quotes'] = True
+    elif settings['db_type'] == 'mysql':
+        settings['column_quotes'] = False
+        settings['tablename_quotes'] = False
 
-    insert_query = makesqliteinsert(tablename, values, valuenames=valuenames, replace=replace, column_quotes=column_quotes, tablename_quotes=tablename_quotes)
+    insert_query = makesqliteinsert(tablename, values, valuenames, **settings)
 
     return insert_query
 
@@ -587,6 +717,7 @@ def gettimespan(database, tablename, time_col='time'):
     timespan_float = timestringtoseconds(last_time_string) - timestringtoseconds(first_time_string)
     return {'days':timespan_float / 3600 / 24, 'hours':timespan_float/3600, 'minutes':timespan_float/60, 'seconds':timespan_float}
 
+
 def process_pragma(pragma):
     pragmadictlist = []
     for item in pragma:
@@ -599,8 +730,8 @@ def process_pragma(pragma):
     return pragmadictlist
 
 
-def getpragma(database, table, **kwargs):
-    pragma = sqlitequery(database, 'pragma table_info ( \'' + table + '\')', **kwargs)['data']
+def getpragma(database_path, table, **kwargs):
+    pragma = sqlitequery(database_path, 'pragma table_info ( \'' + table + '\')', **kwargs)['data']
     pragmadictlist = process_pragma(pragma)
     return pragmadictlist
 
@@ -848,12 +979,23 @@ def dropcreatetexttablefromdict(databasename, tablename, dictordictarray, **kwar
 
 
 # TODO: REname this and take db type input here inside of at higher level
-def makesqliteinsert(table, valuelist, valuenames=None, replace=True, column_quotes=True, tablename_quotes=True):
-    if replace:
+def makesqliteinsert(table, valuelist, valuenames=None, **kwargs):
+    settings = {
+        'replace':True,
+        'update':False,
+        'column_quotes':True,
+        'tablename_quotes':True
+    }
+    settings.update(kwargs)
+
+    if settings['update']:
+        settings['replace'] = False
+
+    if settings['replace']:
         query = 'replace into '
     else:
         query = 'insert into '
-    if tablename_quotes:
+    if settings['tablename_quotes']:
         query += "'" + table + "'"
     else:
         query += table
@@ -861,7 +1003,7 @@ def makesqliteinsert(table, valuelist, valuenames=None, replace=True, column_quo
     if valuenames:
         query += ' ('
         for valuename in valuenames:
-            if column_quotes:
+            if settings['column_quotes']:
                 query += "'" + str(valuename) + "',"
             else:
                 query += '{},'.format(valuename)
@@ -871,14 +1013,25 @@ def makesqliteinsert(table, valuelist, valuenames=None, replace=True, column_quo
     query += ' values ('
 
     for value in valuelist:
-        strvalue = str(value).replace("'","''")
-        query += "'" + strvalue + "',"
+        strvalue = str(value).replace("'","''").encode('utf-8').decode('utf-8')
+        query += "'{}',".format(strvalue)
     query = query[:-1] + ')'
+
+    # For now, we are going to assume that the first valuename is the primary key and should be skipped
+    # If we wanted a straight update on a known existing row, we would have run a straight setvalue
+    # If we wanted a stright create or replace with a full entry, we would have just run replace. Here, we have a
+    # partial entry we want updated, which may or may not exist. Kind of an edge case, but an important one.
+    if settings['update']:
+        query += 'ON DUPLICATE KEY UPDATE '
+        for valuename in valuenames[1:]:
+            query += '{}=values({}),'.format(valuename, valuename)
+
+        query = query[:-1]
     return query
 
 
 def sqliteinsertsingle(database, table, valuelist, valuenames=None, replace=True, **kwargs):
-    query = makesqliteinsert(table, valuelist, valuenames, replace)
+    query = makesqliteinsert(table, valuelist, valuenames, replace=replace)
     result = sqlitequery(database, query, **kwargs)
 
     return result
@@ -886,7 +1039,14 @@ def sqliteinsertsingle(database, table, valuelist, valuenames=None, replace=True
 
 def sqlitemultquery(database, querylist, **kwargs):
     import sqlite3 as lite
-    settings = {'break_on_error': False, 'quiet': False, 'timeout': 10}
+
+    settings = {
+        'break_on_error': False,
+        'quiet': False,
+        'timeout': 10,
+        'row_factory':False
+    }
+
     settings.update(kwargs)
 
     # if not settings['quiet']:
@@ -901,6 +1061,16 @@ def sqlitemultquery(database, querylist, **kwargs):
     statuses = []
     with con:
         cur = con.cursor()
+
+        if settings['row_factory']:
+            def dict_factory(cursor, row):
+                d = {}
+                for idx, col in enumerate(cursor.description):
+                    d[col[0]] = row[idx]
+                return d
+
+            con.row_factory = dict_factory
+
         data = []
         message = ''
         status = 0
@@ -941,14 +1111,19 @@ def sqlitequery(database, query, **kwargs):
     import traceback
     import time
 
-    settings = {'timeout':3, 'quiet':False, 'timeout_retry':0.5}
+    settings = {
+        'timeout':3,
+        'quiet':False,
+        'timeout_retry':0.5,
+        'col_detect':None,
+        'row_factory':False
+    }
     settings.update(kwargs)
 
     # if not settings['quiet']:
     #     print('Quiet: {} on db {}, query {}'.format(settings['quiet'], database, query))
 
-    con = lite.connect(database, timeout=settings['timeout'])
-    con.text_factory = str
+
 
     # So TABLE locks will automatically retry. Database locks will not. This means we have to do our own wrapping.
 
@@ -958,11 +1133,30 @@ def sqlitequery(database, query, **kwargs):
     message = ''
     while not complete:
         try:
+            if settings['col_detect'] == 'names':
+                con = lite.connect(database, timeout=settings['timeout'], detect_types=lite.PARSE_DECLTYPES)
+            elif settings['col_detect'] == 'types':
+                con = lite.connect(database, timeout=settings['timeout'], detect_types=lite.PARSE_COLNAMES)
+            else:
+                con = lite.connect(database, timeout=settings['timeout'])
+
+            con.text_factory = str
+            if settings['row_factory']:
+                def dict_factory(cursor, row):
+                    d = {}
+                    for idx, col in enumerate(cursor.description):
+                        d[col[0]] = row[idx]
+                    return d
+                con.row_factory = dict_factory
+
+
             with con:
                 cur = con.cursor()
                 cur.execute(query)
                 data = cur.fetchall()
                 # cur.close()
+            con.close()
+
         except:
             data = ''
             trace_message = traceback.format_exc()
@@ -1042,7 +1236,7 @@ def getsinglevalue(database, table, valuename, **kwargs):
 
 
 def makegetsinglevaluequery(table, valuename, condition=None):
-    query = 'select \"' + valuename + '\" from \'' + table + '\''
+    query = 'select "{}" from \'{}\''.format(valuename, table)
     if isinstance(condition, dict):
         try:
             conditionnames = condition['conditionnames']
@@ -1063,8 +1257,11 @@ def sqlitedeleteitem(database, table, condition=None):
     sqlitequery(database, query)
 
 
-def makedeletesinglevaluequery(table, condition=None):
-    query = "delete from '" + table + "'"
+def makedeletesinglevaluequery(table, condition=None, tablequotes=True):
+    if tablequotes:
+        query = "delete from '" + table + "'"
+    else:
+        query = "delete from {}".format(table)
     if condition:
         if isinstance(condition, dict):
             try:
@@ -1088,31 +1285,124 @@ def readalldbrows(database, table, **kwargs):
 
     settings = {
         'condition':None,
-        'includerowids':True
+        'includerowids':True,
+        'combined_pragma_query':True,
+        'row_factory':False
     }
     settings.update(kwargs)
 
     query = "select * from '" + table + "'"
+
+    if 'length' in settings:
+        query += ' LIMIT {} '.format(settings['length'])
+    if 'start' in settings:
+        query += ' OFFSET {} '.format(settings['start'])
+
     if settings['condition']:
         query += ' where ' + settings['condition']
 
-    data = sqlitequery(database, query, **settings)['data']
+    # print(query)
 
-    pragmanames = getpragmanames(database, table, **settings)
+    if settings['row_factory']:
+        data = sqlitequery(database, query, **settings)['data']
+
+        # print('data of length {}'.format(len(data)))
+        if not data:
+            return {'dict_array': [], 'keyed_dict': {}, 'indexed_key': None, 'is_primary': False}
+
+    elif settings['combined_pragma_query']:
+        queries = [query]
+        queries.append('pragma table_info ( \'' + table + '\')')
+        all_data = sqlitemultquery(database, queries, **settings)['data']
+        data = all_data[0]
+        if not data:
+            return {'dict_array': [], 'keyed_dict': {}, 'indexed_key': None, 'is_primary': False}
+
+        pragma = process_pragma(all_data[1])
+
+
+    else:
+        data = sqlitequery(database, query, **settings)['data']
+
+        # print('data of length {}'.format(len(data)))
+        if not data:
+            return {'dict_array': [], 'keyed_dict': {}, 'indexed_key': None, 'is_primary': False}
+
+        pragma = getpragma(database, table, **settings)
+
+    if settings['row_factory']:
+        # Just assume first key is primary. Not tested. With this we dont' get pragma. We also don't get types
+        # print(data[0])
+        these_keys = list(data[0].keys())
+        primary_key = these_keys[0]
+        is_primary = False
+    else:
+        is_primary = False
+        primary_key = pragma[0]['name']
+        pragma_names = []
+        for pragma_item in pragma:
+            # print(pragma_item)
+            if pragma_item['primary']:
+                primary_key = pragma_item['name']
+                is_primary = True
+            pragma_names.append(pragma_item['name'])
+
 
     dictarray = []
+    keyed_dict = {}
     for row in data:
-        dict = {}
-        for index,(datum, pragmaname) in enumerate(zip(row, pragmanames)):
-            dict[pragmanames[index]] = datum
-        dictarray.append(dict)
+        if settings['row_factory']:
+            dict = row
+        else:
+            dict = {}
+            for datum, pragma_name in zip(row, pragma_names):
+                dict[pragma_name] = datum
+            dictarray.append(dict)
+        keyed_dict[dict[primary_key]] = dict
 
-    return dictarray
+    return {'dict_array':dictarray, 'keyed_dict':keyed_dict, 'indexed_key':primary_key, 'is_primary':is_primary}
 
 
-def makegetallrowsquery(tablename):
+def makegetallrowsquery(tablename, **kwargs):
+    settings = {
+        'condition':None,
+
+    }
+    settings.update(kwargs)
     query = "select * from '" + tablename + "'"
+
+    query = "select * from '" + table + "'"
+
+    if 'length' in settings:
+        query += ' LIMIT {} '.format(settings['length'])
+    if 'start' in settings:
+        query += ' OFFSET {} '.format(settings['start'])
+
+    if settings['condition']:
+        query += ' where ' + settings['condition']
+
     return query
+
+
+def makegetallrowswithpragmaquery(tablename, **kwargs):
+    settings = {
+        'condition':None,
+    }
+    settings.update(kwargs)
+
+    table_query = "select * from '{}'".format(tablename)
+
+    if 'length' in settings:
+        table_query += ' LIMIT {} '.format(settings['length'])
+    if 'start' in settings:
+        table_query += ' OFFSET {} '.format(settings['start'])
+
+    if settings['condition']:
+        table_query += ' where {}'.format(settings['condition'])
+
+    pragma_query = "pragma table_info ( '{}')".format(tablename)
+
+    return[table_query, pragma_query]
 
 
 def getentiredatabase(databasename, method='nometa'):
@@ -1191,7 +1481,7 @@ def emptyandsetdefaults(database, tablename):
 # Two arguments = range of rows
 
 
-def dynamicsqliteread(database, table, **kwargs):
+def dynamicsqliteread(database_path, table, **kwargs):
 
     settings = {
         'start':None,
@@ -1201,11 +1491,11 @@ def dynamicsqliteread(database, table, **kwargs):
     settings.update(kwargs)
 
     if settings['length'] is None and settings['start'] is None:
-        dictarray = readalldbrows(database, table, **kwargs)
+        dictarray = readalldbrows(database_path, table, **kwargs)['dict_array']
     elif settings['length'] is None:
-        dictarray = readonedbrow(database, table, **kwargs)
+        dictarray = readonedbrow(database_path, table, **kwargs)
     else:
-        dictarray = readsomedbrows(database, table, **kwargs)
+        dictarray = readsomedbrows(database_path, table, **kwargs)
 
     return dictarray
 
@@ -1393,17 +1683,22 @@ def sqlitedatadump(databasename, tablelist, outputfilename, limit=None):
 
 
 def setsinglevalue(database, table, valuename, value, condition=None):
-    query = makesinglevaluequery(table, valuename, value, condition)
+    query = makesqlitesinglevaluequery(table, valuename, value, condition)
     response = sqlitequery(database, query)['data']
     return response
 
 
-def makesinglevaluequery(table, valuename, value, condition=None):
-    query = 'update ' + "'" + table + '\' set "' + valuename + '"=\'' + str(value) + "'"
+def makesqlitesinglevaluequery(table, valuename, value, condition=None):
+    query = 'update {} set "{}"=\'{}\''.format(table, valuename, value)
     if condition:
         query += ' where ' + condition
     return query
 
+def makemysqlsinglevaluequery(table, valuename, value, condition=None):
+    query = 'update {} set {}=\'{}\''.format(table, valuename, value)
+    if condition:
+        query += ' where ' + condition
+    return query
 
 def readonedbrow(database, table, **kwargs):
     settings = {
@@ -1432,30 +1727,36 @@ def readsomedbrows(database, table, **kwargs):
     settings = {
         'condition':None,
         'start':0,
-        'length':1
+        'length':1000,
+        'reverse':False
     }
     settings.update(kwargs)
 
-    # User specifies length of data, and where to start, in terms of row index
-    # If a negative number is the start argument, data is retrieved from the end of the data
+    """
+    User specifies length of data, and where to start, in terms of row index
 
-    if settings['start'] >= 0:
-        query = "select * from '" + table + "' limit " + str(settings['start']) + ',' + str(settings['length'])
+    Select statement has format:
+    
+    'select * from table limit LENGTH, offset OFFSET'
+    
+    This is pretty confusing, as if you omit the directive, the syntax is reversed: 
+    
+    'select * from table limit OFFSET, LENGTH
+    
+    This used to take a negative start argument, which would sort in descending. This was removed, as -0 is not a 
+    thing and thus the last row was not readable with a reverse statement. Instead, now we pss the keyword revers.
+    
+    """
+
+    if settings['reverse']:
+        query = "select * from '{}' DESC LIMIT {} OFFSET {}".format(table, settings['length'], settings['start']) + str(settings['start'])
     else:
-        query = "select * from '" + table + "' order by rowid desc " + " limit " + str(settings['length'])
+        query = "select * from '{}' LIMIT {} OFFSET {}".format(table, settings['length'], abs(settings['start'])) + str(settings['start'])
     # print(query)
     if settings['condition']:
         query += ' where ' + settings['condition']
 
     datarows = sqlitequery(database, query, **settings)['data']
-
-    # This is the old code. Requires retrieving the entire table
-
-    # Start < 0 retrieves from end of list
-    # if start < 0:
-    #     datarows = data[len(data)-length:len(data)-1]
-    # else:
-    #     datarows = data[int(start):int(start + length)]
 
     pragmanames = getpragmanames(database, table)
 
@@ -1498,18 +1799,70 @@ def dbvntovalue(dbvn, interprettype=False, **kwargs):
 
     return value
 
+
+def test_db_read(**kwargs):
+
+    settings = {
+        'iterations':10,
+        'mode':'pragma',
+        'database_path':'/var/www/data/control.db',
+        'tablename':'inputs'
+    }
+    settings.update(kwargs)
+
+    database = sqliteDatabase(settings['database_path'])
+
+    if settings['mode'] == 'pragma':
+        import datetime
+
+        modes = ['standard', 'combined']
+
+        results = {}
+        results['times'] = {}
+        results['fails'] = {}
+        results['average_times'] = {}
+
+        for mode in modes:
+            results['times'][mode] = []
+            results['fails'][mode] = 0
+            results['average_times'][mode] = 0
+
+        for mode,combined_query in zip(modes, [False, True]):
+            for i in range(settings['iterations']):
+                start_time = datetime.datetime.now()
+                try:
+                    query_result = database.read_table(settings['tablename'], combined_pragma_query=combined_query)
+                except:
+                    print("FAIL")
+                    results['fails'][mode] += 1
+
+                elapsed_time = (datetime.datetime.now()-start_time).total_seconds()
+                results['times'][mode].append(elapsed_time)
+
+            results['average_times'][mode] = sum(results['times'][mode]) / float(len(results['times'][mode]))
+
+
+
+        return results
+
+
 """
 Mariadb implementation (experimental), designed for python3
 """
 
 class mysqlDB(object):
 
+    # TODO : Integrate queue functions as with sqlite.
     def __init__(self, **kwargs):
 
         settings = {
-            'type':'mysql'
+            'type':'mysql',
+            'debug':False
         }
         settings.update(kwargs)
+        self.settings = settings
+
+        self.queued_queries = []
 
         #mysql, sqlite
         setattr(self, 'db_type', settings['type'])
@@ -1523,10 +1876,22 @@ class mysqlDB(object):
                 setattr(self, argument, kwargs[argument])
 
     def query(self, query):
+
+        """
+        TODO : Incorporate database settings into self.settings
+
+        :param query:
+        :return:
+        """
+
         import pymysql
         import pymysql.cursors
         mariadb_connection = pymysql.connect(host='localhost', user=self.user, password=self.password, database=self.database,charset='utf8mb4',cursorclass=pymysql.cursors.DictCursor)
         cursor = mariadb_connection.cursor()
+
+        if self.settings['debug']:
+            print('DEBUG MODE IS ON')
+            print(query)
         cursor.execute(query)
 
         data = []
@@ -1553,14 +1918,87 @@ class mysqlDB(object):
                 tablenames.append(result[key])
         return tablenames
 
-    def read_table(self, tablename):
-        result = self.query('select * from {}'.format(tablename))['data']
+    def read_table(self, tablename, **kwargs):
+
+        """
+        TODO: Work on self.settings and condition here. Should be same in both sqlite and mysql for compatibility
+
+        BIG DIFFERENCE HERE : MYSQL DOES NOT REQUIRE ADDING PRAGMA BACK IN: IT RETURNS DATA AS A DICTIONARY NATIVELY
+
+        :param tablename:
+        :param kwargs:
+        :return:
+        """
+        if 'condition' not in kwargs and 'condition' in self.settings:
+            del self.settings['condition']
+        self.settings.update(kwargs)
+
+        query = 'select * from {}'.format(tablename)
+        if 'condition' in kwargs and kwargs['condition']:
+            query += ' where ' + kwargs['condition']
+
+        result = self.query(query)['data']
         return result
+
+    def read_tables(self, tablenames, **kwargs):
+
+        """
+        TODO: Work on self.settings and condition here. Should be same in both sqlite and mysql for compatibility
+
+        BIG DIFFERENCE HERE : MYSQL DOES NOT REQUIRE ADDING PRAGMA BACK IN: IT RETURNS DATA AS A DICTIONARY NATIVELY
+
+        :param tablename:
+        :param kwargs:
+        :return:
+        """
+        if 'condition' not in kwargs and 'condition' in self.settings:
+            del self.settings['condition']
+        self.settings.update(kwargs)
+
+        queries = []
+        for index, tablename in enumerate(tablenames):
+            query = 'select * from {}'.format(tablename)
+
+            # condition to apply to all
+            if 'condition' in kwargs and kwargs['condition']:
+                query += ' where ' + kwargs['condition']
+            elif 'conditions' in kwargs and kwargs['conditions']:
+                try:
+                    condition = kwargs['conditions'][index]
+                except:
+                    condition = None
+                else:
+                    query += ' where ' + kwargs['condition']
+
+            queries.append(query)
+
+        results = self.queries(queries)
+
+        return_data = {}
+        for tablename, result in zip(tablenames, results['data']):
+            return_data[tablename] = result
+
+        # result = self.query(query)['data']
+        return return_data
+
+    def delete(self, tablename, condition, queue=False):
+        query = makedeletesinglevaluequery(tablename, condition, tablequotes=False)
+        if queue:
+            self.queue_queries([query])
+        else:
+            self.query(query)
+
+    def read_database(self):
+        tablenames = self.get_table_names()
+        result = self.read_tables(tablenames)
+        return result
+
 
     def insert(self, tablename, insert, **kwargs):
         settings = {
             'replace':True,
-            'queue':False
+            'queue':False,
+            'update':False
         }
         settings.update(kwargs)
 
@@ -1569,7 +2007,7 @@ class mysqlDB(object):
 
         # Insert can be single insert or list (or falsy to insert defaults)
         if not insert:
-            queries = ["insert into '" + tablename + "'default values"]
+            queries = ["insert into '{}' default values".format(tablename)]
         else:
             if not (isinstance(insert, list)):
                 insert_list = [insert]
@@ -1578,7 +2016,7 @@ class mysqlDB(object):
 
             queries = []
             for insert in insert_list:
-                query = make_insert_from_dict(tablename, insert, db_type=self.db_type)
+                query = make_insert_from_dict(tablename, insert, db_type=self.db_type, **settings)
                 queries.append(query)
 
         if settings['queue']:
@@ -1588,11 +2026,190 @@ class mysqlDB(object):
 
         return queries
 
+    def set_single_value(self, tablename, valuename, value, **kwargs):
+        settings = {
+            'condition': None,
+            'queue': False
+        }
+        settings.update(kwargs)
+        query = makemysqlsinglevaluequery(tablename, valuename, value, settings['condition'])
+        if settings['queue']:
+            self.queue_queries([query])
+        else:
+            result = self.query(query)
+            return result
+
     # TODO: Make this an actual mult query
     def queries(self, queries):
-        results = []
+
+        """
+        TODO : Incorporate database settings into self.settings
+
+        :param query:
+        :return:
+        """
+
+        import pymysql
+        import pymysql.cursors
+        mariadb_connection = pymysql.connect(host='localhost', user=self.user, password=self.password,
+                                             database=self.database, charset='utf8mb4',
+                                             cursorclass=pymysql.cursors.DictCursor)
+        cursor = mariadb_connection.cursor()
+
+        data = []
         for query in queries:
-            print(query)
-            result = self.query(query)
-            results.append(result)
-        return results
+            if self.settings['debug']:
+                print('DEBUG MODE IS ON')
+                print(query)
+            cursor.execute(query)
+
+            this_data = []
+            for row in cursor:
+                this_data.append(row)
+
+            data.append(this_data)
+
+        # try:
+        # cursor.execute("INSERT INTO employees (first_name,last_name) VALUES (%s,%s)", ('Maria', 'DB'))
+        # except mariadb.Error as error:
+        #     print("Error: {}".format(error))
+        #     return_dict = {'status':1, 'error':format(error), 'data':None}
+        #
+        # else:
+        return_dict = {'status': 0, 'error': None, 'data': data}
+        mariadb_connection.commit()
+        mariadb_connection.close()
+        return return_dict
+
+    def create_table(self, tablename, table_schema, **kwargs):
+
+        settings = {
+            'replace': True,
+            'queue': False,
+            'collate':None
+        }
+        settings.update(kwargs)
+
+        query = "create table {} ( ".format(tablename)
+        for index, item in enumerate(table_schema):
+            query += '{} {}'.format(item['name'], item['type'])
+            if 'autoincrement' in item and item['autoincrement']:
+                query += ' auto_increment'
+            if 'not_null' in item and item['not_null']:
+                query += ' not null'
+            if 'unique' in item and item['unique']:
+                query += ' unique'
+            if 'default' in item:
+                query += " default '{}'".format(item['default'])
+            if index < len(table_schema) - 1:
+                query += ', '
+
+        for index, item in enumerate(table_schema):
+            if 'primary' in item and item['primary']:
+                query += ', primary key ({})'.format(item['name'])
+
+        query += ')'
+
+        if settings['collate']:
+            query += ' collate {}'.format(settings['collate'])
+        if settings['queue']:
+            self.queue_queries([query])
+        else:
+            self.query(query)
+
+    def drop_table(self, name, queue=False, **kwargs):
+
+        self.settings.update(kwargs)
+        drop_query = "drop table {}".format(name)
+        if queue:
+            self.queue_queries([drop_query])
+        else:
+            self.query(drop_query)
+
+    def empty_table(self, name, queue=False, **kwargs):
+
+        self.settings.update(kwargs)
+        empty_query = 'delete from {}'.format(name)
+        if queue:
+            self.queue_queries(empty_query)
+        else:
+            self.query(empty_query)
+
+    def execute_queue(self, clear_queue=True, **kwargs):
+        return_dict = {'status': 0, 'error': None, 'status_message':''}
+        self.settings.update(kwargs)
+        if self.queued_queries:
+            return_dict = self.queries(self.queued_queries)
+        if clear_queue:
+            self.clear_queue()
+        return return_dict
+
+    def clear_queue(self):
+        self.queued_queries = []
+
+    def queue_query(self, query):
+        self.queued_queries.append(query)
+
+    def queue_queries(self, queries):
+        self.queued_queries.extend(queries)
+
+    # def query(self, query, **kwargs):
+    #     self.settings.update(kwargs)
+    #     result = sqlitequery(self.path, query, **self.settings)
+    #     return result
+    #
+    # def queries(self, queries):
+    #     result = sqlitemultquery(self.path, queries, **self.settings)
+    #     return result
+
+def test_col_returns(**kwargs):
+
+    settings = {
+        'database':None
+    }
+    settings.update(kwargs)
+    if not settings['database']:
+        print('NO DATABSE PATH provided as parameter database')
+        return
+
+    this_db = sqliteDatabase(settings['database'])
+    tablenames = this_db.get_table_names()
+    print(tablenames)
+
+    import numpy
+
+    iterations = 10
+    print('NORMAL')
+    times = []
+    for i in range(iterations):
+        read_result = this_db.read_tables(tablenames, row_factory=False, timing=True, only_timing=True)
+        times.append(read_result)
+
+    array = numpy.array(times)
+    print('MEAN \t{:.5f}\t\tSTDEV\t{:.5f}'.format(numpy.mean(array), numpy.std(array)))
+
+    times = []
+    for i in range(iterations):
+        read_result = this_db.read_table(tablenames[0], row_factory=False, timing=True, only_timing=True)
+        times.append(read_result)
+
+    array = numpy.array(times)
+    print('MEAN \t{:.5f}\t\tSTDEV\t{:.5f}'.format(numpy.mean(array), numpy.std(array)))
+
+    print('ROW FACTORY')
+    times = []
+    for i in range(iterations):
+        read_result = this_db.read_tables(tablenames, row_factory=True, timing=True, only_timing=True)
+        times.append(read_result)
+
+    array = numpy.array(times)
+    print('MEAN \t{:.5f}\t\tSTDEV\t{:.5f}'.format(numpy.mean(array), numpy.std(array)))
+
+    times = []
+    for i in range(iterations):
+        read_result = this_db.read_table(tablenames[0], row_factory=True, timing=True, only_timing=True)
+        times.append(read_result)
+
+    array = numpy.array(times)
+    print('MEAN \t{:.5f}\t\tSTDEV\t{:.5f}'.format(numpy.mean(array), numpy.std(array)))
+

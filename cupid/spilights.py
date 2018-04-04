@@ -203,8 +203,7 @@ def getCuPIDlightsentries(table, CS, previndicators=None):
 
     if not previndicators:
         from pilib import dirs
-        from iiutilities.dblib import readalldbrows
-        previndicators = readalldbrows(dirs.dbs.control, 'indicators')
+        previndicators = dirs.dbs.control.read_table('indicators')
 
     previndicatornames = []
     previndicatorvalues = []

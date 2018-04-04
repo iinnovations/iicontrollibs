@@ -61,9 +61,13 @@ def updateiodata(**kwargs):
 
     db_settings = {}
 
+    # We could grab these dbs directly from pilib, but we can pass settings such as debug by recreating here.
+    # Would be nice to have a good way of doing this. Perhaps a global debug option that reinitializes pilib dbs
+    # when set_debug is called?
+
     logconfig = pilib.reload_log_config(**settings)
     control_db = pilib.cupidDatabase(pilib.dirs.dbs.control, **settings)
-    systemdb = pilib.cupidDatabase(pilib.dirs.dbs.system, **settings)
+    system_db = pilib.cupidDatabase(pilib.dirs.dbs.system, **settings)
 
     io_info = control_db.read_table('ioinfo')
 
@@ -104,8 +108,15 @@ def updateiodata(**kwargs):
     # We drop all inputs and outputs and recreate
     # Add all into one query so there is no time when the IO don't exist.
 
-    control_db.empty_table('inputs',queue=True)
-    control_db.empty_table('outputs',queue=True)
+    # For now we are going to keep the old entries. This way if we are not reading due to periodicity, they don't
+    # go away. We will need to find a cleanup function to get rid of old stale shit.
+    # For now, the newly inserted inputs will overwrite based on primary key.
+
+    # control_db.empty_table('inputs',queue=True)
+    # control_db.insert('input', last_data.inputs)
+
+    # control_db.empty_table('outputs',queue=True)
+    # control_db.insert('outputs', last_data.outputs)
 
     '''
     This is temporary. Clearing the table here and adding entries below can result in a gap in time
@@ -116,7 +127,7 @@ def updateiodata(**kwargs):
     '''
 
     # We drop this table, so that if SP1 has been disabled, the entries do not appear as valid indicators
-    control_db.empty_table('indicators')
+    control_db.empty_table('indicators', queue=True)
 
     owfsupdate = False
     # Unfortunately, we need to keep track of the IDs we are creating, so we don't run them over as we go
@@ -283,7 +294,6 @@ def updateiodata(**kwargs):
                 """
 
                 readtime = datalib.gettimestring()
-                options = []
                 try:
                     options = datalib.parseoptions(interface['options'])
                     # print(options['formula'])
@@ -560,7 +570,7 @@ def updateiodata(**kwargs):
                                 3, pilib.loglevels.io)
 
                     try:
-                        mbentries = processMBinterface(control_db, interface, last_data, io_info, defaults)
+                        mb_inserts = processMBinterface(control_db, interface, last_data, io_info, defaults)
                     except:
                         utility.log(pilib.dirs.logs.io,
                                                'Error processing MBTCP interface ' + interface['name'], 0,
@@ -571,7 +581,7 @@ def updateiodata(**kwargs):
                     else:
                         utility.log(pilib.dirs.logs.io,'Done processing MBTCP interface ' + interface['name'], 3,
                                     pilib.loglevels.io)
-                        control_db.queue_queries(mbentries)
+                        control_db.insert('inputs', mb_inserts, queue=True)
             else:
                 utility.log(pilib.dirs.logs.io, 'LAN Interface ' + interface['name'] + ' disabled', 3, pilib.loglevels.io)
         elif interface['interface'] == 'GPIO':
@@ -651,7 +661,7 @@ def updateiodata(**kwargs):
                 utility.log(pilib.dirs.logs.io, 'SPI1 disaabled', 1, pilib.loglevels.io)
 
     # Set tables
-    systemdb.set_single_value('systemstatus', 'lastupdateiopoll', datalib.gettimestring())
+    system_db.set_single_value('systemstatus', 'lastupdateiopoll', datalib.gettimestring())
 
     if owfsupdate:
         from iiutilities.owfslib import runowfsupdate
@@ -903,7 +913,6 @@ def processlabjackinterface(control_db, interface, last_data, ioinfos):
      incompatibly.
     '''
 
-    from iiutilities.dblib import readalldbrows
     from cupid import pilib
 
     '''
@@ -988,7 +997,7 @@ def mbid_from_entry(entry):
 def processMBinterface(control_db, interface, last_data, io_info, defaults):
 
     from iiutilities.netfun import readMBcodedaddresses, MBFCfromaddress
-    from iiutilities import dblib, utility, datalib
+    from iiutilities import utility, datalib
 
     previnputids = [previnput['id'] for previnput in last_data.inputs]
 
@@ -996,23 +1005,25 @@ def processMBinterface(control_db, interface, last_data, io_info, defaults):
     # get all modbus reads that have the same address from the modbus table
     try:
         modbustable = control_db.read_table('modbustcp')
+        inputstable = control_db.read_table('inputs')
     except:
         utility.log(pilib.dirs.logs.io, 'Error reading modbus table', 0, pilib.loglevels.io)
         modbustable = []
     else:
         utility.log(pilib.dirs.logs.io, 'Read modbus table', 4, pilib.loglevels.io)
 
-    querylist = []
+    inserts = []
     for entry in modbustable:
         # Get name from ioinfo table to give it a colloquial name
         # First we have to give it a unique ID. This is a bit difficult with modbus
 
         mbid = mbid_from_entry(entry)
 
-
         utility.log(pilib.dirs.logs.io, 'Modbus ID: ' + mbid, 4, pilib.loglevels.io)
 
         mb_meta = get_or_insert_iface_metadata(mbid, io_info, control_db)
+
+        # print(' I retrieved a name of {} for entry {}'.format(mb_meta['name'], mbid))
         mb_name = mb_meta['name']
 
         polltime = datalib.gettimestring()
@@ -1059,15 +1070,19 @@ def processMBinterface(control_db, interface, last_data, io_info, defaults):
                     else:
                         readlength = entry['length']
                     readresult = readMBcodedaddresses(interface['address'], entry['register'], readlength, boolean_to_int=True)
+                    print('READ RESULT')
+                    print(readresult)
 
                 except:
-                    utility.log(pilib.dirs.logs.io, 'Uncaught error reading modbus value', 0, pilib.loglevels.io)
+                    import traceback
+                    print(traceback.format_exc())
+                    utility.log(pilib.dirs.logs.io, 'Uncaught error reading modbus value: {}'.format(traceback.format_exc()), 0, pilib.loglevels.io)
                 else:
                     if readresult['statuscode'] == 0:
                         values = readresult['values']
 
                         value = bytestovalue(values, entry['format'])
-                        # print(value)
+                        print(value)
 
                         if entry['options']:
                             options = datalib.parseoptions(entry['options'])
@@ -1118,14 +1133,16 @@ def processMBinterface(control_db, interface, last_data, io_info, defaults):
 
 
                         # Contruct entry for newly acquired data
-                        newquery = dblib.makesqliteinsert('inputs', [mbid,interface['id'],
-                            interface['type'],str(entry['register']),mb_name,str(value),'',str(polltime), str(pollfreq), ontime,offtime])
-                        # print(newquery)
-                        querylist.append(newquery)
-                        # Old dirty way
-                        # querylist.append('insert into inputs values (\'' + mbid + "','" + interface['id'] + "','" +
-                        #     interface['type'] + "','" + str(entry['register']) + "','" + mbname + "','" + str(
-                        #     value) + "','','" + str(polltime) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
+                        # newquery = dblib.makesqliteinsert('inputs', [mbid,interface['id'],
+                        #     interface['type'],str(entry['register']),mb_name,str(value),'',str(polltime), str(pollfreq), ontime,offtime])
+                        # # print(newquery)
+                        # querylist.append(newquery)
+
+                        insert = {'id': mbid, 'interface': interface['interface'], 'type': interface['type'],
+                                  'address': str(entry['register']), 'name': mb_meta['name'],
+                                  'value': str(value), 'polltime': polltime, 'pollfreq': str(pollfreq),
+                                  'ontime': ontime, 'offtime': offtime}
+                        inserts.append(insert)
 
                     else:
                         status_message = 'Statuscode ' + str(readresult['statuscode']) + ' on MB read : ' + readresult[
@@ -1135,20 +1152,15 @@ def processMBinterface(control_db, interface, last_data, io_info, defaults):
 
 
                         # restore previous value and construct entry if it existed (or not)
-                        input_entry = {'id':mbid, 'interface':interface['interface'], 'type':interface['type'],
+                        insert = {'id':mbid, 'interface':interface['interface'], 'type':interface['type'],
                                                               'address':str(entry['register']), 'name':mb_meta['name'],
                                        'value':str(prevvalue), 'polltime':str(prevpolltime), 'pollfreq':str(pollfreq),
                                                                                 'ontime':ontime, 'offtime':offtime}
-                        query = dblib.make_insert_from_dict('inputs', input_entry)
-                        querylist.append(query)
-                        # querylist.append('insert into inputs values (\'' + mbid + "','" + interface['interface'] + "','" +
-                        #     interface['type'] + '\',\'' + str(entry['register']) + "','" + mb_meta['name'] + "','" +
-                        #                  str(prevvalue) + "','','" + str(prevpolltime) + '\',\'' + str(pollfreq) + "','" + ontime + "','" + offtime + "')")
+                        inserts.append(insert)
 
+    utility.log(pilib.dirs.logs.io, 'Querylist: {}'.format(inserts), 4, pilib.loglevels.io)
 
-    utility.log(pilib.dirs.logs.io, 'Querylist: ' + str(querylist), 4, pilib.loglevels.io)
-
-    return querylist
+    return inserts
 
 
 def processGPIOinterface(control_db, interface, last_data, io_info, defaults, **kwargs):

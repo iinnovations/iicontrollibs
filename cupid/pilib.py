@@ -150,7 +150,7 @@ schema.channel = dblib.sqliteTableSchema([
     {'name': 'pending'}
 ])
 schema.input = dblib.sqliteTableSchema([
-    {'name': 'id', 'options': 'primary'},
+    {'name': 'id', 'primary':True},
     {'name': 'interface'},
     {'name': 'type'},
     {'name': 'address'},
@@ -195,6 +195,14 @@ schema.mote = dblib.sqliteTableSchema([
     {'name':'time'},
     {'name':'message','primary':True},
     {'name':'value'}
+])
+schema.users = dblib.sqliteTableSchema([
+    {'name':'id','type':'integer', 'primary':True},
+    {'name':'name'},
+    {'name':'password'},
+    {'name':'email'},
+    {'name':'temp'},
+    {'name':'authlevel','type':'integer','default':0}
 ])
 
 """
@@ -297,7 +305,6 @@ def processnotification(notification):
             message += 'Message sent:\t ' + senttime + '\r\n'
 
             if 'email' in options:
-                print('i found emai')
                 try:
                     email = options['email']
                     actionmail = utility.gmail(message=message, subject=subject, recipient=email)
@@ -617,9 +624,8 @@ Authlog functions
 def checklivesessions(authdb, user, expiry):
     import time
     from iiutilities.datalib import timestringtoseconds
-    from iiutilities.dblib import readalldbrows
     activesessions = 0
-    sessions = readalldbrows(authdb, 'sessions')
+    sessions = dbs.authdb.read_table('sessions')
     for session in sessions:
         sessioncreation = timestringtoseconds(session['timecreated'])
         currenttime = time.mktime(time.localtime())
@@ -828,6 +834,9 @@ def set_debug():
     print('** ENABLING DEBUG MODE **')
     for attr, value in loglevels.__dict__.items():
         setattr(loglevels, attr, 9)
+
+    for db_name in dirs.dbs.__dict__:
+        setattr(dbs, db_name, cupidDatabase(getattr(dirs.dbs, db_name), quiet=False))
 
 
 # On import, Attempt to update from database. If we are unsuccessful, the above are defaults

@@ -292,11 +292,16 @@ Control Functions
 def runalgorithm(controldbpath, recipedbpath, channelname):
     from iiutilities.datalib import timestringtoseconds, gettimestring
     from iiutilities.dblib import sqlitequery, datarowtodict
+    from iiutilities import dblib
     import time
 
     message = ''
 
     # get our details of our channel
+
+    # controldb = dblib.sqliteDatabase(controldbpath)
+    # controldb.read_table('channels', condition="name='{}'".format(channelname), queue=True)
+
     channeldata = sqlitequery(controldbpath, 'select * from channels where name=' + "'" + channelname + "'")[0]
     channeldict = datarowtodict(controldbpath, 'channels', channeldata)
     # check to see if we are running a recipe
@@ -691,10 +696,9 @@ def setchanneloutputsenabled(controldbpath, channelname, newstatus):
 
 
 def disablealloutputs():
-    from pilib import dirs
-    from iiutilities.dblib import readalldbrows
+    import pilib
 
-    outputs = readalldbrows(dirs.dbs.control,'outputs')
+    outputs = pilib.dbs.control.read_table('outputs')
 
     querylist=[]
     for output in outputs:

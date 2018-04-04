@@ -204,13 +204,13 @@ def updateowfsdevices(busdevices, myProxy=None, debug=False):
     from iiutilities import utility
 
     # get defaults
-    defaults = dblib.readalldbrows(pilib.dirs.dbs.control, 'defaults')
+    defaults = pilib.dirs.dbs.control.read_table('defaults')
     default_dict={}
     for default_item in defaults:
         default_dict[default_item['valuename']] = default_item['value']
 
     # get current entries
-    previnputs = dblib.readalldbrows(pilib.dirs.dbs.control, 'inputs')
+    previnputs = pilib.dirs.dbs.control.read_table('inputs')
 
     # Make list of IDs for easy indexing
     previnputids = []

@@ -320,10 +320,25 @@ def rotate_log_by_size(logname, numlogs=5, logsize=1024):
     return {'message': returnmessage, 'logmessage': logmessage, 'statuscode': statuscode}
 
 
-
 def insertuser(database, username, password, salt, **kwargs):
 
     from iiutilities import dblib, datalib
+    settings = {
+        'schema': dblib.sqliteTableSchema([
+            {'name':'id','type':'integer', 'primary':True},
+            {'name':'name', 'unique':True},
+            {'name':'password'},
+            {'name':'accesskeywords'},
+            {'name':'admin'},
+            {'name':'email'},
+            {'name':'temp'},
+            {'name':'authlevel','type':'integer','default':0}
+        ])
+    }
+    settings.update(kwargs)
+
+    this_database = dblib.sqliteDatabase(database)
+
     entry = {'name':username,'password':password, 'email':'','accesskeywords':'','authlevel':1,'temp':'','admin':0}
     entry.update(kwargs)
 
@@ -336,7 +351,8 @@ def insertuser(database, username, password, salt, **kwargs):
     #            {'name': 'mbertram', 'password': 'mbertram', 'email': 'info@interfaceinnovations.org',
     #             'accesskeywords': 'demo', 'authlevel': 2, 'temp': '', 'admin': 0}]
 
-    existingentries = dblib.readalldbrows(database, 'users')
+    existingentries = this_database.read_table('users')
+
     usercount = len(existingentries)
     existingindices = [existingentry['id'] for existingentry in existingentries]
     existingnames = [existingentry['id'] for existingentry in existingentries]
@@ -348,19 +364,16 @@ def insertuser(database, username, password, salt, **kwargs):
     while newindex in existingindices:
         newindex += 1
 
-    table = 'users'
-
     hashedentry = datalib.gethashedentry(entry['name'], entry['password'], salt=salt)
 
+    this_database.create_table('users', schema=settings['schema'], queue=True, migrate=True)
 
-    query = dblib.makesqliteinsert(table, [newindex, entry['name'], hashedentry, entry['email'],
-                                                    entry['accesskeywords'], entry['authlevel'], '',
-                                                    entry['admin']])
+    # insert = {'id':newindex, 'name':entry['name'], 'password':hashedentry, 'email':entry['email']}
+    entry['id'] = newindex
+    entry['password'] = hashedentry
+    this_database.insert('users', entry, queue=True)
 
-    print(database)
-    print(salt)
-    print(query)
-    dblib.sqlitequery(database, query)
+    this_database.execute_queue()
 
 
 def parsekeys(key):
@@ -840,6 +853,7 @@ def kill_proc_by_pid(pid):
     else:
         return {'status':0, 'message':'killed {}. '.format(pid)}
 
+
 def log(logfile, message, reqloglevel=1, currloglevel=1):
     # Allow passing None for logfile
     if logfile:
@@ -850,6 +864,8 @@ def log(logfile, message, reqloglevel=1, currloglevel=1):
             logfile.close()
         if currloglevel >= 9:
             print(message)
+    else:
+        print('NO LOG FILE')
 
 
 """
@@ -978,7 +994,8 @@ def writedbtabletopdf(**kwargs):
 
     from iiutilities import dblib
 
-    tabledata = dblib.readalldbrows(kwargs['database'], kwargs['tablename'])
+    this_database = dblib.sqliteDatabase(kwargs['database'])
+    tabledata = this_database.read_table(kwargs['tablename'])
 
     if tabledata:
 
