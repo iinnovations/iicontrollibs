@@ -29,7 +29,7 @@ class io_wrapper(object):
             print('You did not provide all required parameters: ' + str(self.required_properties))
         self.settings = {}
         self.settings.update(kwargs)
-        for key,value in self.settings.iteritems():
+        for key,value in self.settings.items():
             setattr(self, key, value)
 
 
@@ -44,7 +44,7 @@ class pigpiod_gpio_counter(io_wrapper):
         self.settings = {'edge':'falling', 'pullupdown':None, 'debounce_ms':20, 'event_min_ms':20,
                          'watchdog_ms':1000, 'rate_period_ms':2000, 'debug':False, 'reset_ticks':30000, 'init_counts':0}
         self.settings.update(kwargs)
-        for key,value in self.settings.iteritems():
+        for key,value in self.settings.items():
             setattr(self, key, value)
 
         self.pi.set_mode(self.gpio, pigpio.INPUT)
@@ -133,7 +133,7 @@ class pigpiod_gpio_output(io_wrapper):
         self.settings = {}
         self.settings.update(kwargs)
 
-        for key, value in self.settings.iteritems():
+        for key, value in self.settings.items():
             setattr(self, key, value)
 
         self.pi.set_mode(self.gpio, pigpio.OUTPUT)

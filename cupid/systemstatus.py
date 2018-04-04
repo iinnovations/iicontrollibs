@@ -178,9 +178,21 @@ def check_interface_status(iface_config, iface_status):
     # Check for address match
     if iface_config['mode'] in ['ap', 'static']:
         if iface_status['config']['address'] != iface_config['config']['address']:
+<<<<<<< HEAD
             # print(iface_config)
             # print(iface_status)
             new_message = 'Address mismatch. Expected {}. Found {}. '.format(iface_config['config']['address'], iface_status['config']['address'])
+=======
+<<<<<<< HEAD
+            print(iface_config)
+            print(iface_status)
+            new_message = 'Address mismatch. Expected {}. Found {}. '.format(iface_config['address'], iface_status['address'])
+=======
+            # print(iface_config)
+            # print(iface_status)
+            new_message = 'Address mismatch. Expected {}. Found {}. '.format(iface_config['config']['address'], iface_status['config']['address'])
+>>>>>>> afa40546713b70873cf3ab9f2c0c2108bff4e5ef
+>>>>>>> 0334ccc381a89fe06ca091118681e71639cf47fc
             utility.log(pilib.dirs.logs.network, new_message, 1, pilib.loglevels.network)
             return_dict['status_message'] += new_message
 
@@ -404,9 +416,21 @@ def update_net_status(lastnetstatus=None, quiet=True, ifaces_config=None, netcon
 
     if not netconfig_data:
         netconfig_data = dblib.readonedbrow(pilib.dirs.dbs.system, 'netconfig')[0]
+<<<<<<< HEAD
 
     if not ifaces_config:
 
+=======
+<<<<<<< HEAD
+
+    if not ifaces_config:
+
+=======
+
+    if not ifaces_config:
+
+>>>>>>> afa40546713b70873cf3ab9f2c0c2108bff4e5ef
+>>>>>>> 0334ccc381a89fe06ca091118681e71639cf47fc
         # Get config data
         ifaces_config = pilib.dbs.system.read_table('netifaceconfig', keyed_dict=True)
 
@@ -450,8 +474,18 @@ def update_net_status(lastnetstatus=None, quiet=True, ifaces_config=None, netcon
             this_interface_status['config']['wpastate'] = getwpaclientstatus(interface_name)
         else:
             this_interface_status['config']['wpastate'] = ''
+<<<<<<< HEAD
 
         this_interface_status_result = check_interface_status(this_interface_config, this_interface_status)
+
+        this_interface_status['status'] = this_interface_status_result['status']
+        this_interface_status['status_message'] = this_interface_status_result['status_message']
+
+
+=======
+
+        this_interface_status_result = check_interface_status(this_interface_config, this_interface_status)
+<<<<<<< HEAD
 
         this_interface_status['status'] = this_interface_status_result['status']
         this_interface_status['status_message'] = this_interface_status_result['status_message']
@@ -462,6 +496,22 @@ def update_net_status(lastnetstatus=None, quiet=True, ifaces_config=None, netcon
     TODO : Double-check no problems here with not recreating status from scratch (stale data, et.)
     """
 
+=======
+
+        this_interface_status['status'] = this_interface_status_result['status']
+        this_interface_status['status_message'] = this_interface_status_result['status_message']
+
+
+>>>>>>> 0334ccc381a89fe06ca091118681e71639cf47fc
+    """ 
+    Then write it to the table 
+    TODO : Double-check no problems here with not recreating status from scratch (stale data, et.)
+    """
+
+<<<<<<< HEAD
+=======
+>>>>>>> afa40546713b70873cf3ab9f2c0c2108bff4e5ef
+>>>>>>> 0334ccc381a89fe06ca091118681e71639cf47fc
     utility.log(pilib.dirs.logs.network, 'Sending ifaces query \n {}. '.format(ifaces_status), 5, pilib.loglevels.network)
         # print(ifacesdictarray)
     this_schema = dblib.sqliteTableSchema([

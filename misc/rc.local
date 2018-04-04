@@ -12,7 +12,7 @@
 # By default this script does nothing.
 
 # Run our boot script
-python /usr/lib/iicontrollibs/cupid/boot.py
+python3 /usr/lib/iicontrollibs/cupid/boot.py
 
 # Print the IP address
 _IP=$(hostname -I) || true

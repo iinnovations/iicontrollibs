@@ -62,10 +62,10 @@ SOCKET_SOCKET = socket.socket
 
 # Begin import game to handle Python 2 and Python 3
 try:
-    import json
+    import simplejson as json
 except ImportError:
     try:
-        import simplejson as json
+        import json
     except ImportError:
         json = None
 

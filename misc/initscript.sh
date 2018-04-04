@@ -4,6 +4,8 @@ RED='\033[0;31m'
 WHT='\033[1;37m'
 NC='\033[0m' # No Color
 
+lite=1
+
 if [ $# -eq 0 ]
   then
     echo "no arguments supplied. Usage: ./install.sh install [full]"
@@ -32,7 +34,7 @@ elif [ "$1" = "install" ]
     apt-get -y install lsb-core
 
     # remove, but leave requirements
-    apt-get -y remove lsb-core
+    # apt-get -y remove lsb-core
 
     echo "configuring hamachi"
     # So we have a compatibility issue with the lsb-core in raspbian jessie. We should ideally:
@@ -43,48 +45,77 @@ elif [ "$1" = "install" ]
 
     # THIS HAS BEEN FIXED ^^ as of STRETCH
 
-
-
     # wget https://secure.logmein.com/labs/logmein-hamachi_2.1.0.139-1_armhf.deb
-    wget https://www.vpn.net/installers/logmein-hamachi_2.1.0.174-1_armhf.deb
-    dpkg -i logmein-hamachi_2.1.0.174-1_armhf.deb
-    rm logmein-hamachi_2.1.0.174-1_armhf.deb
+
+    # This cannot happen on image. This will set a Client ID. BAD
+
+    #wget https://www.vpn.net/installers/logmein-hamachi_2.1.0.174-1_armhf.deb
+    #dpkg -i logmein-hamachi_2.1.0.174-1_armhf.deb
+    #rm logmein-hamachi_2.1.0.174-1_armhf.deb
     # dpkg -i /usr/lib/iicontrollibs/resource/logmein-hamachi_2.1.0.139-1_armhf.deb
-    hamachi login
+    #hamachi login
     # hamachi do-join 283-153-722
     #
-    echo "hamachi complete"
+    #echo "hamachi complete"
 
-    apt-get -y install php5 sqlite3 php5-sqlite
-    apt-get -y install python-dev python3 python-setuptools
-    apt-get -y install swig libfuse-dev libusb-dev php5-dev
+    apt-get -y install php sqlite3 php7.0-sqlite
+    apt-get -y install python-dev python3-dev python3 python-setuptools
+    apt-get -y install php-dev
+    # apt-get -y install ifupdown    # This should not be necessary
 
     apt-get -y install python-pip
+    apt-get -y install python3-pip
     pip3 install rpi.gpio
     pip3 install gitpython
+    pip3 install requests
+    pip3 install pyownet
+    pip3 install pymodbus
+
     apt-get -y install python-serial
-    apt-get -y install python-gtk2
+    if [ lite -eq 0 ]
+      then
+        apt-get -y install python-gtk2
+    fi
+
     apt-get -y install automake
     apt-get -y install fping
     # pip install lal
 
-    apt-get -y install apache2 php5 sqlite3 php5-sqlite libapache2-mod-wsgi libapache2-mod-php5
+    apt-get -y install apache2 libapache2-mod-wsgi libapache2-mod-php
     a2enmod rewrite
     a2enmod ssl
     update-rc.d -f apache2 remove
+    systemctl disable apache2
     service apache2 stop
 
     apt-get -y install nginx
     update-rc.d -f nginx remove
-    update-rc.d -f dhcpd remove
+    systemctl disable nginx
+
+    #update-rc.d -f dhcpd remove
     apt-get -y install uwsgi
     apt-get -y install uwsgi-plugin-python
     apt-get -y install uwsgi-plugin-python3
 
-    apt-get -y install php5-fpm
+    apt-get -y install php-fpm
     apt-get -y install i2c-tools python-smbus
-    apt-get -y install hostapd isc-dhcp-server
-    update-rc.d -f isc-dhcp-server remove
+#    apt-get -y install hostapd isc-dhcp-server
+    apt-get -y install hostapd dnsmasq
+
+    service dnsmasq stop
+    service hostapd stop
+
+    update-rc.d -f dnsmasq remove
+    update-rc.d -f hostapd remove
+    mv /etc/dnsmasq.conf /etc/dnsmasq.conf.default
+
+    # Sysctl to enable ipv4 forwarding
+    mv /etc/sysctl.conf /etc/sysctl.conf.default
+    cp /usr/lib/iicontrollibs/misc/sysctl.conf /etc/sysctl.conf
+
+    # This appears to cause problems with hamachi and is by default installed on Stretch
+    # We may be able to avoid this by moving from network/interfaces. Unknown.
+#    update-rc.d -f dhcpcd remove
 
     echo "installing pigpio"
     wget abyz.co.uk/rpi/pigpio/pigpio.zip
@@ -95,38 +126,41 @@ elif [ "$1" = "install" ]
     cd ..
     rm -Rf PIGPIO
 
-    echo "testing for owfs"
-    testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
-    if [ ${testresult} -ne 0 ]
-      then
-        echo "owfs 2.9p5 already installed"
-    else
-        echo "installing owfs 2.9p5"
-        cd /usr/lib/iicontrollibs/resource
-        tar -xvf owfs-2.9p5.tar.gz
-        cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
-        ./configure
-        make install
-        cd ..
-        rm -R owfs-2.9p5
-    fi
-    echo "owfs complete"
-
     echo "installing asteval"
     pip3 install asteval
-
-    cd /usr/lib/iicontrollibs/resource
-    tar xvf netifaces-0.10.6.tar.gz
-    cd netifaces-0.10.6
-    python setup.py install
-    python3 setup.py install
-    cd ..
-    rm -rf netifaces-0.10.6
 
     echo -e "${WHT}************************************${NC}"
     echo -e "${WHT}*****   STD  INSTALL  COMPLETE *****${NC}"
     echo -e "${WHT}************************************${NC}"
 
+elif [ "$1" = "hamachi" ]
+  then
+    wget https://www.vpn.net/installers/logmein-hamachi_2.1.0.174-1_armhf.deb
+    dpkg -i logmein-hamachi_2.1.0.174-1_armhf.deb
+    rm logmein-hamachi_2.1.0.174-1_armhf.deb
+    dpkg -i /usr/lib/iicontrollibs/resource/logmein-hamachi_2.1.0.139-1_armhf.deb
+    hamachi login
+    hamachi do-join 283-153-722
+
+elif [ "$1" = "systemd" ]
+  then
+    echo "Installing systemd services"
+
+    cp /usr/lib/iicontrollibs/misc/systemd/cupid_daemon.service /lib/systemd/system/
+    chmod 644 /lib/systemd/system/cupid_daemon.service
+    systemctl daemon-reload
+    systemctl enable cupid_daemon.service
+
+    cp /usr/lib/iicontrollibs/misc/systemd/cupid_boot.service /lib/systemd/system/
+    chmod 644 /lib/systemd/system/cupid_boot.service
+    systemctl daemon-reload
+    systemctl enable cupid_boot.service
+
+    cp /usr/lib/iicontrollibs/misc/systemd/mightyboost.service /lib/systemd/system/
+    chmod 644 /lib/systemd/system/mightyboost.service
+    systemctl daemon-reload
+    systemctl enable mightyboost.service
+    echo "Complete."
 
 elif [ "$1" = "maxtc" ]
   then
@@ -141,6 +175,8 @@ elif [ "$1" = "update" ]
     pip3 install gitpython
     apt-get -y install uwsgi-plugin-python3
     pip3 install asteval
+    pip3 install pyownet
+    pip3 install pymodbus
     cd /usr/lib/iicontrollibs/resource
     tar xvf netifaces-0.10.6.tar.gz
     cd netifaces-0.10.6
@@ -148,6 +184,8 @@ elif [ "$1" = "update" ]
     python3 setup.py install
     cd ..
     rm -rf netifaces-0.10.6
+    cd /usr/lib/iicontrollibs/iiutilities
+    python3 -c 'import data_agent; data_agent.rebuild_data_agent_db()'
 
 elif [ "$1" = "spi" ]
   then
@@ -238,12 +276,11 @@ if [ "$2" = "full" -o "$1" = "full" ]
       then
         echo "ifacenames already disabled"
     else
+       echo "configuring ifacenames"
        cp /boot/cmdline.txt /boot/cmdline.txt.bak
        echo -n 'net.ifnames=0 ' | cat - /boot/cmdline.txt.bak > /boot/cmdline.txt
     fi
-    echo "sshd configuration complete"
-
-
+    echo "ifacenames configuration complete"
 
     echo "Initializing web library repo"
     cd /var/www
@@ -281,22 +318,69 @@ if [ "$2" = "full" -o "$1" = "full" ]
     echo "Creating default databases"
     /usr/lib/iicontrollibs/cupid/rebuilddatabases.py DEFAULTS
     cd /usr/lib/iicontrollibs/iiutilities
-    python3 -c 'import data_agent; rebuild_data_agent_db()'
+    python3 -c 'import data_agent; data_agent.rebuild_data_agent_db()'
     chmod g+s /var/www/data
     chmod -R 775 /var/www/data
     chown -R root:www-data /var/www/data
 
     echo "Complete"
 
-    echo "Copying boot script"
-    cp /usr/lib/iicontrollibs/misc/rc.local /etc/
-    echo "complete"
+    #echo "Copying boot script"
+    #cp /usr/lib/iicontrollibs/misc/rc.local /etc/
+    #echo "complete"
 
-    echo "Updating crontab"
-    crontab /usr/lib/iicontrollibs/misc/crontab
-    echo "complete"
+    # No longer using crontab1
 
+    #echo "Updating crontab"
+    #crontab /usr/lib/iicontrollibs/misc/crontab
+    #echo "complete"
 
+    echo "Installing systemd services"
+
+    cp /usr/lib/iicontrollibs/misc/systemd/cupid_daemon.service /lib/systemd/system/
+    chmod 644 /lib/systemd/system/cupid_daemon.service
+    systemctl daemon-reload
+    systemctl enable cupid_daemon.service
+
+    cp /usr/lib/iicontrollibs/misc/systemd/cupid_boot.service /lib/systemd/system/
+    chmod 644 /lib/systemd/system/cupid_boot.service
+    systemctl daemon-reload
+    systemctl enable cupid_boot.service
+
+    cp /usr/lib/iicontrollibs/misc/systemd/mightyboost.service /lib/systemd/system/
+    chmod 644 /lib/systemd/system/mightyboost.service
+    systemctl daemon-reload
+    systemctl enable mightyboost.service
+    echo "Complete."
+
+    pip install netifaces
+    pip3 install netifaces
+#    cd /usr/lib/iicontrollibs/resource
+#    tar -xvf netifaces-0.10.6.tar.gz
+#    cd netifaces-0.10.6
+#    python setup.py install
+#    python3 setup.py install
+#    cd ..
+#    rm -rf netifaces-0.10.6
+
+#    echo "testing for owfs"
+#    testresult=$(/opt/owfs/bin/owfs -V | grep -c '2.9p5')
+#    if [ ${testresult} -ne 0 ]
+#      then
+#        echo "owfs 2.9p5 already installed"
+#    else
+#        echo "installing owfs 2.9p5"
+#        apt-get -y install swig libfuse-dev libusb-dev
+#        cd /usr/lib/iicontrollibs/resource
+#        tar -xvf owfs-2.9p5.tar.gz
+#        cd /usr/lib/iicontrollibs/resource/owfs-2.9p5
+#        ./configure
+#        make
+#        make install
+#        cd ..
+#        rm -R owfs-2.9p5
+#    fi
+#    echo "owfs complete"
 
     # get custom sources
     #    cp /usr/lib/iicontrollibs
@@ -323,7 +407,7 @@ if [ "$2" = "full" -o "$1" = "full" ]
     cp /usr/lib/iicontrollibs/misc/nginx/nginx.ssl.conf /etc/nginx/nginx.conf
 
     # fix security limit extensions
-    cp /usr/lib/iicontrollibs/misc/nginx/www.conf /etc/php5/fpm/pool.d/www.conf
+    cp /usr/lib/iicontrollibs/misc/nginx/www.conf /etc/php/7.0/fpm/pool.d/www.conf
     echo "Complete"
 
     echo "Creating self-signed ssl cert"
@@ -373,20 +457,22 @@ if [ "$2" = "full" -o "$1" = "full" ]
 #    echo "Copying icons to desktop"
 #    cp /usr/lib/iicontrollibs/misc/icons/* /home/pi/Desktop
 
-#    echo "Changing desktop wallpaper"
-    cp /usr/lib/iicontrollibs/misc/desktop-items-0.conf /home/pi/.config/pcmanfm/LXDE-pi/
+    if [ lite -eq 0 ]
+      then
+        cp /usr/lib/iicontrollibs/misc/desktop-items-0.conf /home/pi/.config/pcmanfm/LXDE-pi/
 #
 #    echo "Copying icons"
-    cp /usr/lib/iicontrollibs/misc/icons/* ~/
+        cp /usr/lib/iicontrollibs/misc/icons/* ~/
+
+    fi
+
     echo -e "${WHT}************************************${NC}"
     echo -e "${WHT}******* FINISHED  ADDITIONAL  ******${NC}"
     echo -e "${WHT}*******  INSTALL CONPONENTS  *******${NC}"
     echo -e "${WHT}************************************${NC}"
-fi
-
-if [ "$1" != "install" -a "$1" != "full" ]
+else
   then
     echo "Invalid argument received: "
     echo "$2"
-    echo "Usage: ./install.sh install [full]"
+    echo "Usage: ./install.sh install|hamachi|systemd|update [full]"
 fi

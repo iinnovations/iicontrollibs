@@ -18,41 +18,35 @@ def application(environ, start_response):
     from iiutilities.utility import newunmangle
     from time import time
 
-    post_env = environ.copy()
-    post_env['QUERY_STRING'] = ''
-    post = cgi.FieldStorage(
-        fp=environ['wsgi.input'],
-        environ=post_env,
-        keep_blank_values=True
-    )
-    formname = post.getvalue('name')
+    # post_env = environ.copy()
+    # post_env['QUERY_STRING'] = ''
+    # post = cgi.FieldStorage(
+    #     fp=environ['wsgi.input'],
+    #     environ=post_env,
+    #     keep_blank_values=True
+    # )
+    # formname = post.getvalue('name')
+    #
+    # output = {}
+    #
+    # d = {}
+    # for k in post.keys():
+    #     # print(k)
+    #     d[k] = post.getvalue(k)
 
-    output = {}
+    try:
+        request_body_size = int(environ.get('CONTENT_LENGTH', 0))
+    except ValueError:
+        request_body_size = 0
 
-    d = {}
-    for k in post.keys():
-        # print(k)
-        d[k] = post.getvalue(k)
+    request_body = environ['wsgi.input'].read(request_body_size)
+    post = json.loads(request_body.decode('utf-8'))
 
 
     status = '200 OK'
-    # Run stuff as requested
-    # We use the dynamic function to allow various  
-    # types of queries
-    output['data'] = []
-    output['message'] = ''
+    output = {'data': [], 'message': ''}
 
-    # print('** original')
-    # print(d)
-    d = newunmangle(d)
-    # print('** unmangled')
-    # print(d)
-
-    # Here we verify credentials of session data against those in the database.
-    # While we authenticate in the browser, this does not stop POST queries to the API without the page provided
-    # So we take the hpass stored in the dictionary and verify
-
-    # First, let's get our pathalias and translate to a path, using our path reloader
+    d = post
 
     wsgiauth = False
     authverified = False
@@ -99,24 +93,54 @@ def application(environ, start_response):
             # Stock functions
             if action == 'getnetstatsdata':
                 output['message'] += 'getting netstats keyword found. '
+                import datetime
+                the_day = datetime.date.today()
+                if 'day' in d:
+                    # We will pass in a day in format yyyy-mm-dd or keywords, like 'today'
+                    import datetime, time
+                    today = datetime.date.today()
+                    if d['day'] == 'today':
+                        pass
+                    elif d['day'] == 'prev_day':
+                        the_day = today - datetime.timedelta(days=1)
+                    elif d['day'] == 'prev_2_day':
+                        the_day = today - datetime.timedelta(days=2)
+                    elif d['day'] == 'prev_3_day':
+                        the_day = today - datetime.timedelta(days=3)
+                    elif d['day'] == 'prev_4_day':
+                        the_day = today - datetime.timedelta(days=4)
 
-                wired_history = dblib.readalldbrows(ii_netstats.netstats_dbpath, 'wired')
+                if the_day == datetime.date.today():
+                    db_path = ii_netstats.netstats_dbpath
+                else:
+                    db_path_root = ii_netstats.netstats_dbpath.split('.db')[0]
+                    date_string = '{}-{:02d}-{:02d}'.format(the_day.year, the_day.month, the_day.day)
+                    db_path = '{}_{}.db'.format(db_path_root, date_string)
+
+                print('** DBPATH: {} '.format(db_path))
+                netstats_db = dblib.sqliteDatabase(db_path)
+
+                output['message'] += 'db path {} chosen. '.format(db_path)
+
+                wired_history =netstats_db.read_table('wired')
                 if 'dataperiod' in d:
                     output['message'] += 'Limiting returned time to ' + d['dataperiod'] + '. '
-                    if d['dataperiod'] == '6hrs':
+                    # default 6hrs
+                    period = 6 * 3600
+                    if d['dataperiod'] == '6_hrs':
                         period = 6 * 3600
-                    elif d['dataperiod'] == '12hrs':
+                    elif d['dataperiod'] == '12_hrs':
                         period = 12 * 3600
-                    elif d['dataperiod'] == '24hrs':
+                    elif d['dataperiod'] == '24_hrs':
                         period = 24 * 3600
-                    elif d['dataperiod'] == '48hrs':
+                    elif d['dataperiod'] == '48_hrs':
                         period = 48 * 3600
-                    elif d['dataperiod'] == '7days':
+                    elif d['dataperiod'] == '7_days':
                         period = 7 * 24 * 3600
 
                     unmodified_length = len(wired_history)
 
-                    # return only data within last 6hrs
+                    # return only data within last period
                     from operator import itemgetter
                     from iiutilities.datalib import timestringtoseconds
                     new_list = sorted(wired_history, key=itemgetter('time'), reverse=True)

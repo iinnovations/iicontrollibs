@@ -94,7 +94,11 @@ server {
 	        fastcgi_split_path_info ^(.+\.php)(/.+)$;
 	# NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
 		# With php5-fpm:
+<<<<<<< HEAD
 		fastcgi_pass unix:/var/run/php/php7.0-fpm.sock;
+=======
+		fastcgi_pass unix:/var/run/php7.0-fpm.sock;
+>>>>>>> 0334ccc381a89fe06ca091118681e71639cf47fc
 		fastcgi_index index.html;
                 fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
 		include fastcgi_params;

@@ -1,0 +1,10 @@
+[Unit]
+Description=Cupid Boot Service
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/lib/iicontrollibs/cupid/boot.py
+
+[Install]
+WantedBy=multi-user.target

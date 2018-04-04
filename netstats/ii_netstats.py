@@ -272,7 +272,7 @@ def analyze_and_histo_access_db(dbpath=access_dbpath):
 
     # NOw process time resolved data into tables
     # this should be better iterate (DRY) but this works
-    for domain_name, domain_data in access_meta['total_hits'].iteritems():
+    for domain_name, domain_data in access_meta['total_hits'].items():
 
         domain_data['times'].sort()
 
@@ -307,7 +307,7 @@ def analyze_and_histo_access_db(dbpath=access_dbpath):
             # Put time in middle of hour
             domain_data['histo_data'][datalib.gettimestring(bin_time + 1800)] = bin_value
 
-    for domain_name, domain_data in access_meta['remote_hits'].iteritems():
+    for domain_name, domain_data in access_meta['remote_hits'].items():
 
         domain_data['times'].sort()
 
@@ -367,18 +367,18 @@ def table_access_histo_data(access_meta):
         {'name': 'count', 'type': 'integer'}
     ])
 
-    for domain_name, domain_data in access_meta['remote_hits'].iteritems():
+    for domain_name, domain_data in access_meta['remote_hits'].items():
         tablename = domain_name + '_remotehisto'
         if tablename not in access_db_tablenames:
             access_db.create_table(tablename, histo_schema, queue=True)
-        for histo_time, histo_count in domain_data['histo_data'].iteritems():
+        for histo_time, histo_count in domain_data['histo_data'].items():
             access_db.insert(tablename, {'time': histo_time, 'count': histo_count}, queue=True)
 
-    for domain_name, domain_data in access_meta['total_hits'].iteritems():
+    for domain_name, domain_data in access_meta['total_hits'].items():
         tablename = domain_name + '_totalhisto'
         if tablename not in access_db_tablenames:
             access_db.create_table(tablename, histo_schema, queue=True)
-        for histo_time, histo_count in domain_data['histo_data'].iteritems():
+        for histo_time, histo_count in domain_data['histo_data'].items():
             access_db.insert(tablename, {'time': histo_time, 'count': histo_count}, queue=True)
 
     if access_db.queued_queries:
@@ -395,9 +395,9 @@ def create_access_histo_metadata(access_meta):
 
     metadata_remote = {}
     # print(access_meta['remote_hits'])
-    for domain_name, domain_data in access_meta['remote_hits'].iteritems():
+    for domain_name, domain_data in access_meta['remote_hits'].items():
         metadata_remote[domain_name] = {'this_day':0, 'prev_day':0, 'this_hour':0, 'prev_hour':0}
-        for histo_time, histo_count in domain_data['histo_data'].iteritems():
+        for histo_time, histo_count in domain_data['histo_data'].items():
             histo_time_struct = datalib.timestring_to_struct(histo_time)
 
             # Technicaly only one correct hourly atm, but in future we could further divide
@@ -460,12 +460,12 @@ def table_access_histo_metadata(metadata, dbpath=access_dbpath):
     }
 
     """
-    for metadata_type, metadata_data in metadata.iteritems():
+    for metadata_type, metadata_data in metadata.items():
         tablename = metadata_type
         if tablename not in access_db_tablenames:
             access_db.create_table(tablename, metadata_schema, queue=True)
 
-        for domain_name, domain_data in metadata_data.iteritems():
+        for domain_name, domain_data in metadata_data.items():
             domain_data['domain'] = domain_name
             access_db.insert(tablename, domain_data, queue=True)
 

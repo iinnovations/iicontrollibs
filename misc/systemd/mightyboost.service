@@ -1,0 +1,11 @@
+[Unit]
+Description=Mightboost daemon
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/iicontrollibs/misc/mightyboost.sh
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
