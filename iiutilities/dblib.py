@@ -18,13 +18,9 @@ top_folder = \
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
-
 """
-
 Database tools
-
 """
-
 
 class sqliteDatabase(object):
 
@@ -2086,7 +2082,8 @@ class mysqlDB(object):
         settings = {
             'replace': True,
             'queue': False,
-            'collate':None
+            'collate':None,
+            'debug':False
         }
         settings.update(kwargs)
 
@@ -2112,6 +2109,11 @@ class mysqlDB(object):
 
         if settings['collate']:
             query += ' collate {}'.format(settings['collate'])
+
+
+        if settings['debug']:
+            print(query)
+
         if settings['queue']:
             self.queue_queries([query])
         else:

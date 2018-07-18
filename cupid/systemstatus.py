@@ -22,29 +22,29 @@ try:
     import simplejson as json
 except:
     import json
-#
-# def readhardwarefileintoversions():
-#
-#     from iiutilities import utility
-#     from cupid import pilib
-#     from iiutilities import dblib
-#
-#     devicefile = '/var/wwwsafe/devicedata'
-#     try:
-#         file = open(devicefile)
-#         lines = file.readlines()
-#         devicedict = {}
-#         for line in lines:
-#             split = line.split(':')
-#             try:
-#                 devicedict[split[0].strip()] = split[1].strip()
-#             except:
-#                 utility.log(pilib.dirs.logs.system, 'Device data parse error', 1, pilib.loglevels.system)
-#         dblib.sqlitequery(pilib.dirs.dbs.system,
-#                           dblib.makesqliteinsert('versions', ['hardware', devicedict['hardware']], ['item', 'version']))
-#     except:
-#         utility.log(pilib.dirs.logs.system, 'Error opening devicedata file to parse', 1,
-#                       pilib.loglevels.system)
+
+def readhardwarefileintoversions():
+
+    from iiutilities import utility
+    from cupid import pilib
+    from iiutilities import dblib
+
+    devicefile = '/var/wwwsafe/devicedata'
+    try:
+        file = open(devicefile)
+        lines = file.readlines()
+        devicedict = {}
+        for line in lines:
+            split = line.split(':')
+            try:
+                devicedict[split[0].strip()] = split[1].strip()
+            except:
+                utility.log(pilib.dirs.logs.system, 'Device data parse error', 1, pilib.loglevels.system)
+        dblib.sqlitequery(pilib.dirs.dbs.system,
+                          dblib.makesqliteinsert('versions', ['hardware', devicedict['hardware']], ['item', 'version']))
+    except:
+        utility.log(pilib.dirs.logs.system, 'Error opening devicedata file to parse', 1,
+                      pilib.loglevels.system)
 
 
 def updateiwstatus():
@@ -707,7 +707,8 @@ def run_system_status(**kwargs):
 
     settings = {
         'debug':False,
-        'quiet':False
+        'quiet':False, 
+        'force':True
     }
     settings.update(kwargs)
 
@@ -749,7 +750,7 @@ def run_system_status(**kwargs):
     # allnetstatus = updatenetstatus(lastnetstatus, quiet=settings['quiet'])
 
     # Keep reading system status?
-    while systemstatus['systemstatusenabled']:
+    while systemstatus['systemstatusenabled'] or settings['force']:
 
         # Run notifications
         pilib.process_notifications_queue()
@@ -776,8 +777,6 @@ def run_system_status(**kwargs):
         This sub will read config and status and give both overall and granular interface statuses.
         Then, if status is not 'ok', we will reconfigure interface.
         """
-
-        allnetstatus = update_net_status(lastnetstatus, quiet=settings['quiet'])
 
         if systemstatus['netstatusenabled']:
             utility.log(pilib.dirs.logs.system, 'Beginning network routines. ', 3, pilib.loglevels.system)
@@ -894,11 +893,15 @@ def run_system_status(**kwargs):
 if __name__ == '__main__':
     runonce = False
     debug = False
+    force = False
     if 'runonce' in sys.argv:
         print('run once selected')
         runonce = True
     if 'debug' in sys.argv:
         print('debug selected')
         debug = True
-    run_system_status(runonce=runonce, debug=debug)
+    if 'force' in sys.argv:
+        print('force selected')
+        force = True
+    run_system_status(runonce=runonce, debug=debug, force=force)
     # runsystemstatus()

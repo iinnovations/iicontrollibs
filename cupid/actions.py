@@ -73,7 +73,8 @@ class action:
             'offdelay':0,
             'activereset':True,
             'actionfrequency': 0.0,  # 0 means all the time.
-            'action_window': 60.0
+            'action_window': 60.0,
+            'log_path':None
         }
         settings.update(actiondict)
         for key, value in settings.items():
@@ -99,6 +100,11 @@ class action:
 
             """
         self.statusmsg = ''
+
+    def log(self, message, reqloglevel=1, currloglevel=1):
+        from iiutilities.utility import log
+        if self.log_path:
+            log(self.log_path, message, reqloglevel, currloglevel)
 
     def determine_status(self):
         from iiutilities import dblib, datalib
@@ -126,8 +132,8 @@ class action:
                 self.status = int(datalib.calcastevalformula(str(self.value) + self.actiondatadict['operator'] + self.actiondatadict['criterion']))
             # Should really throw an error here.
             except:
-                print('ERROR in asteval')
-                print(str(self.value) + self.actiondatadict['operator'] + self.actiondatadict['criterion'])
+                self.log('ERROR in asteval')
+                self.log(str(self.value) + self.actiondatadict['operator'] + self.actiondatadict['criterion'])
                 self.status = 0
 
         elif self.conditiontype == 'channel':
@@ -562,6 +568,7 @@ def processactions(**kwargs):
             if actiondict['name'] != kwargs['name']:
                 continue
 
+        actiondict['log_path'] = pilib.dirs.logs.actions
         thisaction = action(actiondict)
         thisaction.process()
         thisaction.publish()

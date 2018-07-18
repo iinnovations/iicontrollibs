@@ -65,7 +65,7 @@ def split_time_log(log, **kwargs):
             if settings['division'] == 'day':
                 import time
                 if settings['format'] == 'datetimestring':
-                    from datalib import timestring_to_struct
+                    from iiutilities.datalib import timestring_to_struct
                     the_time = timestring_to_struct(listitem['time'])
                 criterion = time.struct_time((the_time.tm_year, the_time.tm_mon, the_time.tm_mday, 0, 0, 0, 0, 1, 0))
                 # criterion = (time.tm_year, time.tm_mon, time.tm_mday)
@@ -92,7 +92,7 @@ def split_time_db(path, **kwargs):
     settings.update(kwargs)
 
     from iiutilities import dblib
-    from datalib import gettimestring
+    from iiutilities.datalib import gettimestring
     import time
 
     database = dblib.sqliteDatabase(path)
@@ -210,8 +210,8 @@ def split_time_db(path, **kwargs):
 
 def split_and_trim_db_by_date(logpath, **kwargs):
 
-    import dblib
-    from datalib import gettimestring
+    from iiutilities import dblib
+    from iiutilities.datalib import gettimestring
     import time
 
     settings = {

@@ -73,6 +73,7 @@ dirs.logs.remote = dirs.log + 'remotes.log'
 dirs.logs.system = dirs.log + 'systemstatus.log'
 dirs.logs.control = dirs.log + 'control.log'
 dirs.logs.daemon = dirs.log + 'daemon.log'
+dirs.logs.actions = dirs.log + 'actions.log'
 dirs.logs.serial = dirs.log + 'serial.log'
 dirs.logs.notifications = dirs.log + 'notifications.log'
 dirs.logs.daemonproc = dirs.log + 'daemonproc.log'
@@ -112,6 +113,7 @@ loglevels.system = 4
 loglevels.control = 4
 loglevels.daemon = 3
 loglevels.serial = 2
+loglevels.actions = 2
 loglevels.notifications = 5
 
 daemonprocs = ['cupid/periodicupdateio.py', 'cupid/picontrol.py', 'cupid/systemstatus.py', 'cupid/sessioncontrol.py', 'mote/serialhandler.py']
