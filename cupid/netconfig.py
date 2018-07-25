@@ -706,12 +706,12 @@ def make_ifconfig_file(**kwargs):
 
         elif this_config['mode'] in ['static', 'ap']:
             filestring += 'iface {} inet static\n'.format(interface_name)
-            if 'address' not in this_config:
+            if 'address' not in this_config['config']:
                 if settings['debug']:
                     print('Address not provided for {}. Defaulting to {}'.format(interface_name, settings['default_static_address']))
                 this_config['address'] = settings['default_static_address']
 
-            filestring += '    address {}\n'.format(this_config['address'])
+            filestring += '    address {}\n'.format(this_config['config']['address'])
             filestring += '    netmask 255.255.255.0\n\n'
 
         # wlan station mode. should do error-checking here.
@@ -818,11 +818,13 @@ def runconfig(**kwargs):
                 settings['config'][iface_config['name']]['config'] = json.loads(iface_config['config'])
             except:
                 message = 'Config entry for interface {} is empty or cannot be unpacked as json: {}. '.format(iface_config['name'], iface_config['config'])
-                print(settings['config'][iface_config['name']])
+                # print(settings['config'][iface_config['name']])
                 utility.log(pilib.dirs.logs.network, message, 3, pilib.loglevels.network)
 
-    utility.log(pilib.dirs.logs.network, 'Updating ifconfig file. ', 0,
-                pilib.loglevels.network)
+    utility.log(pilib.dirs.logs.network, 'Updating ifconfig file. ', 0, pilib.loglevels.network)
+
+    print('MAKING CONFIG FILE WITH CONFIG')
+    print(settings['config'])
     make_ifconfig_file(config=settings['config'])
 
     # For now, we are going to assume that we are only using one wireless interface at most as a network station

@@ -180,6 +180,7 @@ def check_interface_status(iface_config, iface_status):
         if iface_status['config']['address'] != iface_config['config']['address']:
             # print(iface_config)
             # print(iface_status)
+            return_dict['status'] = 'fail'
             new_message = 'Address mismatch. Expected {}. Found {}. '.format(iface_config['config']['address'], iface_status['config']['address'])
             utility.log(pilib.dirs.logs.network, new_message, 1, pilib.loglevels.network)
             return_dict['status_message'] += new_message
@@ -216,8 +217,8 @@ def check_interface_status(iface_config, iface_status):
 
     # Check for wpa state
     if iface_config['mode'] in ['station']:
-        print('STATION')
-        print(iface_status)
+        # print('STATION')
+        # print(iface_status)
         if 'wpastate' not in iface_status['config']:
             new_message = 'No wpa state present in iface_status. '
             utility.log(pilib.dirs.logs.network, new_message, 1, pilib.loglevels.network)
@@ -262,7 +263,6 @@ def watchdognetstatus(allnetstatus={}):
     """
 
     if 'ifaces_config' not in allnetstatus or 'ifaces_status' not in allnetstatus:
-        print('WE DID NOT FIND THINGS')
         allnetstatus = update_net_status()
 
     netconfig_data = allnetstatus['netconfig_data']
@@ -280,7 +280,7 @@ def watchdognetstatus(allnetstatus={}):
         if iface_status['status'] == 'fail':
             reconfig_interfaces.append(iface_name)
             utility.log(pilib.dirs.logs.network,
-                'Interface has faile status. Setting reconfig for {}. '.format(iface_name, 1, pilib.loglevels.network))
+                'Interface has fail status. Setting reconfig for {}. '.format(iface_name, 1, pilib.loglevels.network))
 
 
     # Now do some sleuthing if we are being stringent about WAN access. Have to be careful about this if we are on a
@@ -483,7 +483,7 @@ def update_net_status(lastnetstatus=None, quiet=True, ifaces_config=None, netcon
         try:
             insert['config'] = json.dumps(interface['config'])
         except:
-            print('error with iterface {}'.format(interface_name))
+            print('error with interface {}'.format(interface_name))
             print(interface)
 
         pilib.dbs.system.insert('netifacestatus', insert, queue=True)
@@ -817,10 +817,11 @@ def run_system_status(**kwargs):
             ''' Now we check network status depending on the configuration we have selected '''
             utility.log(pilib.dirs.logs.system, 'Running interface configuration watchdog. ', 4,
                           pilib.loglevels.system)
-            utility.log(pilib.dirs.logs.network, 'Running interface configuration. Mode: ' + netconfig_data['mode'], 4,
+            utility.log(pilib.dirs.logs.network, 'Running interface configuration. Mode: {}'.format(netconfig_data['mode']), 4,
                           pilib.loglevels.network)
-            print('ALL IFACE STATUS')
-            print(allnetstatus['ifaces_status'])
+
+            # print('ALL IFACE STATUS')
+            # print(allnetstatus['ifaces_status'])
 
             result = watchdognetstatus(allnetstatus=allnetstatus)
 
@@ -873,11 +874,11 @@ def run_system_status(**kwargs):
 
         elapsedtime = int(time.time() - starttime)
 
-        utility.log(pilib.dirs.logs.system, 'Status routines complete. Elapsed time: ' + str(elapsedtime), 3,
+        utility.log(pilib.dirs.logs.system, 'Status routines complete. Elapsed time: {}'.format(str(elapsedtime)), 3,
                       pilib.loglevels.system)
 
         utility.log(pilib.dirs.logs.system,
-                               'System status is sleeping for ' + str(systemstatus['systemstatusfreq']) + '. ', 3,
+                               'System status is sleeping for {} .'.format(systemstatus['systemstatusfreq']), 3,
                       pilib.loglevels.system)
 
         # print('enabled: ' , systemstatus['systemstatusenabled'])
