@@ -65,7 +65,7 @@ def split_time_log(log, **kwargs):
             if settings['division'] == 'day':
                 import time
                 if settings['format'] == 'datetimestring':
-                    from datalib import timestring_to_struct
+                    from iiutilities.datalib import timestring_to_struct
                     the_time = timestring_to_struct(listitem['time'])
                 criterion = time.struct_time((the_time.tm_year, the_time.tm_mon, the_time.tm_mday, 0, 0, 0, 0, 1, 0))
                 # criterion = (time.tm_year, time.tm_mon, time.tm_mday)
@@ -92,7 +92,7 @@ def split_time_db(path, **kwargs):
     settings.update(kwargs)
 
     from iiutilities import dblib
-    from datalib import gettimestring
+    from iiutilities.datalib import gettimestring
     import time
 
     database = dblib.sqliteDatabase(path)
@@ -210,8 +210,8 @@ def split_time_db(path, **kwargs):
 
 def split_and_trim_db_by_date(logpath, **kwargs):
 
-    import dblib
-    from datalib import gettimestring
+    from iiutilities import dblib
+    from iiutilities.datalib import gettimestring
     import time
 
     settings = {
@@ -318,6 +318,16 @@ def rotate_log_by_size(logname, numlogs=5, logsize=1024):
             logmessage += 'log not big enough\n'
             returnmessage = 'logs not rotated'
     return {'message': returnmessage, 'logmessage': logmessage, 'statuscode': statuscode}
+
+
+def get_directory_files_size(start_path='.'):
+    import os
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(start_path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            total_size += os.path.getsize(fp)
+    return total_size
 
 
 def insertuser(database, username, password, salt, **kwargs):
@@ -1048,7 +1058,11 @@ class gmail:
         session.ehlo()
         session.starttls()
         session.ehlo
+        session.set_debuglevel(1)
         session.login(self.login, self.password)
+
+        print('MAIL RECIPIENT!')
+        print(self.recipients)
         for recipient in self.recipients:
             if recipient:
                 session.sendmail(self.sender, recipient.strip(), headers + '\r\n\r\n' + self.message)

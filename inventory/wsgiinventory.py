@@ -156,7 +156,7 @@ def application(environ, start_response):
 
                 else:
                     # successful auth
-                    output['message'] += 'Failed password check. '
+                    output['message'] += 'Failed password check: {},{} '.format(hashedentry, user_data['password'])
         else:
             # Demo status
             authverified = True
@@ -224,6 +224,14 @@ def application(environ, start_response):
             inventorylib.addeditpartlist(post, output)
             inventorylib.makeinventorymetadata()
             inventorylib.calcstockfromall()
+        elif action == 'addeditinventoryparts':
+            output['message'] += 'addeditinventoryparts keyword found. '
+            # Operate on partsdata
+            # post['partsdata'] = json.loads(post['partsdata'])
+            inventorylib.addeditpartlist(post, output)
+            inventorylib.calcstockfromall()
+            inventorylib.makeinventorymetadata()
+
         elif action == 'deletepartsfrominventory':
             output['message'] += 'deletepartsfrominventory keyword found. '
             inventorylib.deletepartsfrominventory(post, output)
@@ -238,7 +246,7 @@ def application(environ, start_response):
             inventorylib.calcstockfromall()
         elif action == 'addorder':
             output['message'] += 'addorder keyword found. '
-            inventorylib.createneworder(post, output)
+            inventorylib.createneworder(post, output=output)
             inventorylib.makeordermetadata()
             inventorylib.calcstockfromall()
         elif action == 'deleteorders':
@@ -501,6 +509,9 @@ def application(environ, start_response):
                 mymail.message += bomresults['bomdescription']
                 mymail.recipient = 'quotes@interfaceinnovations.org'
                 mymail.sender = 'II Panelbuilder'
+
+                print('SENDING MAIL TO {}'.format(mymail.recipient))
+
                 mymail.send()
 
 

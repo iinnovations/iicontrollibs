@@ -188,15 +188,99 @@ def gettimestring(timeinseconds=None):
     return timestring
 
 
-def timestringtoseconds(timestring=None, defaulttozero=False):
+def getutctimestring(timeinseconds=None):
+    import time
+    if timeinseconds:
+        try:
+            timestring = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(timeinseconds))
+        except TypeError:
+            timestring = ''
+    else:
+        timestring = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
+    return timestring
+
+
+def timestrings_diff_in_seconds(time1, time2):
+    import ciso8601
+    time_diff = (ciso8601.parse_datetime(time2)-ciso8601.parse_datetime(time1)).total_seconds()
+    return time_diff
+
+
+def localize_utc_timestring(timestring, timezone=None, timezone_name='US/Pacific', timeformat='%Y-%m-%d %H:%M:%S'):
+    import pytz, datetime
+
+    if type(timestring) == str:
+        import datetime
+        timestring = datetime.datetime.strptime(timestring, timeformat)
+
+    aware_time = pytz.utc.localize(timestring)
+
+    if not timezone:
+        timezone = pytz.timezone(timezone_name)
+
+    local_time = aware_time.astimezone(timezone)
+    local_timestring = datetime.datetime.strftime(local_time, timeformat)
+    return local_timestring
+
+
+def localtimestring_to_utc_timestring(timestring, timezone=None, timezone_name='US/Pacific', timeformat='%Y-%m-%d %H:%M:%S'):
+    import pytz, datetime
+
+    if type(timestring) == str:
+        import datetime
+        timestring = datetime.datetime.strptime(timestring, timeformat)
+
+    if not timezone:
+        timezone = pytz.timezone(timezone_name)
+
+    aware_time = timezone.localize(timestring)
+
+    utc_time = aware_time.astimezone(pytz.utc)
+    utc_timestring = datetime.datetime.strftime(utc_time,timeformat)
+
+    return utc_timestring
+
+
+def timestringtoseconds(timestring=None, defaulttozero=None, **kwargs):
+
+    settings = {
+        'useciso':False,
+        'debug':False
+    }
+    settings.update(kwargs)
+
+    from calendar import timegm
+    timestring = str(timestring)
+
+    if settings['debug']:
+        print('Using CISO: {}'.format(settings['useciso']))
     import time
     if not timestring and defaulttozero:
         return 0
 
+    # Ok, for now we are going to hack our old, non-compliant data format just to see if this helps.
+    timeinseconds = 0
     try:
-        timeinseconds = time.mktime(timestring_to_struct(timestring))
+        if settings['useciso']:
+            try:
+                import ciso8601, datetime
+                parsed_time = ciso8601.parse_datetime(timestring)
+                epoch = datetime.datetime.utcfromtimestamp(0)
+                timeinseconds = (parsed_time-epoch).total_seconds()
+                # timeinseconds = parsed_time.replace(tzinfo=datetime.timezone.utc).timestamp()
+            except:
+                if settings['debug']:
+                    import traceback
+                    print('We encountered this exception: {}'.format(traceback.format_exc()))
+
+                timeinseconds = timegm(timestring_to_struct(timestring))
+        else:
+            timeinseconds = timegm(timestring_to_struct(timestring))
     except:
-        timeinseconds = 0
+        if settings['debug']:
+            import traceback
+            print('We encountered this exception: {}'.format(traceback.format_exc()))
+
     return timeinseconds
 
 
@@ -361,13 +445,16 @@ def bytestovalue(bytes, format='word32'):
     # Standard word order
     # MSW, LSW
 
+    # Above seems inaccurate for PLCs we are working with. Going to change float32 to default to reverse word here
+    # May break something elsewhere, but doesn't appear to be used ubiquitously since CuPID OS is dead.
+
     # Standard byte order
     # MSB, LSB
 
     # Standard is byteorder=standard, wordorder=standard
-    if format in ['float32', 'float32swsb', 'float32sw', 'float32sb']:
+    if format in ['float32swsb', 'float32sw', 'float32sb']:
         value = float32bytestovalue(bytes)
-    elif format in ['float32rw', 'float32rwsb']:
+    elif format in ['float32rw', 'float32rwsb', 'float32']:
         value = float32bytestovalue(bytes, wordorder='reverse')
     elif format in ['float32rb', 'float32swrb']:
         value = float32bytestovalue(bytes, byteorder='reverse')
@@ -389,15 +476,17 @@ def bytestovalue(bytes, format='word32'):
 
 
 def valuetobytes(value, format='beword32'):
-    if format in ['beword32', 'leword32']:
-        bigbyte = value / 65536
+    if 'word' in format and '32' in format:
+        bigbyte = int(value / 65536)
         smallbyte = value % 65536
         if format == 'beword32':
             bytes = [bigbyte, smallbyte]
         else:
             bytes = [smallbyte, bigbyte]
-    elif format=='float32':
-        pass
+    elif 'float' in format:
+        bytes = valuetofloat32bytes(value)
+    else:
+        bytes = [int(value)]
     return bytes
 
 
@@ -410,7 +499,7 @@ def valuetofloat32bytes(value, type='float', endian='big', byteorder='standard')
     else:
         return
 
-    integers = [ord(c) for c in mybytearray]
+    # integers = [ord(c) for c in mybytearray]
     # print(integers)
     # print(mybytearray)
 
@@ -630,3 +719,185 @@ def gethashedentry(user, password, salt='randomsalt'):
 
     hashedentry = hentry.hexdigest()
     return hashedentry
+
+
+"""
+
+Historian and data massaging stuff
+
+"""
+
+def sparsify_time_value_data(data, **kwargs):
+
+    from decimal import Decimal
+    from datetime import datetime
+
+    settings = {
+        'method':'tolerance',
+        'threshold':Decimal(0.01),
+        'threshold_type':'absolute',
+        'debug':False,
+        'presort':True,
+        'max_time_gap':180, #s
+        'time_label': 'time'
+    }
+    settings.update(kwargs)
+
+    if settings['presort']:
+        # Sort the data:
+        pass
+
+    # convenience
+    time_label = settings['time_label']
+
+    if settings['debug']:
+        print('processing {} data points'.format(len(data)))
+        time_span = timestringtoseconds(data[0][time_label]) - timestringtoseconds(data[-1][time_label])
+        print('Time span: {}'.format(time_span))
+
+    start_time = datetime.now()
+
+    # Do this so we only have to calculate times once and index
+    if settings['max_time_gap']:
+        # use elapsed times here because it's faster
+        import ciso8601
+        converted_timestamps = [ciso8601.parse_datetime(datum[time_label]) for datum in data]
+        times_in_seconds = [(converted_timestamps[i] - converted_timestamps[0]).total_seconds() for i in range(len(data))]
+        # times_in_seconds = [timestringtoseconds(datum['time'], **settings) for datum in data]
+    else:
+        times_in_seconds = ['' for datum in data]
+
+    new_data = []
+    removed_data = []
+    if settings['method'] == 'tolerance':
+
+        # always keep beginning and ending points
+        new_data.append(data[0])
+        last_datum_time_s = times_in_seconds[0]
+
+        for i in range(len(data)-2):
+
+            skip_this_point = False
+
+            last_datum = new_data[-1]
+            this_datum = data[i+1]
+            next_datum = data[i+2]
+
+            if abs(Decimal(this_datum['data']) - Decimal(last_datum['data'])) < settings['threshold']:
+                # if settings['debug']:
+                #     print('{} : within tolerance for previous point'.format(i))
+                if abs(Decimal(this_datum['data']) - Decimal(next_datum['data'])) < settings['threshold']:
+                    # if settings['debug']:
+                    #     print('{} : within tolerance for next point'.format(i))
+
+                    if settings['max_time_gap']:
+                        time_span = times_in_seconds[i+1] - last_datum_time_s
+
+                        if time_span <= settings['max_time_gap']:
+                            if settings['debug']:
+                                print('{} : omitting point'.format(i))
+                            skip_this_point=True
+                        else:
+                            if settings['debug']:
+                                print('max time gap of {} exceeded. Inserting.'.format(settings['max_time_gap']))
+                    else:
+                        # No time requirement
+                        skip_this_point = True
+
+            if not skip_this_point:
+                new_data.append(this_datum)
+                last_datum_time_s = times_in_seconds[i+1]
+            else:
+                removed_data.append(this_datum)
+
+        # Now tack on the last point
+        new_data.append(data[-1])
+
+    elif settings['method'] == 'timespan':
+        """
+        {
+            'method':'timespan',
+            'length':2,
+            'unit':'day'
+        },
+        """
+
+        last_datum_time_s = times_in_seconds[-1]
+
+        if settings['unit'] == 'week':
+            timespan_in_seconds = settings['length'] * 7 * 24 * 60 * 60
+        elif settings['unit'] == 'day':
+            timespan_in_seconds = settings['length'] * 24 * 60 * 60
+        elif settings['unit'] == 'hour':
+            timespan_in_seconds = settings['length'] * 60 * 60
+        elif settings['unit'] == 'minute':
+            timespan_in_seconds = settings['length'] * 60
+
+        for i in range(len(data)):
+            if last_datum_time_s - times_in_seconds[i] <= timespan_in_seconds:
+                new_data.append(data[i])
+            else:
+                removed_data.append(data[i])
+
+    end_time = datetime.now()
+    elapsed_time = (end_time - start_time).total_seconds()
+
+    if settings['debug']:
+        print('Elapsed_time: {}s'.format(elapsed_time))
+
+        print('Resulting data set has {} points'.format(len(new_data)))
+        omitted_points = len(data) - len(new_data)
+        print('{} points omitted ({:.2f}%)'.format(omitted_points, float(omitted_points) / len(data) * 100))
+
+
+    return {'new_data':new_data, 'removed_data':removed_data, 'status':0, 'elapsed_time':elapsed_time}
+
+
+def test_sparsify_data(**kwargs):
+
+    from iiutilities import dblib
+    settings = {
+        'database':'/var/www/html/cupidcontrol/data/clients/testclient/testclient_data.db',
+        'tablename':'pH',
+        'debug':True
+    }
+    settings.update(**kwargs)
+    the_db = dblib.sqliteDatabase(settings['database'])
+    the_data = the_db.read_table(settings['tablename'])
+
+    return_stuff = sparsify_time_value_data(the_data, **settings)
+
+    return return_stuff
+
+
+def test_time_conversion(**kwargs):
+    settings = {
+        'numpoints':100000,
+        'method':'old',
+        'debug':False
+    }
+    settings.update(kwargs)
+
+    import datetime
+
+    now = datetime.datetime.now()
+    data = [{'time':(now + datetime.timedelta(seconds=15*i)).strftime(time_format_string), 'value':i} for i in range(settings['numpoints'])]
+
+    start_time = datetime.datetime.now()
+
+    if settings['method'] == 'old':
+        converted_times = [timestringtoseconds(datum['time'], debug=settings['debug']) for datum in data]
+    elif settings['method'] == 'new':
+        converted_times = [timestringtoseconds(datum['time'], useciso=True, debug=settings['debug']) for datum in data]
+    elif settings['method'] == 'new_elapsed':
+        import ciso8601
+        converted_timestamps = [ciso8601.parse_datetime(datum['time']) for datum in data]
+        converted_times = [(converted_timestamps[i]-converted_timestamps[0]).total_seconds() for i in range(len(data))]
+
+
+    print(converted_times)
+    end_time = datetime.datetime.now()
+    elapsed_time = (end_time-start_time).total_seconds()
+    print('Elapsed time: {}'.format(elapsed_time))
+
+

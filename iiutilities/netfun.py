@@ -373,7 +373,6 @@ def gethamachistatusdata():
 def restart_uwsgi(directory='/usr/lib/iicontrollibs/uwsgi', quiet=True, killall=False):
     import subprocess
     import os
-    quiet = False
     if not quiet:
         print('restarting uwsgi from directory:  ' + directory)
     if killall:
@@ -477,6 +476,96 @@ def post_data(url, data, headers=None):
 #       3: Invalid Value
 #       4, 5, 6: Invalid Execution
 #       7: Unable to connect to host
+
+def do_single_modbus_read(**read_config):
+
+    settings = {
+        'debug':False,
+        'format':'word16',
+        'offset':1
+    }
+    settings.update(read_config)
+
+    required_arguments = ['ip', 'address', 'format']
+    if not all(argument in settings for argument in required_arguments):
+        print("not all required arguemnts provided: {}".format(required_arguments))
+        return None
+
+    length = type_to_read_length(settings['format'])
+
+    settings['address'] -= settings['offset']
+
+    # if settings['debug']:
+    # print('READING {} bytes for type {} at address {}'.format(length, settings['format'], settings['address']))
+
+    if not length:
+        print('unrecognized format: {}'.format(settings['length']))
+        return None
+
+    settings['length'] = length
+
+    if settings['debug']:
+        print(read_config)
+
+    result = readMBcodedaddresses(settings['ip'], settings['address'], length)
+
+    if settings['debug']:
+        print(settings)
+        print('RESULT')
+        print(result)
+
+    try:
+        from iiutilities.datalib import bytestovalue
+        result['value'] = bytestovalue(result['values'], settings['format'])
+    except:
+        if settings['debug']:
+            print('NO DATA RETURNED.')
+        result = None
+    else:
+        if settings['debug']:
+            print('VALUE {} from bytes : {}'.format(result['value'], result['values']))
+
+    return result
+
+
+def do_single_modbus_write(**write_config):
+
+    # For now this only handles one value. Easily extendable
+    write_config['address'] = int(write_config['address'])
+    value = write_config['value']
+
+    if not 'format' in write_config:
+        write_config['format'] = 'word16'
+
+    # Writing to 101 here will actually write to 102
+    if 'offset' not in write_config:
+        write_config['offset'] = 1
+
+    write_config['address'] -= write_config['offset']
+
+    from iiutilities.datalib import valuetobytes
+    these_bytes = valuetobytes(value, write_config['format'])
+
+    print('BYTES')
+    print(these_bytes)
+
+    status_result = writeMBcodedaddresses(write_config['ip'], write_config['address'], these_bytes)
+
+    return status_result
+
+
+def type_to_read_length(type):
+    if type in ['word', 'word16', 'float16','word16rb', 'float16rb', 'bit', 'boolean']:
+        readlength = 1
+    elif type in ['word32', 'word32rw', 'word32sw','word32rwrb', 'word32rwsb', 'word32swrb', 'word32swsb',
+                  'float32', 'float32rw', 'float32sw','float32rwrb', 'float32rwsb', 'float32swrb', 'float32swsb']:
+        readlength = 2
+
+    else:
+        readlength=None
+
+    return readlength
+
 
 def messagefrommbstatuscode(code):
     if code == 0:
@@ -616,7 +705,6 @@ def readMBinputregisters(clientIP, register, number=1):
 
 def writeMBholdingregisters(clientIP, register, valuelist):
     from pymodbus.client.sync import ModbusTcpClient, ConnectionException
-
     client = ModbusTcpClient(clientIP)
     try:
         rawresult = client.write_registers(register, valuelist)

@@ -17,6 +17,7 @@ if __name__ == '__main__':
     # restart_uwsgi(directory, quiet=True, killall=True)
 
     restart_uwsgi('/usr/lib/iicontrollibs/inventory/', quiet=True)
+    restart_uwsgi('/usr/lib/iitracker/wsgi/', quiet=True)
     restart_uwsgi('/usr/lib/iicontrollibs/netstats/', quiet=True)
-    restart_uwsgi('/usr/lib/ivlbotlib/wsgi/', quiet=True)
+    # restart_uwsgi('/usr/lib/ivlbotlib/wsgi/', quiet=True)
 

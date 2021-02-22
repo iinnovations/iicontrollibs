@@ -18,13 +18,10 @@ top_folder = \
 if top_folder not in sys.path:
     sys.path.insert(0, top_folder)
 
-
 """
-
 Database tools
-
 """
-
+from iiutilities import datalib
 
 class sqliteDatabase(object):
 
@@ -213,7 +210,7 @@ class sqliteDatabase(object):
             return_data = {}
             all_queries = []
             for tablename in tablenames:
-                all_queries.append("select * from '{}'".format(tablename))
+                all_queries.append("select * from `{}`".format(tablename))
             data = sqlitemultquery(all_queries, self.settings)
             for tablename, datum in zip(tablenames, data):
                 return_data[tablename] = datum
@@ -237,6 +234,7 @@ class sqliteDatabase(object):
         }
         settings.update(kwargs)
 
+        # For conditions that hang around in settings that get passed.
         if 'condition' not in kwargs and 'condition' in self.settings:
             del self.settings['condition']
 
@@ -265,7 +263,7 @@ class sqliteDatabase(object):
     def read_database(self, **kwargs):
         settings = {
             'method': 'bundle',
-            'timing': True
+            'timing': False
         }
         self.settings.update(kwargs)
         settings.update(kwargs)
@@ -281,7 +279,6 @@ class sqliteDatabase(object):
                 all_data[tablename] = self.read_table(tablename, **self.settings)
 
         elif settings['method'] == 'bundle':
-            print('bundle')
             all_data = self.read_tables(self.get_table_names())
 
         if settings['timing']:
@@ -292,7 +289,7 @@ class sqliteDatabase(object):
 
     def read_table_smart(self, tablename, condition=None):
         queries = ['pragma busy_timeout=2000', "pragma table_info ('" + tablename + "')",]
-        queries.append("select * from '" + tablename + "'")
+        queries.append("select * from `{}`".format(tablename))
         results = self.queries(queries)
         pragma_dict_list = process_pragma(results['data'][1])
         pragmanames = [item['name'] for item in pragma_dict_list]
@@ -317,8 +314,11 @@ class sqliteDatabase(object):
         return dbrows
 
     def get_last_time_row(self, tablename, timecolumn='time'):
-        row = getlasttimerows(self.path, tablename, timecolname=timecolumn, **self.settings)[0]
-        return row
+        rows = getlasttimerows(self.path, tablename, timecolname=timecolumn, **self.settings)
+        if rows:
+            return rows[0]
+        else:
+            return []
 
     def get_last_time_rows(self, tablename, rows=1, timecolumn='time'):
         rows = getlasttimerows(self.path, tablename, timecolname=timecolumn, numrows=rows, **self.settings)
@@ -336,7 +336,7 @@ class sqliteDatabase(object):
         for valuename in valuenames:
             query += '"' + valuename + '",'
         query = query[:-1]
-        query += " from '" + tablename + "'"
+        query += " from `" + tablename + "`"
         if condition:
             query += ' where ' + condition
         data = self.query(query)['data']
@@ -380,7 +380,7 @@ class sqliteDatabase(object):
             query += '"' + valuename + '",'
 
         query=query[:-1]
-        query += ' from {} '.format(tablename)
+        query += ' from `{}` '.format(tablename)
 
         if condition:
             query += 'where ' + condition
@@ -420,7 +420,7 @@ class sqliteDatabase(object):
 
         # Insert can be single insert or list (or falsy to insert defaults)
         if not insert:
-            queries = ["insert into '" + tablename + "'default values"]
+            queries = ["insert into `" + tablename + "` default values"]
         else:
             if not (isinstance(insert, list)):
                 insert_list = [insert]
@@ -440,7 +440,7 @@ class sqliteDatabase(object):
         return queries
 
     def insert_defaults(self, tablename, queue=False):
-        query = "insert into " + tablename + "  default values"
+        query = "insert into `" + tablename + "`  default values"
         if queue:
             self.queue_queries([query])
         else:
@@ -453,14 +453,43 @@ class sqliteDatabase(object):
         else:
             self.query(query)
 
+    def sparsify_time_value_table(self, tablename, **options):
+
+        settings = {'time_label':'time'}
+        settings.update(options)
+
+        data = self.read_table(tablename)
+        # print('*** {}'.format(tablename))
+        # print('DATA : len {}'.format(len(data)))
+        # print(data)
+
+        # we selectively remove not included data, for safety and speed
+        removed_data = datalib.sparsify_time_value_data(data, **settings)['removed_data']
+
+        # print('SPARSE DATA : len {}'.format(len(sparsified_data)))
+        # print(sparsified_data)
+
+        for datum in removed_data:
+            self.delete(tablename, "{}='{}'".format(settings['time_label'], datum[settings['time_label']]), queue=True)
+
+        if self.queued_queries:
+            self.execute_queue()
+
     def size_table(self, tablename, **size_options):
         # We have to split this up so that we can use our db options to enforce quiet, etc.
         # Well, that did not totally work as we have to query against the database to get size in the size
         # function. For now, we'll just merge options, but need to be aware that option names cannot collide.
+
+        # print('sizing {}, {} using options: {}'.format(self.path, tablename, size_options))
+        dry_run = False
+        if 'dry_run' in size_options and size_options['dry_run']:
+            print('DRY RUN')
+            dry_run = True
+
         size_options.update(self.settings)
         size_options['dry_run'] = True
         size_query = size_sqlite_table(self.path, tablename, **size_options)['query']
-        if size_query:
+        if size_query and not dry_run:
             self.query(size_query, **self.settings)
 
     def empty_table(self, tablename, queue=False):
@@ -471,7 +500,7 @@ class sqliteDatabase(object):
             self.query(query)
 
     def clean_log(self, tablename, **kwargs):
-        self.query("delete from '" + tablename + "' where time =''", **kwargs)
+        self.query("delete from `" + tablename + "` where time =''", **kwargs)
 
     def execute_queue(self, clear_queue=True, **kwargs):
         self.settings.update(kwargs)
@@ -619,9 +648,9 @@ def make_insert_from_dict(tablename, insert_dict, **kwargs):
 
 def switchtablerows(database, table, rowid1, rowid2, uniqueindex):
     unique1 = sqlitedatumquery(database,
-                               'select \'' + uniqueindex + '\'' + ' from \'' + table + '\' where rowid=' + str(rowid1))
+                               'select \'' + uniqueindex + '\'' + ' from `' + table + '` where rowid=' + str(rowid1))
     unique2 = sqlitedatumquery(database,
-                               'select \'' + uniqueindex + '\'' + ' from \'' + table + '\' where rowid=' + str(rowid2))
+                               'select \'' + uniqueindex + '\'' + ' from `' + table + '` where rowid=' + str(rowid2))
     # print('select \'' + uniqueindex + '\'' + ' from \'' + table + '\' where rowid=' + str(rowid1))
     # print(unique1 + ' ' +  unique2)
     queryarray = []
@@ -678,7 +707,7 @@ def logtimevaluedata(database, tablename, timeinseconds, value, logsize=5000, lo
 
             # Create table if it doesn't exist
 
-            query = 'create table if not exists \'' + tablename + '\' ( value real, time text primary key)'
+            query = 'create table if not exists `' + tablename + '` ( value real, time text primary key)'
             sqlitequery(database, query)
 
             # Enter row
@@ -709,8 +738,8 @@ def gettablenames(database, **kwargs):
 
 def gettimespan(database, tablename, time_col='time'):
     from iiutilities.datalib import timestringtoseconds
-    first_query = "select \"{}\" from '{}' order by \"{}\" asc limit 1".format(time_col, tablename, time_col)
-    last_query = "select \"{}\" from '{}' order by \"{}\" desc limit 1".format(time_col, tablename, time_col)
+    first_query = "select \"{}\" from `{}` order by \"{}\" asc limit 1".format(time_col, tablename, time_col)
+    last_query = "select \"{}\" from `{}` order by \"{}\" desc limit 1".format(time_col, tablename, time_col)
     result = sqlitemultquery(database, [first_query, last_query])
     first_time_string = result['data'][0][0][0]
     last_time_string = result['data'][1][0][0]
@@ -786,9 +815,9 @@ def string_condition_from_lists(conditionnames, conditionvalues):
 def insertstringdicttablelist(database, tablename, datadictarray, droptable=False, **kwargs):
     querylist = []
     if droptable:
-        querylist.append('drop table if exists "' + tablename + '"')
+        querylist.append('drop table if exists `' + tablename + '`')
 
-        addquery = 'create table "' + tablename + '" ('
+        addquery = 'create table `' + tablename + '` ('
         for key in datadictarray[0]:
             addquery += "'" + key + "' text,"
 
@@ -852,7 +881,7 @@ def sqlite_create_table_query_from_schema(tablename, schema, **kwargs):
 
         constructor += ","
 
-    constructorquery = "create table if not exists '" + tablename + "' (" + constructor[:-1] + ")"
+    constructorquery = "create table if not exists `" + tablename + "` (" + constructor[:-1] + ")"
     return constructorquery
 
 
@@ -886,7 +915,7 @@ def sqlitecreateemptytablequery(tablename, valuenames, valuetypes, **kwargs):
 
         constructor += ","
 
-    constructorquery = "create table '" + tablename + "' (" + constructor[:-1] + ")"
+    constructorquery = "create table `" + tablename + "` (" + constructor[:-1] + ")"
 
     return constructorquery
 
@@ -959,7 +988,7 @@ def dropcreatetexttablefromdict(databasename, tablename, dictordictarray, **kwar
 
         constructor += ","
 
-    constructorquery = "create table '" + tablename + "' (" + constructor[:-1] + ")"
+    constructorquery = "create table `" + tablename + "` (" + constructor[:-1] + ")"
     # print(constructorquery)
     querylist.append(constructorquery)
 
@@ -983,8 +1012,7 @@ def makesqliteinsert(table, valuelist, valuenames=None, **kwargs):
     settings = {
         'replace':True,
         'update':False,
-        'column_quotes':True,
-        'tablename_quotes':True
+        'column_quotes':True
     }
     settings.update(kwargs)
 
@@ -995,10 +1023,8 @@ def makesqliteinsert(table, valuelist, valuenames=None, **kwargs):
         query = 'replace into '
     else:
         query = 'insert into '
-    if settings['tablename_quotes']:
-        query += "'" + table + "'"
-    else:
-        query += table
+
+    query += "`{}`".format(table)
 
     if valuenames:
         query += ' ('
@@ -1236,7 +1262,7 @@ def getsinglevalue(database, table, valuename, **kwargs):
 
 
 def makegetsinglevaluequery(table, valuename, condition=None):
-    query = 'select "{}" from \'{}\''.format(valuename, table)
+    query = 'select "{}" from `{}`'.format(valuename, table)
     if isinstance(condition, dict):
         try:
             conditionnames = condition['conditionnames']
@@ -1259,16 +1285,17 @@ def sqlitedeleteitem(database, table, condition=None):
 
 def makedeletesinglevaluequery(table, condition=None, tablequotes=True):
     if tablequotes:
-        query = "delete from '" + table + "'"
+        query = "delete from `" + table + "`"
     else:
-        query = "delete from {}".format(table)
+        query = "delete from `{}`".format(table)
     if condition:
+        # Takes either a dict or a string condition
         if isinstance(condition, dict):
             try:
                 conditionnames = condition['conditionnames']
                 conditionvalues = condition['conditionvalues']
             except:
-                print('oops')
+                query += ' where {}'.format(condition)
             else:
                 query += ' where '
                 numconditions = len(conditionnames)
@@ -1291,7 +1318,7 @@ def readalldbrows(database, table, **kwargs):
     }
     settings.update(kwargs)
 
-    query = "select * from '" + table + "'"
+    query = "select * from `{}`".format(table)
 
     if 'length' in settings:
         query += ' LIMIT {} '.format(settings['length'])
@@ -1369,9 +1396,7 @@ def makegetallrowsquery(tablename, **kwargs):
 
     }
     settings.update(kwargs)
-    query = "select * from '" + tablename + "'"
-
-    query = "select * from '" + table + "'"
+    query = "select * from `{}`".format(tablename)
 
     if 'length' in settings:
         query += ' LIMIT {} '.format(settings['length'])
@@ -1390,7 +1415,7 @@ def makegetallrowswithpragmaquery(tablename, **kwargs):
     }
     settings.update(kwargs)
 
-    table_query = "select * from '{}'".format(tablename)
+    table_query = "select * from `{}`".format(tablename)
 
     if 'length' in settings:
         table_query += ' LIMIT {} '.format(settings['length'])
@@ -1463,14 +1488,14 @@ def getentiredatabase(databasename, method='nometa'):
 
 def sqliteemptytable(database, tablename):
     querylist = []
-    querylist.append('delete from \'' + tablename + '\'')
+    querylist.append('delete from `' + tablename + '`')
     sqlitemultquery(database, querylist)
 
 
 def emptyandsetdefaults(database, tablename):
     querylist = []
-    querylist.append('delete from \'' + tablename + '\'')
-    querylist.append('insert into \'' + tablename + '\' default values')
+    querylist.append('delete from `' + tablename + '`')
+    querylist.append('insert into `' + tablename + '` default values')
     sqlitemultquery(database, querylist)
 
 
@@ -1501,7 +1526,7 @@ def dynamicsqliteread(database_path, table, **kwargs):
 
 
 def cleanlog(databasename, logname, **kwargs):
-    sqlitequery(databasename, "delete from '" + logname + "' where time =''", **kwargs)
+    sqlitequery(databasename, "delete from `" + logname + "` where time =''", **kwargs)
 
 
 def sqliteduplicatetable(database, oldname, newname):
@@ -1521,7 +1546,7 @@ def sqlitemovetable(database, oldname, newname, **kwargs):
 
 
 def sqlitedeleteallrecords(database, table, **kwargs):
-    sqlitequery(database, 'delete from "{}"'.format(table))
+    sqlitequery(database, 'delete from `{}`'.format(table))
 
 
 def sqlitedroptable(database, table, **kwargs):
@@ -1541,23 +1566,24 @@ def sqlitedropalltables(database, **kwargs):
 
 
 def gettablesize(databasename, tablename, **kwargs):
-    logsize = sqlitedatumquery(databasename, "select count(*) from '{}'".format(tablename), **kwargs)
+    logsize = sqlitedatumquery(databasename, "select count(*) from `{}`".format(tablename), **kwargs)
     return logsize
 
 
 def size_sqlite_table(databasename, tablename, **kwargs):
     settings = {
         'method':'count',
-        'unit':'hours',          # If we specify method is time, units are in hours unless otherwise specified
+        'unit':'hour',          # If we specify method is time, units are in hours unless otherwise specified
         'size':1000,
         'time_column':'time',
         'delete':'oldest',
-        'dry_run':False
+        'dry_run':False,
     }
     settings.update(kwargs)
     the_log_db = sqliteDatabase(databasename, **kwargs)
     if settings['method'] == 'count':
         logsize = the_log_db.get_table_size(tablename)
+        print('current size of {}, with limit of {}'.format(logsize, settings['size']))
 
         settings['size'] = int(settings['size'])
         if logsize and (logsize > settings['size']):
@@ -1567,29 +1593,43 @@ def size_sqlite_table(databasename, tablename, **kwargs):
 
     elif settings['method'] == 'timespan':
         from iiutilities.datalib import timestringtoseconds
-        first_time_string = the_log_db.get_first_time_row(tablename)[settings['time_column']]
-        first_time = timestringtoseconds(first_time_string)
+
+        first_time_string = None
+        while not first_time_string or first_time_string == 'None':
+            # print('last time string falsy: {}'.format(first_time_string))
+            first_time_row = the_log_db.get_last_time_row(tablename)
+            first_time_string = first_time_row[settings['time_column']]
+            if not first_time_string or first_time_string == 'None':
+                # print('deleting row with timestring {}'.format(first_time_string))
+                the_log_db.delete(tablename, '{}="{}"'.format(settings['time_column'], first_time_string))
+
+        last_time = timestringtoseconds(first_time_string)
+        print('last time is {}'.format(first_time_string))
         log_excess = 0
         time_threshold = settings['size']   # this would be seconds
-        if 'unit' == 'hours':
+        if settings['unit'] == 'hour':
             time_threshold = settings['size'] * 3600
-        elif 'unit' == 'minutes':
+        elif settings['unit'] == 'minute':
             time_threshold = settings['size'] * 60
-        elif 'unit' == 'days':
+        elif settings['unit'] == 'day':
             time_threshold = settings['size'] * 3600 * 24
+
+        # print('time threshold of {}'.format(time_threshold))
 
         log_data = the_log_db.read_table(tablename)
         for datum in log_data:
             string_time = datum[settings['time_column']]
-            elapsed = timestringtoseconds(string_time) - first_time
+            elapsed = last_time - timestringtoseconds(string_time)
             if elapsed > time_threshold:
+                # print('deleting {}'.format(string_time))
                 log_excess += 1
 
     query = ''
     if log_excess > 0:
+        print('deleting {}'.format(log_excess))
         if settings['delete'] == 'oldest':
-            # print('deleting {}'.format(log_excess))
-            query = "delete from '{}' order by {} limit {}".format(tablename, settings['time_column'], log_excess)
+            print('deleting {}'.format(log_excess))
+            query = "delete from `{}` order by {} limit {}".format(tablename, settings['time_column'], log_excess)
 
         if not settings['dry_run'] and query:
             the_log_db.query(query)
@@ -1604,7 +1644,7 @@ def getfirsttimerows(database, tablename, **kwargs):
     }
     settings.update(kwargs)
 
-    query = 'select * from \'' + tablename + "' order by '" + settings['timecolname'] + "' asc limit " + str(int(settings['numrows']))
+    query = 'select * from `' + tablename + "` order by '" + settings['timecolname'] + "' asc limit " + str(int(settings['numrows']))
     data = sqlitequery(database, query, **kwargs)['data']
     try:
         dictarray = []
@@ -1626,7 +1666,7 @@ def getlasttimerows(database, tablename, **kwargs):
     settings.update(kwargs)
 
     # print(database,tablename,timecolname,numrows)
-    query = "select * from '" + tablename + "' order by \"" + settings['timecolname'] + "\" desc limit " + str(int(settings['numrows']))
+    query = "select * from `" + tablename + "` order by \"" + settings['timecolname'] + "\" desc limit " + str(int(settings['numrows']))
     # print(query)
     data = sqlitequery(database, query, **settings)['data']
     try:
@@ -1642,7 +1682,7 @@ def getlasttimerows(database, tablename, **kwargs):
 
 
 def getlasttimevalue(database, tablename, **kwargs):
-    query = 'select time from \'' + tablename + '\' order by time desc limit 1'
+    query = 'select time from `' + tablename + '` order by time desc limit 1'
     data = sqlitequery(database, query, **kwargs)['data'][0][0]
     return data
 
@@ -1662,9 +1702,9 @@ def sqlitedatadump(databasename, tablelist, outputfilename, limit=None):
             alltablelist.append(tablename)
             allpragmanames.append(pragmaname)
             if limit is not None:
-                queryarray.append('select ' + pragmaname + ' from \'' + tablename + '\' limit ' + str(limit))
+                queryarray.append('select ' + pragmaname + ' from `' + tablename + '` limit ' + str(limit))
             else:
-                queryarray.append('select ' + pragmaname + ' from \'' + tablename + '\'')
+                queryarray.append('select ' + pragmaname + ' from `' + tablename + '`')
     data = sqlitemultquery(databasename, queryarray)['data']
     #print(data)
     newdata = []
@@ -1706,7 +1746,7 @@ def readonedbrow(database, table, **kwargs):
         'condition':None
     }
     settings.update(kwargs)
-    query = "select * from '" + table + "'"
+    query = "select * from `" + table + "`"
     if settings['condition']:
         query += ' where ' + settings['condition']
 
@@ -1749,9 +1789,9 @@ def readsomedbrows(database, table, **kwargs):
     """
 
     if settings['reverse']:
-        query = "select * from '{}' DESC LIMIT {} OFFSET {}".format(table, settings['length'], settings['start']) + str(settings['start'])
+        query = "select * from `{}` DESC LIMIT {} OFFSET {}".format(table, settings['length'], settings['start']) + str(settings['start'])
     else:
-        query = "select * from '{}' LIMIT {} OFFSET {}".format(table, settings['length'], abs(settings['start'])) + str(settings['start'])
+        query = "select * from `{}` LIMIT {} OFFSET {}".format(table, settings['length'], abs(settings['start'])) + str(settings['start'])
     # print(query)
     if settings['condition']:
         query += ' where ' + settings['condition']
@@ -1933,7 +1973,7 @@ class mysqlDB(object):
             del self.settings['condition']
         self.settings.update(kwargs)
 
-        query = 'select * from {}'.format(tablename)
+        query = 'select * from `{}`'.format(tablename)
         if 'condition' in kwargs and kwargs['condition']:
             query += ' where ' + kwargs['condition']
 
@@ -1957,7 +1997,7 @@ class mysqlDB(object):
 
         queries = []
         for index, tablename in enumerate(tablenames):
-            query = 'select * from {}'.format(tablename)
+            query = 'select * from `{}`'.format(tablename)
 
             # condition to apply to all
             if 'condition' in kwargs and kwargs['condition']:
@@ -1972,6 +2012,7 @@ class mysqlDB(object):
 
             queries.append(query)
 
+        
         results = self.queries(queries)
 
         return_data = {}
@@ -1993,7 +2034,6 @@ class mysqlDB(object):
         result = self.read_tables(tablenames)
         return result
 
-
     def insert(self, tablename, insert, **kwargs):
         settings = {
             'replace':True,
@@ -2007,7 +2047,7 @@ class mysqlDB(object):
 
         # Insert can be single insert or list (or falsy to insert defaults)
         if not insert:
-            queries = ["insert into '{}' default values".format(tablename)]
+            queries = ["insert into `{}` default values".format(tablename)]
         else:
             if not (isinstance(insert, list)):
                 insert_list = [insert]
@@ -2018,7 +2058,6 @@ class mysqlDB(object):
             for insert in insert_list:
                 query = make_insert_from_dict(tablename, insert, db_type=self.db_type, **settings)
                 queries.append(query)
-
         if settings['queue']:
             self.queue_queries(queries)
         else:
@@ -2086,11 +2125,16 @@ class mysqlDB(object):
         settings = {
             'replace': True,
             'queue': False,
-            'collate':None
+            'collate':None,
+            'debug':False
         }
         settings.update(kwargs)
 
-        query = "create table {} ( ".format(tablename)
+        if settings['replace']:
+            query = "create or replace table `{}` ( ".format(tablename)
+        else:
+            query = "create table `{}` ( ".format(tablename)
+
         for index, item in enumerate(table_schema):
             query += '{} {}'.format(item['name'], item['type'])
             if 'autoincrement' in item and item['autoincrement']:
@@ -2112,6 +2156,10 @@ class mysqlDB(object):
 
         if settings['collate']:
             query += ' collate {}'.format(settings['collate'])
+
+        # if settings['debug']:
+        print(query)
+
         if settings['queue']:
             self.queue_queries([query])
         else:
@@ -2129,7 +2177,7 @@ class mysqlDB(object):
     def empty_table(self, name, queue=False, **kwargs):
 
         self.settings.update(kwargs)
-        empty_query = 'delete from {}'.format(name)
+        empty_query = 'delete from `{}`'.format(name)
         if queue:
             self.queue_queries(empty_query)
         else:
