@@ -21,10 +21,7 @@ if top_folder not in sys.path:
 """
 Database tools
 """
-<<<<<<< HEAD
 from iiutilities import datalib
-=======
->>>>>>> 96ecc52bede161a49283a3dc12a3ac8b406d2255
 
 class sqliteDatabase(object):
 
@@ -2160,14 +2157,8 @@ class mysqlDB(object):
         if settings['collate']:
             query += ' collate {}'.format(settings['collate'])
 
-<<<<<<< HEAD
-        # if settings['debug']:
-        print(query)
-=======
-
         if settings['debug']:
             print(query)
->>>>>>> 96ecc52bede161a49283a3dc12a3ac8b406d2255
 
         if settings['queue']:
             self.queue_queries([query])
