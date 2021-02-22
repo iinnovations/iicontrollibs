@@ -31,6 +31,7 @@ elif [ "$1" = "install" ]
     apt-get -y autoremove
 
      # This is what should work (and WILL work once they update the repos)
+     # This is no longer required with march 13 2018 stretch lite
     apt-get -y install lsb-core
 
     # remove, but leave requirements
@@ -58,13 +59,18 @@ elif [ "$1" = "install" ]
     #
     #echo "hamachi complete"
 
-    apt-get -y install php sqlite3 php7.0-sqlite
+    apt-get -y install php sqlite3 php7.0-sqlite3
     apt-get -y install python-dev python3-dev python3 python-setuptools
     apt-get -y install php-dev
     # apt-get -y install ifupdown    # This should not be necessary
 
-    apt-get -y install python-pip
-    apt-get -y install python3-pip
+#    apt-get -y install python-pip
+#    apt-get -y install python3-pip
+
+    wget https://bootstrap.pypa.io/get-pip.py
+    python get-pip.py
+    python3 get-pip.py
+
     pip3 install rpi.gpio
     pip3 install gitpython
     pip3 install requests
@@ -111,6 +117,8 @@ elif [ "$1" = "install" ]
 
     # Sysctl to enable ipv4 forwarding
     mv /etc/sysctl.conf /etc/sysctl.conf.default
+
+    # This probably actually won't work because the repo does not exist
     cp /usr/lib/iicontrollibs/misc/sysctl.conf /etc/sysctl.conf
 
     # This appears to cause problems with hamachi and is by default installed on Stretch
@@ -129,6 +137,7 @@ elif [ "$1" = "install" ]
     echo "installing asteval"
     pip3 install asteval
 
+
     echo -e "${WHT}************************************${NC}"
     echo -e "${WHT}*****   STD  INSTALL  COMPLETE *****${NC}"
     echo -e "${WHT}************************************${NC}"
@@ -138,7 +147,6 @@ elif [ "$1" = "hamachi" ]
     wget https://www.vpn.net/installers/logmein-hamachi_2.1.0.174-1_armhf.deb
     dpkg -i logmein-hamachi_2.1.0.174-1_armhf.deb
     rm logmein-hamachi_2.1.0.174-1_armhf.deb
-    dpkg -i /usr/lib/iicontrollibs/resource/logmein-hamachi_2.1.0.139-1_armhf.deb
     hamachi login
     hamachi do-join 283-153-722
 
@@ -337,6 +345,8 @@ if [ "$2" = "full" -o "$1" = "full" ]
 
     echo "Installing systemd services"
 
+    cp /usr/lib/iicontrollibs/misc/sysctl.conf /etc/sysctl.conf
+
     cp /usr/lib/iicontrollibs/misc/systemd/cupid_daemon.service /lib/systemd/system/
     chmod 644 /lib/systemd/system/cupid_daemon.service
     systemctl daemon-reload
@@ -471,7 +481,6 @@ if [ "$2" = "full" -o "$1" = "full" ]
     echo -e "${WHT}*******  INSTALL CONPONENTS  *******${NC}"
     echo -e "${WHT}************************************${NC}"
 else
-  then
     echo "Invalid argument received: "
     echo "$2"
     echo "Usage: ./install.sh install|hamachi|systemd|update [full]"

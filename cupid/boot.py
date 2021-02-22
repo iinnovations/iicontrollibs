@@ -178,10 +178,11 @@ def runboot():
         utility.log(pilib.dirs.logs.system, 'boot: running boot netconfig', 2, pilib.loglevels.system)
         runconfig(onboot=True)
 
+    # THIS IS NOW IN cupid_daemon.service
     # Run daemon
-    from cupiddaemon import rundaemon
+    # from cupiddaemon import rundaemon
 
-    rundaemon()
+    # rundaemon()
 
     # Update hardware version in table
     # from systemstatus import readhardwarefileintoversions

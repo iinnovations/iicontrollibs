@@ -22,29 +22,29 @@ try:
     import simplejson as json
 except:
     import json
-#
-# def readhardwarefileintoversions():
-#
-#     from iiutilities import utility
-#     from cupid import pilib
-#     from iiutilities import dblib
-#
-#     devicefile = '/var/wwwsafe/devicedata'
-#     try:
-#         file = open(devicefile)
-#         lines = file.readlines()
-#         devicedict = {}
-#         for line in lines:
-#             split = line.split(':')
-#             try:
-#                 devicedict[split[0].strip()] = split[1].strip()
-#             except:
-#                 utility.log(pilib.dirs.logs.system, 'Device data parse error', 1, pilib.loglevels.system)
-#         dblib.sqlitequery(pilib.dirs.dbs.system,
-#                           dblib.makesqliteinsert('versions', ['hardware', devicedict['hardware']], ['item', 'version']))
-#     except:
-#         utility.log(pilib.dirs.logs.system, 'Error opening devicedata file to parse', 1,
-#                       pilib.loglevels.system)
+
+def readhardwarefileintoversions():
+
+    from iiutilities import utility
+    from cupid import pilib
+    from iiutilities import dblib
+
+    devicefile = '/var/wwwsafe/devicedata'
+    try:
+        file = open(devicefile)
+        lines = file.readlines()
+        devicedict = {}
+        for line in lines:
+            split = line.split(':')
+            try:
+                devicedict[split[0].strip()] = split[1].strip()
+            except:
+                utility.log(pilib.dirs.logs.system, 'Device data parse error', 1, pilib.loglevels.system)
+        dblib.sqlitequery(pilib.dirs.dbs.system,
+                          dblib.makesqliteinsert('versions', ['hardware', devicedict['hardware']], ['item', 'version']))
+    except:
+        utility.log(pilib.dirs.logs.system, 'Error opening devicedata file to parse', 1,
+                      pilib.loglevels.system)
 
 
 def updateiwstatus():
@@ -178,21 +178,10 @@ def check_interface_status(iface_config, iface_status):
     # Check for address match
     if iface_config['mode'] in ['ap', 'static']:
         if iface_status['config']['address'] != iface_config['config']['address']:
-<<<<<<< HEAD
             # print(iface_config)
             # print(iface_status)
+            return_dict['status'] = 'fail'
             new_message = 'Address mismatch. Expected {}. Found {}. '.format(iface_config['config']['address'], iface_status['config']['address'])
-=======
-<<<<<<< HEAD
-            print(iface_config)
-            print(iface_status)
-            new_message = 'Address mismatch. Expected {}. Found {}. '.format(iface_config['address'], iface_status['address'])
-=======
-            # print(iface_config)
-            # print(iface_status)
-            new_message = 'Address mismatch. Expected {}. Found {}. '.format(iface_config['config']['address'], iface_status['config']['address'])
->>>>>>> afa40546713b70873cf3ab9f2c0c2108bff4e5ef
->>>>>>> 0334ccc381a89fe06ca091118681e71639cf47fc
             utility.log(pilib.dirs.logs.network, new_message, 1, pilib.loglevels.network)
             return_dict['status_message'] += new_message
 
@@ -228,8 +217,8 @@ def check_interface_status(iface_config, iface_status):
 
     # Check for wpa state
     if iface_config['mode'] in ['station']:
-        print('STATION')
-        print(iface_status)
+        # print('STATION')
+        # print(iface_status)
         if 'wpastate' not in iface_status['config']:
             new_message = 'No wpa state present in iface_status. '
             utility.log(pilib.dirs.logs.network, new_message, 1, pilib.loglevels.network)
@@ -274,7 +263,6 @@ def watchdognetstatus(allnetstatus={}):
     """
 
     if 'ifaces_config' not in allnetstatus or 'ifaces_status' not in allnetstatus:
-        print('WE DID NOT FIND THINGS')
         allnetstatus = update_net_status()
 
     netconfig_data = allnetstatus['netconfig_data']
@@ -292,7 +280,7 @@ def watchdognetstatus(allnetstatus={}):
         if iface_status['status'] == 'fail':
             reconfig_interfaces.append(iface_name)
             utility.log(pilib.dirs.logs.network,
-                'Interface has faile status. Setting reconfig for {}. '.format(iface_name, 1, pilib.loglevels.network))
+                'Interface has fail status. Setting reconfig for {}. '.format(iface_name, 1, pilib.loglevels.network))
 
 
     # Now do some sleuthing if we are being stringent about WAN access. Have to be careful about this if we are on a
@@ -416,21 +404,9 @@ def update_net_status(lastnetstatus=None, quiet=True, ifaces_config=None, netcon
 
     if not netconfig_data:
         netconfig_data = dblib.readonedbrow(pilib.dirs.dbs.system, 'netconfig')[0]
-<<<<<<< HEAD
 
     if not ifaces_config:
 
-=======
-<<<<<<< HEAD
-
-    if not ifaces_config:
-
-=======
-
-    if not ifaces_config:
-
->>>>>>> afa40546713b70873cf3ab9f2c0c2108bff4e5ef
->>>>>>> 0334ccc381a89fe06ca091118681e71639cf47fc
         # Get config data
         ifaces_config = pilib.dbs.system.read_table('netifaceconfig', keyed_dict=True)
 
@@ -474,18 +450,8 @@ def update_net_status(lastnetstatus=None, quiet=True, ifaces_config=None, netcon
             this_interface_status['config']['wpastate'] = getwpaclientstatus(interface_name)
         else:
             this_interface_status['config']['wpastate'] = ''
-<<<<<<< HEAD
 
         this_interface_status_result = check_interface_status(this_interface_config, this_interface_status)
-
-        this_interface_status['status'] = this_interface_status_result['status']
-        this_interface_status['status_message'] = this_interface_status_result['status_message']
-
-
-=======
-
-        this_interface_status_result = check_interface_status(this_interface_config, this_interface_status)
-<<<<<<< HEAD
 
         this_interface_status['status'] = this_interface_status_result['status']
         this_interface_status['status_message'] = this_interface_status_result['status_message']
@@ -496,22 +462,6 @@ def update_net_status(lastnetstatus=None, quiet=True, ifaces_config=None, netcon
     TODO : Double-check no problems here with not recreating status from scratch (stale data, et.)
     """
 
-=======
-
-        this_interface_status['status'] = this_interface_status_result['status']
-        this_interface_status['status_message'] = this_interface_status_result['status_message']
-
-
->>>>>>> 0334ccc381a89fe06ca091118681e71639cf47fc
-    """ 
-    Then write it to the table 
-    TODO : Double-check no problems here with not recreating status from scratch (stale data, et.)
-    """
-
-<<<<<<< HEAD
-=======
->>>>>>> afa40546713b70873cf3ab9f2c0c2108bff4e5ef
->>>>>>> 0334ccc381a89fe06ca091118681e71639cf47fc
     utility.log(pilib.dirs.logs.network, 'Sending ifaces query \n {}. '.format(ifaces_status), 5, pilib.loglevels.network)
         # print(ifacesdictarray)
     this_schema = dblib.sqliteTableSchema([
@@ -533,7 +483,7 @@ def update_net_status(lastnetstatus=None, quiet=True, ifaces_config=None, netcon
         try:
             insert['config'] = json.dumps(interface['config'])
         except:
-            print('error with iterface {}'.format(interface_name))
+            print('error with interface {}'.format(interface_name))
             print(interface)
 
         pilib.dbs.system.insert('netifacestatus', insert, queue=True)
@@ -757,7 +707,8 @@ def run_system_status(**kwargs):
 
     settings = {
         'debug':False,
-        'quiet':False
+        'quiet':False, 
+        'force':True
     }
     settings.update(kwargs)
 
@@ -799,7 +750,7 @@ def run_system_status(**kwargs):
     # allnetstatus = updatenetstatus(lastnetstatus, quiet=settings['quiet'])
 
     # Keep reading system status?
-    while systemstatus['systemstatusenabled']:
+    while systemstatus['systemstatusenabled'] or settings['force']:
 
         # Run notifications
         pilib.process_notifications_queue()
@@ -826,8 +777,6 @@ def run_system_status(**kwargs):
         This sub will read config and status and give both overall and granular interface statuses.
         Then, if status is not 'ok', we will reconfigure interface.
         """
-
-        allnetstatus = update_net_status(lastnetstatus, quiet=settings['quiet'])
 
         if systemstatus['netstatusenabled']:
             utility.log(pilib.dirs.logs.system, 'Beginning network routines. ', 3, pilib.loglevels.system)
@@ -868,10 +817,11 @@ def run_system_status(**kwargs):
             ''' Now we check network status depending on the configuration we have selected '''
             utility.log(pilib.dirs.logs.system, 'Running interface configuration watchdog. ', 4,
                           pilib.loglevels.system)
-            utility.log(pilib.dirs.logs.network, 'Running interface configuration. Mode: ' + netconfig_data['mode'], 4,
+            utility.log(pilib.dirs.logs.network, 'Running interface configuration. Mode: {}'.format(netconfig_data['mode']), 4,
                           pilib.loglevels.network)
-            print('ALL IFACE STATUS')
-            print(allnetstatus['ifaces_status'])
+
+            # print('ALL IFACE STATUS')
+            # print(allnetstatus['ifaces_status'])
 
             result = watchdognetstatus(allnetstatus=allnetstatus)
 
@@ -924,11 +874,11 @@ def run_system_status(**kwargs):
 
         elapsedtime = int(time.time() - starttime)
 
-        utility.log(pilib.dirs.logs.system, 'Status routines complete. Elapsed time: ' + str(elapsedtime), 3,
+        utility.log(pilib.dirs.logs.system, 'Status routines complete. Elapsed time: {}'.format(str(elapsedtime)), 3,
                       pilib.loglevels.system)
 
         utility.log(pilib.dirs.logs.system,
-                               'System status is sleeping for ' + str(systemstatus['systemstatusfreq']) + '. ', 3,
+                               'System status is sleeping for {} .'.format(systemstatus['systemstatusfreq']), 3,
                       pilib.loglevels.system)
 
         # print('enabled: ' , systemstatus['systemstatusenabled'])
@@ -944,11 +894,15 @@ def run_system_status(**kwargs):
 if __name__ == '__main__':
     runonce = False
     debug = False
+    force = False
     if 'runonce' in sys.argv:
         print('run once selected')
         runonce = True
     if 'debug' in sys.argv:
         print('debug selected')
         debug = True
-    run_system_status(runonce=runonce, debug=debug)
+    if 'force' in sys.argv:
+        print('force selected')
+        force = True
+    run_system_status(runonce=runonce, debug=debug, force=force)
     # runsystemstatus()
