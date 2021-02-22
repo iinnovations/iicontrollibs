@@ -54,6 +54,9 @@ def get_disk_usage(mountpoints=all):
             if mountpoint_name == p.mountpoint:
                 this_item['usage'] = psutil.disk_usage(mountpoint_name)
 
+        if 'usage' not in this_item:
+            this_item['usage'] = 1000
+
     print('disk usage for {}'.format(du_mountpoints))
     print(return_dict)
     return return_dict

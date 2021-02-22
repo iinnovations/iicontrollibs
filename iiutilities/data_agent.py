@@ -111,7 +111,7 @@ def post_client_data(**kwargs):
         'url':'https://cupidcontrol.com/cupidapi',
         'action':'post_data',
         'header_type':'json',
-        'autofill_client':True,
+        'autofill_client': True,
         'debug':False
     }
     settings.update(kwargs)

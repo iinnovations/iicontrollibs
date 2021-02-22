@@ -439,7 +439,7 @@ def checksharemount(sharepath):
     return status
 
 
-def post_data(url, data, headers=None):
+def post_data(url, data, headers=None, timeout=5):
 
     from requests import post
     try:
@@ -448,9 +448,9 @@ def post_data(url, data, headers=None):
         import json
 
     if headers:
-        response = post(url, data=data, headers=headers)
+        response = post(url, data=data, headers=headers, allow_redirects=True, timeout=timeout)
     else:
-        response = post(url, data=data)
+        response = post(url, data=data, allow_redirects=True, timeout=timeout)
     # print('Response! : {}'.format(response._content))
     try:
         response_content_dict = json.loads(response._content.decode('utf-8'))
