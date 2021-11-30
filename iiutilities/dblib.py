@@ -1583,7 +1583,7 @@ def size_sqlite_table(databasename, tablename, **kwargs):
     the_log_db = sqliteDatabase(databasename, **kwargs)
     if settings['method'] == 'count':
         logsize = the_log_db.get_table_size(tablename)
-        print('current size of {}, with limit of {}'.format(logsize, settings['size']))
+        # print('current size of {}, with limit of {}'.format(logsize, settings['size']))
 
         settings['size'] = int(settings['size'])
         if logsize and (logsize > settings['size']):
@@ -1626,9 +1626,9 @@ def size_sqlite_table(databasename, tablename, **kwargs):
 
     query = ''
     if log_excess > 0:
-        print('deleting {}'.format(log_excess))
+        # print('deleting {}'.format(log_excess))
         if settings['delete'] == 'oldest':
-            print('deleting {}'.format(log_excess))
+            # print('deleting {}'.format(log_excess))
             query = "delete from `{}` order by {} limit {}".format(tablename, settings['time_column'], log_excess)
 
         if not settings['dry_run'] and query:
@@ -2012,7 +2012,7 @@ class mysqlDB(object):
 
             queries.append(query)
 
-        
+
         results = self.queries(queries)
 
         return_data = {}
