@@ -21,7 +21,7 @@ class NetworkMonitor:
         self.settings = {
             'domains': ['interfaceinnovations.org', 'cupidcontrol.com'],
             'ping_threshold_ms': 1000,
-            'check_frequency_ms': 5000,
+            'check_frequency_ms': 60000,
             'retries': 3,
             'quiet': False
         }
@@ -36,24 +36,32 @@ class NetworkMonitor:
             print('checking {} domains ..'.format(len(self.domains)))
 
             while True:
-            for domain in self.domains:
-                if not self.quiet:
-                    print('checking domain {}'.format(domain))
+                all_fine = True
+                for domain in self.domains:
+                    if not self.quiet:
+                        print('checking domain {}'.format(domain))
 
-                check_result = self.check_domain(domain)
+                    check_result = self.check_domain(domain)
 
-                if not self.quiet:
-                    print('result for domain {} : status = {}'.format(domain, check_result['status']))
+                    if not self.quiet:
+                        print('result for domain {} : status = {}'.format(domain, check_result['status']))
 
-                if True: #check_result['status']:
+                    if check_result['status']:
+                        all_fine = False
+                        this_mail = utility.gmail()
+                        this_mail.subject = '{} is offline, status {}'.format(domain, check_result['status'])
+                        this_mail.message = 'AWS ping utility shows domain {} to be offline at {}'.format(domain, gettimestring())
+                        this_mail.send()
+                if all_fine:
                     this_mail = utility.gmail()
-                    this_mail.subject = '{} is offline, status {}'.format(domain, check_result['status'])
-                    this_mail.message = 'AWS ping utility shows domain {} to be offline at {}'.format(domain, gettimestring())
+                    this_mail.subject = 'All domains appear to be online'.format(domain, check_result['status'])
+                    this_mail.message = 'AWS ping utility shows domains {} to be online'.format(self.domains,
+                                                                                                      gettimestring())
                     this_mail.send()
 
-            if not self.quiet:
-                print('sleeping for {}ms'.format(self.check_frequency_ms))
-                sleep(self.check_frequency_ms/1000)
+                if not self.quiet:
+                    print('sleeping for {}ms'.format(self.check_frequency_ms))
+                    sleep(self.check_frequency_ms/1000)
 
     def check_domain(self, domain):
         check_results = netfun.pingstatus(domain, threshold=self.ping_threshold_ms, quiet=self.quiet)
