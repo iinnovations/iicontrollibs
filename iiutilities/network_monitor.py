@@ -49,6 +49,7 @@ class NetworkMonitor:
                     if check_result['status']:
                         all_fine = False
                         this_mail = utility.gmail()
+                        this_mail.recipient = 'offline_status@interfaceinnovations.org'
                         this_mail.subject = '{} is offline, status {}'.format(domain, check_result['status'])
                         this_mail.message = 'AWS ping utility shows domain {} to be offline at {}'.format(domain, gettimestring())
                         this_mail.send()
