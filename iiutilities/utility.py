@@ -1042,10 +1042,10 @@ class gmail:
     def send(self):
         import smtplib
 
-        if self.recipient.find(',') >=0:
-            self.recipients = self.recipient.split(',')
-        elif isinstance(self.recipient, list):
+        if isinstance(self.recipient, list):
             pass
+        elif self.recipient.find(',') >=0:
+            self.recipients = self.recipient.split(',')
         else:
             self.recipients = [self.recipient]
 
