@@ -1043,7 +1043,7 @@ class gmail:
         import smtplib
 
         if isinstance(self.recipient, list):
-            pass
+            self.recipients = self.recipient
         elif self.recipient.find(',') >=0:
             self.recipients = self.recipient.split(',')
         else:
