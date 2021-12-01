@@ -619,6 +619,7 @@ def unmangleAPIdata(d):
 
     return unmangled
 
+
 def testunmangle():
     sampledict = {
         'paneldesc[paneltype]':'brewpanel',
@@ -1038,13 +1039,15 @@ class gmail:
         self.recipient = recipient
         self.sender = sender
 
-        if self.recipient.find(',') >=0:
-            self.recipients = self.recipient.split(',')
-        else:
-            self.recipients = [self.recipient]
-
     def send(self):
         import smtplib
+
+        if self.recipient.find(',') >=0:
+            self.recipients = self.recipient.split(',')
+        elif isinstance(self.recipient, list):
+            pass
+        else:
+            self.recipients = [self.recipient]
 
         headers = ['From:' + self.sender,
                   'Subject:' + self.subject,

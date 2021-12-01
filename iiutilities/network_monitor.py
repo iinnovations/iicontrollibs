@@ -31,7 +31,10 @@ class NetworkMonitor:
             print(item, value)
             setattr(self, item, value)
 
-    def run(self):
+    def run_once(self):
+        self.run(run_once=True)
+
+    def run(self, run_once=False):
         if not self.quiet:
             print('checking {} domains ..'.format(len(self.domains)))
 
@@ -49,9 +52,10 @@ class NetworkMonitor:
                     if check_result['status']:
                         all_fine = False
                         this_mail = utility.gmail()
-                        this_mail.recipient = 'offline_status@interfaceinnovations.org'
+                        this_mail.recipient = ['offline_status@interfaceinnovations.org','5038886154@vtext.com']
                         this_mail.subject = '{} is offline, status {}'.format(domain, check_result['status'])
                         this_mail.message = 'AWS ping utility shows domain {} to be offline at {}'.format(domain, gettimestring())
+
                         this_mail.send()
                 if all_fine:
                     this_mail = utility.gmail()
@@ -59,6 +63,9 @@ class NetworkMonitor:
                     this_mail.message = 'AWS ping utility shows domains {} to be online'.format(self.domains,
                                                                                                       gettimestring())
                     this_mail.send()
+
+                if run_once:
+                    break
 
                 if not self.quiet:
                     print('sleeping for {}ms'.format(self.check_frequency_ms))
@@ -71,4 +78,4 @@ class NetworkMonitor:
 
 if __name__=='__main__':
     monitor = NetworkMonitor()
-    monitor.run()
+    monitor.run_once()
