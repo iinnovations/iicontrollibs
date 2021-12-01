@@ -87,7 +87,7 @@ def pingstatus(pingAddress='8.8.8.8', numpings=1, threshold=2000, quiet=True):
     pingave = sum(pingtimes)/len(pingtimes)
     if pingave == 0:
         status = 2
-    elif pingave <= threshold:
+    elif pingave <= threshold and pingave > 0:
         status = 0
     else:
         status = 2
