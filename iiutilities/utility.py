@@ -1049,12 +1049,7 @@ class gmail:
         else:
             self.recipients = [self.recipient]
 
-        headers = ['From:' + self.sender,
-                  'Subject:' + self.subject,
-                  'To:' + self.recipient,
-                  'MIME-Version: 1.0',
-                  'Content-Type: text/plain']
-        headers = '\r\n'.join(headers)
+
 
         session = smtplib.SMTP(self.server, self.port)
 
@@ -1067,6 +1062,12 @@ class gmail:
         print('MAIL RECIPIENT!')
         print(self.recipients)
         for recipient in self.recipients:
+            headers = ['From:' + self.sender,
+                       'Subject:' + self.subject,
+                       'To:' + recipient,
+                       'MIME-Version: 1.0',
+                       'Content-Type: text/plain']
+            headers = '\r\n'.join(headers)
             if recipient:
                 session.sendmail(self.sender, recipient.strip(), headers + '\r\n\r\n' + self.message)
         session.quit()
