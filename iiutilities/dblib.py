@@ -358,6 +358,7 @@ class sqliteDatabase(object):
         }
         settings.update(kwargs)
         query = makesqlitesinglevaluequery(tablename, valuename, value, settings['condition'])
+
         if settings['queue']:
             self.queue_queries([query])
         else:
@@ -371,6 +372,8 @@ class sqliteDatabase(object):
         }
         settings.update(kwargs)
         query = makegetsinglevaluequery(tablename, valuename, condition=settings['condition'])
+        print('********QUERY *******************')
+        print(query)
         value = sqlitedatumquery(self.path, query, **self.settings)
         return value
 
@@ -808,6 +811,27 @@ def string_condition_from_lists(conditionnames, conditionvalues):
         condition += "\"" + name + "\"='" + value + "'"
         if index < numconditions - 1:
             condition += ' and '
+
+    return condition
+
+
+def string_condition_from_dict(conditiondict):
+    '''
+    {'key':'value'}
+
+    :param conditiondict:
+    :return:
+    '''
+    numconditions = len(conditiondict.items())
+    condition = ''
+
+    index = 0
+    for key_name, key_value in conditiondict.items():
+        condition += "`" + key_name + "`='" + key_value + "'"
+        if index < numconditions - 1:
+            condition += ' and '
+
+        index += 1
 
     return condition
 
@@ -1275,6 +1299,9 @@ def makegetsinglevaluequery(table, valuename, condition=None):
             # print(query)
     if condition:
         query += ' where ' + condition
+
+    # print("INSIDE QUERY !!!!")
+    # print(query)
     return query
 
 
@@ -1604,7 +1631,7 @@ def size_sqlite_table(databasename, tablename, **kwargs):
                 the_log_db.delete(tablename, '{}="{}"'.format(settings['time_column'], first_time_string))
 
         last_time = timestringtoseconds(first_time_string)
-        print('last time is {}'.format(first_time_string))
+        # print('last time is {}'.format(first_time_string))
         log_excess = 0
         time_threshold = settings['size']   # this would be seconds
         if settings['unit'] == 'hour':
@@ -1732,13 +1759,43 @@ def makesqlitesinglevaluequery(table, valuename, value, condition=None):
     query = 'update {} set "{}"=\'{}\''.format(table, valuename, value)
     if condition:
         query += ' where ' + condition
-    return query
 
-def makemysqlsinglevaluequery(table, valuename, value, condition=None):
-    query = 'update {} set {}=\'{}\''.format(table, valuename, value)
-    if condition:
+    if isinstance(condition, dict):
+        try:
+            conditionnames = condition['conditionnames']
+            conditionvalues = condition['conditionvalues']
+        except:
+            query += ' where {}'.format(condition)
+        else:
+            query += ' where '
+            numconditions = len(conditionnames)
+            for index, (name, value) in enumerate(zip(conditionnames, conditionvalues)):
+                query += '"' + name + '"' + "='" + value + "'"
+                if index < numconditions - 1:
+                    query += ' and '
+    elif isinstance(condition, type('string')):
         query += ' where ' + condition
     return query
+
+
+def makemysqlsinglevaluesetquery(table, valuename, value, condition=None):
+    query = 'update {} set {}=\'{}\' '.format(table, valuename, value)
+    if isinstance(condition, dict):
+        query += ' where ' + string_condition_from_dict(condition)
+    else:
+        query += ' where ' + condition
+    return query
+
+
+def makemysqlsinglevaluegetquery(table, valuename, condition=None):
+    query = "select {} from `{}`".format(valuename, table)
+
+    if isinstance(condition, dict):
+        query += ' where ' + string_condition_from_dict(condition)
+    else:
+        query += ' where ' + condition
+    return query
+
 
 def readonedbrow(database, table, **kwargs):
     settings = {
@@ -2071,7 +2128,20 @@ class mysqlDB(object):
             'queue': False
         }
         settings.update(kwargs)
-        query = makemysqlsinglevaluequery(tablename, valuename, value, settings['condition'])
+        query = makemysqlsinglevaluesetquery(tablename, valuename, value, settings['condition'])
+        if settings['queue']:
+            self.queue_queries([query])
+        else:
+            result = self.query(query)
+            return result
+
+    def get_single_value(self, tablename, valuename, **kwargs):
+        settings = {
+            'condition': None,
+            'queue': False
+        }
+        settings.update(kwargs)
+        query = makemysqlsinglevaluegetquery(tablename, valuename, settings['condition'])
         if settings['queue']:
             self.queue_queries([query])
         else:
@@ -2183,7 +2253,7 @@ class mysqlDB(object):
         else:
             self.query(empty_query)
 
-    def execute_queue(self, clear_queue=True, **kwargs):
+    def execute_queue(self, clear_queue=True, one_by_one=False, **kwargs):
         return_dict = {'status': 0, 'error': None, 'status_message':''}
         self.settings.update(kwargs)
         if self.queued_queries:

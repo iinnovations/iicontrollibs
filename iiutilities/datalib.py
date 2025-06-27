@@ -176,15 +176,15 @@ def getmstimestring():
 # datetime.datetime.strptime('2017-12-26 22:30:34', '%Y-%m-%d %H:%M:%S')
 
 
-def gettimestring(timeinseconds=None):
+def gettimestring(timeinseconds=None, format='%Y-%m-%d %H:%M:%S'):
     import time
     if timeinseconds:
         try:
-            timestring = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timeinseconds))
+            timestring = time.strftime(format, time.localtime(timeinseconds))
         except TypeError:
             timestring = ''
     else:
-        timestring = time.strftime('%Y-%m-%d %H:%M:%S')
+        timestring = time.strftime(format)
     return timestring
 
 

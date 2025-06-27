@@ -1026,9 +1026,11 @@ def writedbtabletopdf(**kwargs):
     return output
 
 
+# 3/28/2025  -- updated to include app password for gmail on cupidmailer, required as of now, apparently.
+
 class gmail:
     def __init__(self, server='smtp.gmail.com', port=587, subject='default subject', message='default message',
-                 login='cupidmailer@interfaceinnovations.org', password='cupidmail', recipient='cupid_status@interfaceinnovations.org', sender='CuPID Mailer'):
+                 login='cupidmailer@interfaceinnovations.org', password='nhco hpsb bufg twaw', recipient='cupid_status@interfaceinnovations.org', sender='CuPID Mailer'):
         self.server = server
         self.port = port
         self.message = message
@@ -1050,13 +1052,12 @@ class gmail:
             self.recipients = [self.recipient]
 
 
-
         session = smtplib.SMTP(self.server, self.port)
 
         session.ehlo()
         session.starttls()
         session.ehlo
-        session.set_debuglevel(1)
+        session.set_debuglevel(0)
         session.login(self.login, self.password)
 
         print('MAIL RECIPIENT!')
